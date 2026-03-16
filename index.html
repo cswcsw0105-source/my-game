@@ -1,66 +1,53 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
-<html>
+<!DOCTYPE html>
+<html lang="ko">
 <head>
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-  <meta http-equiv="Content-Style-Type" content="text/css">
-  <title></title>
-  <meta name="Generator" content="Cocoa HTML Writer">
-  <meta name="CocoaVersion" content="2685.4">
-  <style type="text/css">
-    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica}
-    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; min-height: 14.0px}
-  </style>
+    <meta charset="UTF-8">
+    <title>선웅이의 카운터 게임</title>
+    <style>
+        body { background-color: #1a1a1a; color: white; text-align: center; font-family: sans-serif; padding-top: 50px; }
+        .box { border: 2px solid #444; padding: 20px; margin: 15px auto; border-radius: 15px; width: 300px; background: #252525; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; border-radius: 5px; border: none; font-weight: bold; transition: 0.2s; }
+        button:hover { opacity: 0.8; transform: scale(1.05); }
+        .warrior { background: #ff4757; color: white; }
+        .hunter { background: #2ed573; color: white; }
+        .wizard { background: #1e90ff; color: white; }
+        #log { background: #2f3542; padding: 15px; height: 180px; overflow-y: auto; width: 80%; margin: 20px auto; border-radius: 10px; text-align: left; border: 1px solid #555; line-height: 1.6; }
+    </style>
 </head>
 <body>
-<p class="p1">&lt;!DOCTYPE html&gt;</p>
-<p class="p1">&lt;html&gt;</p>
-<p class="p1">&lt;head&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;meta charset="UTF-8"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;title&gt;선웅이의 카운터 게임&lt;/title&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;style&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>body { background-color: #1a1a1a; color: white; text-align: center; font-family: sans-serif; }</p>
-<p class="p1"><span class="Apple-converted-space">        </span>.box { border: 2px solid #444; padding: 20px; margin: 10px; border-radius: 15px; }</p>
-<p class="p1"><span class="Apple-converted-space">        </span>button { padding: 10px 15px; margin: 5px; cursor: pointer; border-radius: 5px; border: none; font-weight: bold; }</p>
-<p class="p1"><span class="Apple-converted-space">        </span>.warrior { background: #ff4757; color: white; }</p>
-<p class="p1"><span class="Apple-converted-space">        </span>.hunter { background: #2ed573; color: white; }</p>
-<p class="p1"><span class="Apple-converted-space">        </span>.wizard { background: #1e90ff; color: white; }</p>
-<p class="p1"><span class="Apple-converted-space">        </span>#log { background: #2f3542; padding: 15px; height: 150px; overflow-y: auto; width: 80%; margin: 20px auto; border-radius: 10px; text-align: left; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/style&gt;</p>
-<p class="p1">&lt;/head&gt;</p>
-<p class="p1">&lt;body&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;h1&gt;🎮 프로젝트: 카운터 (초기 버전)&lt;/h1&gt;</p>
-<p class="p2"><span class="Apple-converted-space">    </span></p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="box"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;h3&gt;⚔️ 워리어&lt;/h3&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;button class="warrior" onclick="play('워리어', '근접 공격')"&gt;공격&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;button class="warrior" onclick="play('워리어', '돌진')"&gt;이동&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;button class="warrior" onclick="play('워리어', '방어')"&gt;방어&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="box"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;h3&gt;🏹 헌터&lt;/h3&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;button class="hunter" onclick="play('헌터', '중거리 공격')"&gt;공격&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;button class="hunter" onclick="play('헌터', '은신')"&gt;이동&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;button class="hunter" onclick="play('헌터', '패링/가드')"&gt;방어&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="box"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;h3&gt;🪄 마법사&lt;/h3&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;button class="wizard" onclick="play('마법사', '원거리 공격')"&gt;공격&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;button class="wizard" onclick="play('마법사', '순간이동')"&gt;이동&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;button class="wizard" onclick="play('마법사', '방어막')"&gt;방어&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div id="log"&gt;배틀 기록이 여기에 표시돼요...&lt;br&gt;&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;script&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>function play(job, skill) {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>const log = document.getElementById('log');</p>
-<p class="p1"><span class="Apple-converted-space">            </span>log.innerHTML += `[${job}] 님이 &lt;b&gt;${skill}&lt;/b&gt; 스킬을 사용했습니다!&lt;br&gt;`;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>log.scrollTop = log.scrollHeight;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/script&gt;</p>
-<p class="p1">&lt;/body&gt;</p>
-<p class="p1">&lt;/html&gt;</p>
+    <h1>🎮 프로젝트: 카운터</h1>
+    <p>버튼을 눌러 각 직업의 스킬을 테스트해보세요!</p>
+    
+    <div class="box">
+        <h3>⚔️ 워리어</h3>
+        <button class="warrior" onclick="play('워리어', '근접 공격')">공격</button>
+        <button class="warrior" onclick="play('워리어', '돌진')">이동</button>
+        <button class="warrior" onclick="play('워리어', '방어')">방어</button>
+    </div>
+
+    <div class="box">
+        <h3>🏹 헌터</h3>
+        <button class="hunter" onclick="play('헌터', '중거리 공격')">공격</button>
+        <button class="hunter" onclick="play('헌터', '은신')">이동</button>
+        <button class="hunter" onclick="play('헌터', '패링/가드')">방어</button>
+    </div>
+
+    <div class="box">
+        <h3>🪄 마법사</h3>
+        <button class="wizard" onclick="play('마법사', '원거리 공격')">공격</button>
+        <button class="wizard" onclick="play('마법사', '순간이동')">이동</button>
+        <button class="wizard" onclick="play('마법사', '방어막')">방어</button>
+    </div>
+
+    <div id="log">배틀 기록이 여기에 실시간으로 표시됩니다...<br></div>
+
+    <script>
+        function play(job, skill) {
+            const log = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            log.innerHTML += `[${time}] <b>${job}</b>: ${skill} 사용!<br>`;
+            log.scrollTop = log.scrollHeight;
+        }
+    </script>
 </body>
 </html>
