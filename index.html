@@ -2,50 +2,226 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>선웅이의 카운터 게임</title>
+    <title>프로젝트: 카운터 (배틀 시스템 업그레이드)</title>
     <style>
-        body { background-color: #1a1a1a; color: white; text-align: center; font-family: sans-serif; padding-top: 50px; }
-        .box { border: 2px solid #444; padding: 20px; margin: 15px auto; border-radius: 15px; width: 300px; background: #252525; }
-        button { padding: 10px 15px; margin: 5px; cursor: pointer; border-radius: 5px; border: none; font-weight: bold; transition: 0.2s; }
+        body { background-color: #1a1a1a; color: white; text-align: center; font-family: sans-serif; padding: 30px; }
+        h1 { margin-bottom: 50px; }
+        
+        /* 캐릭터 선택 화면 스타일 */
+        #select-screen { display: block; } /* 초기에는 보임 */
+        .select-box { border: 2px solid #444; padding: 20px; margin: 15px auto; border-radius: 15px; width: 350px; background: #252525; cursor: pointer; transition: 0.3s; }
+        .select-box:hover { transform: scale(1.03); border-color: #ff4757; }
+        .select-box h3 { margin-top: 0; }
+        .select-box p { color: #aaa; font-size: 0.9em; }
+
+        /* 배틀 화면 스타일 */
+        #battle-screen { display: none; } /* 초기에는 숨김 */
+        .battle-container { display: flex; justify-content: space-around; align-items: flex-start; margin-top: 30px; }
+        .player-box { border: 2px solid #444; padding: 20px; border-radius: 15px; width: 40%; background: #252525; }
+        
+        /* 체력바 스타일 */
+        .hp-bar-container { background-color: #333; border-radius: 10px; height: 25px; margin: 15px 0; overflow: hidden; position: relative; border: 1px solid #555; }
+        .hp-bar-fill { background-color: #2ed573; height: 100%; width: 100%; transition: width 0.3s ease-out; }
+        .hp-text { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 0.9em; color: white; text-shadow: 1px 1px 2px black; }
+
+        /* 직업별 버튼 스타일 */
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; border-radius: 5px; border: none; font-weight: bold; transition: 0.2s; font-size: 1.1em;}
         button:hover { opacity: 0.8; transform: scale(1.05); }
-        .warrior { background: #ff4757; color: white; }
-        .hunter { background: #2ed573; color: white; }
-        .wizard { background: #1e90ff; color: white; }
-        #log { background: #2f3542; padding: 15px; height: 180px; overflow-y: auto; width: 80%; margin: 20px auto; border-radius: 10px; text-align: left; border: 1px solid #555; line-height: 1.6; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .warrior-btn { background: #ff4757; color: white; }
+        .hunter-btn { background: #2ed573; color: white; }
+        .wizard-btn { background: #1e90ff; color: white; }
+        .reset-btn { background: #555; color: white; margin-top: 20px; }
+
+        /* 로그 스타일 */
+        #log { background: #2f3542; padding: 15px; height: 180px; overflow-y: auto; width: 80%; margin: 30px auto; border-radius: 10px; text-align: left; border: 1px solid #555; line-height: 1.6; clear: both;}
     </style>
 </head>
 <body>
     <h1>🎮 프로젝트: 카운터</h1>
-    <p>버튼을 눌러 각 직업의 스킬을 테스트해보세요!</p>
-    
-    <div class="box">
-        <h3>⚔️ 워리어</h3>
-        <button class="warrior" onclick="play('워리어', '근접 공격')">공격</button>
-        <button class="warrior" onclick="play('워리어', '돌진')">이동</button>
-        <button class="warrior" onclick="play('워리어', '방어')">방어</button>
+
+    <div id="select-screen">
+        <h2>플레이어 1, 직업을 선택하세요!</h2>
+        <div class="select-box" onclick="selectCharacter('Warrior')">
+            <h3>⚔️ 워리어 (Warrior)</h3>
+            <p>높은 체력과 강력한 돌진 공격</p>
+            <p>HP: 200 | ATK: 25</p>
+        </div>
+        <div class="select-box" onclick="selectCharacter('Hunter')">
+            <h3>🏹 헌터 (Hunter)</h3>
+            <p>중거리에서 빠른 연사 공격과 회피</p>
+            <p>HP: 150 | ATK: 20</p>
+        </div>
+        <div class="select-box" onclick="selectCharacter('Wizard')">
+            <h3>🪄 마법사 (Wizard)</h3>
+            <p>가장 강력한 원거리 마법 공격</p>
+            <p>HP: 100 | ATK: 35</p>
+        </div>
     </div>
 
-    <div class="box">
-        <h3>🏹 헌터</h3>
-        <button class="hunter" onclick="play('헌터', '중거리 공격')">공격</button>
-        <button class="hunter" onclick="play('헌터', '은신')">이동</button>
-        <button class="hunter" onclick="play('헌터', '패링/가드')">방어</button>
-    </div>
+    <div id="battle-screen">
+        <h2>배틀 시작! 상대를 공격하세요.</h2>
+        <div class="battle-container">
+            <div class="player-box" id="p1-box">
+                <h3 id="p1-name">플레이어 1</h3>
+                <div class="hp-bar-container">
+                    <div class="hp-bar-fill" id="p1-hp-fill"></div>
+                    <div class="hp-text" id="p1-hp-text">100 / 100</div>
+                </div>
+                <button class="attack-btn" id="p1-attack" onclick="attack(1)">공격</button>
+            </div>
 
-    <div class="box">
-        <h3>🪄 마법사</h3>
-        <button class="wizard" onclick="play('마법사', '원거리 공격')">공격</button>
-        <button class="wizard" onclick="play('마법사', '순간이동')">이동</button>
-        <button class="wizard" onclick="play('마법사', '방어막')">방어</button>
+            <div class="player-box" id="p2-box">
+                <h3 id="p2-name">플레이어 2</h3>
+                <div class="hp-bar-container">
+                    <div class="hp-bar-fill" id="p2-hp-fill"></div>
+                    <div class="hp-text" id="p2-hp-text">100 / 100</div>
+                </div>
+                <button class="attack-btn" id="p2-attack" onclick="attack(2)">공격</button>
+            </div>
+        </div>
+        <button class="reset-btn" onclick="resetGame()">게임 리셋</button>
     </div>
 
     <div id="log">배틀 기록이 여기에 실시간으로 표시됩니다...<br></div>
 
     <script>
-        function play(job, skill) {
+        // 직업 데이터 정의 (수치화)
+        const jobData = {
+            Warrior: { name: '워리어', hp: 200, atk: 25, color: '#ff4757' },
+            Hunter: { name: '헌터', hp: 150, atk: 20, color: '#2ed573' },
+            Wizard: { name: '마법사', hp: 100, atk: 35, color: '#1e90ff' }
+        };
+
+        // 게임 상태 데이터
+        let players = { p1: null, p2: null };
+        let battleState = { p1Hp: 0, p2Hp: 0, activeTurn: 1 };
+
+        // 1. 캐릭터 선택 함수
+        function selectCharacter(jobKey) {
             const log = document.getElementById('log');
-            const time = new Date().toLocaleTimeString();
-            log.innerHTML += `[${time}] <b>${job}</b>: ${skill} 사용!<br>`;
+            const h2 = document.querySelector('#select-screen h2');
+
+            if (!players.p1) {
+                players.p1 = { ...jobData[jobKey] };
+                log.innerHTML += `[알림] 플레이어 1이 <b>${players.p1.name}</b>을(를) 선택했습니다!<br>`;
+                h2.innerText = '플레이어 2, 직업을 선택하세요!';
+            } else if (!players.p2) {
+                players.p2 = { ...jobData[jobKey] };
+                log.innerHTML += `[알림] 플레이어 2가 <b>${players.p2.name}</b>을(를) 선택했습니다!<br>`;
+                startBattle();
+            }
+            log.scrollTop = log.scrollHeight;
+        }
+
+        // 2. 배틀 시작 함수 (화면 전환 및 체력 초기화)
+        function startBattle() {
+            // 화면 전환
+            document.getElementById('select-screen').style.display = 'none';
+            document.getElementById('battle-screen').style.display = 'block';
+
+            // 체력 데이터 초기화
+            battleState.p1Hp = players.p1.hp;
+            battleState.p2Hp = players.p2.hp;
+
+            // UI 업데이트 (이름, 색상, 체력바 초기화)
+            document.getElementById('p1-name').innerText = `P1: ${players.p1.name}`;
+            document.getElementById('p1-name').style.color = players.p1.color;
+            document.getElementById('p1-attack').classList.add(players.p1.name === '워리어' ? 'warrior-btn' : (players.p1.name === '헌터' ? 'hunter-btn' : 'wizard-btn'));
+            
+            document.getElementById('p2-name').innerText = `P2: ${players.p2.name}`;
+            document.getElementById('p2-name').style.color = players.p2.color;
+            document.getElementById('p2-attack').classList.add(players.p2.name === '워리어' ? 'warrior-btn' : (players.p2.name === '헌터' ? 'hunter-btn' : 'wizard-btn'));
+
+            updateHpUi();
+            
+            const log = document.getElementById('log');
+            log.innerHTML += `<h3>=== 배틀 시작 ===</h3>`;
+            log.scrollTop = log.scrollHeight;
+        }
+
+        // 3. 공격 함수 (핵심 전투 로직)
+        function attack(playerNum) {
+            const log = document.getElementById('log');
+            let attacker, defender, damage;
+
+            if (playerNum === 1) {
+                attacker = players.p1;
+                defender = players.p2;
+                damage = attacker.atk;
+                battleState.p2Hp -= damage;
+                if (battleState.p2Hp < 0) battleState.p2Hp = 0; // 체력이 음수가 되지 않게
+                log.innerHTML += `[전투] P1(<b>${attacker.name}</b>)의 공격! P2에게 ${damage} 데미지!<br>`;
+            } else {
+                attacker = players.p2;
+                defender = players.p1;
+                damage = attacker.atk;
+                battleState.p1Hp -= damage;
+                if (battleState.p1Hp < 0) battleState.p1Hp = 0;
+                log.innerHTML += `[전투] P2(<b>${attacker.name}</b>)의 공격! P1에게 ${damage} 데미지!<br>`;
+            }
+
+            updateHpUi();
+            checkWinCondition();
+            log.scrollTop = log.scrollHeight;
+        }
+
+        // 4. 체력바 UI 업데이트 함수
+        function updateHpUi() {
+            // P1 체력바 업데이트
+            const p1HpPercent = (battleState.p1Hp / players.p1.hp) * 100;
+            document.getElementById('p1-hp-fill').style.width = `${p1HpPercent}%`;
+            document.getElementById('p1-hp-text').innerText = `${battleState.p1Hp} / ${players.p1.hp}`;
+            
+            // P1 체력 색상 변경 (딸피일 때 빨갛게)
+            document.getElementById('p1-hp-fill').style.backgroundColor = p1HpPercent < 30 ? '#ff4757' : (p1HpPercent < 60 ? '#ffa502' : '#2ed573');
+
+            // P2 체력바 업데이트
+            const p2HpPercent = (battleState.p2Hp / players.p2.hp) * 100;
+            document.getElementById('p2-hp-fill').style.width = `${p2HpPercent}%`;
+            document.getElementById('p2-hp-text').innerText = `${battleState.p2Hp} / ${players.p2.hp}`;
+            
+            // P2 체력 색상 변경
+            document.getElementById('p2-hp-fill').style.backgroundColor = p2HpPercent < 30 ? '#ff4757' : (p2HpPercent < 60 ? '#ffa502' : '#2ed573');
+        }
+
+        // 5. 승리 조건 체크 함수
+        function checkWinCondition() {
+            const log = document.getElementById('log');
+            if (battleState.p1Hp <= 0) {
+                log.innerHTML += `<h2>🏆 플레이어 2 (<b>${players.p2.name}</b>) 승리!</h2>`;
+                endGame();
+            } else if (battleState.p2Hp <= 0) {
+                log.innerHTML += `<h2>🏆 플레이어 1 (<b>${players.p1.name}</b>) 승리!</h2>`;
+                endGame();
+            }
+            log.scrollTop = log.scrollHeight;
+        }
+
+        // 6. 게임 종료 처리 (버튼 비활성화)
+        function endGame() {
+            document.getElementById('p1-attack').disabled = true;
+            document.getElementById('p2-attack').disabled = true;
+        }
+
+        // 7. 게임 리셋 함수
+        function resetGame() {
+            players = { p1: null, p2: null };
+            battleState = { p1Hp: 0, p2Hp: 0, activeTurn: 1 };
+            
+            // UI 초기화
+            document.getElementById('select-screen').style.display = 'block';
+            document.getElementById('battle-screen').style.display = 'none';
+            document.querySelector('#select-screen h2').innerText = '플레이어 1, 직업을 선택하세요!';
+            document.getElementById('p1-attack').disabled = false;
+            document.getElementById('p2-attack').disabled = false;
+            
+            // 기존 버튼 색상 클래스 제거 (깔끔하게 리셋하기 위해)
+            document.getElementById('p1-attack').className = 'attack-btn';
+            document.getElementById('p2-attack').className = 'attack-btn';
+
+            const log = document.getElementById('log');
+            log.innerHTML = '--- 게임이 리셋되었습니다 ---<br>';
             log.scrollTop = log.scrollHeight;
         }
     </script>
