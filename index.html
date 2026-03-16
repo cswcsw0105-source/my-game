@@ -1,48 +1,181 @@
-// ... (위쪽 스타일은 그대로 두고 script 부분만 이 내용으로 교체하거나 전체 덮어쓰기)
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>프로젝트: 카운터 (상성 시스템 완료)</title>
+    <style>
+        body { background-color: #1a1a1a; color: white; text-align: center; font-family: sans-serif; padding: 30px; }
+        h1 { margin-bottom: 50px; }
+        
+        /* 1. 캐릭터 선택 화면 스타일 */
+        #select-screen { display: block; }
+        .select-box { border: 2px solid #444; padding: 20px; margin: 15px auto; border-radius: 15px; width: 350px; background: #252525; cursor: pointer; transition: 0.3s; }
+        .select-box:hover { transform: scale(1.03); border-color: #ff4757; }
+        .select-box h3 { margin-top: 0; }
+        .select-box p { color: #aaa; font-size: 0.9em; }
 
-        // 1. 상성 데이터 정의
+        /* 2. 배틀 화면 스타일 */
+        #battle-screen { display: none; }
+        .battle-container { display: flex; justify-content: space-around; align-items: flex-start; margin-top: 30px; }
+        .player-box { border: 2px solid #444; padding: 20px; border-radius: 15px; width: 40%; background: #252525; }
+        
+        /* 체력바 스타일 */
+        .hp-bar-container { background-color: #333; border-radius: 10px; height: 25px; margin: 15px 0; overflow: hidden; position: relative; border: 1px solid #555; }
+        .hp-bar-fill { background-color: #2ed573; height: 100%; width: 100%; transition: width 0.3s ease-out; }
+        .hp-text { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 0.9em; color: white; text-shadow: 1px 1px 2px black; }
+
+        /* 버튼 스타일 */
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; border-radius: 5px; border: none; font-weight: bold; transition: 0.2s; font-size: 1.1em;}
+        button:hover { opacity: 0.8; transform: scale(1.05); }
+        .warrior-btn { background: #ff4757; color: white; }
+        .hunter-btn { background: #2ed573; color: white; }
+        .wizard-btn { background: #1e90ff; color: white; }
+        .reset-btn { background: #555; color: white; margin-top: 20px; }
+
+        /* 로그 스타일 */
+        #log { background: #2f3542; padding: 15px; height: 200px; overflow-y: auto; width: 80%; margin: 30px auto; border-radius: 10px; text-align: left; border: 1px solid #555; line-height: 1.6; }
+    </style>
+</head>
+<body>
+    <h1>🎮 프로젝트: 카운터</h1>
+
+    <div id="select-screen">
+        <h2>플레이어 1, 직업을 선택하세요!</h2>
+        <div class="select-box" onclick="selectCharacter('Warrior')">
+            <h3>⚔️ 워리어 (Warrior)</h3>
+            <p>상성 우위: 헌터 | 상성 열세: 마법사</p>
+            <p>HP: 200 | ATK: 25</p>
+        </div>
+        <div class="select-box" onclick="selectCharacter('Hunter')">
+            <h3>🏹 헌터 (Hunter)</h3>
+            <p>상성 우위: 마법사 | 상성 열세: 워리어</p>
+            <p>HP: 150 | ATK: 20</p>
+        </div>
+        <div class="select-box" onclick="selectCharacter('Wizard')">
+            <h3>🪄 마법사 (Wizard)</h3>
+            <p>상성 우위: 워리어 | 상성 열세: 헌터</p>
+            <p>HP: 100 | ATK: 35</p>
+        </div>
+    </div>
+
+    <div id="battle-screen">
+        <h2 id="battle-status">배틀 시작!</h2>
+        <div class="battle-container">
+            <div class="player-box" id="p1-box">
+                <h3 id="p1-name">P1</h3>
+                <div class="hp-bar-container"><div class="hp-bar-fill" id="p1-hp-fill"></div><div class="hp-text" id="p1-hp-text"></div></div>
+                <button id="p1-attack" onclick="attack(1)">공격</button>
+            </div>
+            <div class="player-box" id="p2-box">
+                <h3 id="p2-name">P2</h3>
+                <div class="hp-bar-container"><div class="hp-bar-fill" id="p2-hp-fill"></div><div class="hp-text" id="p2-hp-text"></div></div>
+                <button id="p2-attack" onclick="attack(2)">공격</button>
+            </div>
+        </div>
+        <button class="reset-btn" onclick="resetGame()">다시 하기</button>
+    </div>
+
+    <div id="log">배틀 기록이 여기에 표시됩니다...<br></div>
+
+    <script>
+        // 상성 관계 정의
         const relations = {
             '워리어': { weak: '마법사', strong: '헌터' },
             '헌터': { weak: '워리어', strong: '마법사' },
             '마법사': { weak: '헌터', strong: '워리어' }
         };
 
-        // 3. 공격 함수 (상성 로직 추가)
-        function attack(playerNum) {
+        const jobData = {
+            Warrior: { name: '워리어', hp: 200, atk: 25, color: '#ff4757', btnClass: 'warrior-btn' },
+            Hunter: { name: '헌터', hp: 150, atk: 20, color: '#2ed573', btnClass: 'hunter-btn' },
+            Wizard: { name: '마법사', hp: 100, atk: 35, color: '#1e90ff', btnClass: 'wizard-btn' }
+        };
+
+        let players = { p1: null, p2: null };
+        let battleState = { p1Hp: 0, p2Hp: 0 };
+
+        function selectCharacter(jobKey) {
             const log = document.getElementById('log');
-            let attacker, defender, defenderHpKey;
+            const h2 = document.querySelector('#select-screen h2');
 
-            if (playerNum === 1) {
-                attacker = players.p1;
-                defender = players.p2;
-                defenderHpKey = 'p2Hp';
-            } else {
-                attacker = players.p2;
-                defender = players.p1;
-                defenderHpKey = 'p1Hp';
+            if (!players.p1) {
+                players.p1 = { ...jobData[jobKey] };
+                log.innerHTML += `[알림] P1이 <b>${players.p1.name}</b>을 선택!<br>`;
+                h2.innerText = '플레이어 2, 직업을 선택하세요!';
+            } else if (!players.p2) {
+                players.p2 = { ...jobData[jobKey] };
+                log.innerHTML += `[알림] P2가 <b>${players.p2.name}</b>을 선택!<br>`;
+                startBattle();
             }
+        }
 
-            // 상성 계산
-            let multiplier = 1.0;
-            let message = "";
+        function startBattle() {
+            document.getElementById('select-screen').style.display = 'none';
+            document.getElementById('battle-screen').style.display = 'block';
+            battleState.p1Hp = players.p1.hp;
+            battleState.p2Hp = players.p2.hp;
 
-            if (relations[attacker.name].strong === defender.name) {
-                multiplier = 1.5; // 상성 우위
-                message = "<b style='color:#2ed573'>(상성 우위! 1.5배)</b>";
-            } else if (relations[attacker.name].weak === defender.name) {
-                multiplier = 0.8; // 상성 열세
-                message = "<b style='color:#ff4757'>(상성 열세.. 0.8배)</b>";
-            }
-
-            const finalDamage = Math.floor(attacker.atk * multiplier);
-            battleState[defenderHpKey] -= finalDamage;
+            document.getElementById('p1-name').innerText = players.p1.name;
+            document.getElementById('p1-name').style.color = players.p1.color;
+            document.getElementById('p1-attack').className = players.p1.btnClass;
             
-            if (battleState[defenderHpKey] < 0) battleState[defenderHpKey] = 0;
-
-            log.innerHTML += `[전투] P${playerNum}(${attacker.name})의 공격! ${message} ${finalDamage} 데미지!<br>`;
+            document.getElementById('p2-name').innerText = players.p2.name;
+            document.getElementById('p2-name').style.color = players.p2.color;
+            document.getElementById('p2-attack').className = players.p2.btnClass;
 
             updateHpUi();
-            checkWinCondition();
+        }
+
+        function attack(playerNum) {
+            const log = document.getElementById('log');
+            let attacker = playerNum === 1 ? players.p1 : players.p2;
+            let defender = playerNum === 1 ? players.p2 : players.p1;
+            let defenderHpKey = playerNum === 1 ? 'p2Hp' : 'p1Hp';
+
+            let multiplier = 1.0;
+            let effectMsg = "";
+
+            if (relations[attacker.name].strong === defender.name) {
+                multiplier = 1.5;
+                effectMsg = "<b style='color:#2ed573'>(상성 우위! 1.5배)</b>";
+            } else if (relations[attacker.name].weak === defender.name) {
+                multiplier = 0.8;
+                effectMsg = "<b style='color:#ff4757'>(상성 열세.. 0.8배)</b>";
+            }
+
+            const damage = Math.floor(attacker.atk * multiplier);
+            battleState[defenderHpKey] -= damage;
+            if (battleState[defenderHpKey] < 0) battleState[defenderHpKey] = 0;
+
+            log.innerHTML += `[전투] P${playerNum}(${attacker.name}) 공격! ${effectMsg} ${damage} 피해!<br>`;
+            
+            updateHpUi();
+            checkWin();
             log.scrollTop = log.scrollHeight;
         }
-// ... (나머지 함수들은 동일)
+
+        function updateHpUi() {
+            const p1Rate = (battleState.p1Hp / players.p1.hp) * 100;
+            document.getElementById('p1-hp-fill').style.width = p1Rate + "%";
+            document.getElementById('p1-hp-text').innerText = `${battleState.p1Hp} / ${players.p1.hp}`;
+
+            const p2Rate = (battleState.p2Hp / players.p2.hp) * 100;
+            document.getElementById('p2-hp-fill').style.width = p2Rate + "%";
+            document.getElementById('p2-hp-text').innerText = `${battleState.p2Hp} / ${players.p2.hp}`;
+        }
+
+        function checkWin() {
+            if (battleState.p1Hp <= 0 || battleState.p2Hp <= 0) {
+                const winner = battleState.p1Hp <= 0 ? "플레이어 2" : "플레이어 1";
+                document.getElementById('battle-status').innerHTML = `🏆 ${winner} 승리!`;
+                document.getElementById('p1-attack').disabled = true;
+                document.getElementById('p2-attack').disabled = true;
+            }
+        }
+
+        function resetGame() {
+            location.reload(); // 가장 깔끔하게 처음으로 되돌리는 방법이야!
+        }
+    </script>
+</body>
+</html>
