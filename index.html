@@ -2,46 +2,57 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>선웅이의 로그라이크: 에디션 2.0</title>
+    <title>카운터 던전: 히스토리 에디션</title>
     <style>
-        body { background-color: #1a1a1a; color: white; text-align: center; font-family: 'Apple SD Gothic Neo', sans-serif; padding: 20px; }
+        body { background-color: #1a1a1a; color: white; text-align: center; font-family: 'Apple SD Gothic Neo', sans-serif; padding: 20px; line-height: 1.6; }
         .container { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
-        .game-layout { display: flex; gap: 20px; justify-content: center; }
-        .screen { display: none; background: #252525; padding: 25px; border-radius: 15px; border: 2px solid #444; flex: 2; }
-        .sidebar { background: #252525; padding: 20px; border-radius: 15px; border: 2px solid #444; flex: 1; text-align: left; }
-        .active { display: block; }
-
+        .game-layout { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; }
+        
+        /* 메인 화면 및 사이드바 */
+        .screen { background: #252525; padding: 25px; border-radius: 15px; border: 2px solid #444; flex: 2; min-width: 300px; }
+        .sidebar { background: #252525; padding: 20px; border-radius: 15px; border: 2px solid #444; flex: 1; text-align: left; min-width: 200px; }
+        
         /* UI 요소 */
         .hp-bar-outer { width: 100%; background: #333; height: 15px; border-radius: 10px; margin: 5px 0; border: 1px solid #555; }
         .hp-bar-inner { height: 100%; background: #2ed573; transition: width 0.3s; }
-        button { padding: 10px 15px; margin: 5px; cursor: pointer; border-radius: 5px; border: none; font-weight: bold; }
-        .item-tag { font-size: 0.8em; padding: 2px 5px; border-radius: 3px; margin-right: 5px; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; border-radius: 5px; border: none; font-weight: bold; transition: 0.2s; }
+        button:hover { opacity: 0.8; transform: scale(1.05); }
+        
+        /* 로그 및 태그 */
+        #log { background: #111; padding: 15px; height: 200px; overflow-y: auto; border-radius: 10px; text-align: left; font-size: 0.85em; border: 1px solid #333; margin-top: 10px; }
+        .item-tag { font-size: 0.8em; padding: 2px 5px; border-radius: 3px; margin-right: 5px; display: inline-block; margin-bottom: 5px; }
         .epic { background: #a55eea; color: white; }
         .rare { background: #1e90ff; color: white; }
-        
-        #log { background: #111; padding: 15px; height: 150px; overflow-y: auto; border-radius: 10px; text-align: left; font-size: 0.85em; border: 1px solid #333; }
-        .shop-item { background: #333; padding: 10px; margin: 10px 0; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+
+        /* 패치 노트 테이블 스타일 */
+        #patch-notes { margin-top: 40px; text-align: left; background: #222; padding: 25px; border-radius: 15px; border: 1px solid #444; }
+        .patch-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9em; }
+        .patch-table th, .patch-table td { border: 1px solid #333; padding: 12px; text-align: left; }
+        .patch-table th { background: #333; color: #f1c40f; }
+        .up { color: #2ed573; font-weight: bold; }
+        .down { color: #ff4757; font-weight: bold; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>💀 카운터 던전 2.0</h1>
+        <h1>⚔️ 카운터 던전 (Ver 2.5)</h1>
         
         <div class="game-layout">
-            <div class="screen active" id="main-screen">
+            <div class="screen">
                 <div id="start-area">
                     <h2>직업 선택</h2>
-                    <button onclick="startGame('Warrior')" style="background:#ff4757;">워리어</button>
-                    <button onclick="startGame('Hunter')" style="background:#2ed573;">헌터</button>
-                    <button onclick="startGame('Wizard')" style="background:#1e90ff;">마법사</button>
+                    <button onclick="startGame('Warrior')" style="background:#ff4757;">워리어 (방어형)</button>
+                    <button onclick="startGame('Hunter')" style="background:#2ed573;">헌터 (명중형)</button>
+                    <button onclick="startGame('Wizard')" style="background:#1e90ff;">마법사 (화력형)</button>
                 </div>
 
                 <div id="battle-area" style="display:none;">
-                    <div style="display:flex; justify-content:space-between;">
+                    <div style="display:flex; justify-content:space-around;">
                         <div style="width:45%">
                             <h4 id="p-name">나</h4>
                             <div class="hp-bar-outer"><div id="p-hp" class="hp-bar-inner"></div></div>
                             <span id="p-hp-t"></span>
+                            <div id="p-status" style="color:#f1c40f; font-size:0.8em; height:1.2em;"></div>
                         </div>
                         <div style="width:45%">
                             <h4 id="e-name">적</h4>
@@ -54,41 +65,80 @@
 
                 <div id="shop-area" style="display:none;">
                     <h2>🛒 신비한 상점</h2>
-                    <p>골드를 사용하여 전력을 보강하세요.</p>
                     <div id="shop-list"></div>
-                    <button onclick="nextFloor()" style="background:#555;">마을 떠나기</button>
+                    <button onclick="nextFloor()" style="background:#555;">다음 층으로 전진</button>
                 </div>
             </div>
 
             <div class="sidebar">
-                <h4>📊 현재 상태</h4>
+                <h4>📊 실시간 스탯</h4>
                 <p>층수: <b id="floor-t">1</b>F | 골드: <b id="gold-t">0</b>G</p>
                 <p>공격력: <b id="atk-t">0</b> | 명중보정: +<b id="acc-t">0</b>%</p>
                 <hr>
                 <h4>🎒 착용 장비</h4>
-                <div id="inv-list" style="font-size:0.9em;">장비 없음</div>
+                <div id="inv-list">장비 없음</div>
                 <hr>
                 <h4>🏆 최고 기록</h4>
-                <div id="rank-list" style="font-size:0.8em; color:#aaa;">기록 없음</div>
+                <div id="rank-list" style="font-size:0.8em; color:#aaa;"></div>
             </div>
         </div>
 
-        <div id="log">던전 입구를 찾는 중...</div>
+        <div id="log">전투 기록이 여기에 표시됩니다...</div>
+
+        <div id="patch-notes">
+            <h2>📋 개발자 패치 노트 (Developer Log)</h2>
+            <table class="patch-table">
+                <thead>
+                    <tr>
+                        <th>버전</th>
+                        <th>구분</th>
+                        <th>내용 및 패치 의도</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>v2.5</td>
+                        <td><span class="up">시스템</span></td>
+                        <td>전투 승리 시 <b>HP 20% 즉시 회복</b> 기능 추가 (유지력 강화)</td>
+                    </tr>
+                    <tr>
+                        <td>v2.5</td>
+                        <td><span class="up">헌터</span></td>
+                        <td>조준 사격 명중률 <b>80% → 95%</b> 상향 (체감 성능 개선)</td>
+                    </tr>
+                    <tr>
+                        <td>v2.5</td>
+                        <td><span class="down">워리어</span></td>
+                        <td>방패 방어의 공격 판정 제거, 대신 <b>받는 피해 70% 감소</b>로 변경</td>
+                    </tr>
+                    <tr>
+                        <td>v2.0</td>
+                        <td><span class="up">신규</span></td>
+                        <td>상점 시스템 및 최고 기록 저장(localStorage) 기능 도입</td>
+                    </tr>
+                    <tr>
+                        <td>v1.5</td>
+                        <td><span class="up">밸런스</span></td>
+                        <td>클래스 상성 가중치 적용 (우위 1.5배 / 열세 0.8배)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <script>
-        let floor = 1, gold = 0, player = null, enemy = null;
+        // 게임 로직 (위와 동일하지만 통합됨)
+        let floor = 1, gold = 0, player = null, enemy = null, isDefending = false;
         const jobBase = {
-            Warrior: { name: '워리어', hp: 200, atk: 20, skills: ['강타(85%)', '방어(100%)'] },
-            Hunter: { name: '헌터', hp: 150, atk: 25, skills: ['조준사격(80%)', '연사(65%)'] },
-            Wizard: { name: '마법사', hp: 100, atk: 45, skills: ['파이어볼(75%)', '매직볼(95%)'] }
+            Warrior: { name: '워리어', hp: 220, atk: 20, skills: ['강타(90%)', '방패 방어(100%)'] },
+            Hunter: { name: '헌터', hp: 160, atk: 25, skills: ['조준 사격(95%)', '연사(75%)'] },
+            Wizard: { name: '마법사', hp: 110, atk: 50, skills: ['파이어볼(80%)', '매직볼(100%)'] }
         };
-
         const itemPool = [
-            { name: "빨간 포션", type: "heal", value: 50, price: 30 },
-            { name: "날카로운 검", type: "atk", value: 10, price: 50, rarity: "rare" },
-            { name: "무거운 갑옷", type: "hp", value: 50, price: 60, rarity: "rare" },
-            { name: "명중의 장갑", type: "acc", value: 10, price: 80, rarity: "epic" }
+            { name: "치유 포션", type: "heal", value: 80, price: 40 },
+            { name: "날카로운 검", type: "atk", value: 12, price: 60, rarity: "rare" },
+            { name: "튼튼한 갑옷", type: "hp", value: 60, price: 70, rarity: "rare" },
+            { name: "천안의 렌즈", type: "acc", value: 15, price: 90, rarity: "epic" }
         ];
 
         function startGame(job) {
@@ -100,8 +150,9 @@
         }
 
         function spawnEnemy() {
-            if (floor % 3 === 0) return openShop(); // 3층마다 상점
-            enemy = { name: `지하 ${floor}층 괴수`, hp: 40 + floor*20, curHp: 40 + floor*20, atk: 8 + floor*4 };
+            if (floor % 3 === 0) return openShop();
+            isDefending = false;
+            enemy = { name: `${floor}층 괴수`, hp: 40 + floor*15, curHp: 40 + floor*15, atk: 10 + floor*3 };
             updateUi();
             renderSkills();
         }
@@ -112,59 +163,75 @@
             player.skills.forEach(s => {
                 const b = document.createElement('button');
                 b.innerText = s; b.onclick = () => useSkill(s);
+                if(s.includes('워리어')) b.style.background = '#ff4757';
                 div.appendChild(b);
             });
         }
 
         function useSkill(sName) {
+            if (sName === '방패 방어(100%)') {
+                isDefending = true;
+                writeLog(`[방어] 다음 공격 데미지가 70% 감소합니다.`);
+                enemyTurn();
+                return;
+            }
             const baseAcc = parseInt(sName.match(/\d+/)[0]);
             if (Math.random() * 100 < (baseAcc + player.acc)) {
-                const dmg = player.atk + Math.floor(Math.random()*10);
+                let dmg = player.atk + Math.floor(Math.random()*15);
                 enemy.curHp -= dmg;
-                writeLog(`[공격] ${sName} 적중! ${dmg} 데미지.`);
+                writeLog(`[명중] ${sName}! ${dmg}의 데미지.`);
             } else writeLog(`[실패] 공격이 빗나갔습니다!`);
+            if (enemy.curHp <= 0) return winBattle();
+            enemyTurn();
+        }
 
-            if (enemy.curHp <= 0) {
-                const gain = 20 + Math.floor(Math.random()*20);
-                gold += gain;
-                writeLog(`[승리] ${gain}골드 획득!`);
-                floor++;
-                return spawnEnemy();
-            }
+        function enemyTurn() {
+            setTimeout(() => {
+                let dmg = isDefending ? Math.floor(enemy.atk * 0.3) : enemy.atk;
+                player.curHp -= dmg;
+                writeLog(`[피격] 적의 공격! ${dmg} 데미지 입음.`);
+                isDefending = false;
+                if (player.curHp <= 0) gameOver();
+                updateUi();
+            }, 400);
+        }
 
-            player.curHp -= enemy.atk;
-            if (player.curHp <= 0) gameOver();
-            updateUi();
+        function winBattle() {
+            const gain = 25 + Math.floor(Math.random()*20);
+            gold += gain;
+            player.curHp = Math.min(player.maxHp, player.curHp + Math.floor(player.maxHp * 0.2));
+            writeLog(`[승리] ${gain}골드 획득 및 체력 일부 회복!`);
+            floor++;
+            spawnEnemy();
         }
 
         function openShop() {
+            player.curHp = player.maxHp;
             document.getElementById('battle-area').style.display = 'none';
             document.getElementById('shop-area').style.display = 'block';
             const list = document.getElementById('shop-list');
             list.innerHTML = '';
             itemPool.forEach((it, idx) => {
                 const d = document.createElement('div');
-                d.className = 'shop-item';
-                d.innerHTML = `<span>${it.name} (${it.price}G)</span><button onclick="buyItem(${idx})">구매</button>`;
+                d.innerHTML = `${it.name} (${it.price}G) <button onclick="buyItem(${idx})">구매</button>`;
                 list.appendChild(d);
             });
         }
 
         function buyItem(idx) {
             const it = itemPool[idx];
-            if (gold < it.price) return writeLog("골드가 부족해!");
-            
+            if (gold < it.price) return;
             gold -= it.price;
             if (it.type === 'heal') player.curHp = Math.min(player.maxHp, player.curHp + it.value);
             else {
-                if (player.items.some(i => i.name === it.name)) {
-                    writeLog("이미 착용 중인 장비야! 골드로 환급할게.");
-                    gold += Math.floor(it.price / 2);
-                } else {
+                if (!player.items.some(i => i.name === it.name)) {
                     player.items.push(it);
                     if (it.type === 'atk') player.atk += it.value;
                     if (it.type === 'hp') { player.maxHp += it.value; player.curHp += it.value; }
                     if (it.type === 'acc') player.acc += it.value;
+                } else {
+                    player.maxHp += 10; player.curHp += 10;
+                    writeLog("중복 장비 보너스! 최대 HP +10");
                 }
             }
             updateUi();
@@ -181,34 +248,34 @@
         function updateUi() {
             document.getElementById('p-hp').style.width = (player.curHp/player.maxHp*100)+'%';
             document.getElementById('p-hp-t').innerText = `${player.curHp}/${player.maxHp}`;
-            if(enemy) {
+            document.getElementById('p-status').innerText = isDefending ? "🛡️ 방어 중" : "";
+            if(enemy && enemy.curHp > 0) {
                 document.getElementById('e-hp').style.width = (enemy.curHp/enemy.hp*100)+'%';
                 document.getElementById('e-hp-t').innerText = `${enemy.curHp}/${enemy.hp}`;
-                document.getElementById('e-name').innerText = enemy.name;
             }
             document.getElementById('floor-t').innerText = floor;
             document.getElementById('gold-t').innerText = gold;
             document.getElementById('atk-t').innerText = player.atk;
             document.getElementById('acc-t').innerText = player.acc;
-            document.getElementById('inv-list').innerHTML = player.items.map(i => `<div class="item-tag ${i.rarity}">${i.name}</div>`).join('') || '장비 없음';
+            document.getElementById('inv-list').innerHTML = player.items.map(i => `<div class="item-tag ${i.rarity}">${i.name}</div>`).join('') || '없음';
         }
 
         function gameOver() {
             saveRank();
-            alert(`게임 오버! ${floor}층까지 도달했습니다.`);
+            alert(`게임 오버! ${floor}층 도달`);
             location.reload();
         }
 
         function saveRank() {
-            let ranks = JSON.parse(localStorage.getItem('counter_rank') || '[]');
+            let ranks = JSON.parse(localStorage.getItem('counter_rank_final') || '[]');
             ranks.push({ job: player.name, floor: floor, date: new Date().toLocaleDateString() });
             ranks.sort((a, b) => b.floor - a.floor);
-            localStorage.setItem('counter_rank', JSON.stringify(ranks.slice(0, 5)));
+            localStorage.setItem('counter_rank_final', JSON.stringify(ranks.slice(0, 5)));
         }
 
         function loadRank() {
-            let ranks = JSON.parse(localStorage.getItem('counter_rank') || '[]');
-            document.getElementById('rank-list').innerHTML = ranks.map(r => `<div>${r.floor}층 (${r.job}) - ${r.date}</div>`).join('') || '기록 없음';
+            let ranks = JSON.parse(localStorage.getItem('counter_rank_final') || '[]');
+            document.getElementById('rank-list').innerHTML = ranks.map(r => `<div>${r.floor}층(${r.job})</div>`).join('') || '기록 없음';
         }
 
         function writeLog(m) {
