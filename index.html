@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>카운터 던전 v3.1: 버그 수정 및 워리어 상향</title>
+    <title>카운터 던전 v3.1: 전체 히스토리 통합본</title>
     <style>
         body { background-color: #1a1a1a; color: white; text-align: center; font-family: sans-serif; padding: 20px; line-height: 1.6; }
         .container { max-width: 950px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
@@ -17,14 +17,21 @@
         .item-tag { font-size: 0.8em; padding: 2px 5px; border-radius: 3px; margin-right: 5px; display: inline-block; margin-bottom: 5px; font-weight: bold; }
         .epic { background: #a55eea; color: white; }
         .rare { background: #1e90ff; color: white; }
-        .patch-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.85em; background: #222; }
-        .patch-table th, .patch-table td { border: 1px solid #333; padding: 10px; text-align: left; }
-        .patch-table th { background: #333; color: #f1c40f; }
+        
+        /* 패치 노트 확장 스타일 */
+        #patch-notes { margin-top: 40px; text-align: left; background: #222; padding: 25px; border-radius: 15px; border: 1px solid #444; }
+        #patch-notes h2 { border-bottom: 2px solid #444; padding-bottom: 10px; color: #f1c40f; }
+        .patch-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.85em; }
+        .patch-table th, .patch-table td { border: 1px solid #333; padding: 12px; text-align: left; }
+        .patch-table th { background: #333; color: #aaa; }
+        .v-tag { font-weight: bold; color: #f1c40f; }
+        .up { color: #2ed573; }
+        .down { color: #ff4757; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>⚔️ 카운터 던전 (v3.1 긴급 수정)</h1>
+        <h1>⚔️ 카운터 던전 (v3.1)</h1>
         
         <div class="game-layout">
             <div class="screen">
@@ -34,7 +41,6 @@
                     <button onclick="startGame('Hunter')" style="background:#2ed573;">헌터</button>
                     <button onclick="startGame('Wizard')" style="background:#1e90ff;">마법사</button>
                 </div>
-
                 <div id="battle-area" style="display:none;">
                     <div style="display:flex; justify-content:space-around;">
                         <div style="width:45%">
@@ -51,52 +57,81 @@
                     </div>
                     <div id="skill-btns" style="margin-top:20px;"></div>
                 </div>
-
                 <div id="shop-area" style="display:none;">
-                    <h2>🛒 신비한 상점 (소지 골드: <span id="shop-gold-display">0</span>G)</h2>
+                    <h2>🛒 신비한 상점 (골드: <span id="shop-gold-display">0</span>G)</h2>
                     <div id="shop-list"></div>
-                    <button onclick="nextFloor()" style="background:#555;">다시 모험을 떠난다</button>
+                    <button onclick="nextFloor()" style="background:#555;">다음 층으로</button>
                 </div>
             </div>
-
             <div class="sidebar">
                 <h4>📊 캐릭터 상태</h4>
                 <p>층수: <b id="floor-t">1</b>F | 골드: <b id="gold-t">0</b>G</p>
-                <p>공격력: <b id="atk-t">0</b> | 명중보정: <b id="acc-t">0</b>%</p>
+                <p>공격력: <b id="atk-t">0</b> | 명중: <b id="acc-t">0</b>%</p>
                 <hr>
-                <h4>🎒 장착 아이템</h4>
+                <h4>🎒 착용 아이템</h4>
                 <div id="inv-list">없음</div>
                 <hr>
-                <h4>🏆 전당</h4>
+                <h4>🏆 최고 기록</h4>
                 <div id="rank-list" style="font-size:0.8em; color:#aaa;"></div>
             </div>
         </div>
 
         <div id="log">안전하게 장비를 점검하세요.</div>
 
-        <div style="margin-top:40px; text-align:left; background:#222; padding:20px; border-radius:15px; border:1px solid #444;">
-            <h2 style="color:#f1c40f;">📋 개발자 패치 노트 v3.1 (Hotfix)</h2>
+        <div id="patch-notes">
+            <h2>📜 전체 개발 히스토리 (Patch History)</h2>
             <table class="patch-table">
-                <thead><tr><th>구분</th><th>내용</th><th>의도</th></tr></thead>
+                <thead>
+                    <tr>
+                        <th>버전</th>
+                        <th>구분</th>
+                        <th>패치 상세 내역 및 의도</th>
+                    </tr>
+                </thead>
                 <tbody>
-                    <tr><td><b style="color:#ff4757;">버그수정</b></td><td>골드 시스템 정상화</td><td>상점 잔액 체크 오류 및 잘못된 차감 로직 수정</td></tr>
-                    <tr><td><b style="color:#2ed573;">워리어</b></td><td>방패 방어 리워크</td><td>확률 80%로 하향, 대신 성공 시 <b>2회 동안 피해 70% 감소</b></td></tr>
-                    <tr><td><b style="color:#1e90ff;">시스템</b></td><td>체감 명중률 개선</td><td>확률 계산 시스템 보정 및 텍스트 가독성 향상</td></tr>
+                    <tr>
+                        <td class="v-tag">v3.1</td>
+                        <td><span class="down">핫픽스</span></td>
+                        <td><b>경제 시스템 버그 수정:</b> 상점 내 골드 차감 로직 정상화 및 잔액 체크 강화.<br><b>워리어 상향:</b> 방패 방어 성공 시 <b>2턴 동안 피해 70% 감소</b> (확률 80% 도입).</td>
+                    </tr>
+                    <tr>
+                        <td class="v-tag">v3.0</td>
+                        <td><span class="up">시스템</span></td>
+                        <td><b>클래스 전용 장비:</b> 특정 직업군 착용 시 메테오 등 전용 스킬 해제 및 보너스 스탯.<br><b>장비 패널티:</b> 마법사/헌터가 중갑 착용 시 명중률 대폭 하향 (-25% / -15%).</td>
+                    </tr>
+                    <tr>
+                        <td class="v-tag">v2.5</td>
+                        <td><span class="up">밸런스</span></td>
+                        <td><b>유지력 강화:</b> 전투 승리 시 <b>HP 20% 즉시 회복</b> 기능 추가.<br><b>명중률 조정:</b> 헌터 조준 사격 명중률 <b>80% → 95%</b>로 상향.</td>
+                    </tr>
+                    <tr>
+                        <td class="v-tag">v2.0</td>
+                        <td><span class="up">신규</span></td>
+                        <td><b>로그라이크 도입:</b> 층수 시스템, 3층마다 등장하는 상점, <b>localStorage</b> 기반 기록 저장 기능.</td>
+                    </tr>
+                    <tr>
+                        <td class="v-tag">v1.5</td>
+                        <td><span class="up">시스템</span></td>
+                        <td><b>상성 가중치:</b> 워리어/헌터/마법사 가위바위보 상성 적용 (우위 1.5배 / 열세 0.8배 데미지).</td>
+                    </tr>
+                    <tr>
+                        <td class="v-tag">v1.0</td>
+                        <td><span class="up">기획</span></td>
+                        <td><b>프로젝트 카운터 시작:</b> 3종 클래스 기본 설계 및 웹 기반 전투 인터페이스 구현.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
     </div>
 
     <script>
-        let floor = 1, gold = 0, player = null, enemy = null;
-        let defendingTurns = 0; // 방어 지속 턴
-
+        // (게임 로직 v3.1과 동일)
+        let floor = 1, gold = 0, player = null, enemy = null, defendingTurns = 0;
         const jobBase = {
             Warrior: { name: '워리어', hp: 220, atk: 20, skills: ['강타(90%)', '방패 방어(80%)'] },
             Hunter: { name: '헌터', hp: 160, atk: 25, skills: ['조준 사격(95%)', '연사(75%)'] },
             Wizard: { name: '마법사', hp: 110, atk: 50, skills: ['파이어볼(80%)', '매직볼(100%)'] }
         };
-
         const itemPool = [
             { name: "치유 포션", type: "heal", value: 100, price: 40 },
             { name: "거인족의 대검", type: "atk", value: 15, price: 80, rarity: "rare", preferred: "워리어", bonus: 10 },
@@ -136,37 +171,29 @@
                 const chance = parseInt(sName.match(/\d+/)[0]);
                 if (Math.random() * 100 < chance) {
                     defendingTurns = 2;
-                    writeLog(`[방어 성공] 워리어가 2턴 동안 요새가 됩니다! (피해 70% 감소)`);
-                } else {
-                    writeLog(`[방어 실패] 방패를 드는 데 실패했습니다!`);
-                }
+                    writeLog(`[성공] 2턴간 철벽 방어! (피해 70% 감소)`);
+                } else writeLog(`[실패] 방패 방어 실패!`);
                 enemyTurn();
                 return;
             }
-            
             const baseAcc = parseInt(sName.match(/\d+/)[0]);
-            const finalAcc = baseAcc + player.acc;
-            if (Math.random() * 100 < finalAcc) {
+            if (Math.random() * 100 < (baseAcc + player.acc)) {
                 let dmg = player.atk + player.extraAtk + Math.floor(Math.random()*15);
                 if(sName.includes('메테오')) dmg += 40;
                 enemy.curHp -= dmg;
-                writeLog(`[명중] ${sName}! ${dmg} 피해.`);
-            } else writeLog(`[실패] 빗나감!`);
-            
+                writeLog(`[명중] ${sName}! ${dmg} 데미지.`);
+            } else writeLog(`[빗나감] 공격 실패!`);
             if (enemy.curHp <= 0) return winBattle();
             enemyTurn();
         }
 
         function enemyTurn() {
             setTimeout(() => {
-                let dmg = enemy.atk;
-                if (defendingTurns > 0) {
-                    dmg = Math.floor(dmg * 0.3);
+                let dmg = defendingTurns > 0 ? Math.floor(enemy.atk * 0.3) : enemy.atk;
+                if(defendingTurns > 0) {
+                    writeLog(`[방어] 데미지 경감! (${dmg} 입음, 남은 ${defendingTurns}턴)`);
                     defendingTurns--;
-                    writeLog(`[철벽] 방어 효과 적용! (${dmg} 피해만 입음, 남은 지속: ${defendingTurns}턴)`);
-                } else {
-                    writeLog(`[피격] ${dmg} 데미지를 입었습니다.`);
-                }
+                } else writeLog(`[피격] ${dmg} 데미지를 입었습니다.`);
                 player.curHp -= dmg;
                 if (player.curHp <= 0) gameOver();
                 updateUi();
@@ -177,7 +204,7 @@
             const gain = 30 + Math.floor(Math.random()*20);
             gold += gain;
             player.curHp = Math.min(player.maxHp, player.curHp + Math.floor(player.maxHp * 0.2));
-            writeLog(`[승리] ${gain}G 획득 및 회복.`);
+            writeLog(`[승리] ${gain}G 획득 및 HP 회복.`);
             floor++;
             spawnEnemy();
         }
@@ -186,7 +213,7 @@
             player.curHp = player.maxHp;
             document.getElementById('battle-area').style.display = 'none';
             document.getElementById('shop-area').style.display = 'block';
-            updateUi(); // 골드 표시 동기화
+            updateUi();
             const list = document.getElementById('shop-list');
             list.innerHTML = '';
             itemPool.forEach((it, idx) => {
@@ -199,18 +226,10 @@
 
         function buyItem(idx) {
             const it = itemPool[idx];
-            // 버그 수정: 정확한 골드 체크 및 차감
-            if (gold < it.price) {
-                writeLog("골드가 부족하여 구매할 수 없습니다.");
-                return;
-            }
-            
+            if (gold < it.price) return writeLog("골드가 부족합니다.");
             gold -= it.price;
-            writeLog(`[상점] ${it.name}을(를) 구매했습니다. (-${it.price}G)`);
-
-            if (it.type === 'heal') {
-                player.curHp = Math.min(player.maxHp, player.curHp + it.value);
-            } else {
+            if (it.type === 'heal') player.curHp = Math.min(player.maxHp, player.curHp + it.value);
+            else {
                 if (!player.items.some(i => i.name === it.name)) {
                     player.items.push(it);
                     if (it.type === 'atk') player.atk += it.value;
@@ -223,7 +242,7 @@
                     if (it.penalty && it.penalty[player.name]) player.acc -= it.penalty[player.name];
                 } else {
                     player.maxHp += 15; player.curHp += 15;
-                    writeLog("중복 장착 보너스: 최대 HP +15");
+                    writeLog("중복 장비 보너스! 최대 HP +15");
                 }
             }
             updateUi();
@@ -239,7 +258,7 @@
         function updateUi() {
             document.getElementById('p-hp').style.width = (player.curHp/player.maxHp*100)+'%';
             document.getElementById('p-hp-t').innerText = `${player.curHp}/${player.maxHp}`;
-            document.getElementById('p-status').innerText = defendingTurns > 0 ? `🛡️ 방어 지속 (${defendingTurns})` : "";
+            document.getElementById('p-status').innerText = defendingTurns > 0 ? `🛡️ 방어 지속 (${defendingTurns}턴)` : "";
             if(enemy && enemy.curHp > 0) {
                 document.getElementById('e-hp').style.width = (enemy.curHp/enemy.hp*100)+'%';
                 document.getElementById('e-hp-t').innerText = `${enemy.curHp}/${enemy.hp}`;
