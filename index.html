@@ -2,13 +2,11 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>카운터 던전 v3.3: 메커니즘 롤백 및 특수기 에디션</title>
+    <title>카운터 던전 v3.4: 대규모 장비 패치 및 랜덤 상점</title>
     <style>
-        /* 배경을 밝게, 글씨를 검게(어두운 회색) 변경 */
         body { background-color: #f4f6f8; color: #1a1a1a; text-align: center; font-family: 'Apple SD Gothic Neo', sans-serif; padding: 20px; line-height: 1.6; }
         .container { max-width: 950px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
-        .game-layout { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; } 
-        /* 스크린과 사이드바를 하얀색으로 깔끔하게 처리 */
+        .game-layout { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; }
         .screen { background: #ffffff; padding: 25px; border-radius: 15px; border: 2px solid #e1e4e8; flex: 2; min-width: 350px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         .sidebar { background: #ffffff; padding: 20px; border-radius: 15px; border: 2px solid #e1e4e8; flex: 1; text-align: left; min-width: 250px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         .hp-bar-outer { width: 100%; background: #e1e4e8; height: 15px; border-radius: 10px; margin: 5px 0; border: 1px solid #ccc; }
@@ -16,10 +14,8 @@
         button { padding: 12px 18px; margin: 5px; cursor: pointer; border-radius: 8px; border: none; font-weight: bold; transition: 0.2s; font-size: 1em; color: white; }
         button:hover { opacity: 0.8; transform: scale(1.05); }
         .potion-btn { background: #f1c40f !important; color: black !important; }
-        /* 로그창도 밝고 부드럽게 변경 */
         #log { background: #f8f9fa; padding: 15px; height: 180px; overflow-y: auto; border-radius: 10px; text-align: left; font-size: 0.85em; border: 1px solid #e1e4e8; margin-top: 10px; color: #333; }
-        .stat-tag { font-size: 0.8em; color: #666; } 
-        /* 패치 노트 디자인 변경 */
+        .stat-tag { font-size: 0.8em; color: #666; }
         #patch-notes { margin-top: 40px; text-align: left; background: #ffffff; padding: 25px; border-radius: 15px; border: 1px solid #e1e4e8; font-size: 0.85em; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         #patch-notes h2 { border-bottom: 2px solid #e1e4e8; padding-bottom: 10px; color: #1a1a1a; }
         .patch-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
@@ -29,10 +25,11 @@
         .up { color: #2ed573; font-weight: bold; }
         .down { color: #ff4757; font-weight: bold; }
         .pivot { color: #d35400; font-weight: bold; border: 1px solid #d35400; padding: 1px 4px; border-radius: 3px; font-size: 0.8em; }
+    </style>
 </head>
 <body>
     <div class="container">
-        <h1>⚔️ 카운터 던전 (v3.3: 특수기 복구)</h1>
+        <h1>⚔️ 카운터 던전 (v3.4)</h1>
         <div class="game-layout">
             <div class="screen">
                 <div id="start-area">
@@ -46,13 +43,13 @@
                         <div style="width:45%">
                             <h4 id="p-name">나</h4>
                             <div class="hp-bar-outer"><div id="p-hp" class="hp-bar-inner"></div></div>
-                            <span id="p-hp-t"></span>
+                            <span id="p-hp-t" style="font-weight:bold;"></span>
                             <div class="stat-tag">ATK: <span id="p-atk-val">0</span> / DEF: <span id="p-def-val">0</span></div>
                         </div>
                         <div style="width:45%">
                             <h4 id="e-name">적</h4>
                             <div class="hp-bar-outer"><div id="e-hp" class="hp-bar-inner" style="background:#eb4d4b;"></div></div>
-                            <span id="e-hp-t"></span>
+                            <span id="e-hp-t" style="font-weight:bold;"></span>
                             <div class="stat-tag">ATK: <span id="e-atk-val">0</span> / DEF: <span id="e-def-val">0</span></div>
                         </div>
                     </div>
@@ -61,26 +58,27 @@
                 <div id="shop-area" style="display:none;">
                     <h2>🛒 신비한 상점</h2>
                     <p>현재 체력: <b id="shop-hp-t" style="color:#2ed573;">0/0</b> | 골드: <b id="shop-gold-t">0</b>G</p>
+                    <p style="font-size:0.85em; color:#666;">(상점 품목은 매번 랜덤으로 바뀝니다)</p>
                     <div id="shop-list"></div>
-                    <button onclick="nextFloor()" style="background:#555;">다시 모험을 떠난다</button>
+                    <button onclick="nextFloor()" style="background:#555; color:white;">다시 모험을 떠난다</button>
                 </div>
             </div>
             <div class="sidebar">
                 <h4>📊 캐릭터 상태</h4>
                 <p>층수: <b id="floor-t">1</b>F | 골드: <b id="gold-t">0</b>G</p>
                 <p>소지 포션: <b id="potion-t">0</b>개</p>
-                <hr>
+                <hr style="border-top:1px solid #e1e4e8;">
                 <h4>🎒 장비/패널티</h4>
                 <div id="inv-list" style="font-size:0.85em;">없음</div>
-                <hr>
+                <hr style="border-top:1px solid #e1e4e8;">
                 <h4>🏆 전당</h4>
-                <div id="rank-list" style="font-size:0.8em; color:#aaa;"></div>
+                <div id="rank-list" style="font-size:0.8em; color:#666;"></div>
             </div>
         </div>
         <div id="log">최종 점검을 시작합니다...</div>
 
         <div id="patch-notes">
-            <h2>📜 패치 히스토리 (v1.0 ~ v3.3)</h2>
+            <h2>📜 개발 로그 (Full Patch History)</h2>
             <table class="patch-table">
                 <thead>
                     <tr>
@@ -91,6 +89,11 @@
                 </thead>
                 <tbody>
                     <tr>
+                        <td class="v-tag">v3.4</td>
+                        <td><span class="up">콘텐츠</span></td>
+                        <td><b>장비 대규모 추가:</b> 10여 종의 다양한 등급/시너지 장비 추가.<br><b>랜덤 상점:</b> 상점 방문 시 전체 풀에서 랜덤으로 3개의 장비만 진열되도록 변경 (가챠 요소 도입).</td>
+                    </tr>
+                    <tr>
                         <td class="v-tag">v3.3</td>
                         <td><b style="color:#1e90ff;">롤백/추가</b></td>
                         <td><b>상성 로직 복구:</b> 적에게 클래스 부여. 1.5배/0.8배 상성 데미지 부활.<br><b>직업별 특수기:</b> 헌터(회피 기동), 마법사(방어막) 등 고유 생존기 버튼 추가.</td>
@@ -98,37 +101,27 @@
                     <tr>
                         <td class="v-tag">v3.2</td>
                         <td><span class="up">시스템</span></td>
-                        <td><b>방어력(DEF) 도입:</b> 데미지 계산식 수정 (ATK - 상대 DEF). 스탯창에 방어력 표기 추가.<br><b>인전투 포션:</b> 상점 포션을 전투 중에 전략적으로 사용 가능.</td>
+                        <td>방어력(DEF) 계산식 도입 및 전투 중 포션 사용 기능 추가.</td>
                     </tr>
                     <tr>
                         <td class="v-tag">v3.1</td>
                         <td><span class="down">핫픽스</span></td>
-                        <td><b>경제 버그 수정:</b> 골드 부족 시 구매 불가 및 차감 로직 정상화.<br><b>워리어 리워크:</b> 방패 방어 성공 시 <b>2턴간 피해 70% 감소</b> (성공률 80%).</td>
+                        <td>경제 버그 수정 및 워리어 방어 리워크 (2턴간 피해 감소).</td>
                     </tr>
                     <tr>
                         <td class="v-tag">v3.0</td>
                         <td><span class="pivot">PIVOT</span></td>
-                        <td><b>방향성 전환:</b> 데이터 비교에서 <b>로그라이크 RPG</b>로 게임성 강화.<br><b>전용 장비:</b> 특정 직업 착용 시 전용 스킬 해제 및 무게 패널티 도입.</td>
+                        <td>로그라이크 RPG로 방향성 완전 전환 및 전용 장비/패널티 시스템 도입.</td>
                     </tr>
                     <tr>
-                        <td class="v-tag">v2.5</td>
-                        <td><span class="up">밸런스</span></td>
-                        <td><b>유지력 강화:</b> 전투 승리 시 HP 20% 즉시 회복.<br><b>명중률 상향:</b> 헌터 조준 사격 명중률 95%로 보정.</td>
-                    </tr>
-                    <tr>
-                        <td class="v-tag">v2.0</td>
+                        <td class="v-tag">v2.0 ~ 2.5</td>
                         <td><span class="up">신규</span></td>
-                        <td>층수 시스템, 3층마다 등장하는 상점, localStorage 기반 랭킹 저장 추가.</td>
+                        <td>층수 시스템, 상점, localStorage 기록 저장, 승리 시 HP 회복 패치.</td>
                     </tr>
                     <tr>
-                        <td class="v-tag">v1.5</td>
-                        <td><span class="up">로직</span></td>
-                        <td>워리어/헌터/마법사 가위바위보 상성 가중치 적용.</td>
-                    </tr>
-                    <tr>
-                        <td class="v-tag">v1.0</td>
+                        <td class="v-tag">v1.0 ~ 1.5</td>
                         <td><span class="up">시작</span></td>
-                        <td>프로젝트 카운터 초기 기획 및 웹 기반 기본 인터페이스 구현.</td>
+                        <td>초기 기획, 3종 클래스 기본 설계 및 가위바위보 상성 가중치 적용.</td>
                     </tr>
                 </tbody>
             </table>
@@ -140,6 +133,7 @@
         let defendingTurns = 0;
         let isDodging = false;
         let isShielded = false;
+        let currentShopItems = []; // 현재 상점에 진열된 아이템 목록
 
         const relations = {
             '워리어': { weak: '마법사', strong: '헌터' },
@@ -152,11 +146,19 @@
             Hunter: { name: '헌터', hp: 160, atk: 25, def: 5, color: '#2ed573' },
             Wizard: { name: '마법사', hp: 110, atk: 50, def: 2, color: '#1e90ff' }
         };
-        const itemPool = [
-            { name: "치유 포션", type: "potion", value: 80, price: 40 },
-            { name: "거인족의 대검", type: "atk", value: 15, price: 80, rarity: "rare", preferred: "워리어", bonus: 10 },
+
+        // v3.4 대규모 아이템 풀
+        const equipmentPool = [
+            { name: "거인족의 대검", type: "atk", value: 15, price: 80, rarity: "rare", preferred: "워리어", bonusAtk: 10 },
             { name: "중갑옷", type: "hp", value: 80, def: 10, price: 70, rarity: "rare", penalty: { '마법사': 25, '헌터': 15 } },
-            { name: "마법사의 지팡이", type: "atk", value: 10, price: 90, rarity: "epic", preferred: "마법사", bonusAtk: 20 }
+            { name: "마법사의 지팡이", type: "atk", value: 10, price: 90, rarity: "epic", preferred: "마법사", bonusAtk: 20 },
+            { name: "암살자의 단검", type: "atk", value: 12, price: 75, rarity: "rare", preferred: "헌터", bonusAtk: 15 },
+            { name: "미스릴 흉갑", type: "hp", value: 50, def: 15, price: 100, rarity: "epic", preferred: "워리어", bonusHp: 30 },
+            { name: "바람의 부츠", type: "acc", value: 15, price: 60, rarity: "rare" },
+            { name: "학자의 로브", type: "hp", value: 40, def: 5, price: 50, rarity: "common", preferred: "마법사", bonusAcc: 10 },
+            { name: "저주받은 검", type: "atk", value: 40, price: 120, rarity: "epic", penalty: { '워리어': 15, '헌터': 15, '마법사': 20 } },
+            { name: "낡은 가죽 갑옷", type: "hp", value: 30, def: 3, price: 30, rarity: "common" },
+            { name: "정령의 활", type: "atk", value: 18, price: 110, rarity: "epic", preferred: "헌터", bonusAtk: 15 }
         ];
 
         function startGame(job) {
@@ -173,7 +175,6 @@
             isDodging = false;
             isShielded = false;
             
-            // 적 상성 직업 랜덤 배정
             const eJobs = ['워리어', '헌터', '마법사'];
             const randomJob = eJobs[Math.floor(Math.random() * eJobs.length)];
 
@@ -191,16 +192,14 @@
             const div = document.getElementById('action-btns');
             div.innerHTML = '';
 
-            // 공격 버튼
             const atkBtn = document.createElement('button');
             atkBtn.innerText = '⚔️ 공격';
             atkBtn.style.background = player.color;
             atkBtn.onclick = () => useAction('공격');
             div.appendChild(atkBtn);
 
-            // 특수기 버튼
             const defBtn = document.createElement('button');
-            defBtn.style.background = '#555';
+            defBtn.style.background = '#888';
             if (player.name === '워리어') {
                 defBtn.innerText = '🛡️ 방패 방어 (80%)';
                 defBtn.onclick = () => useAction('방패방어');
@@ -213,7 +212,6 @@
             }
             div.appendChild(defBtn);
 
-            // 포션 버튼
             const pBtn = document.createElement('button');
             pBtn.innerText = `🧪 포션 (${player.potions})`;
             pBtn.className = 'potion-btn';
@@ -308,24 +306,44 @@
             spawnEnemy();
         }
 
+        // v3.4 핵심: 랜덤 상점 로직
         function openShop() {
             document.getElementById('battle-area').style.display = 'none';
             document.getElementById('shop-area').style.display = 'block';
             updateUi();
+            
             const list = document.getElementById('shop-list');
             list.innerHTML = '';
-            itemPool.forEach((it, idx) => {
+            
+            // 1. 고정 아이템 (포션) 셋팅
+            currentShopItems = [{ name: "치유 포션", type: "potion", value: 80, price: 40, rarity: "common" }];
+            
+            // 2. 장비 풀에서 랜덤으로 3개 뽑기
+            let shuffled = [...equipmentPool].sort(() => 0.5 - Math.random());
+            currentShopItems.push(...shuffled.slice(0, 3));
+
+            // 3. 진열
+            currentShopItems.forEach((it, idx) => {
                 const d = document.createElement('div');
-                d.style.marginBottom = '10px';
-                d.innerHTML = `<b>${it.name}</b> (${it.price}G) <button onclick="buyItem(${idx})">구매</button>`;
+                d.style.marginBottom = '12px';
+                
+                // 등급별 색상 처리
+                let color = '#333';
+                if (it.rarity === 'epic') color = '#a55eea';
+                else if (it.rarity === 'rare') color = '#1e90ff';
+
+                d.innerHTML = `<b style="color:${color}; font-size:1.1em;">${it.name}</b> (${it.price}G) <br>
+                               <button onclick="buyItem(${idx})" style="background:#555; padding:6px 12px; margin-top:5px; font-size:0.9em;">구매</button>`;
                 list.appendChild(d);
             });
         }
 
         function buyItem(idx) {
-            const it = itemPool[idx];
+            const it = currentShopItems[idx];
             if (gold < it.price) return writeLog("골드 부족!");
+            
             gold -= it.price;
+            
             if (it.type === 'potion') {
                 player.potions++;
                 writeLog(`[상점] 포션 구매 완료.`);
@@ -334,9 +352,20 @@
                     player.items.push(it);
                     if (it.type === 'atk') player.atk += it.value;
                     if (it.type === 'hp') { player.maxHp += it.value; player.curHp += it.value; }
+                    if (it.type === 'acc') player.acc += it.value;
                     if (it.def) player.extraDef += it.def;
-                    if (it.preferred === player.name && it.bonusAtk) player.extraAtk += it.bonusAtk;
+                    
+                    if (it.preferred === player.name) {
+                        if (it.bonusAtk) player.extraAtk += it.bonusAtk;
+                        if (it.bonusHp) { player.maxHp += it.bonusHp; player.curHp += it.bonusHp; }
+                        if (it.bonusAcc) player.acc += it.bonusAcc;
+                    }
                     if (it.penalty && it.penalty[player.name]) player.acc -= it.penalty[player.name];
+                    
+                    // 구매한 장비 상점에서 가리기 (1회성 구매)
+                    event.target.innerText = "판매됨";
+                    event.target.disabled = true;
+                    event.target.style.background = "#aaa";
                 } else {
                     player.maxHp += 15; player.curHp += 15;
                     writeLog("중복 보너스: HP +15");
@@ -370,7 +399,7 @@
             document.getElementById('shop-gold-t').innerText = gold;
             document.getElementById('shop-hp-t').innerText = `${player.curHp}/${player.maxHp}`;
             document.getElementById('potion-t').innerText = player.potions;
-            document.getElementById('inv-list').innerHTML = player.items.map(i => `<div class="stat-tag">${i.name}</div>`).join('') || '없음';
+            document.getElementById('inv-list').innerHTML = player.items.map(i => `<div class="stat-tag">▪ ${i.name}</div>`).join('') || '없음';
         }
 
         function gameOver() {
