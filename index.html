@@ -2,65 +2,37 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>카운터 던전 v4.0: 전설 무기 및 전용 스킬 업데이트</title>
+    <title>카운터 던전 v5.0: 글로벌 랭킹전</title>
+    <link rel="stylesheet" href="style.css">
     <style>
-        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
-        body { background-color: #121212; color: #e0e0e0; text-align: center; font-family: 'Pretendard', 'Apple SD Gothic Neo', sans-serif; padding: 20px; line-height: 1.6; }
-        .container { max-width: 950px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
-        .game-layout { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; }
-        
-        .screen { background: #1e1e1e; padding: 25px; border-radius: 12px; border: 1px solid #333; flex: 2; min-width: 350px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); }
-        .sidebar { background: #1e1e1e; padding: 20px; border-radius: 12px; border: 1px solid #333; flex: 1; text-align: left; min-width: 250px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); display: flex; flex-direction: column; }
-        
-        .hp-bar-outer { width: 100%; background: #2a2a2a; height: 16px; border-radius: 8px; margin: 8px 0; border: 1px solid #111; overflow: hidden; }
-        .hp-bar-inner { height: 100%; background: #2ed573; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        
-        button { 
-            padding: 12px 20px; margin: 5px; cursor: pointer; border-radius: 6px; border: none; 
-            font-weight: 800; font-size: 1em; color: #111;
-            letter-spacing: 0.5px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: all 0.2s ease; 
-        }
-        button:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.5); opacity: 0.95; }
-        button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
-        
-        .potion-btn { background: #f1c40f !important; color: #111 !important; }
-        .reroll-btn { background: #e67e22 !important; color: #fff !important; width: 100%; margin-top: 15px; }
-        .patch-btn { background: #34495e !important; color: #fff !important; width: 100%; margin-top: auto; font-size: 0.9em; padding: 10px; }
-        
-        #log { background: #0a0a0a; padding: 15px; height: 180px; overflow-y: auto; border-radius: 8px; text-align: left; font-size: 0.9em; border: 1px solid #222; margin-top: 15px; color: #bbb; }
-        
-        .stat-tag { font-size: 0.85em; color: #888; font-weight: 600; cursor: help; position: relative; display: inline-block; width: 100%; }
-        .tooltip-text { 
-            visibility: hidden; width: 220px; background-color: #333; color: #fff; text-align: left; 
-            border-radius: 6px; padding: 8px 10px; position: absolute; z-index: 10; bottom: 125%; left: 0; 
-            opacity: 0; transition: opacity 0.2s; font-size: 0.85em; font-weight: normal; border: 1px solid #555; box-shadow: 0 4px 8px rgba(0,0,0,0.5); line-height: 1.4;
-        }
-        .stat-tag:hover .tooltip-text { visibility: visible; opacity: 1; }
-        .status-badge { color: #f1c40f; font-size: 0.85em; height: 1.2em; margin-top: 5px; font-weight: bold; }
-        
-        /* 모달 팝업 창 */
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 100; justify-content: center; align-items: center; backdrop-filter: blur(3px); }
-        .modal-content { background: #1a1a1a; width: 90%; max-width: 750px; max-height: 80vh; overflow-y: auto; border-radius: 12px; border: 1px solid #444; padding: 30px; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.8); text-align: left; }
-        .close-btn { position: absolute; top: 15px; right: 20px; font-size: 1.5em; cursor: pointer; color: #aaa; background: none; border: none; box-shadow: none; padding: 0; font-weight: normal; }
-        .close-btn:hover { color: #fff; transform: none; box-shadow: none; }
-        .modal-content h2 { border-bottom: 2px solid #333; padding-bottom: 10px; color: #f1c40f; margin-top: 0; }
-        .patch-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9em; }
-        .patch-table th, .patch-table td { border: 1px solid #333; padding: 12px; text-align: left; }
-        .patch-table th { background: #222; color: #f1c40f; }
-        .v-tag { font-weight: bold; color: #f1c40f; }
+        .auth-box { background: #2a2a2a; padding: 20px; border-radius: 8px; border: 1px solid #444; max-width: 300px; margin: 0 auto; }
+        .auth-box input { width: 90%; padding: 10px; margin: 10px 0; border-radius: 4px; border: 1px solid #555; background: #111; color: white; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1 style="color: #fff; letter-spacing: 1px;">⚔️ 카운터 던전 (v4.0)</h1>
+        <h1 style="color: #fff; letter-spacing: 1px;">⚔️ 카운터 던전 (v5.0 온라인)</h1>
+        
         <div class="game-layout">
             <div class="screen">
-                <div id="start-area">
+                <div id="login-area" style="display:block;">
+                    <h2 style="color: #f1c40f;">던전 입장 (로그인)</h2>
+                    <p style="font-size: 0.85em; color: #888;">친구들과 글로벌 랭킹을 겨뤄보세요!</p>
+                    <div class="auth-box">
+                        <input type="email" id="email-input" placeholder="이메일 입력 (ex: test@test.com)">
+                        <input type="password" id="pw-input" placeholder="비밀번호 (6자리 이상)">
+                        <button onclick="handleLogin()" style="background:#2ed573; width:100%;">로그인</button>
+                        <button onclick="handleSignup()" style="background:#1e90ff; width:100%;">신규 가입</button>
+                    </div>
+                </div>
+
+                <div id="start-area" style="display:none;">
                     <h2 style="color: #e0e0e0;">직업 선택</h2>
                     <button onclick="startGame('Warrior')" style="background:#ff4757;">워리어</button>
                     <button onclick="startGame('Hunter')" style="background:#2ed573;">헌터</button>
                     <button onclick="startGame('Wizard')" style="background:#1e90ff;">마법사</button>
                 </div>
+
                 <div id="battle-area" style="display:none;">
                     <div style="display:flex; justify-content:space-around;">
                         <div style="width:45%">
@@ -68,25 +40,19 @@
                             <div class="hp-bar-outer"><div id="p-hp" class="hp-bar-inner"></div></div>
                             <span id="p-hp-t" style="font-weight:bold; color:#fff;"></span>
                             <div id="p-status" class="status-badge"></div>
-                            <div class="stat-tag" style="cursor:default;">
-                                ATK: <span id="p-atk-val" style="color:#f1c40f;">0</span> / 
-                                DEF: <span id="p-def-val" style="color:#1e90ff;">0</span> / 
-                                ACC: <span id="p-acc-val" style="color:#2ed573;">90%</span>
-                            </div>
+                            <div class="stat-tag" style="cursor:default;">ATK: <span id="p-atk-val" style="color:#f1c40f;">0</span> / DEF: <span id="p-def-val" style="color:#1e90ff;">0</span> / ACC: <span id="p-acc-val" style="color:#2ed573;">90%</span></div>
                         </div>
                         <div style="width:45%">
                             <h4 id="e-name" style="color: #fff;">적</h4>
                             <div class="hp-bar-outer"><div id="e-hp" class="hp-bar-inner" style="background:#ff4757;"></div></div>
                             <span id="e-hp-t" style="font-weight:bold; color:#fff;"></span>
                             <div class="status-badge"></div>
-                            <div class="stat-tag" style="cursor:default;">
-                                ATK: <span id="e-atk-val" style="color:#f1c40f;">0</span> / 
-                                DEF: <span id="e-def-val" style="color:#1e90ff;">0</span>
-                            </div>
+                            <div class="stat-tag" style="cursor:default;">ATK: <span id="e-atk-val" style="color:#f1c40f;">0</span> / DEF: <span id="e-def-val" style="color:#1e90ff;">0</span></div>
                         </div>
                     </div>
                     <div id="action-btns" style="margin-top:20px;"></div>
                 </div>
+
                 <div id="shop-area" style="display:none;">
                     <h2 style="color: #f1c40f;">🛒 신비한 상점</h2>
                     <p>현재 체력: <b id="shop-hp-t" style="color:#2ed573;">0/0</b> | 골드: <b id="shop-gold-t" style="color:#f1c40f;">0</b>G</p>
@@ -94,7 +60,13 @@
                     <button onclick="nextFloor()" style="background:#444; color:#fff; margin-top: 15px; width: 100%;">던전으로 돌아가기</button>
                 </div>
             </div>
+
             <div class="sidebar">
+                <h4 style="color: #fff;">👤 접속 정보</h4>
+                <p id="user-info" style="color:#2ed573; font-weight:bold; margin-bottom:5px;">로그인 필요</p>
+                <button onclick="handleLogout()" style="background:#ff4757; padding:6px 12px; font-size:0.8em; display:none;" id="logout-btn">로그아웃</button>
+                <hr style="border-top:1px solid #333; width: 100%;">
+                
                 <h4 style="color: #fff;">📊 상태 및 도감</h4>
                 <p>층수: <b id="floor-t" style="color:#fff;">1</b>F | 골드: <b id="gold-t" style="color:#f1c40f;">0</b>G</p>
                 <p>장비 수집률: <b id="collection-count" style="color:#1e90ff;">0 / 12</b></p>
@@ -103,341 +75,30 @@
                 <h4 style="color: #fff;">🎒 인벤토리 (마우스 오버)</h4>
                 <div id="inv-list" style="font-size:0.9em; line-height: 2.0;">장비가 없습니다.</div>
                 <hr style="border-top:1px solid #333; width: 100%;">
-                <h4 style="color: #fff;">🏆 묘지 및 전당</h4>
-                <div id="rank-list" style="font-size:0.85em; color:#888;"></div>
+                
+                <h4 style="color: #f1c40f;">🏆 글로벌 명예의 전당</h4>
+                <div id="rank-list" style="font-size:0.85em; color:#888;">데이터 불러오는 중...</div>
+                
                 <button class="patch-btn" onclick="togglePatchNotes(true)">📜 패치 노트 보기</button>
             </div>
         </div>
-        <div id="log">시스템 준비 완료. 던전에 진입합니다...</div>
+        <div id="log">온라인 서버 연결 대기 중...</div>
     </div>
 
     <div id="patch-modal" class="modal-overlay">
         <div class="modal-content">
             <button class="close-btn" onclick="togglePatchNotes(false)">✖</button>
-            <h2>📜 패치 노트 및 수치 변화 로그</h2>
+            <h2>📜 패치 노트</h2>
             <table class="patch-table">
                 <thead><tr><th>버전</th><th>항목</th><th>상세 내용</th></tr></thead>
                 <tbody>
-                    <tr>
-                        <td class="v-tag">v4.0</td>
-                        <td>콘텐츠</td>
-                        <td><b>명중률(ACC) UI:</b> 이제 전투 화면에서 내 명중률을 실시간으로 확인 가능.<br><b>전설 무기 & 전용 궁극기:</b> 대마법사의 지팡이 등 전용 무기 구매 시 4번째 스킬(궁극기) 해제!</td>
-                    </tr>
-                    <tr>
-                        <td class="v-tag">v3.9</td>
-                        <td>UI/UX</td>
-                        <td><b>패치 노트 모달화:</b> 하단에 나열되던 정보를 팝업으로 분리.</td>
-                    </tr>
-                    <tr>
-                        <td class="v-tag">v3.8</td>
-                        <td>밸런스</td>
-                        <td><b>상점 리롤:</b> 무한 상점 버그 수정 및 리롤 비용 누적 시스템 추가.<br><b>프리 액션:</b> 포션 사용 시 턴 소모 제거. 적 명중률 85%로 보정.</td>
-                    </tr>
+                    <tr><td class="v-tag">v5.0</td><td>서버</td><td><b>글로벌 랭킹전 도입:</b> Firebase 연동 완료. 이메일 로그인 및 실시간 서버 랭킹 저장 기능 추가.</td></tr>
                 </tbody>
             </table>
         </div>
     </div>
 
-    <script>
-        let floor = 1, gold = 0, player = null, enemy = null;
-        let defendingTurns = 0, dodgingTurns = 0, shieldedTurns = 0;
-        let currentShopItems = []; 
-        let lastEnemyJob = ""; 
-        let rerollCost = 10; 
-
-        const relations = {
-            '워리어': { weak: '마법사', strong: '헌터' },
-            '헌터': { weak: '워리어', strong: '마법사' },
-            '마법사': { weak: '헌터', strong: '워리어' }
-        };
-
-        const jobBase = {
-            Warrior: { name: '워리어', hp: 220, atk: 20, def: 8, color: '#ff4757' },
-            Hunter: { name: '헌터', hp: 160, atk: 25, def: 5, color: '#2ed573' },
-            Wizard: { name: '마법사', hp: 110, atk: 50, def: 2, color: '#1e90ff' }
-        };
-
-        // v4.0 대규모 아이템 풀 (성능 대폭 상향 & 궁극기 해제 추가)
-        const equipmentPool = [
-            { name: "대마법사의 지팡이", type: "atk", value: 25, price: 100, rarity: "epic", preferred: "마법사", bonusAtk: 25, unlockSkill: "메테오", desc: "마력을 폭발시켜(+25) 방어력을 무시하는 [🔥 메테오] 스킬이 해제된다." },
-            { name: "거인족의 대검", type: "atk", value: 20, price: 90, rarity: "epic", preferred: "워리어", bonusAtk: 20, unlockSkill: "대회전", desc: "공격력(+20)이 증가하며 강력한 광역기 [💥 대회전] 스킬이 해제된다." },
-            { name: "정령왕의 활", type: "atk", value: 22, price: 95, rarity: "epic", preferred: "헌터", bonusAtk: 20, unlockSkill: "폭풍화살", desc: "파괴력(+20)이 극대화되며 [🌪️ 폭풍화살] 스킬이 해제된다." },
-            { name: "드래곤의 심장", type: "hp", value: 150, def: 15, price: 200, rarity: "legendary", desc: "전설 속 드래곤의 심장. 압도적인 체력(+150)과 방어력(+15)을 부여한다." },
-            { name: "엑스칼리버", type: "atk", value: 50, acc: 10, price: 220, rarity: "legendary", desc: "성검. 엄청난 공격력(+50)과 명중률(+10%)을 동시에 올려준다." },
-            { name: "미스릴 흉갑", type: "hp", value: 80, def: 15, price: 100, rarity: "epic", preferred: "워리어", bonusHp: 50, desc: "가볍고 단단한 환상의 갑옷. 워리어에겐 추가 체력(+50)을 제공한다." },
-            { name: "저주받은 검", type: "atk", value: 45, price: 110, rarity: "epic", penalty: { '워리어': 20, '헌터': 20, '마법사': 30 }, desc: "파괴력은 엄청나지만, 정신을 갉아먹어 명중률이 크게 하락한다." },
-            { name: "바람의 부츠", type: "acc", value: 20, price: 60, rarity: "rare", desc: "몸이 깃털처럼 가벼워져 명중률(+20%)이 크게 상승한다." },
-            { name: "암살자의 단검", type: "atk", value: 15, price: 75, rarity: "rare", preferred: "헌터", bonusAtk: 15, desc: "급소를 노리기 좋은 단검. 헌터 사용 시 추가 공격력(+15)이 붙는다." },
-            { name: "학자의 로브", type: "hp", value: 40, def: 5, price: 50, rarity: "common", preferred: "마법사", bonusAcc: 15, desc: "마법의 흐름을 돕는 로브. 마법사 착용 시 명중률(+15%) 보정." },
-            { name: "중갑옷", type: "hp", value: 80, def: 10, price: 70, rarity: "rare", penalty: { '마법사': 25, '헌터': 15 }, desc: "방어력을 올리지만, 너무 무거워 마법사와 헌터는 명중률이 깎인다." },
-            { name: "낡은 가죽 갑옷", type: "hp", value: 30, def: 3, price: 30, rarity: "common", desc: "초보 모험가들이 흔히 입는 평범한 가죽 갑옷." }
-        ];
-
-        function togglePatchNotes(show) { document.getElementById('patch-modal').style.display = show ? 'flex' : 'none'; }
-        window.onclick = function(event) { if (event.target === document.getElementById('patch-modal')) togglePatchNotes(false); }
-
-        function startGame(job) {
-            // unlockedSkill 속성 추가!
-            player = { ...jobBase[job], curHp: jobBase[job].hp, maxHp: jobBase[job].hp, acc: 0, items: [], extraAtk: 0, potions: 0, extraDef: 0, unlockedSkill: null };
-            document.getElementById('start-area').style.display = 'none';
-            document.getElementById('battle-area').style.display = 'block';
-            loadCollection(); loadRank(); spawnEnemy();
-        }
-
-        function spawnEnemy() {
-            if (floor > 1 && floor % 3 === 0 && document.getElementById('shop-area').style.display === 'none') return openShop();
-            
-            defendingTurns = 0; dodgingTurns = 0; shieldedTurns = 0;
-            const eJobs = ['워리어', '헌터', '마법사'];
-            let randomJob = eJobs[Math.floor(Math.random() * eJobs.length)];
-            
-            if (randomJob === lastEnemyJob) randomJob = eJobs[Math.floor(Math.random() * eJobs.length)];
-            lastEnemyJob = randomJob;
-
-            enemy = { name: `[${randomJob}형] ${floor}층 괴수`, job: randomJob, hp: 50 + floor*15, curHp: 50 + floor*15, atk: 12 + floor*3, def: 2 + Math.floor(floor/2) };
-            updateUi(); renderActions();
-        }
-
-        function renderActions() {
-            const div = document.getElementById('action-btns');
-            div.innerHTML = '';
-
-            const atkBtn = document.createElement('button');
-            atkBtn.innerText = '⚔️ 공격'; atkBtn.style.background = player.color; atkBtn.onclick = () => useAction('공격');
-            div.appendChild(atkBtn);
-
-            const defBtn = document.createElement('button');
-            defBtn.style.background = '#888';
-            if (player.name === '워리어') { defBtn.innerText = '🛡️ 방어 (80%)'; defBtn.onclick = () => useAction('방패방어'); } 
-            else if (player.name === '헌터') { defBtn.innerText = '💨 회피 (60%)'; defBtn.onclick = () => useAction('회피'); } 
-            else if (player.name === '마법사') { defBtn.innerText = '✨ 방어막 (70%)'; defBtn.onclick = () => useAction('방어막'); }
-            div.appendChild(defBtn);
-
-            // 🔥 전용 장비 샀을 때 생기는 궁극기 버튼!
-            if (player.unlockedSkill) {
-                const skillBtn = document.createElement('button');
-                skillBtn.innerText = `🔥 ${player.unlockedSkill}`;
-                skillBtn.style.background = '#9b59b6'; // 에픽 느낌의 보라색
-                skillBtn.onclick = () => useAction('궁극기');
-                div.appendChild(skillBtn);
-            }
-
-            const pBtn = document.createElement('button');
-            pBtn.innerText = `🧪 포션 (${player.potions})`; pBtn.className = 'potion-btn'; pBtn.onclick = usePotion;
-            div.appendChild(pBtn);
-        }
-
-        function useAction(type) {
-            if (type === '공격') {
-                let multiplier = 1.0; let effectMsg = "";
-                if (relations[player.name].strong === enemy.job) { multiplier = 1.5; effectMsg = "<b style='color:#2ed573'>(상성 우위!)</b> "; } 
-                else if (relations[player.name].weak === enemy.job) { multiplier = 0.8; effectMsg = "<b style='color:#ff4757'>(상성 열세..)</b> "; }
-
-                if (Math.random() * 100 < (90 + player.acc)) {
-                    let baseDmg = player.atk + player.extraAtk + Math.floor(Math.random()*10);
-                    let finalDmg = Math.max(1, Math.floor(baseDmg * multiplier) - enemy.def);
-                    enemy.curHp -= finalDmg;
-                    writeLog(`[명중] ${effectMsg}적에게 ${finalDmg} 피해!`);
-                } else writeLog(`[빗나감] 공격 실패!`);
-                if (enemy.curHp <= 0) return winBattle();
-
-            } else if (type === '궁극기') {
-                // 궁극기는 100% 명중 + 막대한 깡딜 + 적 방어력 무시!
-                let ultDmg = player.atk + player.extraAtk + 40; 
-                enemy.curHp -= ultDmg;
-                writeLog(`[궁극기] ${player.unlockedSkill} 작렬!!! 적에게 방어력을 무시하는 ${ultDmg}의 엄청난 피해!`);
-                if (enemy.curHp <= 0) return winBattle();
-
-            } else if (type === '방패방어') {
-                if (Math.random() * 100 < 80) { defendingTurns = 2; writeLog(`[성공] 2턴간 피해 70% 감소 방어 태세!`); } 
-                else writeLog(`[실패] 방패 방어 실패!`);
-            } else if (type === '회피') {
-                dodgingTurns = 2; writeLog(`[회피기] 2턴 동안 적의 공격을 60% 확률로 완벽히 피합니다!`);
-            } else if (type === '방어막') {
-                if (Math.random() * 100 < 70) { shieldedTurns = 2; writeLog(`[성공] 2턴 동안 데미지를 1회성으로 100% 무효화하는 방어막 전개!`); } 
-                else writeLog(`[실패] 방어막 전개에 실패했습니다!`);
-            }
-            enemyTurn();
-        }
-
-        function usePotion() {
-            if (player.potions <= 0) return writeLog("소지한 포션이 없습니다!");
-            player.potions--; player.curHp = Math.min(player.maxHp, player.curHp + 80);
-            writeLog(`[아이템] 🧪 포션 사용! (턴 소모 없이 체력 80 회복)`);
-            updateUi(); renderActions();
-        }
-
-        function enemyTurn() {
-            setTimeout(() => {
-                let hitLanded = true;
-                if (dodgingTurns > 0) {
-                    dodgingTurns--;
-                    if (Math.random() * 100 < 60) { writeLog(`[회피 성공] 💨 적의 공격을 피했습니다!`); hitLanded = false; } 
-                    else writeLog(`[회피 실패] 아차, 피하지 못했습니다!`);
-                } else if (shieldedTurns > 0) {
-                    shieldedTurns--; writeLog(`[방어막] ✨ 마나 방어막이 데미지를 무효화했습니다!`); hitLanded = false;
-                }
-
-                if (hitLanded) {
-                    if (Math.random() * 100 < 85) {
-                        let dmg = Math.max(1, enemy.atk - (player.def + player.extraDef));
-                        if(defendingTurns > 0) { dmg = Math.floor(dmg * 0.3); defendingTurns--; writeLog(`[철벽 방어] 🛡️ 데미지 경감! (${dmg} 입음)`); } 
-                        else writeLog(`[피격] 적의 공격! ${dmg} 데미지 입음.`);
-                        player.curHp -= dmg;
-                    } else writeLog(`[운 좋음] 럭키! 적의 공격이 허공을 갈랐습니다!`);
-                }
-                if (player.curHp <= 0) gameOver();
-                updateUi();
-            }, 400);
-        }
-
-        function winBattle() {
-            const gain = 30 + Math.floor(Math.random()*20); gold += gain;
-            player.curHp = Math.min(player.maxHp, player.curHp + Math.floor(player.maxHp * 0.15));
-            writeLog(`[승리] ${gain}G 획득 및 체력 소량 회복.`); floor++; spawnEnemy();
-        }
-
-        function openShop() {
-            document.getElementById('battle-area').style.display = 'none';
-            document.getElementById('shop-area').style.display = 'block';
-            updateUi(); renderShopItems();
-        }
-
-        function renderShopItems() {
-            const list = document.getElementById('shop-list'); list.innerHTML = '';
-            currentShopItems = [{ name: "치유 포션", type: "potion", value: 80, price: 40, rarity: "common", desc: "사용 시 체력을 80 즉시 회복합니다." }];
-            let shuffled = [...equipmentPool].sort(() => 0.5 - Math.random());
-            currentShopItems.push(...shuffled.slice(0, 3));
-
-            currentShopItems.forEach((it, idx) => {
-                const d = document.createElement('div');
-                d.style.marginBottom = '15px'; d.style.padding = '12px'; d.style.background = '#2a2a2a'; d.style.borderRadius = '8px'; d.style.border = '1px solid #444';
-                
-                let color = '#ccc';
-                if (it.rarity === 'legendary') color = '#e74c3c'; // 전설은 빨간색!
-                else if (it.rarity === 'epic') color = '#a55eea';
-                else if (it.rarity === 'rare') color = '#1e90ff';
-
-                d.innerHTML = `<span style="color:${color}; font-weight:bold; font-size:1.1em;">${it.name}</span> <span style="color:#f1c40f;">(${it.price}G)</span> <br>
-                               <div style="font-size:0.85em; color:#999; margin:8px 0; line-height:1.4;">${it.desc}</div>
-                               <button onclick="buyItem(event, ${idx})" style="background:#f1c40f; color:#111; padding:8px 15px; margin-top:5px; font-size:0.9em; box-shadow:none;">구매하기</button>`;
-                list.appendChild(d);
-            });
-            
-            const rerollBtn = document.createElement('button');
-            rerollBtn.className = 'reroll-btn'; rerollBtn.innerText = `🔄 상품 다시 돌리기 (${rerollCost}G)`; rerollBtn.onclick = rerollShop;
-            list.appendChild(rerollBtn);
-        }
-
-        function rerollShop() {
-            if (gold < rerollCost) return writeLog(`[상점] 골드가 부족합니다.`);
-            gold -= rerollCost; rerollCost += 10; writeLog(`[상점] 리롤 완료! 새로운 상품 진열됨.`); updateUi(); renderShopItems();
-        }
-
-        function saveCollection(itemName) {
-            let collection = JSON.parse(localStorage.getItem('item_collection_v4') || '[]');
-            if (!collection.includes(itemName)) { collection.push(itemName); localStorage.setItem('item_collection_v4', JSON.stringify(collection)); loadCollection(); }
-        }
-
-        function loadCollection() {
-            let collection = JSON.parse(localStorage.getItem('item_collection_v4') || '[]');
-            document.getElementById('collection-count').innerText = `${collection.length} / ${equipmentPool.length}`;
-        }
-
-        function buyItem(event, idx) {
-            const it = currentShopItems[idx];
-            if (gold < it.price) return writeLog("골드 부족!");
-            gold -= it.price;
-            
-            if (it.type === 'potion') { player.potions++; writeLog(`[상점] 포션 구매 완료.`); } 
-            else {
-                if (!player.items.some(i => i.name === it.name)) {
-                    player.items.push(it); saveCollection(it.name);
-                    
-                    if (it.type === 'atk') player.atk += it.value;
-                    if (it.type === 'hp') { player.maxHp += it.value; player.curHp += it.value; }
-                    if (it.type === 'acc') player.acc += it.value;
-                    if (it.def) player.extraDef += it.def;
-                    
-                    if (it.preferred === player.name) {
-                        if (it.bonusAtk) player.extraAtk += it.bonusAtk;
-                        if (it.bonusHp) { player.maxHp += it.bonusHp; player.curHp += it.bonusHp; }
-                        if (it.bonusAcc) player.acc += it.bonusAcc;
-                        // 핵심! 전용 무기 사면 궁극기 스킬 잠금 해제!
-                        if (it.unlockSkill) player.unlockedSkill = it.unlockSkill;
-                    }
-                    if (it.penalty && it.penalty[player.name]) player.acc -= it.penalty[player.name];
-                    
-                    event.target.innerText = "판매됨"; event.target.disabled = true; event.target.style.background = "#555"; event.target.style.color = "#999";
-                } else {
-                    player.maxHp += 15; player.curHp += 15; writeLog("중복 보너스: HP +15");
-                }
-            }
-            updateUi(); renderActions(); // 궁극기 버튼을 띄우기 위해 화면 새로고침!
-        }
-
-        function nextFloor() { floor++; document.getElementById('shop-area').style.display = 'none'; document.getElementById('battle-area').style.display = 'block'; spawnEnemy(); }
-
-        function updateUi() {
-            document.getElementById('p-hp').style.width = (player.curHp/player.maxHp*100)+'%';
-            document.getElementById('p-hp-t').innerText = `${player.curHp}/${player.maxHp}`;
-            document.getElementById('p-atk-val').innerText = player.atk + (player.extraAtk || 0);
-            document.getElementById('p-def-val').innerText = player.def + (player.extraDef || 0);
-            
-            // 실시간 명중률(ACC) 업데이트 (기본 90% + 보정치)
-            let currentAcc = 90 + player.acc;
-            document.getElementById('p-acc-val').innerText = `${currentAcc}%`;
-
-            if(enemy && enemy.curHp > 0) {
-                document.getElementById('e-hp').style.width = (enemy.curHp/enemy.hp*100)+'%';
-                document.getElementById('e-hp-t').innerText = `${enemy.curHp}/${enemy.hp}`;
-                document.getElementById('e-name').innerText = enemy.name;
-                document.getElementById('e-atk-val').innerText = enemy.atk;
-                document.getElementById('e-def-val').innerText = enemy.def;
-            }
-            document.getElementById('floor-t').innerText = floor; document.getElementById('gold-t').innerText = gold;
-            document.getElementById('shop-gold-t').innerText = gold; document.getElementById('shop-hp-t').innerText = `${player.curHp}/${player.maxHp}`;
-            document.getElementById('potion-t').innerText = player.potions;
-            
-            let statusText = "";
-            if (defendingTurns > 0) statusText = `🛡️ 방어 중 (${defendingTurns}턴)`;
-            else if (dodgingTurns > 0) statusText = `💨 회피 준비 (${dodgingTurns}턴)`;
-            else if (shieldedTurns > 0) statusText = `✨ 방어막 (${shieldedTurns}턴)`;
-            document.getElementById('p-status').innerText = statusText;
-
-            let accMsg = player.acc < 0 ? `<span style="color:#ff4757;">${player.acc}%</span>` : `+${player.acc}%`;
-            
-            document.getElementById('inv-list').innerHTML = player.items.map(i => {
-                let color = '#ccc';
-                if (i.rarity === 'legendary') color = '#e74c3c';
-                else if (i.rarity === 'epic') color = '#a55eea';
-                else if (i.rarity === 'rare') color = '#1e90ff';
-                return `<div class="stat-tag" style="color:${color};">▪ ${i.name}<div class="tooltip-text">${i.desc}</div></div>`;
-            }).join('') + `<br><div style="font-size:0.85em; color:#888; margin-top:5px;">명중 보정: ${accMsg}</div>`;
-        }
-
-        function gameOver() { saveRank(); alert(`사망했습니다. (사인: ${enemy.name})`); location.reload(); }
-
-        function saveRank() {
-            let ranks = JSON.parse(localStorage.getItem('final_rank_v4') || '[]');
-            ranks.push({ job: player.name, floor: floor, killer: enemy ? enemy.name : "알 수 없음", date: new Date().toLocaleDateString() });
-            ranks.sort((a, b) => b.floor - a.floor); localStorage.setItem('final_rank_v4', JSON.stringify(ranks.slice(0, 5)));
-        }
-
-        function loadRank() {
-            let ranks = JSON.parse(localStorage.getItem('final_rank_v4') || '[]');
-            document.getElementById('rank-list').innerHTML = ranks.map(r => 
-                `<div style="margin-bottom:8px; border-bottom:1px dashed #333; padding-bottom:5px;">
-                    <b style="color:#e0e0e0;">${r.floor}층 (${r.job})</b> <span style="font-size:0.85em; color:#666;">${r.date}</span><br>
-                    <span style="color:#ff4757;">💀 사인: ${r.killer}</span>
-                </div>`
-            ).join('') || '기록 없음';
-        }
-
-        function writeLog(m) {
-            const l = document.getElementById('log'); l.innerHTML = `> ${m}<br>` + l.innerHTML; l.scrollTop = l.scrollHeight;
-        }
-        loadRank();
-    </script>
+    <script src="data.js"></script>
+    <script type="module" src="game.js"></script>
 </body>
 </html>
