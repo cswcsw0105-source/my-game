@@ -268,6 +268,7 @@ window.nextFloor = () => {
     document.getElementById('shop-area').style.display = 'none';
     document.getElementById('battle-area').style.display = 'block';
     rerollCost = 10;
+    floor++; // 상점 나올 때 층수 올리기
     spawnEnemy();
 };
 
