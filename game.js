@@ -102,9 +102,10 @@ window.startGame = (job) => {
     loadCollection();
     spawnEnemy();
 };
+let shopVisited = false;
 
 function spawnEnemy() {
-    if (floor > 1 && floor % 3 === 0 && document.getElementById('shop-area').style.display === 'none') return openShop();
+    if (floor > 1 && floor % 3 === 0 && !shopVisited) { shopVisited = true; return openShop(); }
     defendingTurns = 0; dodgingTurns = 0; shieldedTurns = 0;
 
     if (floor % 10 === 0) {
@@ -265,10 +266,10 @@ function openShop() {
 }
 
 window.nextFloor = () => {
+    shopVisited = false;
     document.getElementById('shop-area').style.display = 'none';
     document.getElementById('battle-area').style.display = 'block';
     rerollCost = 10;
-    floor++; // 상점 나올 때 층수 올리기
     spawnEnemy();
 };
 
