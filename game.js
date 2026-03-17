@@ -273,5 +273,20 @@ window.buyItem = (event, idx) => {
     else {
         if (!player.items.some(i => i.name === it.name)) {
             player.items.push(it); saveCollection(it.name);
-            if (it.type === 'atk') player.atk += it.value; if (it.type === 'hp') { player.maxHp += it.value; player.curHp += it.value; } if (it.type === 'acc') player.acc += it.value; if (it.def) player.extraDef += it.def;
-            if (it.preferred === player.name)
+            if (it.type === 'atk') player.atk += it.value;
+            if (it.type === 'hp') { player.maxHp += it.value; player.curHp += it.value; }
+            if (it.type === 'acc') player.acc += it.value;
+            if (it.def) player.extraDef += it.def;
+            if (it.preferred === player.name) {
+                if (it.bonusAtk) player.atk += it.bonusAtk;
+                if (it.bonusHp) { player.maxHp += it.bonusHp; player.curHp += it.bonusHp; }
+                if (it.bonusAcc) player.acc += it.bonusAcc;
+                writeLog(`[보너스] ${player.name} 전용 장비 효과 적용!`);
+            }
+            if (it.penalty && it.penalty[player.name]) { player.acc -= it.penalty[player.name]; writeLog(`[패널티] 명중률 -${it.penalty[player.name]}% 적용`); }
+            if (it.unlockSkill) { player.unlockedSkill = it.unlockSkill; writeLog(`[스킬 해제] 🔥 ${it.unlockSkill} 스킬을 획득했습니다!`); }
+            writeLog(`[상점] ${it.name} 장착 완료!`);
+        } else { writeLog(`이미 보유한 장비입니다!`); gold += it.price; }
+    }
+    updateUi(); renderActions();
+};
