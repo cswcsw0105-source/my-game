@@ -76,119 +76,54 @@
                 <h4 style="color: #fff;">🎒 인벤토리 (마우스 오버)</h4>
                 <div id="inv-list" style="font-size:0.9em; line-height: 2.0;">장비가 없습니다.</div>
                 <hr style="border-top:1px solid #333; width: 100%;">
-                
-                <button onclick="toggleRank(true)" style="background:#2c2c3e; color:#f1c40f; border:1px solid #f1c40f; width:100%; margin-bottom:8px;">🏆 명예의 전당 보기</button>
-<button class="patch-btn" onclick="togglePatchNotes(true)">📜 패치 노트 보기</button>
-                <div id="rank-modal" class="modal-overlay" style="display:none;">
-    <div class="modal-content">
-        <button class="close-btn" onclick="toggleRank(false)">✖</button>
-        <h2>🏆 글로벌 명예의 전당</h2>
-        <div id="rank-list" style="font-size:0.9em; color:#888; margin-top:15px;">데이터 불러오는 중...</div>
-    </div>
-</div>
+                <button class="rank-btn" onclick="toggleRank(true)">🏆 명예의 전당 보기</button>
+                <button class="patch-btn" onclick="togglePatchNotes(true)">📜 패치 노트 보기</button>
             </div>
         </div>
         <div id="log">온라인 서버 연결 대기 중...</div>
     </div>
 
+    <!-- 명예의 전당 모달 -->
+    <div id="rank-modal" class="modal-overlay">
+        <div class="modal-content">
+            <button class="close-btn" onclick="toggleRank(false)">✖</button>
+            <h2>🏆 글로벌 명예의 전당</h2>
+            <div id="rank-list" style="font-size:0.9em; color:#888; margin-top:15px;">데이터 불러오는 중...</div>
+        </div>
+    </div>
+
+    <!-- 패치 노트 모달 -->
     <div id="patch-modal" class="modal-overlay">
         <div class="modal-content">
             <button class="close-btn" onclick="togglePatchNotes(false)">✖</button>
             <h2>📜 패치 노트</h2>
             <table class="patch-table">
-    <thead><tr><th>버전</th><th>항목</th><th>상세 내용</th></tr></thead>
-    <tbody>
-        <tr>
-    <td class="v-tag">v5.2</td>
-    <td>밸런스</td>
-    <td><b>초반 밸런스 조정:</b> 플레이어·몹 기본 공격력 하향. 명중률(85%) 및 방어 성공률 하향.<br><b>골드 수급 개선:</b> 층수에 비례한 골드 증가 및 상성 열세 역전 시 보너스 골드 지급.</td>
-</tr>
-            <td class="v-tag">v5.1</td>
-            <td>콘텐츠 & 밸런스</td>
-            <td><b>보스 몬스터 추가:</b> 10층마다 강력한 패턴을 지닌 보스 등장.<br><b>워리어/포션 조정:</b> 워리어 기본 체력 하향(220→180) 및 포션 효율 비율제(최대 체력 35%)로 변경.</td>
-        </tr>
-        <tr>
-            <td class="v-tag">v5.0</td>
-            <td>서버</td>
-            <td><b>글로벌 랭킹전 도입:</b> Firebase 연동 완료. 이메일 로그인 및 실시간 서버 랭킹 저장 기능 추가.</td>
-        </tr>
-        <tr>
-            <td class="v-tag">v4.0</td>
-            <td>콘텐츠</td>
-            <td><b>명중률 실시간 표시:</b> 전투 화면에서 현재 명중률 확인 가능.<br><b>전설 등급 무기 추가:</b> 구매 시 직업 전용 궁극기(4번째 스킬) 해제.</td>
-        </tr>
-        <tr>
-            <td class="v-tag">v3.9</td>
-            <td>UI</td>
-            <td><b>패치노트 모던화:</b> 하단 나열 방식에서 팝업 모달 방식으로 분리.</td>
-        </tr>
-        <tr>
-            <td class="v-tag">v3.8</td>
-            <td>시스템</td>
-            <td><b>상점 리롤:</b> 무한 상점 버그 수정 및 리롤 비용 누적 시스템 추가.<br><b>프리 액션:</b> 포션 사용 시 턴 소모 제거.<br><b>적 명중률 하향:</b> 100% → 85%로 보정.</td>
-        </tr>
-        <tr>
-            <td class="v-tag">v3.7</td>
-            <td>콘텐츠</td>
-            <td><b>도감 & 장비 툴팁:</b> 인벤토리 아이템에 마우스 오버 시 상세 스펙 확인 가능.<br><b>획득률 표시 추가.</b><br><b>데스로그:</b> 나를 죽인 몬스터의 직업과 이름을 명예의 전당에 박제.</td>
-        </tr>
-        <tr>
-            <td class="v-tag">v3.6</td>
-            <td>밸런스</td>
-            <td><b>생존기 버프:</b> 회피·방어막 지속 1턴 → 2턴으로 상향.<br><b>안티 스트릭:</b> 동일 직업 몬스터 연속 등장 확률 대폭 하향.</td>
-        </tr>
-        <tr>
-            <td class="v-tag">v3.5</td>
-            <td>밸런스 & UI</td>
-            <td><b>클래스 상성 부활:</b> 적에게 직업 부여 및 데미지 가중치 재적용. (우위 ×1.5 / 열세 ×0.8)<br><b>다크모드 리마스터:</b> 전면 가독성 개선.</td>
-        </tr>
-        <tr>
-            <td class="v-tag">v3.4</td>
-            <td>콘텐츠</td>
-            <td><b>대규모 장비 출시:</b> 다수의 신규 장비 추가.<br><b>3구 랜덤 상점 가챠 시스템</b> 도입.</td>
-        </tr>
-        <tr>
-            <td class="v-tag">v3.3</td>
-            <td>롤백 & 추가</td>
-            <td><b>적 클래스 부여 복구:</b> 상성 데미지 재도입.<br><b>직업 고유 생존기 부활.</b></td>
-        </tr>
-        <tr>
-            <td class="v-tag">v3.2</td>
-            <td>시스템</td>
-            <td><b>방어력(DEF) 계산식 도입.</b><br><b>전투 중 포션 사용</b> 기능 추가.</td>
-        </tr>
-        <tr>
-            <td class="v-tag">v3.1</td>
-            <td>핫픽스</td>
-            <td><b>경제 버그 수정.</b><br><b>워리어 방어 리워크:</b> 2턴간 피해 70% 감소로 변경.</td>
-        </tr>
-        <tr>
-            <td class="v-tag">v3.0</td>
-            <td>방향성 전환</td>
-            <td><b>로그라이크 RPG로 피벗:</b> 전용 장비 및 직업별 패널티 시스템 도입.</td>
-        </tr>
-        <tr>
-            <td class="v-tag">v2.5</td>
-            <td>밸런스</td>
-            <td><b>유지력 강화:</b> 전투 승리 시 HP 20% 즉시 회복.<br><b>명중률 상향:</b> 헌터 조준사격 명중률 95%로 보정.</td>
-        </tr>
-        <tr>
-            <td class="v-tag">v2.0</td>
-            <td>시스템</td>
-            <td><b>층수 시스템 도입:</b> 3층마다 상점 등장.<br><b>localStorage 기반 랭킹</b> 저장 추가.</td>
-        </tr>
-        <tr>
-            <td class="v-tag">v1.5</td>
-            <td>로직</td>
-            <td><b>클래스 상성 도입:</b> 워리어·헌터·마법사 가위바위보 상성 가중치 적용.</td>
-        </tr>
-        <tr>
-            <td class="v-tag">v1.0</td>
-            <td>출시</td>
-            <td><b>프로젝트 카운터 초기 기획.</b> 웹 기반 기본 인터페이스 구현.</td>
-        </tr>
-    </tbody>
-</table>
+                <thead><tr><th>버전</th><th>항목</th><th>상세 내용</th></tr></thead>
+                <tbody>
+                    <tr>
+                        <td class="v-tag">v5.2</td>
+                        <td>대규모 패치</td>
+                        <td><b>전직 시스템:</b> 워리어→나이트/버서커, 헌터→궁수/암살자, 마법사→위저드/소환사.<br><b>방어 리워크:</b> 방패방어 피해 60% 감소, 방어막 피해 50% 감소로 변경.<br><b>아이템 확장:</b> 직업 전용 아이템 추가, 흡혈·회복 아이템 추가, 가로 배치 적용.<br><b>포션 패치:</b> 턴당 1회 사용 제한. 회복의 목걸이 착용 시 2턴 지속 회복으로 전환.<br><b>골드 개선:</b> 층수 비례 골드 증가, 역전 승리 보너스 골드 지급.</td>
+                    </tr>
+                    <tr><td class="v-tag">v5.1</td><td>콘텐츠 & 밸런스</td><td><b>보스 몬스터 추가:</b> 10층마다 강력한 패턴을 지닌 보스 등장.<br><b>워리어/포션 조정:</b> 워리어 기본 체력 하향(220→180) 및 포션 효율 비율제(최대 체력 35%)로 변경.</td></tr>
+                    <tr><td class="v-tag">v5.0</td><td>서버</td><td><b>글로벌 랭킹전 도입:</b> Firebase 연동 완료. 이메일 로그인 및 실시간 서버 랭킹 저장 기능 추가.</td></tr>
+                    <tr><td class="v-tag">v4.0</td><td>콘텐츠</td><td><b>명중률 실시간 표시:</b> 전투 화면에서 현재 명중률 확인 가능.<br><b>전설 등급 무기 추가:</b> 구매 시 직업 전용 궁극기(4번째 스킬) 해제.</td></tr>
+                    <tr><td class="v-tag">v3.9</td><td>UI</td><td><b>패치노트 모던화:</b> 하단 나열 방식에서 팝업 모달 방식으로 분리.</td></tr>
+                    <tr><td class="v-tag">v3.8</td><td>시스템</td><td><b>상점 리롤:</b> 무한 상점 버그 수정 및 리롤 비용 누적 시스템 추가.<br><b>프리 액션:</b> 포션 사용 시 턴 소모 제거.<br><b>적 명중률 하향:</b> 100% → 85%로 보정.</td></tr>
+                    <tr><td class="v-tag">v3.7</td><td>콘텐츠</td><td><b>도감 & 장비 툴팁:</b> 인벤토리 아이템에 마우스 오버 시 상세 스펙 확인 가능.<br><b>데스로그:</b> 나를 죽인 몬스터의 직업과 이름을 명예의 전당에 박제.</td></tr>
+                    <tr><td class="v-tag">v3.6</td><td>밸런스</td><td><b>생존기 버프:</b> 회피·방어막 지속 1턴 → 2턴으로 상향.<br><b>안티 스트릭:</b> 동일 직업 몬스터 연속 등장 확률 대폭 하향.</td></tr>
+                    <tr><td class="v-tag">v3.5</td><td>밸런스 & UI</td><td><b>클래스 상성 부활:</b> 적에게 직업 부여 및 데미지 가중치 재적용. (우위 ×1.5 / 열세 ×0.8)<br><b>다크모드 리마스터:</b> 전면 가독성 개선.</td></tr>
+                    <tr><td class="v-tag">v3.4</td><td>콘텐츠</td><td><b>대규모 장비 출시:</b> 다수의 신규 장비 추가.<br><b>3구 랜덤 상점 가챠 시스템</b> 도입.</td></tr>
+                    <tr><td class="v-tag">v3.3</td><td>롤백 & 추가</td><td><b>적 클래스 부여 복구:</b> 상성 데미지 재도입.<br><b>직업 고유 생존기 부활.</b></td></tr>
+                    <tr><td class="v-tag">v3.2</td><td>시스템</td><td><b>방어력(DEF) 계산식 도입.</b><br><b>전투 중 포션 사용</b> 기능 추가.</td></tr>
+                    <tr><td class="v-tag">v3.1</td><td>핫픽스</td><td><b>경제 버그 수정.</b><br><b>워리어 방어 리워크:</b> 2턴간 피해 70% 감소로 변경.</td></tr>
+                    <tr><td class="v-tag">v3.0</td><td>방향성 전환</td><td><b>로그라이크 RPG로 피벗:</b> 전용 장비 및 직업별 패널티 시스템 도입.</td></tr>
+                    <tr><td class="v-tag">v2.5</td><td>밸런스</td><td><b>유지력 강화:</b> 전투 승리 시 HP 20% 즉시 회복.<br><b>명중률 상향:</b> 헌터 조준사격 명중률 95%로 보정.</td></tr>
+                    <tr><td class="v-tag">v2.0</td><td>시스템</td><td><b>층수 시스템 도입:</b> 3층마다 상점 등장.<br><b>localStorage 기반 랭킹</b> 저장 추가.</td></tr>
+                    <tr><td class="v-tag">v1.5</td><td>로직</td><td><b>클래스 상성 도입:</b> 워리어·헌터·마법사 가위바위보 상성 가중치 적용.</td></tr>
+                    <tr><td class="v-tag">v1.0</td><td>출시</td><td><b>프로젝트 카운터 초기 기획.</b> 웹 기반 기본 인터페이스 구현.</td></tr>
+                </tbody>
+            </table>
         </div>
     </div>
 
@@ -197,6 +132,5 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <script src="data.js"></script>
     <script src="game.js"></script>
-    <script>
 </body>
 </html>
