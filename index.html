@@ -2,54 +2,12 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>카운터 던전 v3.8: 상점 리롤 & 밸런스 에디션</title>
-    <style>
-        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
-        body { background-color: #121212; color: #e0e0e0; text-align: center; font-family: 'Pretendard', 'Apple SD Gothic Neo', sans-serif; padding: 20px; line-height: 1.6; }
-        .container { max-width: 950px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
-        .game-layout { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; }
-        
-        .screen { background: #1e1e1e; padding: 25px; border-radius: 12px; border: 1px solid #333; flex: 2; min-width: 350px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); }
-        .sidebar { background: #1e1e1e; padding: 20px; border-radius: 12px; border: 1px solid #333; flex: 1; text-align: left; min-width: 250px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); }
-        
-        .hp-bar-outer { width: 100%; background: #2a2a2a; height: 16px; border-radius: 8px; margin: 8px 0; border: 1px solid #111; overflow: hidden; }
-        .hp-bar-inner { height: 100%; background: #2ed573; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        
-        button { 
-            padding: 12px 20px; margin: 5px; cursor: pointer; border-radius: 6px; border: none; 
-            font-weight: 800; font-size: 1em; color: #111;
-            letter-spacing: 0.5px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: all 0.2s ease; 
-        }
-        button:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.5); opacity: 0.95; }
-        button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
-        .potion-btn { background: #f1c40f !important; color: #111 !important; }
-        .reroll-btn { background: #e67e22 !important; color: #fff !important; width: 100%; margin-top: 15px; }
-        
-        #log { background: #0a0a0a; padding: 15px; height: 180px; overflow-y: auto; border-radius: 8px; text-align: left; font-size: 0.9em; border: 1px solid #222; margin-top: 15px; color: #bbb; }
-        
-        /* 툴팁 로직 */
-        .stat-tag { font-size: 0.85em; color: #888; font-weight: 600; cursor: help; position: relative; display: inline-block; width: 100%; }
-        .tooltip-text { 
-            visibility: hidden; width: 220px; background-color: #333; color: #fff; text-align: left; 
-            border-radius: 6px; padding: 8px 10px; position: absolute; z-index: 10; bottom: 125%; left: 0; 
-            opacity: 0; transition: opacity 0.2s; font-size: 0.85em; font-weight: normal; border: 1px solid #555; box-shadow: 0 4px 8px rgba(0,0,0,0.5); line-height: 1.4;
-        }
-        .stat-tag:hover .tooltip-text { visibility: visible; opacity: 1; }
-        
-        .status-badge { color: #f1c40f; font-size: 0.85em; height: 1.2em; margin-top: 5px; font-weight: bold; }
-        
-        #patch-notes { margin-top: 40px; text-align: left; background: #1a1a1a; padding: 25px; border-radius: 12px; border: 1px solid #333; font-size: 0.9em; box-shadow: 0 8px 16px rgba(0,0,0,0.5); }
-        #patch-notes h2 { border-bottom: 2px solid #333; padding-bottom: 10px; color: #f1c40f; }
-        .patch-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        .patch-table th, .patch-table td { border: 1px solid #333; padding: 12px; text-align: left; }
-        .patch-table th { background: #222; color: #f1c40f; }
-        .v-tag { font-weight: bold; color: #f1c40f; }
-        .up { color: #2ed573; font-weight: bold; }
-    </style>
+    <title>카운터 던전 v3.9: 모듈화 작업 (디자인 분리)</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
-        <h1 style="color: #fff; letter-spacing: 1px;">⚔️ 카운터 던전 (v3.8)</h1>
+        <h1 style="color: #fff; letter-spacing: 1px;">⚔️ 카운터 던전 (v3.9)</h1>
         <div class="game-layout">
             <div class="screen">
                 <div id="start-area">
@@ -89,37 +47,66 @@
                 <p>층수: <b id="floor-t" style="color:#fff;">1</b>F | 골드: <b id="gold-t" style="color:#f1c40f;">0</b>G</p>
                 <p>장비 수집률: <b id="collection-count" style="color:#1e90ff;">0 / 10</b></p>
                 <p>소지 포션: <b id="potion-t" style="color:#2ed573;">0</b>개</p>
-                <hr style="border-top:1px solid #333;">
+                <hr style="border-top:1px solid #333; width: 100%;">
                 <h4 style="color: #fff;">🎒 인벤토리 (마우스 오버)</h4>
                 <div id="inv-list" style="font-size:0.9em; line-height: 2.0;">장비가 없습니다.</div>
-                <hr style="border-top:1px solid #333;">
+                <hr style="border-top:1px solid #333; width: 100%;">
                 <h4 style="color: #fff;">🏆 묘지 및 전당</h4>
                 <div id="rank-list" style="font-size:0.85em; color:#888;"></div>
+                
+                <button class="patch-btn" onclick="togglePatchNotes(true)">📜 패치 노트 및 세부 수치 보기</button>
             </div>
         </div>
         <div id="log">시스템 준비 완료. 던전에 진입합니다...</div>
+    </div>
 
-        <div id="patch-notes">
-            <h2>📜 개발 로그 (Patch History)</h2>
+    <div id="patch-modal" class="modal-overlay">
+        <div class="modal-content">
+            <button class="close-btn" onclick="togglePatchNotes(false)">✖</button>
+            <h2>📜 세부 패치 노트 및 수치 변화 로그</h2>
             <table class="patch-table">
                 <thead>
-                    <tr><th>버전</th><th>구분</th><th>상세 내용 및 기획 의도</th></tr>
+                    <tr><th>버전</th><th>항목</th><th>상세 수치 변화 및 기획 의도</th></tr>
                 </thead>
                 <tbody>
                     <tr>
+                        <td class="v-tag">v3.9</td>
+                        <td>UI/UX</td>
+                        <td><b>패치 노트 모달화:</b> 하단에 나열되던 정보를 팝업으로 분리하여 메인 화면의 가독성 극대화.<br><b>수치 변화량 시각화:</b> 이전 버전 대비 변경된 능력치를 구체적으로 명시함.</td>
+                    </tr>
+                    <tr>
                         <td class="v-tag">v3.8</td>
-                        <td><span class="up">시스템</span></td>
-                        <td><b>상점 무한 루프 버그 수정.</b><br><b>상점 리롤 기능:</b> 비용 누적형 가챠 요소 도입.<br><b>전투 밸런스:</b> 포션 사용 시 턴 소모 제거. 적 공격 실패(15%) 확률 도입.</td>
+                        <td>시스템 & 밸런스</td>
+                        <td>
+                            <b>상점 리롤:</b> 무한 상점 버그 수정 및 리롤 비용 누적 시스템 추가.<br>
+                            <span class="num-change">리롤 비용: <span class="num-old">없음</span> 10G (회당 +10G 증가)</span><br>
+                            <b>포션 턴 소모:</b> 전투의 흐름을 끊지 않도록 프리 액션으로 변경.<br>
+                            <span class="num-change">포션 소모 턴: <span class="num-old">1턴</span> 0턴 (즉시 발동)</span><br>
+                            <b>적 명중률 보정:</b> 적에게도 공격 실패 확률 부여.<br>
+                            <span class="num-change">적 명중률: <span class="num-old">100%</span> 85%</span>
+                        </td>
                     </tr>
                     <tr>
                         <td class="v-tag">v3.7</td>
-                        <td><span class="up">콘텐츠</span></td>
-                        <td><b>도감 및 툴팁:</b> 장비 설명 툴팁 및 컬렉션 수집률 표시.<br><b>데스 로그:</b> 랭킹에 플레이어를 죽인 몬스터 직업/이름 박제.</td>
+                        <td>도감 & 로깅</td>
+                        <td><b>장비 툴팁:</b> 인벤토리에 마우스 오버 시 상세 스펙 확인 가능. 획득률 표시.<br><b>데스 로그:</b> 나를 죽인 몬스터의 직업과 이름을 명예의 전당에 박제.</td>
                     </tr>
                     <tr>
-                        <td class="v-tag">v1.0 ~ 3.6</td>
-                        <td><span class="up">기본구축</span></td>
-                        <td>로그라이크 층수/상점/기록, 생존기(회피/방어막) 버프 등.</td>
+                        <td class="v-tag">v3.6</td>
+                        <td>생존기 버프</td>
+                        <td>
+                            <b>생존기 턴 유지:</b> 회피와 방어막이 1턴 만에 증발하는 것을 방지.<br>
+                            <span class="num-change">회피/방어막 지속: <span class="num-old">1턴</span> 2턴</span><br>
+                            <b>안티 스트릭:</b> 동일한 직업의 몬스터가 연속으로 등장할 확률을 대폭 하향.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="v-tag">v3.3</td>
+                        <td>전투 롤백</td>
+                        <td>
+                            <b>클래스 상성 부활:</b> 적에게 직업 부여 후 데미지 가중치 재적용.<br>
+                            <span class="num-change">데미지 가중치: <span class="num-old">고정</span> 우위 1.5배 / 열세 0.8배</span>
+                        </td>
                     </tr>
                 </tbody>
             </table>
@@ -127,11 +114,12 @@
     </div>
 
     <script>
+        // 로직 부분은 아직 index.html에 그대로 두었어! (다음 단계에서 분리할 예정)
         let floor = 1, gold = 0, player = null, enemy = null;
         let defendingTurns = 0, dodgingTurns = 0, shieldedTurns = 0;
         let currentShopItems = []; 
         let lastEnemyJob = ""; 
-        let rerollCost = 10; // 리롤 비용 전역 변수
+        let rerollCost = 10; 
 
         const relations = {
             '워리어': { weak: '마법사', strong: '헌터' },
@@ -158,6 +146,15 @@
             { name: "정령의 활", type: "atk", value: 18, price: 110, rarity: "epic", preferred: "헌터", bonusAtk: 15, desc: "바람의 정령이 깃든 활. 헌터의 파괴력(+15)을 극대화한다." }
         ];
 
+        function togglePatchNotes(show) {
+            document.getElementById('patch-modal').style.display = show ? 'flex' : 'none';
+        }
+        
+        window.onclick = function(event) {
+            const modal = document.getElementById('patch-modal');
+            if (event.target === modal) togglePatchNotes(false);
+        }
+
         function startGame(job) {
             player = { ...jobBase[job], curHp: jobBase[job].hp, maxHp: jobBase[job].hp, acc: 0, items: [], extraAtk: 0, potions: 0, extraDef: 0 };
             document.getElementById('start-area').style.display = 'none';
@@ -168,7 +165,6 @@
         }
 
         function spawnEnemy() {
-            // 상점 입장 로직 (무한 루프 방지됨)
             if (floor > 1 && floor % 3 === 0 && document.getElementById('shop-area').style.display === 'none') {
                 return openShop();
             }
@@ -178,7 +174,6 @@
             const eJobs = ['워리어', '헌터', '마법사'];
             let randomJob = eJobs[Math.floor(Math.random() * eJobs.length)];
             
-            // 안티 스트릭 (중복 억제)
             if (randomJob === lastEnemyJob) randomJob = eJobs[Math.floor(Math.random() * eJobs.length)];
             lastEnemyJob = randomJob;
 
@@ -271,14 +266,12 @@
             writeLog(`[아이템] 🧪 포션 사용! (턴 소모 없이 체력 ${heal} 회복)`);
             updateUi();
             renderActions();
-            // 포션은 턴을 소모하지 않으므로 enemyTurn() 호출 안 함!
         }
 
         function enemyTurn() {
             setTimeout(() => {
                 let hitLanded = true;
                 
-                // 내 생존기 판정
                 if (dodgingTurns > 0) {
                     dodgingTurns--;
                     if (Math.random() * 100 < 60) {
@@ -294,7 +287,6 @@
                     hitLanded = false;
                 }
 
-                // 적의 공격 및 빗나감 판정 (85% 명중률)
                 if (hitLanded) {
                     if (Math.random() * 100 < 85) {
                         let dmg = Math.max(1, enemy.atk - (player.def + player.extraDef));
@@ -325,7 +317,6 @@
             spawnEnemy();
         }
 
-        // 상점 입장 및 리롤 로직
         function openShop() {
             document.getElementById('battle-area').style.display = 'none';
             document.getElementById('shop-area').style.display = 'block';
@@ -359,7 +350,6 @@
                 list.appendChild(d);
             });
             
-            // 리롤 버튼 추가
             const rerollBtn = document.createElement('button');
             rerollBtn.className = 'reroll-btn';
             rerollBtn.innerText = `🔄 상품 다시 돌리기 (${rerollCost}G)`;
@@ -370,7 +360,7 @@
         function rerollShop() {
             if (gold < rerollCost) return writeLog(`[상점] 골드가 부족하여 리롤할 수 없습니다. (필요: ${rerollCost}G)`);
             gold -= rerollCost;
-            rerollCost += 10; // 리롤 할 때마다 10G씩 영구 증가
+            rerollCost += 10; 
             writeLog(`[상점] 리롤 완료! 새로운 상품이 진열되었습니다.`);
             updateUi();
             renderShopItems();
@@ -430,7 +420,7 @@
         }
 
         function nextFloor() {
-            floor++; // 무한 상점 버그 수정 (층수 정상 증가)
+            floor++; 
             document.getElementById('shop-area').style.display = 'none';
             document.getElementById('battle-area').style.display = 'block';
             spawnEnemy();
