@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>카운터 던전 v3.6: 생존기 버프 및 안티 스트릭 에디션</title>
+    <title>카운터 던전 v3.8: 상점 리롤 & 밸런스 에디션</title>
     <style>
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
         body { background-color: #121212; color: #e0e0e0; text-align: center; font-family: 'Pretendard', 'Apple SD Gothic Neo', sans-serif; padding: 20px; line-height: 1.6; }
@@ -22,11 +22,20 @@
         }
         button:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.5); opacity: 0.95; }
         button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
-        
         .potion-btn { background: #f1c40f !important; color: #111 !important; }
+        .reroll-btn { background: #e67e22 !important; color: #fff !important; width: 100%; margin-top: 15px; }
         
         #log { background: #0a0a0a; padding: 15px; height: 180px; overflow-y: auto; border-radius: 8px; text-align: left; font-size: 0.9em; border: 1px solid #222; margin-top: 15px; color: #bbb; }
-        .stat-tag { font-size: 0.85em; color: #888; font-weight: 600; }
+        
+        /* 툴팁 로직 */
+        .stat-tag { font-size: 0.85em; color: #888; font-weight: 600; cursor: help; position: relative; display: inline-block; width: 100%; }
+        .tooltip-text { 
+            visibility: hidden; width: 220px; background-color: #333; color: #fff; text-align: left; 
+            border-radius: 6px; padding: 8px 10px; position: absolute; z-index: 10; bottom: 125%; left: 0; 
+            opacity: 0; transition: opacity 0.2s; font-size: 0.85em; font-weight: normal; border: 1px solid #555; box-shadow: 0 4px 8px rgba(0,0,0,0.5); line-height: 1.4;
+        }
+        .stat-tag:hover .tooltip-text { visibility: visible; opacity: 1; }
+        
         .status-badge { color: #f1c40f; font-size: 0.85em; height: 1.2em; margin-top: 5px; font-weight: bold; }
         
         #patch-notes { margin-top: 40px; text-align: left; background: #1a1a1a; padding: 25px; border-radius: 12px; border: 1px solid #333; font-size: 0.9em; box-shadow: 0 8px 16px rgba(0,0,0,0.5); }
@@ -34,14 +43,13 @@
         .patch-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         .patch-table th, .patch-table td { border: 1px solid #333; padding: 12px; text-align: left; }
         .patch-table th { background: #222; color: #f1c40f; }
-        
         .v-tag { font-weight: bold; color: #f1c40f; }
         .up { color: #2ed573; font-weight: bold; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1 style="color: #fff; letter-spacing: 1px;">⚔️ 카운터 던전 (v3.6)</h1>
+        <h1 style="color: #fff; letter-spacing: 1px;">⚔️ 카운터 던전 (v3.8)</h1>
         <div class="game-layout">
             <div class="screen">
                 <div id="start-area">
@@ -57,14 +65,14 @@
                             <div class="hp-bar-outer"><div id="p-hp" class="hp-bar-inner"></div></div>
                             <span id="p-hp-t" style="font-weight:bold; color:#fff;"></span>
                             <div id="p-status" class="status-badge"></div>
-                            <div class="stat-tag">ATK: <span id="p-atk-val" style="color:#f1c40f;">0</span> / DEF: <span id="p-def-val" style="color:#1e90ff;">0</span></div>
+                            <div class="stat-tag" style="cursor:default;">ATK: <span id="p-atk-val" style="color:#f1c40f;">0</span> / DEF: <span id="p-def-val" style="color:#1e90ff;">0</span></div>
                         </div>
                         <div style="width:45%">
                             <h4 id="e-name" style="color: #fff;">적</h4>
                             <div class="hp-bar-outer"><div id="e-hp" class="hp-bar-inner" style="background:#ff4757;"></div></div>
                             <span id="e-hp-t" style="font-weight:bold; color:#fff;"></span>
                             <div class="status-badge"></div>
-                            <div class="stat-tag">ATK: <span id="e-atk-val" style="color:#f1c40f;">0</span> / DEF: <span id="e-def-val" style="color:#1e90ff;">0</span></div>
+                            <div class="stat-tag" style="cursor:default;">ATK: <span id="e-atk-val" style="color:#f1c40f;">0</span> / DEF: <span id="e-def-val" style="color:#1e90ff;">0</span></div>
                         </div>
                     </div>
                     <div id="action-btns" style="margin-top:20px;"></div>
@@ -72,20 +80,20 @@
                 <div id="shop-area" style="display:none;">
                     <h2 style="color: #f1c40f;">🛒 신비한 상점</h2>
                     <p>현재 체력: <b id="shop-hp-t" style="color:#2ed573;">0/0</b> | 골드: <b id="shop-gold-t" style="color:#f1c40f;">0</b>G</p>
-                    <p style="font-size:0.85em; color:#888;">(장비는 매번 랜덤으로 진열됩니다)</p>
                     <div id="shop-list" style="margin-top: 20px;"></div>
-                    <button onclick="nextFloor()" style="background:#444; color:#fff; margin-top: 20px;">던전으로 돌아가기</button>
+                    <button onclick="nextFloor()" style="background:#444; color:#fff; margin-top: 15px; width: 100%;">던전으로 돌아가기</button>
                 </div>
             </div>
             <div class="sidebar">
-                <h4 style="color: #fff;">📊 캐릭터 상태</h4>
+                <h4 style="color: #fff;">📊 상태 및 도감</h4>
                 <p>층수: <b id="floor-t" style="color:#fff;">1</b>F | 골드: <b id="gold-t" style="color:#f1c40f;">0</b>G</p>
+                <p>장비 수집률: <b id="collection-count" style="color:#1e90ff;">0 / 10</b></p>
                 <p>소지 포션: <b id="potion-t" style="color:#2ed573;">0</b>개</p>
                 <hr style="border-top:1px solid #333;">
-                <h4 style="color: #fff;">🎒 장비 및 패널티</h4>
-                <div id="inv-list" style="font-size:0.9em; line-height: 1.8;">없음</div>
+                <h4 style="color: #fff;">🎒 인벤토리 (마우스 오버)</h4>
+                <div id="inv-list" style="font-size:0.9em; line-height: 2.0;">장비가 없습니다.</div>
                 <hr style="border-top:1px solid #333;">
-                <h4 style="color: #fff;">🏆 명예의 전당</h4>
+                <h4 style="color: #fff;">🏆 묘지 및 전당</h4>
                 <div id="rank-list" style="font-size:0.85em; color:#888;"></div>
             </div>
         </div>
@@ -99,29 +107,19 @@
                 </thead>
                 <tbody>
                     <tr>
-                        <td class="v-tag">v3.6</td>
-                        <td><span class="up">밸런스</span></td>
-                        <td><b>생존기 턴 버프:</b> 헌터(회피), 마법사(방어막) 사용 시 지속 시간을 <b>2턴</b>으로 상향하여 턴 낭비 방지.<br><b>안티 스트릭:</b> 적 몬스터 직업이 연속으로 중복 출현할 확률을 대폭 낮춰 랜덤성 보정.</td>
+                        <td class="v-tag">v3.8</td>
+                        <td><span class="up">시스템</span></td>
+                        <td><b>상점 무한 루프 버그 수정.</b><br><b>상점 리롤 기능:</b> 비용 누적형 가챠 요소 도입.<br><b>전투 밸런스:</b> 포션 사용 시 턴 소모 제거. 적 공격 실패(15%) 확률 도입.</td>
                     </tr>
                     <tr>
-                        <td class="v-tag">v3.5</td>
-                        <td><span class="up">UI/UX</span></td>
-                        <td>다크모드 리마스터 및 가독성 개선.</td>
-                    </tr>
-                    <tr>
-                        <td class="v-tag">v3.4</td>
+                        <td class="v-tag">v3.7</td>
                         <td><span class="up">콘텐츠</span></td>
-                        <td>대규모 장비 및 3구 랜덤 상점 가챠 시스템 추가.</td>
+                        <td><b>도감 및 툴팁:</b> 장비 설명 툴팁 및 컬렉션 수집률 표시.<br><b>데스 로그:</b> 랭킹에 플레이어를 죽인 몬스터 직업/이름 박제.</td>
                     </tr>
                     <tr>
-                        <td class="v-tag">v3.3</td>
-                        <td><b style="color:#1e90ff;">롤백/추가</b></td>
-                        <td>적 클래스 부여(상성 데미지 부활) 및 고유 생존기 버튼 부활.</td>
-                    </tr>
-                    <tr>
-                        <td class="v-tag">v1.0 ~ 3.2</td>
+                        <td class="v-tag">v1.0 ~ 3.6</td>
                         <td><span class="up">기본구축</span></td>
-                        <td>로그라이크 RPG 기획 전환, 방어력/포션 시스템 추가, 로컬 랭킹 등.</td>
+                        <td>로그라이크 층수/상점/기록, 생존기(회피/방어막) 버프 등.</td>
                     </tr>
                 </tbody>
             </table>
@@ -130,11 +128,10 @@
 
     <script>
         let floor = 1, gold = 0, player = null, enemy = null;
-        let defendingTurns = 0;
-        let dodgingTurns = 0;
-        let shieldedTurns = 0;
+        let defendingTurns = 0, dodgingTurns = 0, shieldedTurns = 0;
         let currentShopItems = []; 
-        let lastEnemyJob = ""; // 직업 중복 방지용
+        let lastEnemyJob = ""; 
+        let rerollCost = 10; // 리롤 비용 전역 변수
 
         const relations = {
             '워리어': { weak: '마법사', strong: '헌터' },
@@ -149,43 +146,40 @@
         };
 
         const equipmentPool = [
-            { name: "거인족의 대검", type: "atk", value: 15, price: 80, rarity: "rare", preferred: "워리어", bonusAtk: 10 },
-            { name: "중갑옷", type: "hp", value: 80, def: 10, price: 70, rarity: "rare", penalty: { '마법사': 25, '헌터': 15 } },
-            { name: "마법사의 지팡이", type: "atk", value: 10, price: 90, rarity: "epic", preferred: "마법사", bonusAtk: 20 },
-            { name: "암살자의 단검", type: "atk", value: 12, price: 75, rarity: "rare", preferred: "헌터", bonusAtk: 15 },
-            { name: "미스릴 흉갑", type: "hp", value: 50, def: 15, price: 100, rarity: "epic", preferred: "워리어", bonusHp: 30 },
-            { name: "바람의 부츠", type: "acc", value: 15, price: 60, rarity: "rare" },
-            { name: "학자의 로브", type: "hp", value: 40, def: 5, price: 50, rarity: "common", preferred: "마법사", bonusAcc: 10 },
-            { name: "저주받은 검", type: "atk", value: 40, price: 120, rarity: "epic", penalty: { '워리어': 15, '헌터': 15, '마법사': 20 } },
-            { name: "낡은 가죽 갑옷", type: "hp", value: 30, def: 3, price: 30, rarity: "common" },
-            { name: "정령의 활", type: "atk", value: 18, price: 110, rarity: "epic", preferred: "헌터", bonusAtk: 15 }
+            { name: "거인족의 대검", type: "atk", value: 15, price: 80, rarity: "rare", preferred: "워리어", bonusAtk: 10, desc: "워리어가 들면 숨겨진 힘(ATK +10)이 발동하는 묵직한 대검." },
+            { name: "중갑옷", type: "hp", value: 80, def: 10, price: 70, rarity: "rare", penalty: { '마법사': 25, '헌터': 15 }, desc: "방어력과 체력을 대폭 올리지만, 너무 무거워 마법사와 헌터는 명중률이 깎인다." },
+            { name: "마법사의 지팡이", type: "atk", value: 10, price: 90, rarity: "epic", preferred: "마법사", bonusAtk: 20, desc: "마법사가 쥐면 엄청난 마력(ATK +20)이 증폭되는 신비한 지팡이." },
+            { name: "암살자의 단검", type: "atk", value: 12, price: 75, rarity: "rare", preferred: "헌터", bonusAtk: 15, desc: "급소를 노리기 좋은 단검. 헌터 사용 시 추가 공격력(+15)이 붙는다." },
+            { name: "미스릴 흉갑", type: "hp", value: 50, def: 15, price: 100, rarity: "epic", preferred: "워리어", bonusHp: 30, desc: "가볍고 단단한 환상의 갑옷. 워리어에겐 추가 체력(+30)을 제공한다." },
+            { name: "바람의 부츠", type: "acc", value: 15, price: 60, rarity: "rare", desc: "몸이 깃털처럼 가벼워져 명중률(+15%)이 크게 상승한다." },
+            { name: "학자의 로브", type: "hp", value: 40, def: 5, price: 50, rarity: "common", preferred: "마법사", bonusAcc: 10, desc: "마법의 흐름을 돕는 로브. 마법사 착용 시 명중률(+10%) 보정." },
+            { name: "저주받은 검", type: "atk", value: 40, price: 120, rarity: "epic", penalty: { '워리어': 15, '헌터': 15, '마법사': 20 }, desc: "압도적인 파괴력을 가졌지만, 정신을 갉아먹어 명중률이 크게 하락한다." },
+            { name: "낡은 가죽 갑옷", type: "hp", value: 30, def: 3, price: 30, rarity: "common", desc: "초보 모험가들이 흔히 입는 평범한 가죽 갑옷." },
+            { name: "정령의 활", type: "atk", value: 18, price: 110, rarity: "epic", preferred: "헌터", bonusAtk: 15, desc: "바람의 정령이 깃든 활. 헌터의 파괴력(+15)을 극대화한다." }
         ];
 
         function startGame(job) {
             player = { ...jobBase[job], curHp: jobBase[job].hp, maxHp: jobBase[job].hp, acc: 0, items: [], extraAtk: 0, potions: 0, extraDef: 0 };
             document.getElementById('start-area').style.display = 'none';
             document.getElementById('battle-area').style.display = 'block';
+            loadCollection();
             loadRank();
             spawnEnemy();
         }
 
         function spawnEnemy() {
+            // 상점 입장 로직 (무한 루프 방지됨)
             if (floor > 1 && floor % 3 === 0 && document.getElementById('shop-area').style.display === 'none') {
                 return openShop();
             }
             
-            // 모든 버프 초기화
-            defendingTurns = 0;
-            dodgingTurns = 0;
-            shieldedTurns = 0;
+            defendingTurns = 0; dodgingTurns = 0; shieldedTurns = 0;
             
             const eJobs = ['워리어', '헌터', '마법사'];
             let randomJob = eJobs[Math.floor(Math.random() * eJobs.length)];
             
-            // 안티 스트릭: 직전 몬스터와 동일하면 한 번 더 돌려서 확률을 대폭 낮춤
-            if (randomJob === lastEnemyJob) {
-                randomJob = eJobs[Math.floor(Math.random() * eJobs.length)];
-            }
+            // 안티 스트릭 (중복 억제)
+            if (randomJob === lastEnemyJob) randomJob = eJobs[Math.floor(Math.random() * eJobs.length)];
             lastEnemyJob = randomJob;
 
             enemy = { 
@@ -274,17 +268,17 @@
             player.potions--;
             const heal = 80;
             player.curHp = Math.min(player.maxHp, player.curHp + heal);
-            writeLog(`[아이템] 포션 사용! 체력 ${heal} 회복.`);
+            writeLog(`[아이템] 🧪 포션 사용! (턴 소모 없이 체력 ${heal} 회복)`);
             updateUi();
             renderActions();
-            enemyTurn();
+            // 포션은 턴을 소모하지 않으므로 enemyTurn() 호출 안 함!
         }
 
         function enemyTurn() {
             setTimeout(() => {
                 let hitLanded = true;
                 
-                // 회피 체크 로직
+                // 내 생존기 판정
                 if (dodgingTurns > 0) {
                     dodgingTurns--;
                     if (Math.random() * 100 < 60) {
@@ -294,24 +288,27 @@
                         writeLog(`[회피 실패] 아차, 피하지 못했습니다! (남은 지속: ${dodgingTurns}턴)`);
                     }
                 } 
-                // 방어막 체크 로직 (회피를 안 했을 때만)
                 else if (shieldedTurns > 0) {
                     shieldedTurns--;
                     writeLog(`[방어막] ✨ 마나 방어막이 적의 데미지를 완전히 무효화했습니다! (남은 지속: ${shieldedTurns}턴)`);
                     hitLanded = false;
                 }
 
-                // 피격 계산 로직
+                // 적의 공격 및 빗나감 판정 (85% 명중률)
                 if (hitLanded) {
-                    let dmg = Math.max(1, enemy.atk - (player.def + player.extraDef));
-                    if(defendingTurns > 0) {
-                        dmg = Math.floor(dmg * 0.3);
-                        defendingTurns--;
-                        writeLog(`[철벽 방어] 🛡️ 데미지 대폭 경감! (${dmg} 입음, 남은 방어: ${defendingTurns}턴)`);
+                    if (Math.random() * 100 < 85) {
+                        let dmg = Math.max(1, enemy.atk - (player.def + player.extraDef));
+                        if(defendingTurns > 0) {
+                            dmg = Math.floor(dmg * 0.3);
+                            defendingTurns--;
+                            writeLog(`[철벽 방어] 🛡️ 데미지 대폭 경감! (${dmg} 입음, 남은 방어: ${defendingTurns}턴)`);
+                        } else {
+                            writeLog(`[피격] 적의 공격! ${dmg} 데미지 입음.`);
+                        }
+                        player.curHp -= dmg;
                     } else {
-                        writeLog(`[피격] 적의 공격! ${dmg} 데미지 입음.`);
+                        writeLog(`[운 좋음] 럭키! 적의 공격이 허공을 갈랐습니다! (0 데미지)`);
                     }
-                    player.curHp -= dmg;
                 }
                 
                 if (player.curHp <= 0) gameOver();
@@ -323,27 +320,31 @@
             const gain = 30 + Math.floor(Math.random()*20);
             gold += gain;
             player.curHp = Math.min(player.maxHp, player.curHp + Math.floor(player.maxHp * 0.15));
-            writeLog(`[승리] ${gain}G 획득 및 체력 회복.`);
+            writeLog(`[승리] ${gain}G 획득 및 체력 소량 회복.`);
             floor++;
             spawnEnemy();
         }
 
+        // 상점 입장 및 리롤 로직
         function openShop() {
             document.getElementById('battle-area').style.display = 'none';
             document.getElementById('shop-area').style.display = 'block';
             updateUi();
-            
+            renderShopItems();
+        }
+
+        function renderShopItems() {
             const list = document.getElementById('shop-list');
             list.innerHTML = '';
             
-            currentShopItems = [{ name: "치유 포션", type: "potion", value: 80, price: 40, rarity: "common" }];
+            currentShopItems = [{ name: "치유 포션", type: "potion", value: 80, price: 40, rarity: "common", desc: "사용 시 체력을 80 즉시 회복합니다." }];
             let shuffled = [...equipmentPool].sort(() => 0.5 - Math.random());
             currentShopItems.push(...shuffled.slice(0, 3));
 
             currentShopItems.forEach((it, idx) => {
                 const d = document.createElement('div');
                 d.style.marginBottom = '15px';
-                d.style.padding = '10px';
+                d.style.padding = '12px';
                 d.style.background = '#2a2a2a';
                 d.style.borderRadius = '8px';
                 d.style.border = '1px solid #444';
@@ -353,9 +354,40 @@
                 else if (it.rarity === 'rare') color = '#1e90ff';
 
                 d.innerHTML = `<span style="color:${color}; font-weight:bold; font-size:1.1em;">${it.name}</span> <span style="color:#f1c40f;">(${it.price}G)</span> <br>
-                               <button onclick="buyItem(event, ${idx})" style="background:#f1c40f; color:#111; padding:8px 15px; margin-top:8px; font-size:0.9em; box-shadow:none;">구매하기</button>`;
+                               <div style="font-size:0.85em; color:#999; margin:8px 0; line-height:1.4;">${it.desc}</div>
+                               <button onclick="buyItem(event, ${idx})" style="background:#f1c40f; color:#111; padding:8px 15px; margin-top:5px; font-size:0.9em; box-shadow:none;">구매하기</button>`;
                 list.appendChild(d);
             });
+            
+            // 리롤 버튼 추가
+            const rerollBtn = document.createElement('button');
+            rerollBtn.className = 'reroll-btn';
+            rerollBtn.innerText = `🔄 상품 다시 돌리기 (${rerollCost}G)`;
+            rerollBtn.onclick = rerollShop;
+            list.appendChild(rerollBtn);
+        }
+
+        function rerollShop() {
+            if (gold < rerollCost) return writeLog(`[상점] 골드가 부족하여 리롤할 수 없습니다. (필요: ${rerollCost}G)`);
+            gold -= rerollCost;
+            rerollCost += 10; // 리롤 할 때마다 10G씩 영구 증가
+            writeLog(`[상점] 리롤 완료! 새로운 상품이 진열되었습니다.`);
+            updateUi();
+            renderShopItems();
+        }
+
+        function saveCollection(itemName) {
+            let collection = JSON.parse(localStorage.getItem('item_collection_v38') || '[]');
+            if (!collection.includes(itemName)) {
+                collection.push(itemName);
+                localStorage.setItem('item_collection_v38', JSON.stringify(collection));
+                loadCollection();
+            }
+        }
+
+        function loadCollection() {
+            let collection = JSON.parse(localStorage.getItem('item_collection_v38') || '[]');
+            document.getElementById('collection-count').innerText = `${collection.length} / ${equipmentPool.length}`;
         }
 
         function buyItem(event, idx) {
@@ -370,6 +402,8 @@
             } else {
                 if (!player.items.some(i => i.name === it.name)) {
                     player.items.push(it);
+                    saveCollection(it.name);
+                    
                     if (it.type === 'atk') player.atk += it.value;
                     if (it.type === 'hp') { player.maxHp += it.value; player.curHp += it.value; }
                     if (it.type === 'acc') player.acc += it.value;
@@ -396,6 +430,7 @@
         }
 
         function nextFloor() {
+            floor++; // 무한 상점 버그 수정 (층수 정상 증가)
             document.getElementById('shop-area').style.display = 'none';
             document.getElementById('battle-area').style.display = 'block';
             spawnEnemy();
@@ -426,30 +461,41 @@
             document.getElementById('p-status').innerText = statusText;
 
             let accMsg = player.acc < 0 ? `<span style="color:#ff4757;">${player.acc}%</span>` : `+${player.acc}%`;
+            
             document.getElementById('inv-list').innerHTML = player.items.map(i => {
-                let color = '#aaa';
+                let color = '#ccc';
                 if (i.rarity === 'epic') color = '#a55eea';
                 else if (i.rarity === 'rare') color = '#1e90ff';
-                return `<div class="stat-tag" style="color:${color};">▪ ${i.name}</div>`;
-            }).join('') + `<br><div class="stat-tag" style="margin-top:5px;">명중 보정: ${accMsg}</div>`;
+                return `
+                    <div class="stat-tag" style="color:${color};">
+                        ▪ ${i.name}
+                        <div class="tooltip-text">${i.desc}</div>
+                    </div>`;
+            }).join('') + `<br><div style="font-size:0.85em; color:#888; margin-top:5px;">명중 보정: ${accMsg}</div>`;
         }
 
         function gameOver() {
             saveRank();
-            alert(`게임 오버! ${floor}층 도달`);
+            alert(`사망했습니다. (사인: ${enemy.name})`);
             location.reload();
         }
 
         function saveRank() {
-            let ranks = JSON.parse(localStorage.getItem('final_rank') || '[]');
-            ranks.push({ job: player.name, floor: floor, date: new Date().toLocaleDateString() });
+            let ranks = JSON.parse(localStorage.getItem('final_rank_v38') || '[]');
+            let killerInfo = enemy ? enemy.name : "알 수 없음";
+            ranks.push({ job: player.name, floor: floor, killer: killerInfo, date: new Date().toLocaleDateString() });
             ranks.sort((a, b) => b.floor - a.floor);
-            localStorage.setItem('final_rank', JSON.stringify(ranks.slice(0, 5)));
+            localStorage.setItem('final_rank_v38', JSON.stringify(ranks.slice(0, 5)));
         }
 
         function loadRank() {
-            let ranks = JSON.parse(localStorage.getItem('final_rank') || '[]');
-            document.getElementById('rank-list').innerHTML = ranks.map(r => `<div>${r.floor}층(${r.job})</div>`).join('') || '없음';
+            let ranks = JSON.parse(localStorage.getItem('final_rank_v38') || '[]');
+            document.getElementById('rank-list').innerHTML = ranks.map(r => 
+                `<div style="margin-bottom:8px; border-bottom:1px dashed #333; padding-bottom:5px;">
+                    <b style="color:#e0e0e0;">${r.floor}층 (${r.job})</b> <span style="font-size:0.85em; color:#666;">${r.date}</span><br>
+                    <span style="color:#ff4757;">💀 사인: ${r.killer}</span>
+                </div>`
+            ).join('') || '기록 없음';
         }
 
         function writeLog(m) {
