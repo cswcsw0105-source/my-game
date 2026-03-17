@@ -290,3 +290,67 @@ window.buyItem = (event, idx) => {
     }
     updateUi(); renderActions();
 };
+function updateUi() {
+    if (!player || !enemy) return;
+
+    // 플레이어 정보
+    document.getElementById('p-name').innerText = `${player.name}`;
+    document.getElementById('p-hp').style.width = `${Math.max(0, (player.curHp / player.maxHp) * 100)}%`;
+    document.getElementById('p-hp-t').innerText = `${Math.max(0, player.curHp)} / ${player.maxHp}`;
+    document.getElementById('p-atk-val').innerText = player.atk + player.extraAtk;
+    document.getElementById('p-def-val').innerText = player.def + player.extraDef;
+    document.getElementById('p-acc-val').innerText = `${90 + player.acc}%`;
+
+    // 적 정보
+    document.getElementById('e-name').innerText = enemy.name;
+    document.getElementById('e-hp').style.width = `${Math.max(0, (enemy.curHp / enemy.hp) * 100)}%`;
+    document.getElementById('e-hp-t').innerText = `${Math.max(0, enemy.curHp)} / ${enemy.hp}`;
+    document.getElementById('e-atk-val').innerText = enemy.atk;
+    document.getElementById('e-def-val').innerText = enemy.def;
+
+    // 사이드바 정보
+    document.getElementById('floor-t').innerText = floor;
+    document.getElementById('gold-t').innerText = gold;
+    document.getElementById('potion-t').innerText = player.potions;
+    document.getElementById('shop-hp-t').innerText = `${Math.max(0, player.curHp)}/${player.maxHp}`;
+    document.getElementById('shop-gold-t').innerText = gold;
+
+    // 인벤토리
+    const invList = document.getElementById('inv-list');
+    if (player.items.length === 0) {
+        invList.innerHTML = '장비가 없습니다.';
+    } else {
+        invList.innerHTML = player.items.map(it => {
+            let color = '#ccc';
+            if (it.rarity === 'legendary') color = '#e74c3c';
+            else if (it.rarity === 'epic') color = '#a55eea';
+            else if (it.rarity === 'rare') color = '#1e90ff';
+            return `<span style="color:${color}; cursor:default;" title="${it.desc}">▸ ${it.name}</span>`;
+        }).join('<br>');
+    }
+}
+
+function writeLog(msg) {
+    const log = document.getElementById('log');
+    log.innerHTML = `<p style="margin:4px 0; border-bottom:1px solid #333; padding-bottom:4px;">${msg}</p>` + log.innerHTML;
+}
+
+function gameOver() {
+    saveRank();
+    document.getElementById('battle-area').style.display = 'none';
+    const screen = document.querySelector('.screen');
+    screen.innerHTML = `
+        <div style="text-align:center; padding: 40px 20px;">
+            <h2 style="color:#ff4757; font-size:2em;">💀 GAME OVER</h2>
+            <p style="color:#e0e0e0; font-size:1.1em; margin:15px 0;">
+                <b style="color:#f1c40f;">${floor}층</b>에서 
+                <b style="color:#ff4757;">${enemy ? enemy.name : '알 수 없는 적'}</b>에게 쓰러졌습니다.
+            </p>
+            <p style="color:#888; font-size:0.9em;">기록이 명예의 전당에 저장되었습니다.</p>
+            <button onclick="location.reload()" style="background:#ff4757; margin-top:20px; padding:12px 30px; font-size:1em;">
+                🔄 다시 도전하기
+            </button>
+        </div>
+    `;
+    writeLog(`💀 ${floor}층에서 게임 오버... ${enemy ? enemy.name : ''}에게 패배.`);
+}
