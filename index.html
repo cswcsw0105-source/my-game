@@ -4,27 +4,31 @@
     <meta charset="UTF-8">
     <title>카운터 던전 v3.3: 메커니즘 롤백 및 특수기 에디션</title>
     <style>
-        body { background-color: #1a1a1a; color: white; text-align: center; font-family: 'Apple SD Gothic Neo', sans-serif; padding: 20px; line-height: 1.6; }
+        /* 배경을 밝게, 글씨를 검게(어두운 회색) 변경 */
+        body { background-color: #f4f6f8; color: #1a1a1a; text-align: center; font-family: 'Apple SD Gothic Neo', sans-serif; padding: 20px; line-height: 1.6; }
         .container { max-width: 950px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
-        .game-layout { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; }
-        .screen { background: #252525; padding: 25px; border-radius: 15px; border: 2px solid #444; flex: 2; min-width: 350px; }
-        .sidebar { background: #252525; padding: 20px; border-radius: 15px; border: 2px solid #444; flex: 1; text-align: left; min-width: 250px; }
-        .hp-bar-outer { width: 100%; background: #333; height: 15px; border-radius: 10px; margin: 5px 0; border: 1px solid #555; }
+        .game-layout { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; } 
+        /* 스크린과 사이드바를 하얀색으로 깔끔하게 처리 */
+        .screen { background: #ffffff; padding: 25px; border-radius: 15px; border: 2px solid #e1e4e8; flex: 2; min-width: 350px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .sidebar { background: #ffffff; padding: 20px; border-radius: 15px; border: 2px solid #e1e4e8; flex: 1; text-align: left; min-width: 250px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .hp-bar-outer { width: 100%; background: #e1e4e8; height: 15px; border-radius: 10px; margin: 5px 0; border: 1px solid #ccc; }
         .hp-bar-inner { height: 100%; background: #2ed573; transition: width 0.3s; }
         button { padding: 12px 18px; margin: 5px; cursor: pointer; border-radius: 8px; border: none; font-weight: bold; transition: 0.2s; font-size: 1em; color: white; }
         button:hover { opacity: 0.8; transform: scale(1.05); }
         .potion-btn { background: #f1c40f !important; color: black !important; }
-        #log { background: #111; padding: 15px; height: 180px; overflow-y: auto; border-radius: 10px; text-align: left; font-size: 0.85em; border: 1px solid #333; margin-top: 10px; color: #ccc; }
-        .stat-tag { font-size: 0.8em; color: #aaa; }
-        #patch-notes { margin-top: 40px; text-align: left; background: #222; padding: 25px; border-radius: 15px; border: 1px solid #444; font-size: 0.85em; }
+        /* 로그창도 밝고 부드럽게 변경 */
+        #log { background: #f8f9fa; padding: 15px; height: 180px; overflow-y: auto; border-radius: 10px; text-align: left; font-size: 0.85em; border: 1px solid #e1e4e8; margin-top: 10px; color: #333; }
+        .stat-tag { font-size: 0.8em; color: #666; } 
+        /* 패치 노트 디자인 변경 */
+        #patch-notes { margin-top: 40px; text-align: left; background: #ffffff; padding: 25px; border-radius: 15px; border: 1px solid #e1e4e8; font-size: 0.85em; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        #patch-notes h2 { border-bottom: 2px solid #e1e4e8; padding-bottom: 10px; color: #1a1a1a; }
         .patch-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        .patch-table th, .patch-table td { border: 1px solid #333; padding: 10px; text-align: left; }
-        .patch-table th { background: #333; color: #f1c40f; }
-        .v-tag { font-weight: bold; color: #f1c40f; }
+        .patch-table th, .patch-table td { border: 1px solid #e1e4e8; padding: 12px; text-align: left; }
+        .patch-table th { background: #f4f6f8; color: #1a1a1a; font-weight: bold; }
+        .v-tag { font-weight: bold; color: #d35400; }
         .up { color: #2ed573; font-weight: bold; }
         .down { color: #ff4757; font-weight: bold; }
-        .pivot { color: #f1c40f; font-weight: bold; border: 1px solid #f1c40f; padding: 1px 4px; border-radius: 3px; font-size: 0.8em; }
-    </style>
+        .pivot { color: #d35400; font-weight: bold; border: 1px solid #d35400; padding: 1px 4px; border-radius: 3px; font-size: 0.8em; }
 </head>
 <body>
     <div class="container">
