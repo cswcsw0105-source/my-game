@@ -96,6 +96,14 @@ async function loadRank() {
 }
 
 window.togglePatchNotes = (show) => { document.getElementById('patch-modal').style.display = show ? 'flex' : 'none'; };
+window.toggleRank = (show) => {
+    document.getElementById('rank-modal').style.display = show ? 'flex' : 'none';
+    if (show) loadRank();
+};
+window.onclick = function(event) {
+    if (event.target === document.getElementById('patch-modal')) togglePatchNotes(false);
+    if (event.target === document.getElementById('rank-modal')) toggleRank(false);
+};
 window.onclick = function(event) { if (event.target === document.getElementById('patch-modal')) togglePatchNotes(false); };
 
 window.startGame = (job) => {
