@@ -104,7 +104,6 @@ window.onclick = function(event) {
     if (event.target === document.getElementById('patch-modal')) togglePatchNotes(false);
     if (event.target === document.getElementById('rank-modal')) toggleRank(false);
 };
-window.onclick = function(event) { if (event.target === document.getElementById('patch-modal')) togglePatchNotes(false); };
 
 window.startGame = (job) => {
     player = { ...jobBase[job], curHp: jobBase[job].hp, maxHp: jobBase[job].hp, acc: 0, items: [], extraAtk: 0, potions: 0, extraDef: 0, unlockedSkill: null, lifesteal: 0, hasRegenPotion: false, baseJob: jobBase[job].name };
