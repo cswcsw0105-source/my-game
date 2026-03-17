@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>카운터 던전 v5.0: 글로벌 랭킹전</title>
+    <title>카운터 던전 v5.1: 보스전 & 밸런스 패치</title>
     <link rel="stylesheet" href="style.css">
     <style>
         .auth-box { background: #2a2a2a; padding: 20px; border-radius: 8px; border: 1px solid #444; max-width: 300px; margin: 0 auto; }
@@ -11,16 +11,17 @@
 </head>
 <body>
     <div class="container">
-        <h1 style="color: #fff; letter-spacing: 1px;">⚔️ 카운터 던전 (v5.0 온라인)</h1>
+        <h1 style="color: #fff; letter-spacing: 1px;">⚔️ 카운터 던전 (v5.1 온라인)</h1>
         
         <div class="game-layout">
             <div class="screen">
                 <div id="login-area" style="display:block;">
                     <h2 style="color: #f1c40f;">던전 입장 (로그인)</h2>
-                    <p style="font-size: 0.85em; color: #888;">친구들과 글로벌 랭킹을 겨뤄보세요!</p>
+                    <p style="font-size: 0.85em; color: #888;">이메일 형식(ex: a@a.com)과 비번 6자리 필수!</p>
                     <div class="auth-box">
                         <input type="email" id="email-input" placeholder="이메일 입력 (ex: test@test.com)">
                         <input type="password" id="pw-input" placeholder="비밀번호 (6자리 이상)">
+                        <p id="login-error" style="color: #ff4757; font-size: 0.85em; display: none; margin-bottom: 10px; font-weight: bold;"></p>
                         <button onclick="handleLogin()" style="background:#2ed573; width:100%;">로그인</button>
                         <button onclick="handleSignup()" style="background:#1e90ff; width:100%;">신규 가입</button>
                     </div>
@@ -92,13 +93,17 @@
             <table class="patch-table">
                 <thead><tr><th>버전</th><th>항목</th><th>상세 내용</th></tr></thead>
                 <tbody>
+                    <tr><td class="v-tag">v5.1</td><td>콘텐츠 & 밸런스</td><td><b>보스 몬스터 추가:</b> 10층마다 강력한 패턴을 지닌 보스 등장.<br><b>워리어/포션 조정:</b> 워리어 기본 체력 하향 및 포션 효율 비율제(최대 체력 35%)로 변경.</td></tr>
                     <tr><td class="v-tag">v5.0</td><td>서버</td><td><b>글로벌 랭킹전 도입:</b> Firebase 연동 완료. 이메일 로그인 및 실시간 서버 랭킹 저장 기능 추가.</td></tr>
                 </tbody>
             </table>
         </div>
     </div>
 
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <script src="data.js"></script>
-    <script type="module" src="game.js"></script>
+    <script src="game.js"></script>
 </body>
 </html>
