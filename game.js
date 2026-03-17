@@ -13,11 +13,13 @@ const db = firebase.firestore();
 
 let floor = 1, gold = 0, player = null, enemy = null;
 let defendingTurns = 0, dodgingTurns = 0, shieldedTurns = 0;
+let regenTurns = 0, regenAmount = 0;
 let currentShopItems = [];
 let lastEnemyJob = "";
 let rerollCost = 10;
 let currentUser = null;
-let pendingShop = false; // 상점 대기 플래그
+let pendingShop = false;
+let potionUsedThisTurn = false;
 
 function showAuthError(msg) {
     const errEl = document.getElementById('login-error');
@@ -97,31 +99,84 @@ window.togglePatchNotes = (show) => { document.getElementById('patch-modal').sty
 window.onclick = function(event) { if (event.target === document.getElementById('patch-modal')) togglePatchNotes(false); };
 
 window.startGame = (job) => {
-    player = { ...jobBase[job], curHp: jobBase[job].hp, maxHp: jobBase[job].hp, acc: 0, items: [], extraAtk: 0, potions: 0, extraDef: 0, unlockedSkill: null };
+    player = { ...jobBase[job], curHp: jobBase[job].hp, maxHp: jobBase[job].hp, acc: 0, items: [], extraAtk: 0, potions: 0, extraDef: 0, unlockedSkill: null, lifesteal: 0, hasRegenPotion: false, baseJob: jobBase[job].name };
     document.getElementById('start-area').style.display = 'none';
     document.getElementById('battle-area').style.display = 'block';
     loadCollection();
     spawnEnemy();
 };
 
+// ===== 전직 체크 =====
+function checkEvolution() {
+    const baseJob = player.baseJob;
+    if (!jobEvolutions[baseJob]) return;
+    if (player.evolved) return; // 이미 전직함
+
+    const evols = jobEvolutions[baseJob];
+    for (const evol of evols) {
+        const triggerCount = player.items.filter(i => i.evolTrigger === evol.trigger).length;
+        if (triggerCount >= 2) {
+            // 전직 선택 팝업
+            showEvolutionChoice(evols);
+            return;
+        }
+    }
+}
+
+function showEvolutionChoice(evols) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:9999;';
+    overlay.innerHTML = `
+        <div style="background:#1a1a2e;border:2px solid #f1c40f;border-radius:12px;padding:30px;max-width:420px;text-align:center;">
+            <h2 style="color:#f1c40f;margin-bottom:8px;">⚡ 전직 가능!</h2>
+            <p style="color:#aaa;font-size:0.9em;margin-bottom:20px;">강해진 ${player.name}! 이제 전직을 선택하세요.</p>
+            ${evols.map((e, i) => `
+                <div style="background:#2a2a3e;border:1px solid #555;border-radius:8px;padding:15px;margin-bottom:12px;cursor:pointer;" onclick="evolve(${i})">
+                    <b style="color:#e0e0e0;font-size:1.1em;">${e.name}</b>
+                    <p style="color:#888;font-size:0.85em;margin:6px 0 0;">${e.desc}</p>
+                    <p style="color:#2ed573;font-size:0.8em;margin:4px 0 0;">
+                        ${e.bonusAtk ? `ATK +${e.bonusAtk} ` : ''}${e.bonusDef ? `DEF +${e.bonusDef} ` : ''}${e.bonusHp ? `HP ${e.bonusHp > 0 ? '+' : ''}${e.bonusHp} ` : ''}${e.bonusAcc ? `ACC +${e.bonusAcc}% ` : ''}
+                    </p>
+                </div>
+            `).join('')}
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    window._evolOptions = evols;
+    window._evolOverlay = overlay;
+}
+
+window.evolve = (idx) => {
+    const evol = window._evolOptions[idx];
+    player.name = evol.name;
+    player.evolved = true;
+    if (evol.bonusAtk) player.atk += evol.bonusAtk;
+    if (evol.bonusDef) player.def += evol.bonusDef;
+    if (evol.bonusHp) { player.maxHp += evol.bonusHp; player.curHp = Math.min(player.maxHp, player.curHp + Math.max(0, evol.bonusHp)); }
+    if (evol.bonusAcc) player.acc += evol.bonusAcc;
+    document.body.removeChild(window._evolOverlay);
+    writeLog(`⚡ [전직] ${player.baseJob}에서 <b style='color:#f1c40f'>${evol.name}</b>으로 전직했습니다!`);
+    updateUi(); renderActions();
+};
+
 function spawnEnemy() {
-    // 상점은 winBattle에서 floor++ 직후 pendingShop=true로 설정된 경우에만 열림
     if (pendingShop) {
         pendingShop = false;
         return openShop();
     }
-
     defendingTurns = 0; dodgingTurns = 0; shieldedTurns = 0;
+    regenTurns = 0; regenAmount = 0;
+    potionUsedThisTurn = false;
 
     if (floor % 10 === 0) {
         enemy = {
             name: `👑 [보스] ${floor}층 군주`,
             job: '보스',
-            hp: 200 + floor * 20, curHp: 150 + floor * 20,
+            hp: 150 + floor * 20, curHp: 150 + floor * 20,
             atk: 10 + floor * 3, def: 3 + Math.floor(floor / 3),
             isBoss: true, turnCount: 1, bossCharge: false
         };
-        writeLog(`🚨 경고: ${floor}층의 지배자가 나타났습니다! 전투를 준비하세요!`);
+        writeLog(`🚨 경고: ${floor}층의 지배자가 나타났습니다!`);
     } else {
         const eJobs = ['워리어', '헌터', '마법사'];
         let randomJob = eJobs[Math.floor(Math.random() * eJobs.length)];
@@ -135,8 +190,7 @@ function spawnEnemy() {
             isBoss: false
         };
     }
-    updateUi();
-    renderActions();
+    updateUi(); renderActions();
 }
 
 function renderActions() {
@@ -151,9 +205,17 @@ function renderActions() {
 
     const defBtn = document.createElement('button');
     defBtn.style.background = '#888';
-    if (player.name === '워리어') { defBtn.innerText = '🛡️ 방어 (80%)'; defBtn.onclick = () => useAction('방패방어'); }
-    else if (player.name === '헌터') { defBtn.innerText = '💨 회피 (75%)'; defBtn.onclick = () => useAction('회피'); }
-    else if (player.name === '마법사') { defBtn.innerText = '✨ 방어막 (70%)'; defBtn.onclick = () => useAction('방어막'); }
+    const jobName = player.name;
+    if (['워리어','나이트','버서커'].includes(jobName)) {
+        defBtn.innerText = '🛡️ 방어 (70%)';
+        defBtn.onclick = () => useAction('방패방어');
+    } else if (['헌터','궁수','암살자'].includes(jobName)) {
+        defBtn.innerText = '💨 회피 (75%)';
+        defBtn.onclick = () => useAction('회피');
+    } else if (['마법사','위저드','소환사'].includes(jobName)) {
+        defBtn.innerText = '✨ 방어막 (60%)';
+        defBtn.onclick = () => useAction('방어막');
+    }
     div.appendChild(defBtn);
 
     if (player.unlockedSkill) {
@@ -172,32 +234,51 @@ function renderActions() {
 }
 
 window.useAction = (type) => {
+    potionUsedThisTurn = false;
+
     if (type === '공격') {
         let multiplier = 1.0; let effectMsg = "";
-        if (!enemy.isBoss) {
-            if (relations[player.name].strong === enemy.job) { multiplier = 1.5; effectMsg = "<b style='color:#2ed573'>(상성 우위!)</b> "; }
-            else if (relations[player.name].weak === enemy.job) { multiplier = 0.8; effectMsg = "<b style='color:#ff4757'>(상성 열세..)</b> "; }
+        const baseJobName = player.baseJob || player.name;
+        const relKey = relations[player.name] ? player.name : baseJobName;
+        if (!enemy.isBoss && relations[relKey]) {
+            if (relations[relKey].strong === enemy.job) { multiplier = 1.5; effectMsg = "<b style='color:#2ed573'>(상성 우위!)</b> "; }
+            else if (relations[relKey].weak === enemy.job) { multiplier = 0.8; effectMsg = "<b style='color:#ff4757'>(상성 열세..)</b> "; }
         }
-        if (Math.random() * 100 < (75 + player.acc)) {
-            let baseDmg = player.atk + player.extraAtk + Math.floor(Math.random() * 10);
+        if (Math.random() * 100 < (85 + player.acc)) {
+            let baseDmg = player.atk + player.extraAtk + Math.floor(Math.random() * 8);
             let finalDmg = Math.max(1, Math.floor(baseDmg * multiplier) - enemy.def);
             enemy.curHp -= finalDmg;
             writeLog(`[명중] ${effectMsg}적에게 ${finalDmg} 피해!`);
+            // 흡혈 처리
+            if (player.lifesteal > 0) {
+                const heal = Math.floor(finalDmg * player.lifesteal);
+                player.curHp = Math.min(player.maxHp, player.curHp + heal);
+                writeLog(`[흡혈] 💉 ${heal} 체력 흡수!`);
+            }
         } else writeLog(`[빗나감] 공격 실패!`);
         if (enemy.curHp <= 0) return winBattle();
+
     } else if (type === '궁극기') {
         let ultDmg = player.atk + player.extraAtk + 40;
         enemy.curHp -= ultDmg;
-        writeLog(`[궁극기] ${player.unlockedSkill} 작렬!!! 방어력을 무시하는 ${ultDmg} 피해!`);
+        writeLog(`[궁극기] ${player.unlockedSkill} 작렬!!! 방어력 무시 ${ultDmg} 피해!`);
+        if (player.lifesteal > 0) {
+            const heal = Math.floor(ultDmg * player.lifesteal);
+            player.curHp = Math.min(player.maxHp, player.curHp + heal);
+            writeLog(`[흡혈] 💉 ${heal} 체력 흡수!`);
+        }
         if (enemy.curHp <= 0) return winBattle();
+
     } else if (type === '방패방어') {
-        if (Math.random() * 100 < 70) { defendingTurns = 2; writeLog(`[성공] 2턴간 피해 70% 감소 방어 태세!`); }
+        if (Math.random() * 100 < 70) { defendingTurns = 2; writeLog(`[성공] 🛡️ 2턴간 피해 60% 감소!`); }
         else writeLog(`[실패] 방패 방어 실패!`);
+
     } else if (type === '회피') {
         dodgingTurns = 2;
-        writeLog(`[회피기 발동] 지금부터 2번의 공격을 75% 확률로 완벽히 회피합니다!`);
+        writeLog(`[회피기] 💨 2번의 공격을 75% 확률로 회피합니다!`);
+
     } else if (type === '방어막') {
-        if (Math.random() * 100 < 60) { shieldedTurns = 2; writeLog(`[성공] 2턴 동안 데미지 1회 무효화!`); }
+        if (Math.random() * 100 < 60) { shieldedTurns = 2; writeLog(`[성공] ✨ 2턴간 피해 50% 감소!`); }
         else writeLog(`[실패] 방어막 전개 실패!`);
     }
     enemyTurn();
@@ -205,26 +286,44 @@ window.useAction = (type) => {
 
 window.usePotion = () => {
     if (player.potions <= 0) return writeLog("소지한 포션이 없습니다!");
+    if (potionUsedThisTurn) return writeLog("이번 턴에 이미 포션을 사용했습니다!");
     player.potions--;
-    let healAmount = Math.floor(player.maxHp * 0.35);
-    player.curHp = Math.min(player.maxHp, player.curHp + healAmount);
-    writeLog(`[아이템] 🧪 포션 사용! (체력 ${healAmount} 회복)`);
+    potionUsedThisTurn = true;
+
+    if (player.hasRegenPotion) {
+        // 회복의 목걸이 착용 시: 2턴 지속 회복, 총량 50%
+        regenTurns = 2;
+        regenAmount = Math.floor(player.maxHp * 0.25); // 턴당 25% × 2턴 = 50%
+        writeLog(`[포션] 🧪 서서히 회복 시작! (2턴간 매 턴 ${regenAmount} 회복, 총 ${regenAmount * 2})`);
+    } else {
+        let healAmount = Math.floor(player.maxHp * 0.35);
+        player.curHp = Math.min(player.maxHp, player.curHp + healAmount);
+        writeLog(`[포션] 🧪 즉시 체력 ${healAmount} 회복!`);
+    }
     updateUi(); renderActions();
 };
 
 function enemyTurn() {
     setTimeout(() => {
+        // 지속 회복 처리
+        if (regenTurns > 0) {
+            player.curHp = Math.min(player.maxHp, player.curHp + regenAmount);
+            regenTurns--;
+            writeLog(`[재생] 💚 ${regenAmount} 체력 회복! (남은 턴: ${regenTurns})`);
+        }
+
+        potionUsedThisTurn = false;
         let hitLanded = true;
         let currentEnemyAtk = enemy.atk;
 
         if (enemy.isBoss) {
             if (enemy.bossCharge) {
-                writeLog(`💥 [강공격] 보스가 묵직한 일격을 내리꽂습니다!!`);
+                writeLog(`💥 [강공격] 보스의 묵직한 일격!!`);
                 currentEnemyAtk = enemy.atk * 2.5;
                 enemy.bossCharge = false;
             } else if (enemy.turnCount % 4 === 3) {
                 enemy.bossCharge = true;
-                writeLog(`⚠️ [위험] 보스가 공격을 멈추고 강력한 일격을 준비합니다! (다음 턴 강공격)`);
+                writeLog(`⚠️ [위험] 보스가 강공격을 준비합니다!`);
                 enemy.turnCount++; updateUi(); return;
             }
             enemy.turnCount++;
@@ -232,23 +331,22 @@ function enemyTurn() {
 
         if (dodgingTurns > 0) {
             dodgingTurns--;
-            if (Math.random() * 100 < 75) { writeLog(`[회피 성공] 💨 적의 공격을 피했습니다!`); hitLanded = false; }
-            else writeLog(`[회피 실패] 아차, 피하지 못했습니다!`);
-        } else if (shieldedTurns > 0) {
-            shieldedTurns--;
-            writeLog(`[방어막] ✨ 방어막이 데미지를 무효화했습니다!`);
-            hitLanded = false;
+            if (Math.random() * 100 < 75) { writeLog(`[회피 성공] 💨 적의 공격을 완전히 피했습니다!`); hitLanded = false; }
+            else writeLog(`[회피 실패] 피하지 못했습니다!`);
         }
 
         if (hitLanded) {
-            if (Math.random() * 100 < 75) {
+            if (Math.random() * 100 < 80) {
                 let dmg = Math.max(1, currentEnemyAtk - (player.def + player.extraDef));
-                if (defendingTurns > 0) {
-                    dmg = Math.floor(dmg * 0.3); defendingTurns--;
-                    writeLog(`[철벽 방어] 🛡️ 데미지 경감! (${dmg} 입음)`);
-                } else writeLog(`[피격] 적의 공격! ${dmg} 데미지 입음.`);
+                if (shieldedTurns > 0) {
+                    dmg = Math.floor(dmg * 0.5); shieldedTurns--;
+                    writeLog(`[방어막] ✨ 피해 50% 감소! (${dmg} 입음)`);
+                } else if (defendingTurns > 0) {
+                    dmg = Math.floor(dmg * 0.4); defendingTurns--;
+                    writeLog(`[철벽 방어] 🛡️ 피해 60% 감소! (${dmg} 입음)`);
+                } else writeLog(`[피격] 적의 공격! ${dmg} 데미지.`);
                 player.curHp -= dmg;
-            } else writeLog(`[운 좋음] 럭키! 적의 공격이 허공을 갈랐습니다!`);
+            } else writeLog(`[럭키] 적의 공격이 빗나갔습니다!`);
         }
         if (player.curHp <= 0) return gameOver();
         updateUi();
@@ -260,14 +358,12 @@ function winBattle() {
         ? 80 + Math.floor(Math.random() * 40) + floor * 5
         : 20 + Math.floor(Math.random() * 15) + Math.floor(floor * 1.5);
 
-    // 상성 열세 상대를 이기면 골드 보너스
-    let bonus = 0;
-    let bonusMsg = "";
-    if (!enemy.isBoss && relations[player.name].weak === enemy.job) {
+    let bonus = 0; let bonusMsg = "";
+    const relKey = relations[player.name] ? player.name : player.baseJob;
+    if (!enemy.isBoss && relations[relKey] && relations[relKey].weak === enemy.job) {
         bonus = Math.floor(baseGain * 0.5);
         bonusMsg = ` <b style='color:#f1c40f'>(역전 보너스 +${bonus}G!)</b>`;
     }
-
     const gain = baseGain + bonus;
     gold += gain;
     player.curHp = Math.min(player.maxHp, player.curHp + Math.floor(player.maxHp * 0.15));
@@ -281,8 +377,7 @@ function openShop() {
     document.getElementById('battle-area').style.display = 'none';
     document.getElementById('shop-area').style.display = 'block';
     rerollCost = 10;
-    updateUi();
-    renderShopItems();
+    updateUi(); renderShopItems();
 }
 
 window.nextFloor = () => {
@@ -291,25 +386,53 @@ window.nextFloor = () => {
     spawnEnemy();
 };
 
+function getItemsByRarity() {
+    const rand = Math.random() * 100;
+    if (rand < 5)  return equipmentPool.filter(i => i.rarity === 'legendary');
+    if (rand < 20) return equipmentPool.filter(i => i.rarity === 'epic');
+    if (rand < 50) return equipmentPool.filter(i => i.rarity === 'rare');
+    return equipmentPool.filter(i => i.rarity === 'common');
+}
+
 function renderShopItems() {
     const list = document.getElementById('shop-list');
     list.innerHTML = '';
     currentShopItems = [{ name: "치유 포션", type: "potion", value: 80, price: 40, rarity: "common", desc: "최대 체력의 35%를 즉시 회복합니다." }];
-    let shuffled = [...equipmentPool].sort(() => 0.5 - Math.random());
-    currentShopItems.push(...shuffled.slice(0, 3));
+
+    // 등급 가중치 적용해서 3개 뽑기
+    const picked = [];
+    let tries = 0;
+    while (picked.length < 3 && tries < 50) {
+        tries++;
+        const pool = getItemsByRarity();
+        if (!pool.length) continue;
+        const item = pool[Math.floor(Math.random() * pool.length)];
+        if (picked.some(i => i.name === item.name)) continue;
+        // 전용 아이템 필터링
+        if (item.onlyFor && item.onlyFor !== player.name && item.onlyFor !== player.baseJob) continue;
+        picked.push(item);
+    }
+    currentShopItems.push(...picked);
+
+    // 가로 배치 컨테이너
+    const grid = document.createElement('div');
+    grid.style.cssText = 'display:flex; flex-wrap:wrap; gap:10px; margin-top:10px;';
 
     currentShopItems.forEach((it, idx) => {
         const d = document.createElement('div');
-        d.style.cssText = 'margin-bottom:15px; padding:12px; background:#2a2a2a; border-radius:8px; border:1px solid #444;';
+        d.style.cssText = 'flex:1; min-width:140px; max-width:200px; padding:10px; background:#2a2a2a; border-radius:8px; border:1px solid #444; font-size:0.85em;';
         let color = '#ccc';
         if (it.rarity === 'legendary') color = '#e74c3c';
         else if (it.rarity === 'epic') color = '#a55eea';
         else if (it.rarity === 'rare') color = '#1e90ff';
-        d.innerHTML = `<span style="color:${color}; font-weight:bold; font-size:1.1em;">${it.name}</span> <span style="color:#f1c40f;">(${it.price}G)</span><br>
-                       <div style="font-size:0.85em; color:#999; margin:8px 0; line-height:1.4;">${it.desc}</div>
-                       <button onclick="buyItem(event, ${idx})" style="background:#f1c40f; color:#111; padding:8px 15px; margin-top:5px;">구매하기</button>`;
-        list.appendChild(d);
+        d.innerHTML = `<div style="color:${color}; font-weight:bold; margin-bottom:4px;">${it.name}</div>
+                       <div style="color:#f1c40f; margin-bottom:4px;">${it.price}G</div>
+                       <div style="color:#888; font-size:0.8em; margin-bottom:8px; line-height:1.4;">${it.desc}</div>
+                       <button onclick="buyItem(event, ${idx})" style="background:#f1c40f; color:#111; padding:5px 10px; width:100%; font-size:0.85em;">구매</button>`;
+        grid.appendChild(d);
     });
+
+    list.appendChild(grid);
 
     const rerollBtn = document.createElement('button');
     rerollBtn.className = 'reroll-btn';
@@ -351,24 +474,22 @@ window.buyItem = (event, idx) => {
             player.items.push(it);
             saveCollection(it.name);
             if (it.type === 'atk') player.atk += it.value;
-            if (it.type === 'hp') { player.maxHp += it.value; player.curHp += it.value; }
+            if (it.type === 'hp')  { player.maxHp += it.value; player.curHp += it.value; }
             if (it.type === 'acc') player.acc += it.value;
             if (it.def) player.extraDef += it.def;
-            if (it.preferred === player.name) {
-                if (it.bonusAtk) player.atk += it.bonusAtk;
-                if (it.bonusHp) { player.maxHp += it.bonusHp; player.curHp += it.bonusHp; }
-                if (it.bonusAcc) player.acc += it.bonusAcc;
-                writeLog(`[보너스] ${player.name} 전용 장비 효과 적용!`);
-            }
+            if (it.acc) player.acc += it.acc;
+            if (it.lifesteal) player.lifesteal = (player.lifesteal || 0) + it.lifesteal;
+            if (it.regenPotion) player.hasRegenPotion = true;
             if (it.penalty && it.penalty[player.name]) {
                 player.acc -= it.penalty[player.name];
                 writeLog(`[패널티] 명중률 -${it.penalty[player.name]}% 적용`);
             }
             if (it.unlockSkill) {
                 player.unlockedSkill = it.unlockSkill;
-                writeLog(`[스킬 해제] 🔥 ${it.unlockSkill} 스킬을 획득했습니다!`);
+                writeLog(`[스킬 해제] 🔥 ${it.unlockSkill} 스킬 획득!`);
             }
             writeLog(`[상점] ${it.name} 장착 완료!`);
+            checkEvolution();
         } else {
             writeLog(`이미 보유한 장비입니다!`);
             gold += it.price;
@@ -385,7 +506,7 @@ function updateUi() {
     document.getElementById('p-hp-t').innerText = `${Math.max(0, player.curHp)} / ${player.maxHp}`;
     document.getElementById('p-atk-val').innerText = player.atk + player.extraAtk;
     document.getElementById('p-def-val').innerText = player.def + player.extraDef;
-    document.getElementById('p-acc-val').innerText = `${90 + player.acc}%`;
+    document.getElementById('p-acc-val').innerText = `${85 + player.acc}%`;
 
     document.getElementById('e-name').innerText = enemy.name;
     document.getElementById('e-hp').style.width = `${Math.max(0, (enemy.curHp / enemy.hp) * 100)}%`;
@@ -435,5 +556,5 @@ function gameOver() {
             </button>
         </div>
     `;
-    writeLog(`💀 ${floor}층에서 게임 오버. ${enemy ? enemy.name : ''}에게 패배.`);
+    writeLog(`💀 ${floor}층 게임 오버. ${enemy ? enemy.name : ''}에게 패배.`);
 }
