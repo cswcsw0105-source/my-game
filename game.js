@@ -17,6 +17,7 @@ let currentShopItems = [];
 let lastEnemyJob = "";
 let rerollCost = 10;
 let currentUser = null;
+let pendingShop = false; // 상점 대기 플래그
 
 function showAuthError(msg) {
     const errEl = document.getElementById('login-error');
@@ -102,14 +103,14 @@ window.startGame = (job) => {
     loadCollection();
     spawnEnemy();
 };
-let shopOpened = false;
 
 function spawnEnemy() {
-    if (floor > 1 && floor % 3 === 0 && !shopOpened) {
-        shopOpened = true;
+    // 상점은 winBattle에서 floor++ 직후 pendingShop=true로 설정된 경우에만 열림
+    if (pendingShop) {
+        pendingShop = false;
         return openShop();
     }
-    shopOpened = false;
+
     defendingTurns = 0; dodgingTurns = 0; shieldedTurns = 0;
 
     if (floor % 10 === 0) {
@@ -259,20 +260,25 @@ function winBattle() {
     gold += gain;
     player.curHp = Math.min(player.maxHp, player.curHp + Math.floor(player.maxHp * 0.15));
     writeLog(`[승리] ${gain}G 획득 및 체력 소량 회복.`);
+    floor++;
+    // 3층마다 상점 (1층은 제외)
+    if (floor > 1 && floor % 3 === 0) {
+        pendingShop = true;
+    }
     spawnEnemy();
 }
 
 function openShop() {
     document.getElementById('battle-area').style.display = 'none';
     document.getElementById('shop-area').style.display = 'block';
-    updateUi(); renderShopItems();
+    rerollCost = 10;
+    updateUi();
+    renderShopItems();
 }
 
 window.nextFloor = () => {
     document.getElementById('shop-area').style.display = 'none';
     document.getElementById('battle-area').style.display = 'block';
-    rerollCost = 10;
-    floor++;
     spawnEnemy();
 };
 
@@ -361,10 +367,6 @@ window.buyItem = (event, idx) => {
     }
     updateUi(); renderActions();
 };
-
-// =============================================
-// UI 업데이트 / 로그 / 게임오버 함수
-// =============================================
 
 function updateUi() {
     if (!player || !enemy) return;
