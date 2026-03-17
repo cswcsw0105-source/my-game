@@ -102,10 +102,14 @@ window.startGame = (job) => {
     loadCollection();
     spawnEnemy();
 };
-let shopVisited = false;
+let shopOpened = false;
 
 function spawnEnemy() {
-    if (floor > 1 && floor % 3 === 0 && !shopVisited) { shopVisited = true; return openShop(); }
+    if (floor > 1 && floor % 3 === 0 && !shopOpened) {
+        shopOpened = true;
+        return openShop();
+    }
+    shopOpened = false;
     defendingTurns = 0; dodgingTurns = 0; shieldedTurns = 0;
 
     if (floor % 10 === 0) {
@@ -255,7 +259,6 @@ function winBattle() {
     gold += gain;
     player.curHp = Math.min(player.maxHp, player.curHp + Math.floor(player.maxHp * 0.15));
     writeLog(`[승리] ${gain}G 획득 및 체력 소량 회복.`);
-    floor++;
     spawnEnemy();
 }
 
@@ -266,10 +269,10 @@ function openShop() {
 }
 
 window.nextFloor = () => {
-    shopVisited = false;
     document.getElementById('shop-area').style.display = 'none';
     document.getElementById('battle-area').style.display = 'block';
     rerollCost = 10;
+    floor++;
     spawnEnemy();
 };
 
