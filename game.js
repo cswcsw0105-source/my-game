@@ -148,14 +148,33 @@ function showEvolutionChoice(evols) {
 
 window.evolve = (idx) => {
     const evol = window._evolOptions[idx];
+    const oldName = player.name;
+
+    // 스탯 완전 교체
     player.name = evol.name;
     player.evolved = true;
-    if (evol.bonusAtk) player.atk += evol.bonusAtk;
-    if (evol.bonusDef) player.def += evol.bonusDef;
-    if (evol.bonusHp) { player.maxHp += evol.bonusHp; player.curHp = Math.min(player.maxHp, player.curHp + Math.max(0, evol.bonusHp)); }
-    if (evol.bonusAcc) player.acc += evol.bonusAcc;
+    player.atk = jobBase[player.baseJob === '워리어' ? 'Warrior' : player.baseJob === '헌터' ? 'Hunter' : 'Wizard'].atk;
+    player.def = jobBase[player.baseJob === '워리어' ? 'Warrior' : player.baseJob === '헌터' ? 'Hunter' : 'Wizard'].def;
+
+    // 전직 직업 전용 스탯으로 교체 후 보너스 적용
+    if (evol.bonusAtk) player.atk = evol.bonusAtk;
+    if (evol.bonusDef) player.def = evol.bonusDef;
+    if (evol.bonusHp)  { 
+        const newMaxHp = jobBase[player.baseJob === '워리어' ? 'Warrior' : player.baseJob === '헌터' ? 'Hunter' : 'Wizard'].hp + evol.bonusHp;
+        player.maxHp = newMaxHp;
+        player.curHp = Math.min(player.curHp, newMaxHp);
+    }
+    if (evol.bonusAcc) player.acc = evol.bonusAcc;
+
+    // 아이템으로 얻은 스탯은 다시 재적용
+    player.items.forEach(it => {
+        if (it.type === 'atk') player.atk += it.value;
+        if (it.type === 'acc') player.acc += it.value;
+        if (it.def) player.extraDef += it.def;
+    });
+
     document.body.removeChild(window._evolOverlay);
-    writeLog(`⚡ [전직] ${player.baseJob}에서 <b style='color:#f1c40f'>${evol.name}</b>으로 전직했습니다!`);
+    writeLog(`⚡ [전직] ${oldName} → <b style='color:#f1c40f'>${evol.name}</b>! 스탯이 완전히 재설정됩니다.`);
     updateUi(); renderActions();
 };
 
