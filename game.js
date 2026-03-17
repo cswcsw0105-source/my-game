@@ -117,8 +117,8 @@ function spawnEnemy() {
         enemy = {
             name: `👑 [보스] ${floor}층 군주`,
             job: '보스',
-            hp: 200 + floor * 25, curHp: 200 + floor * 25,
-            atk: 15 + floor * 4, def: 5 + Math.floor(floor / 2),
+            hp: 200 + floor * 20, curHp: 150 + floor * 20,
+            atk: 10 + floor * 3, def: 3 + Math.floor(floor / 3),
             isBoss: true, turnCount: 1, bossCharge: false
         };
         writeLog(`🚨 경고: ${floor}층의 지배자가 나타났습니다! 전투를 준비하세요!`);
@@ -130,8 +130,8 @@ function spawnEnemy() {
         enemy = {
             name: `[${randomJob}형] ${floor}층 괴수`,
             job: randomJob,
-            hp: 50 + floor * 15, curHp: 50 + floor * 15,
-            atk: 12 + floor * 3, def: 2 + Math.floor(floor / 2),
+            hp: 40 + floor * 10, curHp: 40 + floor * 10,
+            atk: 8 + floor * 2, def: 1 + Math.floor(floor / 3),
             isBoss: false
         };
     }
@@ -178,7 +178,7 @@ window.useAction = (type) => {
             if (relations[player.name].strong === enemy.job) { multiplier = 1.5; effectMsg = "<b style='color:#2ed573'>(상성 우위!)</b> "; }
             else if (relations[player.name].weak === enemy.job) { multiplier = 0.8; effectMsg = "<b style='color:#ff4757'>(상성 열세..)</b> "; }
         }
-        if (Math.random() * 100 < (90 + player.acc)) {
+        if (Math.random() * 100 < (75 + player.acc)) {
             let baseDmg = player.atk + player.extraAtk + Math.floor(Math.random() * 10);
             let finalDmg = Math.max(1, Math.floor(baseDmg * multiplier) - enemy.def);
             enemy.curHp -= finalDmg;
@@ -191,13 +191,13 @@ window.useAction = (type) => {
         writeLog(`[궁극기] ${player.unlockedSkill} 작렬!!! 방어력을 무시하는 ${ultDmg} 피해!`);
         if (enemy.curHp <= 0) return winBattle();
     } else if (type === '방패방어') {
-        if (Math.random() * 100 < 80) { defendingTurns = 2; writeLog(`[성공] 2턴간 피해 70% 감소 방어 태세!`); }
+        if (Math.random() * 100 < 70) { defendingTurns = 2; writeLog(`[성공] 2턴간 피해 70% 감소 방어 태세!`); }
         else writeLog(`[실패] 방패 방어 실패!`);
     } else if (type === '회피') {
         dodgingTurns = 2;
         writeLog(`[회피기 발동] 지금부터 2번의 공격을 75% 확률로 완벽히 회피합니다!`);
     } else if (type === '방어막') {
-        if (Math.random() * 100 < 70) { shieldedTurns = 2; writeLog(`[성공] 2턴 동안 데미지 1회 무효화!`); }
+        if (Math.random() * 100 < 60) { shieldedTurns = 2; writeLog(`[성공] 2턴 동안 데미지 1회 무효화!`); }
         else writeLog(`[실패] 방어막 전개 실패!`);
     }
     enemyTurn();
@@ -241,7 +241,7 @@ function enemyTurn() {
         }
 
         if (hitLanded) {
-            if (Math.random() * 100 < 85) {
+            if (Math.random() * 100 < 80) {
                 let dmg = Math.max(1, currentEnemyAtk - (player.def + player.extraDef));
                 if (defendingTurns > 0) {
                     dmg = Math.floor(dmg * 0.3); defendingTurns--;
@@ -256,15 +256,24 @@ function enemyTurn() {
 }
 
 function winBattle() {
-    const gain = enemy.isBoss ? 100 + Math.floor(Math.random() * 50) : 30 + Math.floor(Math.random() * 20);
+    const baseGain = enemy.isBoss
+        ? 80 + Math.floor(Math.random() * 40) + floor * 5
+        : 20 + Math.floor(Math.random() * 15) + Math.floor(floor * 1.5);
+
+    // 상성 열세 상대를 이기면 골드 보너스
+    let bonus = 0;
+    let bonusMsg = "";
+    if (!enemy.isBoss && relations[player.name].weak === enemy.job) {
+        bonus = Math.floor(baseGain * 0.5);
+        bonusMsg = ` <b style='color:#f1c40f'>(역전 보너스 +${bonus}G!)</b>`;
+    }
+
+    const gain = baseGain + bonus;
     gold += gain;
     player.curHp = Math.min(player.maxHp, player.curHp + Math.floor(player.maxHp * 0.15));
-    writeLog(`[승리] ${gain}G 획득 및 체력 소량 회복.`);
+    writeLog(`[승리] ${gain}G 획득 및 체력 소량 회복.${bonusMsg}`);
     floor++;
-    // 3층마다 상점 (1층은 제외)
-    if (floor > 1 && floor % 3 === 0) {
-        pendingShop = true;
-    }
+    if (floor > 1 && floor % 3 === 0) pendingShop = true;
     spawnEnemy();
 }
 
