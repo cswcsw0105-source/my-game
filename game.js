@@ -198,8 +198,8 @@ function spawnEnemy() {
         enemy = {
             name: `👑 [보스] ${floor}층 군주`,
             job: '보스',
-            hp: 150 + floor * 20, curHp: 150 + floor * 20,
-            atk: 10 + floor * 3, def: 3 + Math.floor(floor / 3),
+            hp: 200 + floor * 24, curHp: 200 + floor * 24,
+            atk: 12 + floor * 3.5, def: 3 + Math.floor(floor / 2),
             isBoss: true, turnCount: 1, bossCharge: false
         };
         writeLog(`🚨 경고: ${floor}층의 지배자가 나타났습니다!`);
@@ -211,8 +211,8 @@ function spawnEnemy() {
         enemy = {
             name: `[${randomJob}형] ${floor}층 괴수`,
             job: randomJob,
-            hp: 40 + floor * 10, curHp: 40 + floor * 10,
-            atk: 8 + floor * 2, def: 1 + Math.floor(floor / 3),
+            hp: 50 + floor * 13, curHp: 50 + floor * 11.5,
+            atk: 10 + floor * 2, def: 2 + Math.floor(floor / 2),
             isBoss: false
         };
     }
@@ -381,13 +381,13 @@ function enemyTurn() {
 
 function winBattle() {
     const baseGain = enemy.isBoss
-        ? 80 + Math.floor(Math.random() * 40) + floor * 5
-        : 20 + Math.floor(Math.random() * 15) + Math.floor(floor * 1.5);
+        ? 65 + Math.floor(Math.random() * 30) + floor * 4
+        : 14 + Math.floor(Math.random() * 12) + Math.floor(floor * 1.2);
 
     let bonus = 0; let bonusMsg = "";
     const relKey = relations[player.name] ? player.name : player.baseJob;
     if (!enemy.isBoss && relations[relKey] && relations[relKey].weak === enemy.job) {
-        bonus = Math.floor(baseGain * 0.5);
+        bonus = Math.floor(baseGain * 0.3);
         bonusMsg = ` <b style='color:#f1c40f'>(역전 보너스 +${bonus}G!)</b>`;
     }
     const gain = baseGain + bonus;
