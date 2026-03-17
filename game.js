@@ -241,7 +241,7 @@ function enemyTurn() {
         }
 
         if (hitLanded) {
-            if (Math.random() * 100 < 80) {
+            if (Math.random() * 100 < 75) {
                 let dmg = Math.max(1, currentEnemyAtk - (player.def + player.extraDef));
                 if (defendingTurns > 0) {
                     dmg = Math.floor(dmg * 0.3); defendingTurns--;
