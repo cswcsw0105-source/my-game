@@ -77,10 +77,15 @@
                 <div id="inv-list" style="font-size:0.9em; line-height: 2.0;">장비가 없습니다.</div>
                 <hr style="border-top:1px solid #333; width: 100%;">
                 
-                <h4 style="color: #f1c40f;">🏆 글로벌 명예의 전당</h4>
-                <div id="rank-list" style="font-size:0.85em; color:#888;">데이터 불러오는 중...</div>
-                
-                <button class="patch-btn" onclick="togglePatchNotes(true)">📜 패치 노트 보기</button>
+                <button onclick="toggleRank(true)" style="background:#2c2c3e; color:#f1c40f; border:1px solid #f1c40f; width:100%; margin-bottom:8px;">🏆 명예의 전당 보기</button>
+<button class="patch-btn" onclick="togglePatchNotes(true)">📜 패치 노트 보기</button>
+                <div id="rank-modal" class="modal-overlay" style="display:none;">
+    <div class="modal-content">
+        <button class="close-btn" onclick="toggleRank(false)">✖</button>
+        <h2>🏆 글로벌 명예의 전당</h2>
+        <div id="rank-list" style="font-size:0.9em; color:#888; margin-top:15px;">데이터 불러오는 중...</div>
+    </div>
+</div>
             </div>
         </div>
         <div id="log">온라인 서버 연결 대기 중...</div>
