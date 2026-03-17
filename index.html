@@ -1,119 +1,34 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <title>카운터 던전 v3.9: 모듈화 작업 (완전 분리)</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    <div class="container">
-        <h1 style="color: #fff; letter-spacing: 1px;">⚔️ 카운터 던전 (v3.9)</h1>
-        <div class="game-layout">
-            <div class="screen">
-                <div id="start-area">
-                    <h2 style="color: #e0e0e0;">직업 선택</h2>
-                    <button onclick="startGame('Warrior')" style="background:#ff4757;">워리어</button>
-                    <button onclick="startGame('Hunter')" style="background:#2ed573;">헌터</button>
-                    <button onclick="startGame('Wizard')" style="background:#1e90ff;">마법사</button>
-                </div>
-                <div id="battle-area" style="display:none;">
-                    <div style="display:flex; justify-content:space-around;">
-                        <div style="width:45%">
-                            <h4 id="p-name" style="color: #fff;">나</h4>
-                            <div class="hp-bar-outer"><div id="p-hp" class="hp-bar-inner"></div></div>
-                            <span id="p-hp-t" style="font-weight:bold; color:#fff;"></span>
-                            <div id="p-status" class="status-badge"></div>
-                            <div class="stat-tag" style="cursor:default;">ATK: <span id="p-atk-val" style="color:#f1c40f;">0</span> / DEF: <span id="p-def-val" style="color:#1e90ff;">0</span></div>
-                        </div>
-                        <div style="width:45%">
-                            <h4 id="e-name" style="color: #fff;">적</h4>
-                            <div class="hp-bar-outer"><div id="e-hp" class="hp-bar-inner" style="background:#ff4757;"></div></div>
-                            <span id="e-hp-t" style="font-weight:bold; color:#fff;"></span>
-                            <div class="status-badge"></div>
-                            <div class="stat-tag" style="cursor:default;">ATK: <span id="e-atk-val" style="color:#f1c40f;">0</span> / DEF: <span id="e-def-val" style="color:#1e90ff;">0</span></div>
-                        </div>
-                    </div>
-                    <div id="action-btns" style="margin-top:20px;"></div>
-                </div>
-                <div id="shop-area" style="display:none;">
-                    <h2 style="color: #f1c40f;">🛒 신비한 상점</h2>
-                    <p>현재 체력: <b id="shop-hp-t" style="color:#2ed573;">0/0</b> | 골드: <b id="shop-gold-t" style="color:#f1c40f;">0</b>G</p>
-                    <div id="shop-list" style="margin-top: 20px;"></div>
-                    <button onclick="nextFloor()" style="background:#444; color:#fff; margin-top: 15px; width: 100%;">던전으로 돌아가기</button>
-                </div>
-            </div>
-            <div class="sidebar">
-                <h4 style="color: #fff;">📊 상태 및 도감</h4>
-                <p>층수: <b id="floor-t" style="color:#fff;">1</b>F | 골드: <b id="gold-t" style="color:#f1c40f;">0</b>G</p>
-                <p>장비 수집률: <b id="collection-count" style="color:#1e90ff;">0 / 10</b></p>
-                <p>소지 포션: <b id="potion-t" style="color:#2ed573;">0</b>개</p>
-                <hr style="border-top:1px solid #333; width: 100%;">
-                <h4 style="color: #fff;">🎒 인벤토리 (마우스 오버)</h4>
-                <div id="inv-list" style="font-size:0.9em; line-height: 2.0;">장비가 없습니다.</div>
-                <hr style="border-top:1px solid #333; width: 100%;">
-                <h4 style="color: #fff;">🏆 묘지 및 전당</h4>
-                <div id="rank-list" style="font-size:0.85em; color:#888;"></div>
-                
-                <button class="patch-btn" onclick="togglePatchNotes(true)">📜 패치 노트 및 세부 수치 보기</button>
-            </div>
-        </div>
-        <div id="log">시스템 준비 완료. 던전에 진입합니다...</div>
-    </div>
+// 직업 상성 관계
+const relations = {
+    '워리어': { weak: '마법사', strong: '헌터' },
+    '헌터': { weak: '워리어', strong: '마법사' },
+    '마법사': { weak: '헌터', strong: '워리어' }
+};
 
-    <div id="patch-modal" class="modal-overlay">
-        <div class="modal-content">
-            <button class="close-btn" onclick="togglePatchNotes(false)">✖</button>
-            <h2>📜 세부 패치 노트 및 수치 변화 로그</h2>
-            <table class="patch-table">
-                <thead>
-                    <tr><th>버전</th><th>항목</th><th>상세 수치 변화 및 기획 의도</th></tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td class="v-tag">v3.9</td>
-                        <td>UI/UX</td>
-                        <td><b>패치 노트 모달화:</b> 하단에 나열되던 정보를 팝업으로 분리하여 메인 화면의 가독성 극대화.<br><b>수치 변화량 시각화:</b> 이전 버전 대비 변경된 능력치를 구체적으로 명시함.</td>
-                    </tr>
-                    <tr>
-                        <td class="v-tag">v3.8</td>
-                        <td>시스템 & 밸런스</td>
-                        <td>
-                            <b>상점 리롤:</b> 무한 상점 버그 수정 및 리롤 비용 누적 시스템 추가.<br>
-                            <span class="num-change">리롤 비용: <span class="num-old">없음</span> 10G (회당 +10G 증가)</span><br>
-                            <b>포션 턴 소모:</b> 전투의 흐름을 끊지 않도록 프리 액션으로 변경.<br>
-                            <span class="num-change">포션 소모 턴: <span class="num-old">1턴</span> 0턴 (즉시 발동)</span><br>
-                            <b>적 명중률 보정:</b> 적에게도 공격 실패 확률 부여.<br>
-                            <span class="num-change">적 명중률: <span class="num-old">100%</span> 85%</span>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="v-tag">v3.7</td>
-                        <td>도감 & 로깅</td>
-                        <td><b>장비 툴팁:</b> 인벤토리에 마우스 오버 시 상세 스펙 확인 가능. 획득률 표시.<br><b>데스 로그:</b> 나를 죽인 몬스터의 직업과 이름을 명예의 전당에 박제.</td>
-                    </tr>
-                    <tr>
-                        <td class="v-tag">v3.6</td>
-                        <td>생존기 버프</td>
-                        <td>
-                            <b>생존기 턴 유지:</b> 회피와 방어막이 1턴 만에 증발하는 것을 방지.<br>
-                            <span class="num-change">회피/방어막 지속: <span class="num-old">1턴</span> 2턴</span><br>
-                            <b>안티 스트릭:</b> 동일한 직업의 몬스터가 연속으로 등장할 확률을 대폭 하향.
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="v-tag">v3.3</td>
-                        <td>전투 롤백</td>
-                        <td>
-                            <b>클래스 상성 부활:</b> 적에게 직업 부여 후 데미지 가중치 재적용.<br>
-                            <span class="num-change">데미지 가중치: <span class="num-old">고정</span> 우위 1.5배 / 열세 0.8배</span>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
+// 직업별 기본 스탯
+const jobBase = {
+    Warrior: { name: '워리어', hp: 220, atk: 20, def: 8, color: '#ff4757' },
+    Hunter: { name: '헌터', hp: 160, atk: 25, def: 5, color: '#2ed573' },
+    Wizard: { name: '마법사', hp: 110, atk: 50, def: 2, color: '#1e90ff' }
+};
 
-    <script src="data.js"></script>
-    <script src="game.js"></script>
-</body>
-</html>
+// v4.0 대규모 아이템 풀 (성능 대폭 상향 & 스킬 추가)
+const equipmentPool = [
+    // 직업 전용 무기 (구매 시 4번째 스킬 버튼 생성!)
+    { name: "대마법사의 지팡이", type: "atk", value: 25, price: 100, rarity: "epic", preferred: "마법사", bonusAtk: 25, unlockSkill: "메테오", desc: "마법사가 쥐면 마력이 폭발(+25)하며 [🔥 메테오] 스킬이 해제된다." },
+    { name: "거인족의 대검", type: "atk", value: 20, price: 90, rarity: "epic", preferred: "워리어", bonusAtk: 20, unlockSkill: "대회전", desc: "워리어가 들면 공격력(+20)이 증가하며 [💥 대회전] 스킬이 해제된다." },
+    { name: "정령왕의 활", type: "atk", value: 22, price: 95, rarity: "epic", preferred: "헌터", bonusAtk: 20, unlockSkill: "폭풍화살", desc: "헌터가 사용 시 파괴력(+20)이 극대화되며 [🌪️ 폭풍화살] 스킬이 해제된다." },
+
+    // 전설(Legendary) 등급 장비
+    { name: "드래곤의 심장", type: "hp", value: 150, def: 15, price: 200, rarity: "legendary", desc: "전설 속 드래곤의 심장. 압도적인 체력(+150)과 방어력(+15)을 부여한다." },
+    { name: "엑스칼리버", type: "atk", value: 50, acc: 10, price: 220, rarity: "legendary", desc: "성검. 엄청난 공격력(+50)과 명중률(+10%)을 동시에 올려준다." },
+
+    // 에픽 & 레어 공용 장비 버프
+    { name: "미스릴 흉갑", type: "hp", value: 80, def: 15, price: 100, rarity: "epic", preferred: "워리어", bonusHp: 50, desc: "가볍고 단단한 환상의 갑옷. 워리어에겐 추가 체력(+50)을 제공한다." },
+    { name: "저주받은 검", type: "atk", value: 45, price: 110, rarity: "epic", penalty: { '워리어': 20, '헌터': 20, '마법사': 30 }, desc: "파괴력은 엄청나지만, 정신을 갉아먹어 명중률이 크게 하락한다." },
+    { name: "바람의 부츠", type: "acc", value: 20, price: 60, rarity: "rare", desc: "몸이 깃털처럼 가벼워져 명중률(+20%)이 크게 상승한다." },
+    { name: "암살자의 단검", type: "atk", value: 15, price: 75, rarity: "rare", preferred: "헌터", bonusAtk: 15, desc: "급소를 노리기 좋은 단검. 헌터 사용 시 추가 공격력(+15)이 붙는다." },
+    { name: "학자의 로브", type: "hp", value: 40, def: 5, price: 50, rarity: "common", preferred: "마법사", bonusAcc: 15, desc: "마법의 흐름을 돕는 로브. 마법사 착용 시 명중률(+15%) 보정." },
+    { name: "중갑옷", type: "hp", value: 80, def: 10, price: 70, rarity: "rare", penalty: { '마법사': 25, '헌터': 15 }, desc: "방어력을 올리지만, 너무 무거워 마법사와 헌터는 명중률이 깎인다." },
+    { name: "낡은 가죽 갑옷", type: "hp", value: 30, def: 3, price: 30, rarity: "common", desc: "초보 모험가들이 흔히 입는 평범한 가죽 갑옷." }
+];
