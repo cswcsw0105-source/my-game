@@ -7,9 +7,9 @@ const relations = {
 
 // ⚖️ [밸런스 패치] 워리어 기본 체력 너프 (220 -> 180) 방패 의존도 증가
 const jobBase = {
-    Warrior: { name: '워리어', hp: 180, atk: 20, def: 8, color: '#ff4757' },
-    Hunter: { name: '헌터', hp: 160, atk: 25, def: 5, color: '#2ed573' },
-    Wizard: { name: '마법사', hp: 110, atk: 50, def: 2, color: '#1e90ff' }
+    Warrior: { name: '워리어', hp: 180, atk: 14, def: 6, color: '#ff4757' },
+    Hunter:  { name: '헌터',   hp: 160, atk: 18, def: 3, color: '#2ed573' },
+    Wizard:  { name: '마법사', hp: 110, atk: 38, def: 1, color: '#1e90ff' }
 };
 
 // v5.1 아이템 풀 (포션 설명 수정)
