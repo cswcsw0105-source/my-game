@@ -19,19 +19,18 @@ const jobBase = {
 
 const jobEvolutions = {
     '워리어': [
-        { name: '나이트',  condition: '방어구 아이템 2개 보유', trigger: 'defense2', bonusAtk: 20, bonusDef: 15, bonusHp: 280, desc: '철벽 수호자. 방어력과 체력이 크게 증가한다.' },
-        { name: '버서커', condition: '공격 아이템 2개 보유',   trigger: 'attack2',  bonusAtk: 35, bonusDef: 4,  bonusHp: 200, desc: '광전사. 공격력이 폭발하지만 체력이 줄어든다.' },
+        { name: '나이트',  condition: '방어구 아이템 2개 보유', trigger: 'defense2', bonusAtk: 24, bonusDef: 18, bonusHp: 420, desc: '철벽 수호자. 방어력과 체력이 크게 증가한다.' },
+        { name: '버서커', condition: '공격 아이템 2개 보유',   trigger: 'attack2',  bonusAtk: 42, bonusDef: 5,  bonusHp: 340, desc: '광전사. 공격력이 폭발하지만 체력이 줄어든다.' },
     ],
     '헌터': [
-        { name: '궁수',   condition: '활 관련 아이템 보유',   trigger: 'bow',      bonusAtk: 28, bonusDef: 5,  bonusHp: 220, bonusAcc: 15, desc: '원거리 특화. 공격력과 명중률이 상승한다.' },
-        { name: '암살자', condition: '단검 관련 아이템 보유',  trigger: 'dagger',   bonusAtk: 38, bonusDef: 3,  bonusHp: 190, desc: '그림자 암살자. 공격력이 크게 오르지만 방어가 약해진다.' },
+        { name: '궁수',   condition: '활 관련 아이템 보유',   trigger: 'bow',      bonusAtk: 34, bonusDef: 6,  bonusHp: 370, bonusAcc: 15, desc: '원거리 특화. 공격력과 명중률이 상승한다.' },
+        { name: '암살자', condition: '단검 관련 아이템 보유',  trigger: 'dagger',   bonusAtk: 46, bonusDef: 4,  bonusHp: 320, desc: '그림자 암살자. 공격력이 크게 오르지만 방어가 약해진다.' },
     ],
     '마법사': [
-        { name: '위저드',  condition: '지팡이 관련 아이템 보유', trigger: 'staff',  bonusAtk: 65, bonusDef: 2,  bonusHp: 140, desc: '고위 마법사. 마법 공격력이 폭발적으로 증가한다.' },
-        { name: '소환사',  condition: '로브 관련 아이템 보유',   trigger: 'robe',   bonusAtk: 48, bonusDef: 8,  bonusHp: 185, desc: '소환사. 소환수의 방어막으로 생존력이 증가한다.' },
+        { name: '위저드',  condition: '지팡이 관련 아이템 보유', trigger: 'staff',  bonusAtk: 78, bonusDef: 2,  bonusHp: 260, desc: '고위 마법사. 마법 공격력이 폭발적으로 증가한다.' },
+        { name: '소환사',  condition: '로브 관련 아이템 보유',   trigger: 'robe',   bonusAtk: 58, bonusDef: 10, bonusHp: 320, desc: '소환사. 소환수의 방어막으로 생존력이 증가한다.' },
     ],
 };
-
 const equipmentPool = [
     // ===== 워리어 전용 =====
     { name: "거인족의 대검",    type: "atk", value: 22, price: 90,  rarity: "epic",      onlyFor: "워리어", bonusAtk: 22, unlockSkill: "대회전",  evolTrigger: "attack2",  desc: "워리어 전용. 공격력(+22). [💥 대회전] 스킬 해제. 공격 전직 조건." },
