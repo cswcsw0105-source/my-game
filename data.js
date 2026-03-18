@@ -12,9 +12,9 @@ const relations = {
 };
 
 const jobBase = {
-    Warrior: { name: '워리어', hp: 240, atk: 18, def: 8,  color: '#ff4757' },
-    Hunter:  { name: '헌터',   hp: 210, atk: 22, def: 4,  color: '#2ed573' },
-    Wizard:  { name: '마법사', hp: 150, atk: 45, def: 2,  color: '#1e90ff' },
+    Warrior: { name: '워리어', hp: 320, atk: 22, def: 10, color: '#ff4757' },
+    Hunter:  { name: '헌터',   hp: 280, atk: 26, def: 5,  color: '#2ed573' },
+    Wizard:  { name: '마법사', hp: 200, atk: 52, def: 3,  color: '#1e90ff' },
 };
 
 const jobEvolutions = {
