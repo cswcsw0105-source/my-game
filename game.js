@@ -425,6 +425,84 @@ function renderShopItems() {
     list.innerHTML = '';
     currentShopItems = [{ name: "치유 포션", type: "potion", value: 80, price: 40, rarity: "common", desc: "최대 체력의 35%를 즉시 회복합니다." }];
 
+    const picked = [];
+    let tries = 0;
+    while (picked.length < 3 && tries < 50) {
+        tries++;
+        const pool = getItemsByRarity();
+        if (!pool.length) continue;
+        const item = pool[Math.floor(Math.random() * pool.length)];
+        if (picked.some(i => i.name === item.name)) continue;
+        if (item.onlyFor && item.onlyFor !== player.name && item.onlyFor !== player.baseJob) continue;
+        picked.push(item);
+    }
+    currentShopItems.push(...picked);
+
+    const grid = document.createElement('div');
+    grid.style.cssText = 'display:grid; grid-template-columns: repeat(2, 1fr); gap:12px; margin-top:12px;';
+
+    currentShopItems.forEach((it, idx) => {
+        const d = document.createElement('div');
+        let borderColor = '#444';
+        let badgeColor = '#888';
+        let badgeBg = '#2a2a2a';
+        let badgeText = 'COMMON';
+        if (it.rarity === 'legendary') { borderColor = '#e74c3c'; badgeColor = '#e74c3c'; badgeBg = '#2d1a1a'; badgeText = 'LEGENDARY'; }
+        else if (it.rarity === 'epic') { borderColor = '#a55eea'; badgeColor = '#a55eea'; badgeBg = '#1e1a2d'; badgeText = 'EPIC'; }
+        else if (it.rarity === 'rare') { borderColor = '#1e90ff'; badgeColor = '#1e90ff'; badgeBg = '#1a1e2d'; badgeText = 'RARE'; }
+
+        let nameColor = '#e0e0e0';
+        if (it.rarity === 'legendary') nameColor = '#e74c3c';
+        else if (it.rarity === 'epic') nameColor = '#a55eea';
+        else if (it.rarity === 'rare') nameColor = '#1e90ff';
+
+        // 아이템 타입 아이콘
+        let typeIcon = '🎒';
+        if (it.type === 'atk') typeIcon = '⚔️';
+        else if (it.type === 'hp') typeIcon = '🛡️';
+        else if (it.type === 'acc') typeIcon = '🎯';
+        else if (it.type === 'potion') typeIcon = '🧪';
+        if (it.lifesteal) typeIcon = '🩸';
+        if (it.regenPotion) typeIcon = '💚';
+
+        d.style.cssText = `
+            background: #1a1a1a;
+            border: 1px solid ${borderColor};
+            border-radius: 10px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: transform 0.15s;
+            cursor: default;
+        `;
+        d.onmouseenter = () => d.style.transform = 'translateY(-2px)';
+        d.onmouseleave = () => d.style.transform = 'translateY(0)';
+
+        d.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="background:${badgeBg}; color:${badgeColor}; border:1px solid ${borderColor}; border-radius:4px; font-size:0.7em; font-weight:700; padding:2px 7px; letter-spacing:1px;">${badgeText}</span>
+                <span style="font-size:1.3em;">${typeIcon}</span>
+            </div>
+            <div style="color:${nameColor}; font-weight:700; font-size:1em; line-height:1.3;">${it.name}</div>
+            <div style="color:#888; font-size:0.78em; line-height:1.5; flex:1;">${it.desc}</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+                <span style="color:#f1c40f; font-weight:700; font-size:1em;">💰 ${it.price}G</span>
+                <button onclick="buyItem(event, ${idx})" style="background:#f1c40f; color:#111; padding:6px 14px; font-size:0.85em; font-weight:700; margin:0; border-radius:6px;">구매</button>
+            </div>
+        `;
+        grid.appendChild(d);
+    });
+
+    list.appendChild(grid);
+
+    const rerollBtn = document.createElement('button');
+    rerollBtn.className = 'reroll-btn';
+    rerollBtn.innerText = `🔄 다시 돌리기 (${rerollCost}G)`;
+    rerollBtn.onclick = rerollShop;
+    list.appendChild(rerollBtn);
+}
+
     // 등급 가중치 적용해서 3개 뽑기
     const picked = [];
     let tries = 0;
