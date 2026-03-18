@@ -99,7 +99,23 @@ async function saveRank() {
 
 async function loadRank() {
     try {
+        if (!currentUser) {
+            document.getElementById('rank-list').innerHTML = '<span style="color:#555;">로그인 후 확인 가능합니다.</span>';
+            return;
+        }
         const jobs = ['워리어', '헌터', '마법사'];
+```
+
+그리고 Firebase Firestore 규칙도 확인해야 해요. Firebase 콘솔 → Firestore → **규칙** 탭에서 아래처럼 되어있는지 확인해주세요:
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /global_ranks/{document} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
         let html = '';
 
         for (const job of jobs) {
