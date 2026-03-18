@@ -156,9 +156,13 @@ window.toggleRank = (show) => {
     document.getElementById('rank-modal').style.display = show ? 'flex' : 'none';
     if (show) loadRank();
 };
+window.toggleInv = (show) => {
+    document.getElementById('inv-modal').style.display = show ? 'flex' : 'none';
+};
 window.onclick = function(event) {
     if (event.target === document.getElementById('patch-modal')) togglePatchNotes(false);
     if (event.target === document.getElementById('rank-modal')) toggleRank(false);
+    if (event.target === document.getElementById('inv-modal')) toggleInv(false);
 };
 
 window.startGame = (job) => {
