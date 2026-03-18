@@ -200,11 +200,11 @@ window.selectJobAndStart = (job) => {
 // =============================================
 function checkEvolution() {
     if (player.evolved) return;
-    if (floor === 10) {
-        const baseJob = player.baseJob;
-        if (jobEvolutions[baseJob]) {
+    const baseJob = player.baseJob;
+    if (jobEvolutions[baseJob]) {
+        setTimeout(() => {
             showEvolutionChoice(jobEvolutions[baseJob]);
-        }
+        }, 500); // 승리 로그 뜬 후 팝업
     }
 }
 
@@ -469,7 +469,6 @@ function enemyTurn() {
 }
 
 function winBattle() {
-    // 1~10층: 골드 수급 조정 (2층에서 포션 사고 25골드 남을 정도)
     let baseGain;
     if (floor <= 10) {
         baseGain = enemy.isBoss
@@ -492,16 +491,17 @@ function winBattle() {
     totalGoldEarned += gain;
     player.curHp = Math.min(player.maxHp, player.curHp + Math.floor(player.maxHp * 0.15));
     writeLog(`[승리] ${gain}G 획득 및 체력 소량 회복.${bonusMsg}`);
+
+    // 100층 보스 클리어 시 던전 클리어
+    if (floor === 100 && enemy.isBoss) {
+        return dungeonClear();
+    }
+
     floor++;
-
-    // 층 해금 체크
-    checkFloorUnlock(floor - 1);
-
-    // 10층 전직 체크
-    if (floor - 1 === 10) checkEvolution();
-
-    if (floor > 1 && floor % 3 === 0) pendingShop = true;
-    spawnEnemy();
+checkFloorUnlock(floor - 1);
+if ((floor - 1) === 10) checkEvolution();  // floor++ 후에 floor-1이 10인지 체크
+if (floor > 1 && floor % 3 === 0) pendingShop = true;
+spawnEnemy();
 }
 
 function openShop() {
@@ -639,7 +639,7 @@ function saveCollection(itemName) {
 }
 
 function loadCollection() {
-    let collection = JSON.parse(localStorage.getItem('item_collection_v5') || '[]');
+    const collection = JSON.parse(localStorage.getItem('item_collection_v5') || '[]');
     document.getElementById('collection-count').innerText = `${collection.length} / ${equipmentPool.length}`;
 }
 
@@ -779,26 +779,72 @@ function updateUi() {
     document.getElementById('shop-hp-t').innerText = `${Math.max(0, player.curHp)}/${player.maxHp}`;
     document.getElementById('shop-gold-t').innerText = gold;
 
+    // 장비 수집률 — 구매한 아이템 목록 기반
+    const collection = JSON.parse(localStorage.getItem('item_collection_v5') || '[]');
+    document.getElementById('collection-count').innerText = `${collection.length} / ${equipmentPool.length}`;
+
+    // 인벤토리 — 희귀도 순 정렬
     const invList = document.getElementById('inv-list');
     if (player.items.length === 0) {
-        invList.innerHTML = '장비가 없습니다.';
+        invList.innerHTML = '<div style="color:#555; text-align:center; padding:20px;">장비가 없습니다.</div>';
     } else {
-        invList.innerHTML = player.items.map(it => {
-            let color = '#ccc';
-            if (it.rarity === 'legendary') color = '#e74c3c';
-            else if (it.rarity === 'epic') color = '#a55eea';
-            else if (it.rarity === 'rare') color = '#1e90ff';
-            return `<div style="padding:6px 0; border-bottom:1px solid #222;">
-                <span style="color:${color}; font-weight:700;">▸ ${it.name}</span>
-                <div style="color:#666; font-size:0.8em; margin-top:2px;">${it.desc}</div>
-            </div>`;
-        }).join('');
+        const rarityOrder = { 'legendary': 0, 'epic': 1, 'rare': 2, 'common': 3 };
+        const sorted = [...player.items].sort((a, b) => (rarityOrder[a.rarity] || 3) - (rarityOrder[b.rarity] || 3));
+
+        const rarityGroups = { legendary: [], epic: [], rare: [], common: [] };
+        sorted.forEach(it => { (rarityGroups[it.rarity] || rarityGroups.common).push(it); });
+
+        const rarityLabels = {
+            legendary: { label: 'LEGENDARY', color: '#e74c3c', bg: '#2d1a1a' },
+            epic:      { label: 'EPIC',      color: '#a55eea', bg: '#1e1a2d' },
+            rare:      { label: 'RARE',      color: '#1e90ff', bg: '#1a1e2d' },
+            common:    { label: 'COMMON',    color: '#888',    bg: '#2a2a2a' },
+        };
+
+        let html = '';
+        Object.entries(rarityGroups).forEach(([rarity, items]) => {
+            if (items.length === 0) return;
+            const { label, color, bg } = rarityLabels[rarity];
+            html += `<div style="margin-bottom:10px;">
+                <div style="background:${bg}; color:${color}; font-size:0.7em; font-weight:700; padding:3px 8px; border-radius:4px; display:inline-block; margin-bottom:6px; letter-spacing:1px;">${label}</div>`;
+            items.forEach(it => {
+                html += `<div style="padding:8px 10px; background:#111; border-radius:6px; margin-bottom:4px; border-left:3px solid ${color};">
+                    <div style="color:${color}; font-weight:700; font-size:0.9em;">${it.name}</div>
+                    <div style="color:#666; font-size:0.78em; margin-top:3px; line-height:1.4;">${it.desc}</div>
+                </div>`;
+            });
+            html += `</div>`;
+        });
+        invList.innerHTML = html;
     }
 }
 
 function writeLog(msg) {
     const log = document.getElementById('log');
     log.innerHTML = `<p style="margin:4px 0; border-bottom:1px solid #333; padding-bottom:4px;">${msg}</p>` + log.innerHTML;
+}
+function dungeonClear() {
+    saveRank();
+    const savedGold = Math.floor(totalGoldEarned * 0.1);
+    const prevSaved = parseInt(localStorage.getItem('saved_gold') || '0');
+    localStorage.setItem('saved_gold', prevSaved + savedGold);
+
+    document.getElementById('battle-area').style.display = 'none';
+    const screen = document.querySelector('.screen');
+    screen.innerHTML = `
+        <div style="text-align:center; padding:40px 20px;">
+            <h2 style="color:#f1c40f; font-size:2em;">🏆 던전 클리어!</h2>
+            <p style="color:#e0e0e0; font-size:1.1em; margin:15px 0;">
+                <b style="color:#f1c40f;">${player.name}</b>이(가) 100층을 정복했습니다!
+            </p>
+            <p style="color:#2ed573; font-size:0.95em;">💰 보존 골드: <b>${savedGold}G</b></p>
+            <p style="color:#888; font-size:0.9em;">전설로 기록되었습니다.</p>
+            <button onclick="location.reload()" style="background:#f1c40f; color:#111; margin-top:20px; padding:12px 30px; font-size:1em; font-weight:700;">
+                🏠 메인으로 돌아가기
+            </button>
+        </div>
+    `;
+    writeLog(`🏆 ${player.name}이(가) 100층을 클리어했습니다!!!`);
 }
 
 function gameOver() {
