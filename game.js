@@ -237,8 +237,8 @@ function spawnEnemy() {
     if (floor % 10 === 0) {
         enemy = {
             name: `👑 [보스] ${floor}층 군주`, job: '보스',
-            hp: 200 + floor * 24, curHp: 200 + floor * 24,
-            atk: 12 + floor * 3, def: 3 + Math.floor(floor / 2),
+            hp: 200 + floor * 27, curHp: 200 + floor * 27,
+            atk: 10 + floor * 4, def: 5 + Math.floor(floor / 3),
             isBoss: true, turnCount: 1, bossCharge: false
         };
         writeLog(`🚨 경고: ${floor}층의 지배자가 나타났습니다!`);
@@ -250,7 +250,7 @@ function spawnEnemy() {
         enemy = {
             name: `[${randomJob}형] ${floor}층 괴수`, job: randomJob,
             hp: 60 + floor * 12, curHp: 55 + floor * 11,
-            atk: 12 + floor * 4, def: 5 + Math.floor(floor / 3),
+            atk: 15 + floor * 4, def: 5 + Math.floor(floor / 2),
             isBoss: false
         };
     }
