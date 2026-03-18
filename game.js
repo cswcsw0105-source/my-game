@@ -113,20 +113,14 @@ window.startGame = (job) => {
     spawnEnemy();
 };
 
-// ===== 전직 체크 =====
 function checkEvolution() {
     const baseJob = player.baseJob;
     if (!jobEvolutions[baseJob]) return;
-    if (player.evolved) return; // 이미 전직함
-
+    if (player.evolved) return;
     const evols = jobEvolutions[baseJob];
     for (const evol of evols) {
         const triggerCount = player.items.filter(i => i.evolTrigger === evol.trigger).length;
-        if (triggerCount >= 2) {
-            // 전직 선택 팝업
-            showEvolutionChoice(evols);
-            return;
-        }
+        if (triggerCount >= 2) { showEvolutionChoice(evols); return; }
     }
 }
 
@@ -142,7 +136,7 @@ function showEvolutionChoice(evols) {
                     <b style="color:#e0e0e0;font-size:1.1em;">${e.name}</b>
                     <p style="color:#888;font-size:0.85em;margin:6px 0 0;">${e.desc}</p>
                     <p style="color:#2ed573;font-size:0.8em;margin:4px 0 0;">
-                        ${e.bonusAtk ? `ATK +${e.bonusAtk} ` : ''}${e.bonusDef ? `DEF +${e.bonusDef} ` : ''}${e.bonusHp ? `HP ${e.bonusHp > 0 ? '+' : ''}${e.bonusHp} ` : ''}${e.bonusAcc ? `ACC +${e.bonusAcc}% ` : ''}
+                        ${e.bonusAtk ? `ATK ${e.bonusAtk} ` : ''}${e.bonusDef ? `DEF ${e.bonusDef} ` : ''}${e.bonusHp ? `HP ${e.bonusHp} ` : ''}${e.bonusAcc ? `ACC +${e.bonusAcc}% ` : ''}
                     </p>
                 </div>
             `).join('')}
@@ -156,48 +150,33 @@ function showEvolutionChoice(evols) {
 window.evolve = (idx) => {
     const evol = window._evolOptions[idx];
     const oldName = player.name;
-
-    // 스탯 완전 교체
+    const baseKey = player.baseJob === '워리어' ? 'Warrior' : player.baseJob === '헌터' ? 'Hunter' : 'Wizard';
     player.name = evol.name;
     player.evolved = true;
-    player.atk = jobBase[player.baseJob === '워리어' ? 'Warrior' : player.baseJob === '헌터' ? 'Hunter' : 'Wizard'].atk;
-    player.def = jobBase[player.baseJob === '워리어' ? 'Warrior' : player.baseJob === '헌터' ? 'Hunter' : 'Wizard'].def;
-
-    // 전직 직업 전용 스탯으로 교체 후 보너스 적용
-    if (evol.bonusAtk) player.atk = evol.bonusAtk;
-    if (evol.bonusDef) player.def = evol.bonusDef;
-    if (evol.bonusHp)  { 
-        const newMaxHp = jobBase[player.baseJob === '워리어' ? 'Warrior' : player.baseJob === '헌터' ? 'Hunter' : 'Wizard'].hp + evol.bonusHp;
-        player.maxHp = newMaxHp;
-        player.curHp = Math.min(player.curHp, newMaxHp);
-    }
+    player.atk = evol.bonusAtk || jobBase[baseKey].atk;
+    player.def = evol.bonusDef || jobBase[baseKey].def;
+    if (evol.bonusHp) { player.maxHp = evol.bonusHp; player.curHp = Math.min(player.curHp, player.maxHp); }
     if (evol.bonusAcc) player.acc = evol.bonusAcc;
-
-    // 아이템으로 얻은 스탯은 다시 재적용
+    player.extraAtk = 0; player.extraDef = 0;
     player.items.forEach(it => {
         if (it.type === 'atk') player.atk += it.value;
         if (it.type === 'acc') player.acc += it.value;
         if (it.def) player.extraDef += it.def;
     });
-
     document.body.removeChild(window._evolOverlay);
-    writeLog(`⚡ [전직] ${oldName} → <b style='color:#f1c40f'>${evol.name}</b>! 스탯이 완전히 재설정됩니다.`);
+    writeLog(`⚡ [전직] ${oldName} → <b style='color:#f1c40f'>${evol.name}</b>! 스탯 재설정 완료.`);
     updateUi(); renderActions();
 };
 
 function spawnEnemy() {
-    if (pendingShop) {
-        pendingShop = false;
-        return openShop();
-    }
+    if (pendingShop) { pendingShop = false; return openShop(); }
     defendingTurns = 0; dodgingTurns = 0; shieldedTurns = 0;
     regenTurns = 0; regenAmount = 0;
     potionUsedThisTurn = false;
 
     if (floor % 10 === 0) {
         enemy = {
-            name: `👑 [보스] ${floor}층 군주`,
-            job: '보스',
+            name: `👑 [보스] ${floor}층 군주`, job: '보스',
             hp: 200 + floor * 24, curHp: 200 + floor * 24,
             atk: 12 + floor * 3.5, def: 3 + Math.floor(floor / 2),
             isBoss: true, turnCount: 1, bossCharge: false
@@ -209,10 +188,9 @@ function spawnEnemy() {
         if (randomJob === lastEnemyJob) randomJob = eJobs[Math.floor(Math.random() * eJobs.length)];
         lastEnemyJob = randomJob;
         enemy = {
-            name: `[${randomJob}형] ${floor}층 괴수`,
-            job: randomJob,
-            hp: 50 + floor * 13, curHp: 50 + floor * 11.5,
-            atk: 10 + floor * 2, def: 2 + Math.floor(floor / 2),
+            name: `[${randomJob}형] ${floor}층 괴수`, job: randomJob,
+            hp: 55 + floor * 13, curHp: 55 + floor * 13,
+            atk: 10 + floor * 2.5, def: 2 + Math.floor(floor / 2),
             isBoss: false
         };
     }
@@ -222,50 +200,36 @@ function spawnEnemy() {
 function renderActions() {
     const div = document.getElementById('action-btns');
     div.innerHTML = '';
-
     const atkBtn = document.createElement('button');
-    atkBtn.innerText = '⚔️ 공격';
-    atkBtn.style.background = player.color;
+    atkBtn.innerText = '⚔️ 공격'; atkBtn.style.background = player.color;
     atkBtn.onclick = () => useAction('공격');
     div.appendChild(atkBtn);
 
     const defBtn = document.createElement('button');
     defBtn.style.background = '#888';
     const jobName = player.name;
-    if (['워리어','나이트','버서커'].includes(jobName)) {
-        defBtn.innerText = '🛡️ 방어 (70%)';
-        defBtn.onclick = () => useAction('방패방어');
-    } else if (['헌터','궁수','암살자'].includes(jobName)) {
-        defBtn.innerText = '💨 회피 (75%)';
-        defBtn.onclick = () => useAction('회피');
-    } else if (['마법사','위저드','소환사'].includes(jobName)) {
-        defBtn.innerText = '✨ 방어막 (60%)';
-        defBtn.onclick = () => useAction('방어막');
-    }
+    if (['워리어','나이트','버서커'].includes(jobName)) { defBtn.innerText = '🛡️ 방어 (70%)'; defBtn.onclick = () => useAction('방패방어'); }
+    else if (['헌터','궁수','암살자'].includes(jobName)) { defBtn.innerText = '💨 회피 (75%)'; defBtn.onclick = () => useAction('회피'); }
+    else if (['마법사','위저드','소환사'].includes(jobName)) { defBtn.innerText = '✨ 방어막 (60%)'; defBtn.onclick = () => useAction('방어막'); }
     div.appendChild(defBtn);
 
     if (player.unlockedSkill) {
         const skillBtn = document.createElement('button');
-        skillBtn.innerText = `🔥 ${player.unlockedSkill}`;
-        skillBtn.style.background = '#9b59b6';
+        skillBtn.innerText = `🔥 ${player.unlockedSkill}`; skillBtn.style.background = '#9b59b6';
         skillBtn.onclick = () => useAction('궁극기');
         div.appendChild(skillBtn);
     }
-
     const pBtn = document.createElement('button');
-    pBtn.innerText = `🧪 포션 (${player.potions})`;
-    pBtn.className = 'potion-btn';
+    pBtn.innerText = `🧪 포션 (${player.potions})`; pBtn.className = 'potion-btn';
     pBtn.onclick = usePotion;
     div.appendChild(pBtn);
 }
 
 window.useAction = (type) => {
     potionUsedThisTurn = false;
-
     if (type === '공격') {
         let multiplier = 1.0; let effectMsg = "";
-        const baseJobName = player.baseJob || player.name;
-        const relKey = relations[player.name] ? player.name : baseJobName;
+        const relKey = relations[player.name] ? player.name : player.baseJob;
         if (!enemy.isBoss && relations[relKey]) {
             if (relations[relKey].strong === enemy.job) { multiplier = 1.5; effectMsg = "<b style='color:#2ed573'>(상성 우위!)</b> "; }
             else if (relations[relKey].weak === enemy.job) { multiplier = 0.8; effectMsg = "<b style='color:#ff4757'>(상성 열세..)</b> "; }
@@ -275,7 +239,6 @@ window.useAction = (type) => {
             let finalDmg = Math.max(1, Math.floor(baseDmg * multiplier) - enemy.def);
             enemy.curHp -= finalDmg;
             writeLog(`[명중] ${effectMsg}적에게 ${finalDmg} 피해!`);
-            // 흡혈 처리
             if (player.lifesteal > 0) {
                 const heal = Math.floor(finalDmg * player.lifesteal);
                 player.curHp = Math.min(player.maxHp, player.curHp + heal);
@@ -283,7 +246,6 @@ window.useAction = (type) => {
             }
         } else writeLog(`[빗나감] 공격 실패!`);
         if (enemy.curHp <= 0) return winBattle();
-
     } else if (type === '궁극기') {
         let ultDmg = player.atk + player.extraAtk + 40;
         enemy.curHp -= ultDmg;
@@ -294,15 +256,11 @@ window.useAction = (type) => {
             writeLog(`[흡혈] 💉 ${heal} 체력 흡수!`);
         }
         if (enemy.curHp <= 0) return winBattle();
-
     } else if (type === '방패방어') {
         if (Math.random() * 100 < 70) { defendingTurns = 2; writeLog(`[성공] 🛡️ 2턴간 피해 60% 감소!`); }
         else writeLog(`[실패] 방패 방어 실패!`);
-
     } else if (type === '회피') {
-        dodgingTurns = 2;
-        writeLog(`[회피기] 💨 2번의 공격을 75% 확률로 회피합니다!`);
-
+        dodgingTurns = 2; writeLog(`[회피기] 💨 2번의 공격을 75% 확률로 회피합니다!`);
     } else if (type === '방어막') {
         if (Math.random() * 100 < 60) { shieldedTurns = 2; writeLog(`[성공] ✨ 2턴간 피해 50% 감소!`); }
         else writeLog(`[실패] 방어막 전개 실패!`);
@@ -315,11 +273,9 @@ window.usePotion = () => {
     if (potionUsedThisTurn) return writeLog("이번 턴에 이미 포션을 사용했습니다!");
     player.potions--;
     potionUsedThisTurn = true;
-
     if (player.hasRegenPotion) {
-        // 회복의 목걸이 착용 시: 2턴 지속 회복, 총량 50%
         regenTurns = 2;
-        regenAmount = Math.floor(player.maxHp * 0.25); // 턴당 25% × 2턴 = 50%
+        regenAmount = Math.floor(player.maxHp * 0.25);
         writeLog(`[포션] 🧪 서서히 회복 시작! (2턴간 매 턴 ${regenAmount} 회복, 총 ${regenAmount * 2})`);
     } else {
         let healAmount = Math.floor(player.maxHp * 0.35);
@@ -331,13 +287,11 @@ window.usePotion = () => {
 
 function enemyTurn() {
     setTimeout(() => {
-        // 지속 회복 처리
         if (regenTurns > 0) {
             player.curHp = Math.min(player.maxHp, player.curHp + regenAmount);
             regenTurns--;
             writeLog(`[재생] 💚 ${regenAmount} 체력 회복! (남은 턴: ${regenTurns})`);
         }
-
         potionUsedThisTurn = false;
         let hitLanded = true;
         let currentEnemyAtk = enemy.atk;
@@ -357,10 +311,9 @@ function enemyTurn() {
 
         if (dodgingTurns > 0) {
             dodgingTurns--;
-            if (Math.random() * 100 < 75) { writeLog(`[회피 성공] 💨 적의 공격을 완전히 피했습니다!`); hitLanded = false; }
+            if (Math.random() * 100 < 75) { writeLog(`[회피 성공] 💨 적의 공격을 피했습니다!`); hitLanded = false; }
             else writeLog(`[회피 실패] 피하지 못했습니다!`);
         }
-
         if (hitLanded) {
             if (Math.random() * 100 < 80) {
                 let dmg = Math.max(1, currentEnemyAtk - (player.def + player.extraDef));
@@ -383,7 +336,6 @@ function winBattle() {
     const baseGain = enemy.isBoss
         ? 65 + Math.floor(Math.random() * 30) + floor * 4
         : 14 + Math.floor(Math.random() * 12) + Math.floor(floor * 1.2);
-
     let bonus = 0; let bonusMsg = "";
     const relKey = relations[player.name] ? player.name : player.baseJob;
     if (!enemy.isBoss && relations[relKey] && relations[relKey].weak === enemy.job) {
@@ -443,20 +395,14 @@ function renderShopItems() {
 
     currentShopItems.forEach((it, idx) => {
         const d = document.createElement('div');
-        let borderColor = '#444';
-        let badgeColor = '#888';
-        let badgeBg = '#2a2a2a';
-        let badgeText = 'COMMON';
+        let borderColor = '#444', badgeColor = '#888', badgeBg = '#2a2a2a', badgeText = 'COMMON';
         if (it.rarity === 'legendary') { borderColor = '#e74c3c'; badgeColor = '#e74c3c'; badgeBg = '#2d1a1a'; badgeText = 'LEGENDARY'; }
         else if (it.rarity === 'epic') { borderColor = '#a55eea'; badgeColor = '#a55eea'; badgeBg = '#1e1a2d'; badgeText = 'EPIC'; }
         else if (it.rarity === 'rare') { borderColor = '#1e90ff'; badgeColor = '#1e90ff'; badgeBg = '#1a1e2d'; badgeText = 'RARE'; }
-
         let nameColor = '#e0e0e0';
         if (it.rarity === 'legendary') nameColor = '#e74c3c';
         else if (it.rarity === 'epic') nameColor = '#a55eea';
         else if (it.rarity === 'rare') nameColor = '#1e90ff';
-
-        // 아이템 타입 아이콘
         let typeIcon = '🎒';
         if (it.type === 'atk') typeIcon = '⚔️';
         else if (it.type === 'hp') typeIcon = '🛡️';
@@ -465,20 +411,9 @@ function renderShopItems() {
         if (it.lifesteal) typeIcon = '🩸';
         if (it.regenPotion) typeIcon = '💚';
 
-        d.style.cssText = `
-            background: #1a1a1a;
-            border: 1px solid ${borderColor};
-            border-radius: 10px;
-            padding: 14px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            transition: transform 0.15s;
-            cursor: default;
-        `;
+        d.style.cssText = `background:#1a1a1a; border:1px solid ${borderColor}; border-radius:10px; padding:14px; display:flex; flex-direction:column; gap:8px; transition:transform 0.15s; cursor:default;`;
         d.onmouseenter = () => d.style.transform = 'translateY(-2px)';
         d.onmouseleave = () => d.style.transform = 'translateY(0)';
-
         d.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <span style="background:${badgeBg}; color:${badgeColor}; border:1px solid ${borderColor}; border-radius:4px; font-size:0.7em; font-weight:700; padding:2px 7px; letter-spacing:1px;">${badgeText}</span>
@@ -495,49 +430,6 @@ function renderShopItems() {
     });
 
     list.appendChild(grid);
-
-    const rerollBtn = document.createElement('button');
-    rerollBtn.className = 'reroll-btn';
-    rerollBtn.innerText = `🔄 다시 돌리기 (${rerollCost}G)`;
-    rerollBtn.onclick = rerollShop;
-    list.appendChild(rerollBtn);
-}
-
-    // 등급 가중치 적용해서 3개 뽑기
-    const picked = [];
-    let tries = 0;
-    while (picked.length < 3 && tries < 50) {
-        tries++;
-        const pool = getItemsByRarity();
-        if (!pool.length) continue;
-        const item = pool[Math.floor(Math.random() * pool.length)];
-        if (picked.some(i => i.name === item.name)) continue;
-        // 전용 아이템 필터링
-        if (item.onlyFor && item.onlyFor !== player.name && item.onlyFor !== player.baseJob) continue;
-        picked.push(item);
-    }
-    currentShopItems.push(...picked);
-
-    // 가로 배치 컨테이너
-    const grid = document.createElement('div');
-    grid.style.cssText = 'display:flex; flex-wrap:wrap; gap:10px; margin-top:10px;';
-
-    currentShopItems.forEach((it, idx) => {
-        const d = document.createElement('div');
-        d.style.cssText = 'flex:1; min-width:140px; max-width:200px; padding:10px; background:#2a2a2a; border-radius:8px; border:1px solid #444; font-size:0.85em;';
-        let color = '#ccc';
-        if (it.rarity === 'legendary') color = '#e74c3c';
-        else if (it.rarity === 'epic') color = '#a55eea';
-        else if (it.rarity === 'rare') color = '#1e90ff';
-        d.innerHTML = `<div style="color:${color}; font-weight:bold; margin-bottom:4px;">${it.name}</div>
-                       <div style="color:#f1c40f; margin-bottom:4px;">${it.price}G</div>
-                       <div style="color:#888; font-size:0.8em; margin-bottom:8px; line-height:1.4;">${it.desc}</div>
-                       <button onclick="buyItem(event, ${idx})" style="background:#f1c40f; color:#111; padding:5px 10px; width:100%; font-size:0.85em;">구매</button>`;
-        grid.appendChild(d);
-    });
-
-    list.appendChild(grid);
-
     const rerollBtn = document.createElement('button');
     rerollBtn.className = 'reroll-btn';
     rerollBtn.innerText = `🔄 다시 돌리기 (${rerollCost}G)`;
@@ -578,7 +470,7 @@ window.buyItem = (event, idx) => {
             player.items.push(it);
             saveCollection(it.name);
             if (it.type === 'atk') player.atk += it.value;
-            if (it.type === 'hp')  { player.maxHp += it.value; player.curHp += it.value; }
+            if (it.type === 'hp') { player.maxHp += it.value; player.curHp += it.value; }
             if (it.type === 'acc') player.acc += it.value;
             if (it.def) player.extraDef += it.def;
             if (it.acc) player.acc += it.acc;
@@ -604,20 +496,17 @@ window.buyItem = (event, idx) => {
 
 function updateUi() {
     if (!player || !enemy) return;
-
     document.getElementById('p-name').innerText = player.name;
     document.getElementById('p-hp').style.width = `${Math.max(0, (player.curHp / player.maxHp) * 100)}%`;
     document.getElementById('p-hp-t').innerText = `${Math.max(0, player.curHp)} / ${player.maxHp}`;
     document.getElementById('p-atk-val').innerText = player.atk + player.extraAtk;
     document.getElementById('p-def-val').innerText = player.def + player.extraDef;
     document.getElementById('p-acc-val').innerText = `${85 + player.acc}%`;
-
     document.getElementById('e-name').innerText = enemy.name;
     document.getElementById('e-hp').style.width = `${Math.max(0, (enemy.curHp / enemy.hp) * 100)}%`;
     document.getElementById('e-hp-t').innerText = `${Math.max(0, enemy.curHp)} / ${enemy.hp}`;
     document.getElementById('e-atk-val').innerText = enemy.atk;
     document.getElementById('e-def-val').innerText = enemy.def;
-
     document.getElementById('floor-t').innerText = floor;
     document.getElementById('gold-t').innerText = gold;
     document.getElementById('potion-t').innerText = player.potions;
