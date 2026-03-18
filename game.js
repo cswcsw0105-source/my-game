@@ -67,9 +67,28 @@ auth.onAuthStateChanged((user) => {
 async function saveRank() {
     if (!currentUser) return;
     try {
+        const baseJob = player.baseJob || player.name;
+        const userEmail = currentUser.email.split('@')[0];
+
+        const existing = await db.collection("global_ranks")
+            .where("email", "==", userEmail)
+            .where("baseJob", "==", baseJob)
+            .get();
+
+        let shouldSave = true;
+        existing.forEach(doc => {
+            if (doc.data().floor >= floor) shouldSave = false;
+        });
+        if (!shouldSave) return;
+
+        const batch = db.batch();
+        existing.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+
         await db.collection("global_ranks").add({
-            email: currentUser.email.split('@')[0],
+            email: userEmail,
             job: player.name,
+            baseJob: baseJob,
             floor: floor,
             killer: enemy ? enemy.name : "알 수 없음",
             date: new Date().toLocaleDateString(),
@@ -80,16 +99,44 @@ async function saveRank() {
 
 async function loadRank() {
     try {
-        const snapshot = await db.collection("global_ranks").orderBy("floor", "desc").limit(5).get();
-        let html = "";
-        snapshot.forEach((doc) => {
-            const r = doc.data();
-            html += `<div style="margin-bottom:8px; border-bottom:1px dashed #333; padding-bottom:5px;">
-                        <b style="color:#e0e0e0;">${r.floor}층 (${r.job}) - 👤${r.email}</b><br>
-                        <span style="color:#ff4757;">💀 사인: ${r.killer}</span>
+        const jobs = ['워리어', '헌터', '마법사'];
+        let html = '';
+
+        for (const job of jobs) {
+            const snapshot = await db.collection("global_ranks")
+                .where("baseJob", "==", job)
+                .orderBy("floor", "desc")
+                .limit(3)
+                .get();
+
+            let jobColor = '#ff4757';
+            if (job === '헌터') jobColor = '#2ed573';
+            else if (job === '마법사') jobColor = '#1e90ff';
+
+            html += `<div style="margin-bottom:16px;">
+                <b style="color:${jobColor}; font-size:0.95em; border-bottom:1px solid #333; display:block; padding-bottom:4px; margin-bottom:8px;">⚔️ ${job} 랭킹</b>`;
+
+            if (snapshot.empty) {
+                html += `<div style="color:#555; font-size:0.85em;">기록 없음</div>`;
+            } else {
+                let rank = 1;
+                snapshot.forEach(doc => {
+                    const r = doc.data();
+                    const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉';
+                    const jobDisplay = r.job !== r.baseJob ? `${r.baseJob}→${r.job}` : r.job;
+                    html += `<div style="margin-bottom:6px; font-size:0.85em;">
+                        ${medal} <b style="color:#e0e0e0;">${r.floor}층</b>
+                        <span style="color:#888;"> (${jobDisplay})</span>
+                        <span style="color:#aaa;"> 👤${r.email}</span><br>
+                        <span style="color:#ff4757; font-size:0.8em; margin-left:18px;">💀 ${r.killer}</span>
                     </div>`;
-        });
-        document.getElementById('rank-list').innerHTML = html || '아직 기록이 없습니다. 첫 1위를 차지하세요!';
+                    rank++;
+                });
+            }
+            html += `</div>`;
+        }
+
+        document.getElementById('rank-list').innerHTML = html;
     } catch (e) {
         document.getElementById('rank-list').innerHTML = '랭킹 서버 연결 실패';
     }
