@@ -5,7 +5,7 @@ firebase.initializeApp({
     projectId: "project-dungeon-82f2a",
     storageBucket: "project-dungeon-82f2a.firebasestorage.app",
     messagingSenderId: "301367810513",
-    appId: "1:301367810513:web:42979150db5ea7b536a8f0"
+    appId: "1:301367810313:web:42979150db5ea7b536a8f0"
 });
 
 const auth = firebase.auth();
@@ -25,15 +25,9 @@ let totalGoldEarned = 0;
 function getPermaStats() {
     return JSON.parse(localStorage.getItem('perma_stats') || '{"hp":0,"atk":0,"def":0,"acc":0,"potion":0}');
 }
-function savePermaStats(stats) {
-    localStorage.setItem('perma_stats', JSON.stringify(stats));
-}
-function getPermaBuyCount() {
-    return JSON.parse(localStorage.getItem('perma_buy_count') || '{}');
-}
-function savePermaBuyCount(counts) {
-    localStorage.setItem('perma_buy_count', JSON.stringify(counts));
-}
+function savePermaStats(stats) { localStorage.setItem('perma_stats', JSON.stringify(stats)); }
+function getPermaBuyCount() { return JSON.parse(localStorage.getItem('perma_buy_count') || '{}'); }
+function savePermaBuyCount(counts) { localStorage.setItem('perma_buy_count', JSON.stringify(counts)); }
 
 function getUnlockedFloors(job) {
     const key = job ? `unlocked_floors_${job}` : 'unlocked_floors_global';
@@ -42,10 +36,20 @@ function getUnlockedFloors(job) {
 function saveUnlockedFloor(f, job) {
     const key = job ? `unlocked_floors_${job}` : 'unlocked_floors_global';
     const unlocked = getUnlockedFloors(job);
-    if (!unlocked.includes(f)) {
-        unlocked.push(f);
-        localStorage.setItem(key, JSON.stringify(unlocked));
-    }
+    if (!unlocked.includes(f)) { unlocked.push(f); localStorage.setItem(key, JSON.stringify(unlocked)); }
+}
+
+// 레이아웃 전환 헬퍼
+function enterBattleLayout() {
+    document.getElementById('sidebar-normal').style.display = 'none';
+    document.getElementById('sidebar-battle').style.display = 'flex';
+    document.getElementById('log').style.display = 'none';
+    document.getElementById('log-battle').innerHTML = '';
+}
+function exitBattleLayout() {
+    document.getElementById('sidebar-normal').style.display = 'flex';
+    document.getElementById('sidebar-battle').style.display = 'none';
+    document.getElementById('log').style.display = 'block';
 }
 
 function showAuthError(msg) {
@@ -92,15 +96,17 @@ auth.onAuthStateChanged((user) => {
 });
 
 function showPreGameScreen() {
+    exitBattleLayout();
     const savedGold = parseInt(localStorage.getItem('saved_gold') || '0');
     const perma = getPermaStats();
-    const buyCounts = getPermaBuyCount();
     const globalUnlocked = getUnlockedFloors(null);
     const warriorUnlocked = getUnlockedFloors('워리어');
     const hunterUnlocked = getUnlockedFloors('헌터');
     const wizardUnlocked = getUnlockedFloors('마법사');
 
     document.getElementById('start-area').style.display = 'block';
+    document.getElementById('battle-area').style.display = 'none';
+    document.getElementById('shop-area').style.display = 'none';
     document.getElementById('start-area').innerHTML = `
         <div style="text-align:center; margin-bottom:20px;">
             <h2 style="color:#f1c40f; margin-bottom:5px;">⚔️ 던전 입장</h2>
@@ -110,7 +116,6 @@ function showPreGameScreen() {
             ${hunterUnlocked.length > 0 ? `<p style="color:#2ed573; font-size:0.8em;">🔓 헌터: ${hunterUnlocked.join(', ')}층</p>` : ''}
             ${wizardUnlocked.length > 0 ? `<p style="color:#1e90ff; font-size:0.8em;">🔓 마법사: ${wizardUnlocked.join(', ')}층</p>` : ''}
         </div>
-
         <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:20px;">
             ${['Warrior','Hunter','Wizard'].map(job => `
                 <div onclick="selectJobAndStart('${job}')"
@@ -125,7 +130,6 @@ function showPreGameScreen() {
                 </div>
             `).join('')}
         </div>
-
         <div style="background:#1a1a1a; border:1px solid #333; border-radius:10px; padding:15px;">
             <h4 style="color:#f1c40f; margin:0 0 12px 0;">🏪 영구 강화 상점</h4>
             <div style="display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap;">
@@ -136,8 +140,7 @@ function showPreGameScreen() {
                     { key: 'acc', label: '🎯 명중률', color: '#a55eea' },
                     { key: 'pot', label: '🧪 포션',   color: '#e67e22' },
                 ].map(cat => `
-                    <button onclick="switchUpgradeTab('${cat.key}')"
-                        id="tab_${cat.key}"
+                    <button onclick="switchUpgradeTab('${cat.key}')" id="tab_${cat.key}"
                         style="background:#1a1a2a; color:${cat.color}; border:1px solid ${cat.color}; border-radius:6px; padding:6px 12px; font-size:0.8em; font-weight:700; cursor:pointer;">
                         ${cat.label}
                     </button>
@@ -153,40 +156,31 @@ window.switchUpgradeTab = (key) => {
     const savedGold = parseInt(localStorage.getItem('saved_gold') || '0');
     const buyCounts = getPermaBuyCount();
     const catUpgrades = permanentUpgrades.filter(u => u.id.startsWith(key + '_'));
-
     ['hp','atk','def','acc','pot'].forEach(k => {
         const tab = document.getElementById(`tab_${k}`);
         if (tab) tab.style.opacity = k === key ? '1' : '0.4';
     });
-
     const list = document.getElementById('upgrade-list');
     if (!list) return;
-
     const totalBought = catUpgrades.filter(u => buyCounts[u.id]).length;
     const nextIdx = totalBought;
-
     list.innerHTML = catUpgrades.map((up, i) => {
         const bought = !!buyCounts[up.id];
         const isNext = i === nextIdx;
         const canAfford = savedGold >= up.price;
         const locked = i > nextIdx;
-
         let bg = '#1a1a1a', borderColor = '#333', textColor = '#888';
         if (bought) { bg = '#0a1a0a'; borderColor = '#2ed573'; textColor = '#2ed573'; }
         else if (isNext && canAfford) { bg = '#1a1a0a'; borderColor = '#f1c40f'; textColor = '#e0e0e0'; }
         else if (isNext && !canAfford) { borderColor = '#555'; textColor = '#666'; }
         else if (locked) { textColor = '#444'; }
-
         return `
             <div style="display:flex; justify-content:space-between; align-items:center; background:${bg}; border:1px solid ${borderColor}; border-radius:6px; padding:8px 12px; margin-bottom:5px;">
                 <div>
-                    <span style="color:${textColor}; font-weight:700; font-size:0.85em;">
-                        ${bought ? '✅' : locked ? '🔒' : '⬜'} ${up.name}
-                    </span>
+                    <span style="color:${textColor}; font-weight:700; font-size:0.85em;">${bought ? '✅' : locked ? '🔒' : '⬜'} ${up.name}</span>
                     <div style="color:#555; font-size:0.75em;">${up.desc}</div>
                 </div>
-                <button onclick="buyPermUpgrade('${up.id}')"
-                    ${bought || locked || !canAfford ? 'disabled' : ''}
+                <button onclick="buyPermUpgrade('${up.id}')" ${bought || locked || !canAfford ? 'disabled' : ''}
                     style="background:${bought ? '#0a2a0a' : isNext && canAfford ? '#f1c40f' : '#222'};
                            color:${bought ? '#2ed573' : isNext && canAfford ? '#111' : '#444'};
                            padding:5px 12px; font-size:0.8em; font-weight:700; margin:0; border-radius:5px;
@@ -204,16 +198,13 @@ window.buyPermUpgrade = (id) => {
     if (!up) return;
     const buyCounts = getPermaBuyCount();
     if (buyCounts[id] || savedGold < up.price) return;
-
     const parts = id.split('_');
     const level = parseInt(parts[parts.length - 1]);
     const prefix = parts.slice(0, -1).join('_');
     if (level > 1 && !buyCounts[`${prefix}_${level - 1}`]) return;
-
     localStorage.setItem('saved_gold', savedGold - up.price);
     buyCounts[id] = true;
     savePermaBuyCount(buyCounts);
-
     const perma = getPermaStats();
     if (up.effect.hp)     perma.hp     += up.effect.hp;
     if (up.effect.atk)    perma.atk    += up.effect.atk;
@@ -221,7 +212,6 @@ window.buyPermUpgrade = (id) => {
     if (up.effect.acc)    perma.acc    += up.effect.acc;
     if (up.effect.potion) perma.potion += up.effect.potion;
     savePermaStats(perma);
-
     switchUpgradeTab(prefix.replace('perm_', ''));
     showPreGameScreen();
 };
@@ -229,28 +219,24 @@ window.buyPermUpgrade = (id) => {
 window.selectJobAndStart = (job) => {
     const perma = getPermaStats();
     player = {
-    ...jobBase[job],
-    curHp: jobBase[job].hp + perma.hp,
-    maxHp: jobBase[job].hp + perma.hp,
-    atk: jobBase[job].atk + perma.atk,
-    def: jobBase[job].def + perma.def,
-    acc: perma.acc,
-    crit: 5,        // 기본 치명타 확률 5%
-    critMult: 1.8,  // 치명타 배율 180%
-    items: [], extraAtk: 0, potions: perma.potion,
-    extraDef: 0, unlockedSkill: null,
-    lifesteal: 0, hasRegenPotion: false,
-    baseJob: jobBase[job].name,
-    evolved: false
-};
-    floor = 1;
-    gold = 0;
-    totalGoldEarned = 0;
-    rerollCost = 10;
-    // battle-area 표시 직전에 추가
-document.getElementById('sidebar-normal').style.display = 'none';
-document.getElementById('sidebar-battle').style.display = 'block';
-document.getElementById('log').style.display = 'none';
+        ...jobBase[job],
+        curHp: jobBase[job].hp + perma.hp,
+        maxHp: jobBase[job].hp + perma.hp,
+        atk: jobBase[job].atk + perma.atk,
+        def: jobBase[job].def + perma.def,
+        acc: perma.acc,
+        crit: 5,
+        critMult: 1.8,
+        items: [], extraAtk: 0, potions: perma.potion,
+        extraDef: 0, unlockedSkill: null,
+        lifesteal: 0, hasRegenPotion: false,
+        baseJob: jobBase[job].name,
+        evolved: false
+    };
+    floor = 1; gold = 0; totalGoldEarned = 0; rerollCost = 10;
+    document.getElementById('start-area').style.display = 'none';
+    document.getElementById('battle-area').style.display = 'block';
+    enterBattleLayout();
     loadCollection();
     spawnEnemy();
 };
@@ -336,8 +322,7 @@ function checkFloorUnlock(f) {
 function spawnEnemy() {
     if (pendingShop) { pendingShop = false; return openShop(); }
     defendingTurns = 0; dodgingTurns = 0; shieldedTurns = 0;
-    regenTurns = 0; regenAmount = 0;
-    potionUsedThisTurn = false;
+    regenTurns = 0; regenAmount = 0; potionUsedThisTurn = false;
 
     if (floor % 10 === 0) {
         let bossHp, bossAtk, bossDef;
@@ -345,11 +330,7 @@ function spawnEnemy() {
         else if (floor <= 30) { bossHp = 400 + floor * 30; bossAtk = 20 + floor * 5; bossDef = 8 + Math.floor(floor / 2); }
         else if (floor <= 60) { bossHp = 800 + floor * 40; bossAtk = 35 + floor * 7; bossDef = 15 + Math.floor(floor / 2); }
         else { bossHp = 1500 + floor * 55; bossAtk = 60 + floor * 10; bossDef = 25 + Math.floor(floor / 2); }
-        enemy = {
-            name: `👑 [보스] ${floor}층 군주`, job: '보스',
-            hp: bossHp, curHp: bossHp, atk: bossAtk, def: bossDef,
-            isBoss: true, turnCount: 1, bossCharge: false
-        };
+        enemy = { name: `👑 [보스] ${floor}층 군주`, job: '보스', hp: bossHp, curHp: bossHp, atk: bossAtk, def: bossDef, isBoss: true, turnCount: 1, bossCharge: false };
         writeLog(`🚨 경고: ${floor}층의 지배자가 나타났습니다!`);
     } else {
         const eJobs = ['워리어', '헌터', '마법사'];
@@ -361,12 +342,7 @@ function spawnEnemy() {
         else if (floor <= 30) { mobHp = 100 + floor * 15; mobAtk = 18 + floor * 3; mobDef = 4 + Math.floor(floor / 3); }
         else if (floor <= 60) { mobHp = 300 + floor * 22; mobAtk = 35 + floor * 5; mobDef = 10 + Math.floor(floor / 2); }
         else { mobHp = 700 + floor * 30; mobAtk = 65 + floor * 8; mobDef = 20 + Math.floor(floor / 2); }
-        enemy = {
-            name: `[${randomJob}형] ${floor}층 괴수`, job: randomJob,
-            hp: Math.floor(mobHp), curHp: Math.floor(mobHp),
-            atk: Math.floor(mobAtk), def: Math.floor(mobDef),
-            isBoss: false
-        };
+        enemy = { name: `[${randomJob}형] ${floor}층 괴수`, job: randomJob, hp: Math.floor(mobHp), curHp: Math.floor(mobHp), atk: Math.floor(mobAtk), def: Math.floor(mobDef), isBoss: false };
     }
     updateUi(); renderActions();
 }
@@ -402,42 +378,39 @@ function renderActions() {
 window.useAction = (type) => {
     potionUsedThisTurn = false;
     if (type === '공격') {
-    let multiplier = 1.0; let effectMsg = "";
-    const relKey = relations[player.name] ? player.name : player.baseJob;
-    if (!enemy.isBoss && relations[relKey]) {
-        if (relations[relKey].strong === enemy.job) { multiplier = 1.5; effectMsg = "<b style='color:#2ed573'>(상성 우위!)</b> "; }
-        else if (relations[relKey].weak === enemy.job) { multiplier = 0.8; effectMsg = "<b style='color:#ff4757'>(상성 열세..)</b> "; }
-    }
-    // 명중률 100% 캡
-   const accRate = Math.min(95, 85 + player.acc);  
-        // 최대 95%로 캡
-    if (Math.random() * 100 < accRate) {
-        let baseDmg = player.atk + player.extraAtk + Math.floor(Math.random() * 8);
-        // 치명타 체크
-        let isCrit = Math.random() * 100 < player.crit;
-        if (isCrit) { baseDmg = Math.floor(baseDmg * player.critMult); effectMsg += "<b style='color:#f1c40f'>💥 치명타!</b> "; }
-        let finalDmg = Math.max(1, Math.floor(baseDmg * multiplier) - enemy.def);
-        enemy.curHp -= finalDmg;
-        writeLog(`[명중] ${effectMsg}적에게 ${finalDmg} 피해!`);
+        let multiplier = 1.0; let effectMsg = "";
+        const relKey = relations[player.name] ? player.name : player.baseJob;
+        if (!enemy.isBoss && relations[relKey]) {
+            if (relations[relKey].strong === enemy.job) { multiplier = 1.5; effectMsg = "<b style='color:#2ed573'>(상성 우위!)</b> "; }
+            else if (relations[relKey].weak === enemy.job) { multiplier = 0.8; effectMsg = "<b style='color:#ff4757'>(상성 열세..)</b> "; }
+        }
+        const accRate = Math.min(95, 85 + player.acc);
+        if (Math.random() * 100 < accRate) {
+            let baseDmg = player.atk + player.extraAtk + Math.floor(Math.random() * 8);
+            const isCrit = Math.random() * 100 < player.crit;
+            if (isCrit) { baseDmg = Math.floor(baseDmg * player.critMult); effectMsg += "<b style='color:#f1c40f'>💥 치명타!</b> "; }
+            let finalDmg = Math.max(1, Math.floor(baseDmg * multiplier) - enemy.def);
+            enemy.curHp -= finalDmg;
+            writeLog(`[명중] ${effectMsg}적에게 ${finalDmg} 피해!`);
+            if (player.lifesteal > 0) {
+                const heal = Math.floor(finalDmg * player.lifesteal);
+                player.curHp = Math.min(player.maxHp, player.curHp + heal);
+                writeLog(`[흡혈] 💉 ${heal} 체력 흡수!`);
+            }
+        } else writeLog(`[빗나감] 공격 실패!`);
+        if (enemy.curHp <= 0) return winBattle();
+    } else if (type === '궁극기') {
+        let ultDmg = player.atk + player.extraAtk + 40;
+        const isCrit = Math.random() * 100 < player.crit;
+        if (isCrit) { ultDmg = Math.floor(ultDmg * player.critMult); }
+        enemy.curHp -= ultDmg;
+        writeLog(`[궁극기] ${player.unlockedSkill} 작렬!!! ${isCrit ? '💥 치명타! ' : ''}방어력 무시 ${ultDmg} 피해!`);
         if (player.lifesteal > 0) {
-            const heal = Math.floor(finalDmg * player.lifesteal);
+            const heal = Math.floor(ultDmg * player.lifesteal);
             player.curHp = Math.min(player.maxHp, player.curHp + heal);
             writeLog(`[흡혈] 💉 ${heal} 체력 흡수!`);
         }
-    } else writeLog(`[빗나감] 공격 실패!`);
-    if (enemy.curHp <= 0) return winBattle();
-    } else if (type === '궁극기') {
-    let ultDmg = player.atk + player.extraAtk + 40;
-    const isCrit = Math.random() * 100 < player.crit;
-    if (isCrit) { ultDmg = Math.floor(ultDmg * player.critMult); }
-    enemy.curHp -= ultDmg;
-    writeLog(`[궁극기] ${player.unlockedSkill} 작렬!!! ${isCrit ? '💥 치명타! ' : ''}방어력 무시 ${ultDmg} 피해!`);
-    if (player.lifesteal > 0) {
-        const heal = Math.floor(ultDmg * player.lifesteal);
-        player.curHp = Math.min(player.maxHp, player.curHp + heal);
-        writeLog(`[흡혈] 💉 ${heal} 체력 흡수!`);
-    }
-    if (enemy.curHp <= 0) return winBattle();
+        if (enemy.curHp <= 0) return winBattle();
     } else if (type === '방패방어') {
         if (Math.random() * 100 < 70) { defendingTurns = 2; writeLog(`[성공] 🛡️ 2턴간 피해 60% 감소!`); }
         else writeLog(`[실패] 방패 방어 실패!`);
@@ -530,8 +503,7 @@ function winBattle() {
         bonusMsg = ` <b style='color:#f1c40f'>(역전 보너스 +${bonus}G!)</b>`;
     }
     const gain = baseGain + bonus;
-    gold += gain;
-    totalGoldEarned += gain;
+    gold += gain; totalGoldEarned += gain;
     player.curHp = Math.min(player.maxHp, player.curHp + Math.floor(player.maxHp * 0.15));
     writeLog(`[승리] ${gain}G 획득 및 체력 소량 회복.${bonusMsg}`);
 
@@ -547,14 +519,14 @@ function winBattle() {
         setTimeout(() => checkEvolution(), 300);
         return;
     }
-
     if (floor > 1 && floor % 3 === 0) pendingShop = true;
     spawnEnemy();
 }
 
 function openShop() {
-    document.getElementById('sidebar-normal').style.display = 'none';
-document.getElementById('sidebar-battle').style.display = 'block';
+    document.getElementById('battle-area').style.display = 'none';
+    document.getElementById('shop-area').style.display = 'block';
+    enterBattleLayout();
     rerollCost = 10;
     updateUi(); renderShopItems();
 }
@@ -569,9 +541,7 @@ function getUnlockedPoolItems() {
     const baseJob = player.baseJob;
     const result = [];
     const globalUnlocked = getUnlockedFloors(null);
-    globalUnlocked.forEach(f => {
-        if (f % 10 === 0 && floorUnlocks[f]) result.push(floorUnlocks[f]);
-    });
+    globalUnlocked.forEach(f => { if (f % 10 === 0 && floorUnlocks[f]) result.push(floorUnlocks[f]); });
     const jobUnlocked = getUnlockedFloors(baseJob);
     jobUnlocked.forEach(f => {
         if (f % 5 === 0 && f % 10 !== 0) {
@@ -599,12 +569,10 @@ function renderShopItems() {
     const unlockedItems = getUnlockedPoolItems();
     const picked = [];
     let tries = 0;
-
     if (unlockedItems.length > 0) {
         const randUnlocked = unlockedItems[Math.floor(Math.random() * unlockedItems.length)];
         if (!player.items.some(i => i.name === randUnlocked.name)) picked.push(randUnlocked);
     }
-
     while (picked.length < 3 && tries < 50) {
         tries++;
         const pool = getItemsByRarity();
@@ -621,7 +589,6 @@ function renderShopItems() {
 
     const grid = document.createElement('div');
     grid.style.cssText = 'display:grid; grid-template-columns: repeat(2, 1fr); gap:12px; margin-top:12px;';
-
     currentShopItems.forEach((it, idx) => {
         const d = document.createElement('div');
         let borderColor = '#444', badgeColor = '#888', badgeBg = '#2a2a2a', badgeText = 'COMMON';
@@ -640,7 +607,6 @@ function renderShopItems() {
         if (it.lifesteal) typeIcon = '🩸';
         if (it.regenPotion) typeIcon = '💚';
         const isUnlocked = getUnlockedPoolItems().some(u => u.name === it.name);
-
         d.style.cssText = `background:#1a1a1a; border:1px solid ${borderColor}; border-radius:10px; padding:14px; display:flex; flex-direction:column; gap:8px; transition:transform 0.15s; cursor:default;`;
         d.onmouseenter = () => d.style.transform = 'translateY(-2px)';
         d.onmouseleave = () => d.style.transform = 'translateY(0)';
@@ -658,7 +624,6 @@ function renderShopItems() {
         `;
         grid.appendChild(d);
     });
-
     list.appendChild(grid);
     const rerollBtn = document.createElement('button');
     rerollBtn.className = 'reroll-btn';
@@ -679,13 +644,13 @@ function saveCollection(itemName) {
     if (!collection.includes(itemName)) {
         collection.push(itemName);
         localStorage.setItem('item_collection_v5', JSON.stringify(collection));
-        loadCollection();
     }
 }
 
 function loadCollection() {
     const collection = JSON.parse(localStorage.getItem('item_collection_v5') || '[]');
-    document.getElementById('collection-count').innerText = `${collection.length} / ${equipmentPool.length}`;
+    const el = document.getElementById('collection-count');
+    if (el) el.innerText = `${collection.length} / ${equipmentPool.length}`;
 }
 
 window.buyItem = (event, idx) => {
@@ -706,12 +671,12 @@ window.buyItem = (event, idx) => {
             if (it.acc) player.acc += it.acc;
             if (it.lifesteal) player.lifesteal = (player.lifesteal || 0) + it.lifesteal;
             if (it.regenPotion) player.hasRegenPotion = true;
+            if (it.critBonus) player.crit = (player.crit || 5) + it.critBonus;
+            if (it.critMult)  player.critMult = (player.critMult || 1.8) + it.critMult;
             if (it.penalty && it.penalty[player.name]) {
                 player.acc -= it.penalty[player.name];
                 writeLog(`[패널티] 명중률 -${it.penalty[player.name]}% 적용`);
             }
-            if (it.critBonus) player.crit = (player.crit || 5) + it.critBonus;
-            if (it.critMult)  player.critMult = (player.critMult || 1.8) + it.critMult;
             if (it.unlockSkill) {
                 player.unlockedSkill = it.unlockSkill;
                 writeLog(`[스킬 해제] 🔥 ${it.unlockSkill} 스킬 획득!`);
@@ -798,9 +763,7 @@ window.toggleRank = (show) => {
     document.getElementById('rank-modal').style.display = show ? 'flex' : 'none';
     if (show) loadRank();
 };
-window.toggleInv = (show) => {
-    document.getElementById('inv-modal').style.display = show ? 'flex' : 'none';
-};
+window.toggleInv = (show) => { document.getElementById('inv-modal').style.display = show ? 'flex' : 'none'; };
 window.toggleCollection = (show) => {
     if (show) {
         const collection = JSON.parse(localStorage.getItem('item_collection_v5') || '[]');
@@ -810,15 +773,11 @@ window.toggleCollection = (show) => {
             ...Object.values(floorUnlocksHunter).filter(i => i && i.name),
             ...Object.values(floorUnlocksWizard).filter(i => i && i.name)
         ];
-
-        // 중복 제거
         const seen = new Set();
         const uniqueItems = allItems.filter(i => {
             if (!i || !i.name || seen.has(i.name)) return false;
-            seen.add(i.name);
-            return true;
+            seen.add(i.name); return true;
         });
-
         const rarityOrder = { 'legendary': 0, 'epic': 1, 'rare': 2, 'common': 3 };
         const rarityLabels = {
             legendary: { label: 'LEGENDARY', color: '#e74c3c', bg: '#2d1a1a' },
@@ -826,27 +785,21 @@ window.toggleCollection = (show) => {
             rare:      { label: 'RARE',      color: '#1e90ff', bg: '#1a1e2d' },
             common:    { label: 'COMMON',    color: '#888',    bg: '#2a2a2a' },
         };
-
         const groups = { legendary: [], epic: [], rare: [], common: [] };
         uniqueItems.sort((a, b) => (rarityOrder[a.rarity] || 3) - (rarityOrder[b.rarity] || 3));
         uniqueItems.forEach(it => {
             const owned = collection.includes(it.name);
             (groups[it.rarity] || groups.common).push({ ...it, owned });
         });
-
         const total = uniqueItems.length;
-        const owned = collection.length;
-
         let html = `<p style="color:#888; font-size:0.85em; margin-bottom:15px;">
-            해금: <b style="color:#f1c40f;">${owned}</b> / ${total}
-            <span style="color:#555; font-size:0.8em; margin-left:8px;">(구매 또는 사용한 아이템만 해금됩니다)</span>
+            해금: <b style="color:#f1c40f;">${collection.length}</b> / ${total}
+            <span style="color:#555; font-size:0.8em; margin-left:8px;">(구매한 아이템만 해금됩니다)</span>
         </p>`;
-
         Object.entries(groups).forEach(([rarity, items]) => {
             if (items.length === 0) return;
             const { label, color, bg } = rarityLabels[rarity];
-            html += `<div style="margin-bottom:12px;">
-                <div style="background:${bg}; color:${color}; font-size:0.7em; font-weight:700; padding:3px 8px; border-radius:4px; display:inline-block; margin-bottom:6px; letter-spacing:1px;">${label}</div>`;
+            html += `<div style="margin-bottom:12px;"><div style="background:${bg}; color:${color}; font-size:0.7em; font-weight:700; padding:3px 8px; border-radius:4px; display:inline-block; margin-bottom:6px; letter-spacing:1px;">${label}</div>`;
             items.forEach(it => {
                 if (it.owned) {
                     html += `<div style="padding:8px 10px; background:#111; border-radius:6px; margin-bottom:4px; border-left:3px solid ${color};">
@@ -862,7 +815,6 @@ window.toggleCollection = (show) => {
             });
             html += `</div>`;
         });
-
         document.getElementById('collection-list').innerHTML = html;
     }
     document.getElementById('collection-modal').style.display = show ? 'flex' : 'none';
@@ -881,62 +833,81 @@ function updateUi() {
     document.getElementById('p-hp-t').innerText = `${Math.max(0, player.curHp)} / ${player.maxHp}`;
     document.getElementById('p-atk-val').innerText = player.atk + player.extraAtk;
     document.getElementById('p-def-val').innerText = player.def + player.extraDef;
-    document.getElementById('p-acc-val').innerText = `${85 + player.acc}%`;
+    document.getElementById('p-acc-val').innerText = `${Math.min(95, 85 + player.acc)}%`;
+    document.getElementById('p-crit-val').innerText = `${player.crit || 5}%`;
+    document.getElementById('p-lifesteal-val').innerText = `${Math.round((player.lifesteal || 0) * 100)}%`;
     document.getElementById('e-name').innerText = enemy.name;
     document.getElementById('e-hp').style.width = `${Math.max(0, (enemy.curHp / enemy.hp) * 100)}%`;
     document.getElementById('e-hp-t').innerText = `${Math.max(0, enemy.curHp)} / ${enemy.hp}`;
     document.getElementById('e-atk-val').innerText = enemy.atk;
     document.getElementById('e-def-val').innerText = enemy.def;
-    document.getElementById('floor-t').innerText = floor;
-    document.getElementById('gold-t').innerText = gold;
-    document.getElementById('potion-t').innerText = player.potions;
-    document.getElementById('shop-hp-t').innerText = `${Math.max(0, player.curHp)}/${player.maxHp}`;
-    document.getElementById('shop-gold-t').innerText = gold;
-    document.getElementById('p-acc-val').innerText = `${Math.min(100, 85 + player.acc)}%`;
-    document.getElementById('p-crit-val').innerText = `${player.crit || 5}%`;
-    document.getElementById('p-lifesteal-val').innerText = `${Math.round((player.lifesteal || 0) * 100)}%`;
-    document.getElementById('p-acc-val').innerText = `${Math.min(95, 85 + player.acc)}%`;
-    document.getElementById('p-crit-val').innerText = `${player.crit || 5}%`;
-    document.getElementById('p-lifesteal-val').innerText = `${Math.round((player.lifesteal || 0) * 100)}%`;
 
-    const collection = JSON.parse(localStorage.getItem('item_collection_v5') || '[]');
-    const allItemCount = equipmentPool.length + Object.values(floorUnlocks).filter(i=>i&&i.name&&i.rarity).length + Object.values(floorUnlocksHunter).filter(i=>i&&i.name).length + Object.values(floorUnlocksWizard).filter(i=>i&&i.name).length;
-    document.getElementById('collection-count').innerText = `${collection.length} / ${allItemCount}`;
+    // 전투 중 오른쪽 사이드바 스탯
+    const floorBattle = document.getElementById('floor-t-battle');
+    const goldBattle = document.getElementById('gold-t-battle');
+    const potionBattle = document.getElementById('potion-t-battle');
+    if (floorBattle) floorBattle.innerText = floor;
+    if (goldBattle) goldBattle.innerText = gold;
+    if (potionBattle) potionBattle.innerText = player.potions;
 
+    // 전투 외 사이드바 스탯
+    const floorEl = document.getElementById('floor-t');
+    const goldEl = document.getElementById('gold-t');
+    const potionEl = document.getElementById('potion-t');
+    if (floorEl) floorEl.innerText = floor;
+    if (goldEl) goldEl.innerText = gold;
+    if (potionEl) potionEl.innerText = player.potions;
+
+    const shopHp = document.getElementById('shop-hp-t');
+    const shopGold = document.getElementById('shop-gold-t');
+    if (shopHp) shopHp.innerText = `${Math.max(0, player.curHp)}/${player.maxHp}`;
+    if (shopGold) shopGold.innerText = gold;
+
+    // 인벤토리
     const invList = document.getElementById('inv-list');
-    if (player.items.length === 0) {
-        invList.innerHTML = '<div style="color:#555; text-align:center; padding:20px;">장비가 없습니다.</div>';
-    } else {
-        const rarityOrder = { 'legendary': 0, 'epic': 1, 'rare': 2, 'common': 3 };
-        const sorted = [...player.items].sort((a, b) => (rarityOrder[a.rarity] || 3) - (rarityOrder[b.rarity] || 3));
-        const rarityGroups = { legendary: [], epic: [], rare: [], common: [] };
-        sorted.forEach(it => { (rarityGroups[it.rarity] || rarityGroups.common).push(it); });
-        const rarityLabels = {
-            legendary: { label: 'LEGENDARY', color: '#e74c3c', bg: '#2d1a1a' },
-            epic:      { label: 'EPIC',      color: '#a55eea', bg: '#1e1a2d' },
-            rare:      { label: 'RARE',      color: '#1e90ff', bg: '#1a1e2d' },
-            common:    { label: 'COMMON',    color: '#888',    bg: '#2a2a2a' },
-        };
-        let html = '';
-        Object.entries(rarityGroups).forEach(([rarity, items]) => {
-            if (items.length === 0) return;
-            const { label, color, bg } = rarityLabels[rarity];
-            html += `<div style="margin-bottom:10px;"><div style="background:${bg}; color:${color}; font-size:0.7em; font-weight:700; padding:3px 8px; border-radius:4px; display:inline-block; margin-bottom:6px; letter-spacing:1px;">${label}</div>`;
-            items.forEach(it => {
-                html += `<div style="padding:8px 10px; background:#111; border-radius:6px; margin-bottom:4px; border-left:3px solid ${color};">
-                    <div style="color:${color}; font-weight:700; font-size:0.9em;">${it.name}</div>
-                    <div style="color:#666; font-size:0.78em; margin-top:3px; line-height:1.4;">${it.desc}</div>
-                </div>`;
+    if (invList) {
+        if (player.items.length === 0) {
+            invList.innerHTML = '<div style="color:#555; text-align:center; padding:20px;">장비가 없습니다.</div>';
+        } else {
+            const rarityOrder = { 'legendary': 0, 'epic': 1, 'rare': 2, 'common': 3 };
+            const sorted = [...player.items].sort((a, b) => (rarityOrder[a.rarity] || 3) - (rarityOrder[b.rarity] || 3));
+            const rarityGroups = { legendary: [], epic: [], rare: [], common: [] };
+            sorted.forEach(it => { (rarityGroups[it.rarity] || rarityGroups.common).push(it); });
+            const rarityLabels = {
+                legendary: { label: 'LEGENDARY', color: '#e74c3c', bg: '#2d1a1a' },
+                epic:      { label: 'EPIC',      color: '#a55eea', bg: '#1e1a2d' },
+                rare:      { label: 'RARE',      color: '#1e90ff', bg: '#1a1e2d' },
+                common:    { label: 'COMMON',    color: '#888',    bg: '#2a2a2a' },
+            };
+            let html = '';
+            Object.entries(rarityGroups).forEach(([rarity, items]) => {
+                if (items.length === 0) return;
+                const { label, color, bg } = rarityLabels[rarity];
+                html += `<div style="margin-bottom:10px;"><div style="background:${bg}; color:${color}; font-size:0.7em; font-weight:700; padding:3px 8px; border-radius:4px; display:inline-block; margin-bottom:6px; letter-spacing:1px;">${label}</div>`;
+                items.forEach(it => {
+                    html += `<div style="padding:8px 10px; background:#111; border-radius:6px; margin-bottom:4px; border-left:3px solid ${color};">
+                        <div style="color:${color}; font-weight:700; font-size:0.9em;">${it.name}</div>
+                        <div style="color:#666; font-size:0.78em; margin-top:3px; line-height:1.4;">${it.desc}</div>
+                    </div>`;
+                });
+                html += `</div>`;
             });
-            html += `</div>`;
-        });
-        invList.innerHTML = html;
+            invList.innerHTML = html;
+        }
     }
 }
 
 function writeLog(msg) {
-    const log = document.getElementById('log');
-    log.innerHTML = `<p style="margin:4px 0; border-bottom:1px solid #333; padding-bottom:4px;">${msg}</p>` + log.innerHTML;
+    const isBattle = document.getElementById('sidebar-battle') &&
+                     document.getElementById('sidebar-battle').style.display !== 'none';
+    const p = `<p style="margin:4px 0; border-bottom:1px solid #333; padding-bottom:4px;">${msg}</p>`;
+    if (isBattle) {
+        const battleLog = document.getElementById('log-battle');
+        if (battleLog) battleLog.innerHTML = p + battleLog.innerHTML;
+    } else {
+        const log = document.getElementById('log');
+        if (log) log.innerHTML = p + log.innerHTML;
+    }
 }
 
 function dungeonClear() {
@@ -944,6 +915,7 @@ function dungeonClear() {
     const savedGold = Math.floor(totalGoldEarned * 0.1);
     const prevSaved = parseInt(localStorage.getItem('saved_gold') || '0');
     localStorage.setItem('saved_gold', prevSaved + savedGold);
+    exitBattleLayout();
     document.getElementById('battle-area').style.display = 'none';
     const screen = document.querySelector('.screen');
     screen.innerHTML = `
@@ -968,6 +940,7 @@ window.startInfiniteMode = () => {
     floor = 101;
     document.querySelector('.screen').innerHTML = '';
     document.getElementById('battle-area').style.display = 'block';
+    enterBattleLayout();
     writeLog(`♾️ [무한모드] 101층부터 끝없는 도전이 시작됩니다!`);
     spawnEnemy();
     updateUi();
@@ -978,6 +951,7 @@ function gameOver() {
     const savedGold = Math.floor(totalGoldEarned * 0.1);
     const prevSaved = parseInt(localStorage.getItem('saved_gold') || '0');
     localStorage.setItem('saved_gold', prevSaved + savedGold);
+    exitBattleLayout();
     document.getElementById('battle-area').style.display = 'none';
     const screen = document.querySelector('.screen');
     screen.innerHTML = `
