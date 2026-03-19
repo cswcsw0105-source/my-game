@@ -313,6 +313,7 @@ function checkFloorUnlock(f) {
         const globalUnlocked = getUnlockedFloors(null);
         if (!globalUnlocked.includes(f)) {
             saveUnlockedFloor(f, null);
+            showUnlockPopup(`🔓 ${f}층 달성!`, `공용 아이템<br><b style="color:#f1c40f;">${floorUnlocks[f].name}</b> 이 상점에 해금되었습니다!`, '#f1c40f');
             writeLog(`🔓 <b style='color:#f1c40f'>${f}층 달성!</b> 공용 아이템 [${floorUnlocks[f].name}] 해금!`);
         }
     }
@@ -325,10 +326,32 @@ function checkFloorUnlock(f) {
             const jobUnlocked = getUnlockedFloors(baseJob);
             if (!jobUnlocked.includes(f)) {
                 saveUnlockedFloor(f, baseJob);
+                showUnlockPopup(`🔓 ${f}층 달성!`, `${player.name} 전용 아이템<br><b style="color:#2ed573;">${unlockItem.name}</b> 이 상점에 해금되었습니다!`, '#2ed573');
                 writeLog(`🔓 <b style='color:#2ed573'>${f}층 달성!</b> ${player.name} 전용 [${unlockItem.name}] 해금!`);
             }
         }
     }
+}
+
+function showUnlockPopup(title, body, color) {
+    const popup = document.createElement('div');
+    popup.style.cssText = `
+        position:fixed; top:20px; right:20px; z-index:9999;
+        background:#1a1a1a; border:2px solid ${color};
+        border-radius:10px; padding:16px 20px; max-width:280px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+        animation: slideIn 0.3s ease;
+    `;
+    popup.innerHTML = `
+        <div style="color:${color}; font-weight:700; font-size:1em; margin-bottom:6px;">${title}</div>
+        <div style="color:#e0e0e0; font-size:0.88em; line-height:1.5;">${body}</div>
+    `;
+    document.body.appendChild(popup);
+    setTimeout(() => {
+        popup.style.transition = 'opacity 0.5s';
+        popup.style.opacity = '0';
+        setTimeout(() => document.body.removeChild(popup), 500);
+    }, 3000);
 }
 
 function spawnEnemy() {
@@ -538,10 +561,16 @@ function winBattle() {
 function openShop() {
     document.getElementById('battle-area').style.display = 'none';
     document.getElementById('shop-area').style.display = 'block';
-    enterBattleLayout();
+    // enterBattleLayout 호출 제거 — 로그 유지
     rerollCost = 10;
     updateUi(); renderShopItems();
 }
+
+window.nextFloor = () => {
+    document.getElementById('shop-area').style.display = 'none';
+    document.getElementById('battle-area').style.display = 'block';
+    spawnEnemy();
+};
 
 window.nextFloor = () => {
     document.getElementById('shop-area').style.display = 'none';
@@ -980,3 +1009,10 @@ function gameOver() {
     `;
     writeLog(`💀 ${floor}층 게임 오버. ${enemy ? enemy.name : ''}에게 패배.`);
 }
+
+// 페이지 로드 시 초기 레이아웃 강제 설정
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('sidebar-normal').style.display = 'flex';
+    document.getElementById('sidebar-battle').style.display = 'none';
+    document.getElementById('log').style.display = 'block';
+});
