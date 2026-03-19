@@ -11,13 +11,15 @@ firebase.initializeApp({
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// v6.1 영구강화 초기화 (구버전 데이터 리셋)
-if (!localStorage.getItem('perma_migrated_v61')) {
+// v6.1b 영구강화 초기화
+if (!localStorage.getItem('perma_migrated_v61b')) {
     localStorage.removeItem('perma_stats');
     localStorage.removeItem('perma_buy_count');
     localStorage.removeItem('saved_gold');
-    localStorage.setItem('perma_migrated_v61', 'true');
+    localStorage.removeItem('perma_migrated_v61');
+    localStorage.setItem('perma_migrated_v61b', 'true');
 }
+
 let floor = 1, gold = 0, player = null, enemy = null;
 let defendingTurns = 0, dodgingTurns = 0, shieldedTurns = 0;
 let regenTurns = 0, regenAmount = 0;
@@ -28,6 +30,7 @@ let currentUser = null;
 let pendingShop = false;
 let potionUsedThisTurn = false;
 let totalGoldEarned = 0;
+let shopVisitCount = 0;
 
 function getPermaStats() {
     return JSON.parse(localStorage.getItem('perma_stats') || '{"hp":0,"atk":0,"def":0,"acc":0,"potion":0}');
@@ -46,7 +49,7 @@ function saveUnlockedFloor(f, job) {
     if (!unlocked.includes(f)) { unlocked.push(f); localStorage.setItem(key, JSON.stringify(unlocked)); }
 }
 
-// 레이아웃 전환 헬퍼
+// 레이아웃 전환
 function enterBattleLayout() {
     document.getElementById('sidebar-normal').style.display = 'none';
     document.getElementById('sidebar-battle').style.display = 'flex';
@@ -57,6 +60,11 @@ function exitBattleLayout() {
     document.getElementById('sidebar-battle').style.display = 'none';
     document.getElementById('log').style.display = 'block';
 }
+
+// 페이지 로드 시 초기 레이아웃 강제 설정
+document.addEventListener('DOMContentLoaded', () => {
+    exitBattleLayout();
+});
 
 function showAuthError(msg) {
     const errEl = document.getElementById('login-error');
@@ -92,18 +100,14 @@ auth.onAuthStateChanged((user) => {
         document.getElementById('user-info').innerText = user.email.split('@')[0] + " 님";
         document.getElementById('logout-btn').style.display = 'inline-block';
         document.getElementById('login-area').style.display = 'none';
-        // 처음엔 반드시 일반 사이드바 표시
-        document.getElementById('sidebar-normal').style.display = 'flex';
-        document.getElementById('sidebar-battle').style.display = 'none';
-        document.getElementById('log').style.display = 'block';
+        exitBattleLayout();
         showPreGameScreen();
         loadRank();
     } else {
         currentUser = null;
         document.getElementById('login-area').style.display = 'block';
         document.getElementById('start-area').style.display = 'none';
-        document.getElementById('sidebar-normal').style.display = 'flex';
-        document.getElementById('sidebar-battle').style.display = 'none';
+        exitBattleLayout();
     }
 });
 
@@ -245,9 +249,11 @@ window.selectJobAndStart = (job) => {
         baseJob: jobBase[job].name,
         evolved: false
     };
-    floor = 1; gold = 0; totalGoldEarned = 0; rerollCost = 10;
+    floor = 1; gold = 0; totalGoldEarned = 0; rerollCost = 10; shopVisitCount = 0;
     document.getElementById('start-area').style.display = 'none';
     document.getElementById('battle-area').style.display = 'block';
+    // 전투 로그 초기화 (새 게임 시작 시에만)
+    document.getElementById('log-battle').innerHTML = '';
     enterBattleLayout();
     loadCollection();
     spawnEnemy();
@@ -313,7 +319,7 @@ function checkFloorUnlock(f) {
         const globalUnlocked = getUnlockedFloors(null);
         if (!globalUnlocked.includes(f)) {
             saveUnlockedFloor(f, null);
-            showUnlockPopup(`🔓 ${f}층 달성!`, `공용 아이템<br><b style="color:#f1c40f;">${floorUnlocks[f].name}</b> 이 상점에 해금되었습니다!`, '#f1c40f');
+            showUnlockPopup(`🔓 ${f}층 달성!`, `공용 아이템<br><b style="color:#f1c40f;">${floorUnlocks[f].name}</b>이 상점에 해금되었습니다!`, '#f1c40f');
             writeLog(`🔓 <b style='color:#f1c40f'>${f}층 달성!</b> 공용 아이템 [${floorUnlocks[f].name}] 해금!`);
         }
     }
@@ -326,7 +332,7 @@ function checkFloorUnlock(f) {
             const jobUnlocked = getUnlockedFloors(baseJob);
             if (!jobUnlocked.includes(f)) {
                 saveUnlockedFloor(f, baseJob);
-                showUnlockPopup(`🔓 ${f}층 달성!`, `${player.name} 전용 아이템<br><b style="color:#2ed573;">${unlockItem.name}</b> 이 상점에 해금되었습니다!`, '#2ed573');
+                showUnlockPopup(`🔓 ${f}층 달성!`, `${player.name} 전용 아이템<br><b style="color:#2ed573;">${unlockItem.name}</b>이 상점에 해금되었습니다!`, '#2ed573');
                 writeLog(`🔓 <b style='color:#2ed573'>${f}층 달성!</b> ${player.name} 전용 [${unlockItem.name}] 해금!`);
             }
         }
@@ -350,7 +356,7 @@ function showUnlockPopup(title, body, color) {
     setTimeout(() => {
         popup.style.transition = 'opacity 0.5s';
         popup.style.opacity = '0';
-        setTimeout(() => document.body.removeChild(popup), 500);
+        setTimeout(() => { if (popup.parentNode) document.body.removeChild(popup); }, 500);
     }, 3000);
 }
 
@@ -559,18 +565,13 @@ function winBattle() {
 }
 
 function openShop() {
+    shopVisitCount++;
     document.getElementById('battle-area').style.display = 'none';
     document.getElementById('shop-area').style.display = 'block';
-    // enterBattleLayout 호출 제거 — 로그 유지
+    // 로그 유지 — enterBattleLayout 호출 안 함
     rerollCost = 10;
     updateUi(); renderShopItems();
 }
-
-window.nextFloor = () => {
-    document.getElementById('shop-area').style.display = 'none';
-    document.getElementById('battle-area').style.display = 'block';
-    spawnEnemy();
-};
 
 window.nextFloor = () => {
     document.getElementById('shop-area').style.display = 'none';
@@ -595,16 +596,38 @@ function getUnlockedPoolItems() {
 }
 
 function getItemsByRarity() {
+    // 상점 방문 횟수마다 고급 등급 확률 증가
+    const legendaryChance = Math.min(15, 2 + Math.floor(shopVisitCount / 5));
+    const epicChance = Math.min(35, 10 + Math.floor(shopVisitCount / 3));
+    const rareChance = Math.min(50, 30 + Math.floor(shopVisitCount / 4));
+
     const rand = Math.random() * 100;
-    if (rand < 5)  return equipmentPool.filter(i => i.rarity === 'legendary');
-    if (rand < 20) return equipmentPool.filter(i => i.rarity === 'epic');
-    if (rand < 50) return equipmentPool.filter(i => i.rarity === 'rare');
+    if (rand < legendaryChance) return equipmentPool.filter(i => i.rarity === 'legendary');
+    if (rand < legendaryChance + epicChance) return equipmentPool.filter(i => i.rarity === 'epic');
+    if (rand < legendaryChance + epicChance + rareChance) return equipmentPool.filter(i => i.rarity === 'rare');
     return equipmentPool.filter(i => i.rarity === 'common');
 }
 
 function renderShopItems() {
     const list = document.getElementById('shop-list');
     list.innerHTML = '';
+
+    // 현재 등급 확률 표시
+    const legendaryChance = Math.min(15, 2 + Math.floor(shopVisitCount / 5));
+    const epicChance = Math.min(35, 10 + Math.floor(shopVisitCount / 3));
+    const rareChance = Math.min(50, 30 + Math.floor(shopVisitCount / 4));
+    const commonChance = Math.max(0, 100 - legendaryChance - epicChance - rareChance);
+    const chanceBar = document.createElement('div');
+    chanceBar.style.cssText = 'font-size:0.78em; color:#666; margin-bottom:10px; display:flex; gap:10px; flex-wrap:wrap; padding:8px; background:#111; border-radius:6px;';
+    chanceBar.innerHTML = `
+        <span style="color:#888;">📊 등급 확률 (${shopVisitCount}회 방문)</span>
+        <span style="color:#e74c3c;">전설 ${legendaryChance}%</span>
+        <span style="color:#a55eea;">고급 ${epicChance}%</span>
+        <span style="color:#1e90ff;">희귀 ${rareChance}%</span>
+        <span style="color:#888;">일반 ${commonChance}%</span>
+    `;
+    list.appendChild(chanceBar);
+
     currentShopItems = [{ name: "치유 포션", type: "potion", value: 80, price: 40, rarity: "common", desc: "최대 체력의 35%를 즉시 회복합니다." }];
 
     const unlockedItems = getUnlockedPoolItems();
@@ -832,9 +855,8 @@ window.toggleCollection = (show) => {
             const owned = collection.includes(it.name);
             (groups[it.rarity] || groups.common).push({ ...it, owned });
         });
-        const total = uniqueItems.length;
         let html = `<p style="color:#888; font-size:0.85em; margin-bottom:15px;">
-            해금: <b style="color:#f1c40f;">${collection.length}</b> / ${total}
+            해금: <b style="color:#f1c40f;">${collection.length}</b> / ${uniqueItems.length}
             <span style="color:#555; font-size:0.8em; margin-left:8px;">(구매한 아이템만 해금됩니다)</span>
         </p>`;
         Object.entries(groups).forEach(([rarity, items]) => {
@@ -860,6 +882,7 @@ window.toggleCollection = (show) => {
     }
     document.getElementById('collection-modal').style.display = show ? 'flex' : 'none';
 };
+
 window.onclick = function(event) {
     if (event.target === document.getElementById('patch-modal')) togglePatchNotes(false);
     if (event.target === document.getElementById('rank-modal')) toggleRank(false);
@@ -883,7 +906,6 @@ function updateUi() {
     document.getElementById('e-atk-val').innerText = enemy.atk;
     document.getElementById('e-def-val').innerText = enemy.def;
 
-    // 전투 중 오른쪽 사이드바 스탯
     const floorBattle = document.getElementById('floor-t-battle');
     const goldBattle = document.getElementById('gold-t-battle');
     const potionBattle = document.getElementById('potion-t-battle');
@@ -891,7 +913,6 @@ function updateUi() {
     if (goldBattle) goldBattle.innerText = gold;
     if (potionBattle) potionBattle.innerText = player.potions;
 
-    // 전투 외 사이드바 스탯
     const floorEl = document.getElementById('floor-t');
     const goldEl = document.getElementById('gold-t');
     const potionEl = document.getElementById('potion-t');
@@ -904,7 +925,6 @@ function updateUi() {
     if (shopHp) shopHp.innerText = `${Math.max(0, player.curHp)}/${player.maxHp}`;
     if (shopGold) shopGold.innerText = gold;
 
-    // 인벤토리
     const invList = document.getElementById('inv-list');
     if (invList) {
         if (player.items.length === 0) {
@@ -939,8 +959,8 @@ function updateUi() {
 }
 
 function writeLog(msg) {
-    const isBattle = document.getElementById('sidebar-battle') &&
-                     document.getElementById('sidebar-battle').style.display !== 'none';
+    const battleSidebar = document.getElementById('sidebar-battle');
+    const isBattle = battleSidebar && battleSidebar.style.display === 'flex';
     const p = `<p style="margin:4px 0; border-bottom:1px solid #333; padding-bottom:4px;">${msg}</p>`;
     if (isBattle) {
         const battleLog = document.getElementById('log-battle');
@@ -1009,10 +1029,3 @@ function gameOver() {
     `;
     writeLog(`💀 ${floor}층 게임 오버. ${enemy ? enemy.name : ''}에게 패배.`);
 }
-
-// 페이지 로드 시 초기 레이아웃 강제 설정
-document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('sidebar-normal').style.display = 'flex';
-    document.getElementById('sidebar-battle').style.display = 'none';
-    document.getElementById('log').style.display = 'block';
-});
