@@ -37,14 +37,17 @@ function savePermaBuyCount(counts) {
 }
 
 // 해금된 층 아이템
-function getUnlockedFloors() {
-    return JSON.parse(localStorage.getItem('unlocked_floors') || '[]');
+function getUnlockedFloors(job) {
+    const key = job ? `unlocked_floors_${job}` : 'unlocked_floors_global';
+    return JSON.parse(localStorage.getItem(key) || '[]');
 }
-function saveUnlockedFloor(f) {
-    const unlocked = getUnlockedFloors();
+
+function saveUnlockedFloor(f, job) {
+    const key = job ? `unlocked_floors_${job}` : 'unlocked_floors_global';
+    const unlocked = getUnlockedFloors(job);
     if (!unlocked.includes(f)) {
         unlocked.push(f);
-        localStorage.setItem('unlocked_floors', JSON.stringify(unlocked));
+        localStorage.setItem(key, JSON.stringify(unlocked));
     }
 }
 
@@ -95,10 +98,10 @@ auth.onAuthStateChanged((user) => {
 // 부활 전 화면 (직업 선택 + 영구 강화 상점)
 // =============================================
 function showPreGameScreen() {
-    const savedGold = parseInt(localStorage.getItem('saved_gold') || '0');
-    const perma = getPermaStats();
-    const buyCounts = getPermaBuyCount();
-    const unlockedFloors = getUnlockedFloors();
+    const globalUnlocked = getUnlockedFloors(null);
+    const warriorUnlocked = getUnlockedFloors('워리어');
+    const hunterUnlocked = getUnlockedFloors('헌터');
+    const wizardUnlocked = getUnlockedFloors('마법사');
 
     document.getElementById('start-area').style.display = 'block';
     document.getElementById('start-area').innerHTML = `
@@ -110,7 +113,8 @@ function showPreGameScreen() {
 
         <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:20px;">
             ${['Warrior','Hunter','Wizard'].map(job => `
-                <div onclick="selectJobAndStart('${job}')" style="background:#1a1a1a; border:2px solid ${jobBase[job].color}; border-radius:10px; padding:15px; cursor:pointer; text-align:center; transition:transform 0.15s;"
+                <div onclick="selectJobAndStart('${job}')"
+                    style="background:#1a1a1a; border:2px solid ${jobBase[job].color}; border-radius:10px; padding:15px; cursor:pointer; text-align:center; transition:transform 0.15s;"
                     onmouseenter="this.style.transform='translateY(-3px)'" onmouseleave="this.style.transform='translateY(0)'">
                     <div style="color:${jobBase[job].color}; font-weight:700; font-size:1.1em; margin-bottom:8px;">${jobBase[job].name}</div>
                     <div style="color:#888; font-size:0.78em; line-height:1.6;">
@@ -124,52 +128,114 @@ function showPreGameScreen() {
 
         <div style="background:#1a1a1a; border:1px solid #333; border-radius:10px; padding:15px;">
             <h4 style="color:#f1c40f; margin:0 0 12px 0;">🏪 영구 강화 상점</h4>
-            <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:8px;">
-                ${permanentUpgrades.map(up => {
-                    const bought = buyCounts[up.id] || 0;
-                    const maxed = bought >= up.maxBuy;
-                    const canAfford = savedGold >= up.price;
-                    return `
-                        <div style="background:#222; border:1px solid ${maxed ? '#555' : '#444'}; border-radius:8px; padding:10px;">
-                            <div style="color:${maxed ? '#555' : '#e0e0e0'}; font-weight:700; font-size:0.9em;">${up.name}</div>
-                            <div style="color:#888; font-size:0.75em; margin:4px 0;">${up.desc}</div>
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
-                                <span style="color:#888; font-size:0.75em;">${bought}/${up.maxBuy}</span>
-                                <button onclick="buyPermUpgrade('${up.id}')" ${maxed || !canAfford ? 'disabled' : ''}
-                                    style="background:${maxed ? '#333' : canAfford ? '#f1c40f' : '#333'}; color:${maxed || !canAfford ? '#666' : '#111'}; padding:4px 10px; font-size:0.8em; margin:0; border-radius:5px; cursor:${maxed || !canAfford ? 'not-allowed' : 'pointer'};">
-                                    ${maxed ? '완료' : up.price + 'G'}
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                }).join('')}
+            
+            <!-- 카테고리 탭 -->
+            <div style="display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap;">
+                ${[
+                    { key: 'hp',  label: '❤️ 체력',   color: '#2ed573' },
+                    { key: 'atk', label: '⚔️ 공격력', color: '#f1c40f' },
+                    { key: 'def', label: '🛡️ 방어력', color: '#1e90ff' },
+                    { key: 'acc', label: '🎯 명중률', color: '#a55eea' },
+                    { key: 'pot', label: '🧪 포션',   color: '#e67e22' },
+                ].map(cat => `
+                    <button onclick="switchUpgradeTab('${cat.key}')"
+                        id="tab_${cat.key}"
+                        style="background:${cat.color === '#2ed573' ? '#1a2e1a' : '#1a1a2a'}; color:${cat.color}; border:1px solid ${cat.color}; border-radius:6px; padding:6px 12px; font-size:0.8em; font-weight:700; cursor:pointer; transition:all 0.2s;">
+                        ${cat.label}
+                    </button>
+                `).join('')}
             </div>
+
+            <!-- 강화 목록 -->
+            <div id="upgrade-list" style="max-height:220px; overflow-y:auto;"></div>
         </div>
     `;
+
+    switchUpgradeTab('hp');
 }
+
+window.switchUpgradeTab = (key) => {
+    const savedGold = parseInt(localStorage.getItem('saved_gold') || '0');
+    const buyCounts = getPermaBuyCount();
+    const catUpgrades = permanentUpgrades.filter(u => u.id.startsWith(key + '_'));
+
+    // 탭 스타일
+    ['hp','atk','def','acc','pot'].forEach(k => {
+        const tab = document.getElementById(`tab_${k}`);
+        if (tab) tab.style.opacity = k === key ? '1' : '0.4';
+    });
+
+    const list = document.getElementById('upgrade-list');
+    if (!list) return;
+
+    const totalBought = catUpgrades.filter(u => buyCounts[u.id]).length;
+    const nextIdx = totalBought; // 다음에 살 수 있는 단계
+
+    list.innerHTML = catUpgrades.map((up, i) => {
+        const bought = !!buyCounts[up.id];
+        const isNext = i === nextIdx;
+        const canAfford = savedGold >= up.price;
+        const locked = i > nextIdx; // 순서대로만 구매 가능
+
+        let bg = '#1a1a1a';
+        let borderColor = '#333';
+        let textColor = '#888';
+
+        if (bought) { bg = '#0a1a0a'; borderColor = '#2ed573'; textColor = '#2ed573'; }
+        else if (isNext && canAfford) { bg = '#1a1a0a'; borderColor = '#f1c40f'; textColor = '#e0e0e0'; }
+        else if (isNext && !canAfford) { borderColor = '#555'; textColor = '#666'; }
+        else if (locked) { textColor = '#444'; }
+
+        return `
+            <div style="display:flex; justify-content:space-between; align-items:center; background:${bg}; border:1px solid ${borderColor}; border-radius:6px; padding:8px 12px; margin-bottom:5px;">
+                <div>
+                    <span style="color:${textColor}; font-weight:700; font-size:0.85em;">
+                        ${bought ? '✅' : locked ? '🔒' : '⬜'} ${up.name}
+                    </span>
+                    <div style="color:#555; font-size:0.75em;">${up.desc}</div>
+                </div>
+                <button onclick="buyPermUpgrade('${up.id}')"
+                    ${bought || locked || !canAfford ? 'disabled' : ''}
+                    style="background:${bought ? '#0a2a0a' : isNext && canAfford ? '#f1c40f' : '#222'}; 
+                           color:${bought ? '#2ed573' : isNext && canAfford ? '#111' : '#444'}; 
+                           padding:5px 12px; font-size:0.8em; font-weight:700; margin:0; border-radius:5px;
+                           cursor:${bought || locked || !canAfford ? 'not-allowed' : 'pointer'}; white-space:nowrap;">
+                    ${bought ? '완료' : locked ? '잠금' : up.price + 'G'}
+                </button>
+            </div>
+        `;
+    }).join('');
+};
 
 window.buyPermUpgrade = (id) => {
     const savedGold = parseInt(localStorage.getItem('saved_gold') || '0');
     const up = permanentUpgrades.find(u => u.id === id);
+    if (!up) return;
     const buyCounts = getPermaBuyCount();
-    const bought = buyCounts[id] || 0;
-    if (bought >= up.maxBuy || savedGold < up.price) return;
+    if (buyCounts[id] || savedGold < up.price) return;
+
+    // 순서 체크 — 이전 단계가 구매됐는지 확인
+    const parts = id.split('_');
+    const level = parseInt(parts[parts.length - 1]);
+    const prefix = parts.slice(0, -1).join('_');
+    if (level > 1 && !buyCounts[`${prefix}_${level - 1}`]) return;
 
     localStorage.setItem('saved_gold', savedGold - up.price);
-    buyCounts[id] = bought + 1;
+    buyCounts[id] = true;
     savePermaBuyCount(buyCounts);
 
     const perma = getPermaStats();
-    if (up.effect.hp) perma.hp += up.effect.hp;
-    if (up.effect.atk) perma.atk += up.effect.atk;
-    if (up.effect.def) perma.def += up.effect.def;
-    if (up.effect.acc) perma.acc += up.effect.acc;
+    if (up.effect.hp)     perma.hp     += up.effect.hp;
+    if (up.effect.atk)    perma.atk    += up.effect.atk;
+    if (up.effect.def)    perma.def    += up.effect.def;
+    if (up.effect.acc)    perma.acc    += up.effect.acc;
     if (up.effect.potion) perma.potion += up.effect.potion;
     savePermaStats(perma);
 
+    const key = prefix.replace('perm_', '');
+    switchUpgradeTab(key);
     showPreGameScreen();
 };
-
 window.selectJobAndStart = (job) => {
     const perma = getPermaStats();
     player = {
@@ -257,27 +323,31 @@ window.evolve = (idx) => {
 // =============================================
 // 층 해금 체크
 // =============================================
-function checkFloorUnlock(f) {
-    const unlockedFloors = getUnlockedFloors();
-    if (unlockedFloors.includes(f)) return;
+ffunction checkFloorUnlock(f) {
+    const baseJob = player.baseJob;
 
-    // 10층마다 공용 해금
+    // 10층마다 공용 해금 (직업 무관, 글로벌 저장)
     if (f % 10 === 0 && floorUnlocks[f]) {
-        saveUnlockedFloor(f);
-        writeLog(`🔓 <b style='color:#f1c40f'>${f}층 달성!</b> 새 아이템 [${floorUnlocks[f].name}] 이 상점에 해금되었습니다!`);
+        const globalUnlocked = getUnlockedFloors(null);
+        if (!globalUnlocked.includes(f)) {
+            saveUnlockedFloor(f, null);
+            writeLog(`🔓 <b style='color:#f1c40f'>${f}층 달성!</b> 공용 아이템 [${floorUnlocks[f].name}] 해금!`);
+        }
     }
 
-    // 5층마다 직업별 해금
+    // 5층마다 직업별 해금 (해당 직업 계정에만 저장)
     if (f % 5 === 0 && f % 10 !== 0) {
-        const baseJob = player.baseJob;
         let unlockItem = null;
-        if (['워리어'].includes(baseJob) && floorUnlocks[f]) unlockItem = floorUnlocks[f];
-        else if (['헌터'].includes(baseJob) && floorUnlocksHunter[f]) unlockItem = floorUnlocksHunter[f];
-        else if (['마법사'].includes(baseJob) && floorUnlocksWizard[f]) unlockItem = floorUnlocksWizard[f];
+        if (baseJob === '워리어' && floorUnlocks[f]) unlockItem = floorUnlocks[f];
+        else if (baseJob === '헌터' && floorUnlocksHunter[f]) unlockItem = floorUnlocksHunter[f];
+        else if (baseJob === '마법사' && floorUnlocksWizard[f]) unlockItem = floorUnlocksWizard[f];
 
         if (unlockItem) {
-            saveUnlockedFloor(f);
-            writeLog(`🔓 <b style='color:#2ed573'>${f}층 달성!</b> ${player.name} 전용 아이템 [${unlockItem.name}] 이 상점에 해금되었습니다!`);
+            const jobUnlocked = getUnlockedFloors(baseJob);
+            if (!jobUnlocked.includes(f)) {
+                saveUnlockedFloor(f, baseJob);
+                writeLog(`🔓 <b style='color:#2ed573'>${f}층 달성!</b> ${player.name} 전용 [${unlockItem.name}] 해금!`);
+            }
         }
     }
 }
@@ -551,21 +621,26 @@ window.nextFloor = () => {
 };
 
 function getUnlockedPoolItems() {
-    const unlockedFloors = getUnlockedFloors();
     const baseJob = player.baseJob;
     const jobName = player.name;
     const result = [];
 
-    unlockedFloors.forEach(f => {
-        // 공용 해금
-        if (floorUnlocks[f] && f % 10 === 0) result.push(floorUnlocks[f]);
-        // 직업별 해금
+    // 공용 해금 아이템 (글로벌)
+    const globalUnlocked = getUnlockedFloors(null);
+    globalUnlocked.forEach(f => {
+        if (f % 10 === 0 && floorUnlocks[f]) result.push(floorUnlocks[f]);
+    });
+
+    // 직업별 해금 아이템 (현재 baseJob 기준)
+    const jobUnlocked = getUnlockedFloors(baseJob);
+    jobUnlocked.forEach(f => {
         if (f % 5 === 0 && f % 10 !== 0) {
-            if (['워리어','나이트','버서커'].includes(jobName) && floorUnlocks[f]) result.push(floorUnlocks[f]);
-            else if (['헌터','궁수','암살자'].includes(jobName) && floorUnlocksHunter[f]) result.push(floorUnlocksHunter[f]);
-            else if (['마법사','위저드','소환사'].includes(jobName) && floorUnlocksWizard[f]) result.push(floorUnlocksWizard[f]);
+            if (baseJob === '워리어' && floorUnlocks[f]) result.push(floorUnlocks[f]);
+            else if (baseJob === '헌터' && floorUnlocksHunter[f]) result.push(floorUnlocksHunter[f]);
+            else if (baseJob === '마법사' && floorUnlocksWizard[f]) result.push(floorUnlocksWizard[f]);
         }
     });
+
     return result;
 }
 
