@@ -80,23 +80,25 @@
 <button class="patch-btn" onclick="togglePatchNotes(true)">📜 패치 노트 보기</button>
             </div>
 
-            <!-- 전투 로그: 전투 중에만 오른쪽에 표시 -->
+           <!-- 전투 로그: 전투 중에만 오른쪽에 표시 -->
             <div class="sidebar" id="sidebar-battle" style="display:none;">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <h4 style="color:#fff; margin:0;">📋 전투 로그</h4>
-        <div style="font-size:0.8em; color:#888;">
-            층: <b id="floor-t-battle" style="color:#fff;">1</b>F | 
-            골드: <b id="gold-t-battle" style="color:#f1c40f;">0</b>G |
-            포션: <b id="potion-t-battle" style="color:#2ed573;">0</b>
-        </div>
-    </div>
-    <button onclick="toggleInv(true)" style="background:#2c2c3e; color:#2ed573; border:1px solid #2ed573; width:100%; margin-bottom:8px; font-size:0.85em; padding:8px;">🎒 인벤토리 보기</button>
-    <div id="log-battle" style="font-size:0.85em; overflow-y:auto; max-height:460px;"></div>
-</div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <h4 style="color:#fff; margin:0;">📋 전투 로그</h4>
+                    <div style="font-size:0.8em; color:#888;">
+                        층: <b id="floor-t-battle" style="color:#fff;">1</b>F | 
+                        골드: <b id="gold-t-battle" style="color:#f1c40f;">0</b>G |
+                        포션: <b id="potion-t-battle" style="color:#2ed573;">0</b>
+                    </div>
+                </div>
+                <button onclick="toggleInv(true)" style="background:#2c2c3e; color:#2ed573; border:1px solid #2ed573; width:100%; margin-bottom:8px; font-size:0.85em; padding:8px;">🎒 인벤토리 보기</button>
+                <div id="log-battle" style="font-size:0.85em; overflow-y:auto; max-height:460px;"></div>
+            </div>
+
+        </div> <!-- game-layout 닫기 -->
 
         <!-- 전투 외 로그 (하단) -->
         <div id="log" style="display:block;">온라인 서버 연결 대기 중...</div>
-    </div>
+    </div> <!-- container 닫기 -->
 
     <!-- 인벤토리 모달 -->
     <div id="inv-modal" class="modal-overlay">
