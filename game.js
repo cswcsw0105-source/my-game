@@ -247,8 +247,10 @@ window.selectJobAndStart = (job) => {
     gold = 0;
     totalGoldEarned = 0;
     rerollCost = 10;
-    document.getElementById('start-area').style.display = 'none';
-    document.getElementById('battle-area').style.display = 'block';
+    // battle-area 표시 직전에 추가
+document.getElementById('sidebar-normal').style.display = 'none';
+document.getElementById('sidebar-battle').style.display = 'block';
+document.getElementById('log').style.display = 'none';
     loadCollection();
     spawnEnemy();
 };
@@ -551,8 +553,8 @@ function winBattle() {
 }
 
 function openShop() {
-    document.getElementById('battle-area').style.display = 'none';
-    document.getElementById('shop-area').style.display = 'block';
+    document.getElementById('sidebar-normal').style.display = 'none';
+document.getElementById('sidebar-battle').style.display = 'block';
     rerollCost = 10;
     updateUi(); renderShopItems();
 }
