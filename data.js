@@ -89,36 +89,34 @@ const permanentUpgrades = [
     ...generateUpgrades('acc', '명중률', 'acc',    2,   25,  1.45),
     ...generateUpgrades('pot', '포션',   'potion', 1,   40,  1.5),
 ];
-
-const equipmentPool = [
     const equipmentPool = [
     // ===== 워리어 전용 =====
-    { name: "거인족의 대검",      type: "atk", value: 22, price: 90,  rarity: "epic",      onlyFor: ["워리어"], unlockSkill: "대회전",  evolTrigger: "attack2",  desc: "워리어 전용. 공격력(+22). [💥 대회전] 스킬 해제." },
+    { name: "거인족의 대검",      type: "atk", value: 22, price: 90,  rarity: "epic",      onlyFor: ["워리어"], unlockSkill: "대회전",  evolTrigger: "attack2",  critBonus: 6, desc: "워리어 전용. 공격력(+22). 치명타 확률(+6%). [💥 대회전] 스킬 해제." },
     { name: "미스릴 흉갑",        type: "hp",  value: 80, def: 16, price: 90,  rarity: "epic",      onlyFor: ["워리어"], bonusHp: 40, evolTrigger: "defense2", desc: "워리어 전용. 체력(+80), 방어(+16)." },
     { name: "용사의 방패",        type: "hp",  value: 50, def: 14, price: 60,  rarity: "rare",      onlyFor: ["워리어"], evolTrigger: "defense2", desc: "워리어 전용. 체력(+50), 방어(+14)." },
-    { name: "전쟁의 도끼",        type: "atk", value: 18, price: 70,  rarity: "rare",      onlyFor: ["워리어"], evolTrigger: "attack2",  desc: "워리어 전용. 공격력(+18)." },
+    { name: "전쟁의 도끼",        type: "atk", value: 18, price: 70,  rarity: "rare",      onlyFor: ["워리어"], evolTrigger: "attack2", critBonus: 4, desc: "워리어 전용. 공격력(+18). 치명타 확률(+4%)." },
     { name: "분노의 투구",        type: "atk", value: 12, price: 50,  rarity: "common",    onlyFor: ["워리어"], penalty: {'워리어': 10}, desc: "워리어 전용. 공격력(+12). 방어 성공률 -10%." },
 
     // ===== 헌터 전용 =====
-    { name: "정령왕의 활",        type: "atk", value: 22, price: 95,  rarity: "epic",      onlyFor: ["헌터"], bonusAtk: 20, unlockSkill: "폭풍화살", evolTrigger: "bow",    desc: "헌터 전용. 공격력(+22). [🌪️ 폭풍화살] 스킬 해제." },
-    { name: "암살자의 단검",      type: "atk", value: 18, price: 70,  rarity: "rare",      onlyFor: ["헌터"], bonusAtk: 15, evolTrigger: "dagger",  desc: "헌터 전용. 공격력(+18)." },
-    { name: "독화살 통",          type: "atk", value: 14, price: 55,  rarity: "rare",      onlyFor: ["헌터"], evolTrigger: "bow",     desc: "헌터 전용. 공격력(+14)." },
-    { name: "그림자 망토",        type: "hp",  value: 40, def: 4, price: 45,  rarity: "common",    onlyFor: ["헌터"], evolTrigger: "dagger",  desc: "헌터 전용. 체력(+40), 방어(+4)." },
+    { name: "정령왕의 활",        type: "atk", value: 22, price: 95,  rarity: "epic",      onlyFor: ["헌터"], unlockSkill: "폭풍화살", evolTrigger: "bow", critBonus: 8, desc: "헌터 전용. 공격력(+22). 치명타 확률(+8%). [🌪️ 폭풍화살] 스킬 해제." },
+    { name: "암살자의 단검",      type: "atk", value: 18, price: 70,  rarity: "rare",      onlyFor: ["헌터"], evolTrigger: "dagger", critMult: 0.25, desc: "헌터 전용. 공격력(+18). 치명타 배율(+25%)." },
+    { name: "독화살 통",          type: "atk", value: 14, price: 55,  rarity: "rare",      onlyFor: ["헌터"], evolTrigger: "bow", desc: "헌터 전용. 공격력(+14)." },
+    { name: "그림자 망토",        type: "hp",  value: 40, def: 4, price: 45,  rarity: "common",    onlyFor: ["헌터"], evolTrigger: "dagger", desc: "헌터 전용. 체력(+40), 방어(+4)." },
     { name: "사냥꾼의 장갑",      type: "acc", value: 18, price: 50,  rarity: "common",    onlyFor: ["헌터"], desc: "헌터 전용. 명중률(+18%)." },
 
     // ===== 마법사 전용 =====
-    { name: "대마법사의 지팡이",  type: "atk", value: 28, price: 100, rarity: "epic",      onlyFor: ["마법사"], bonusAtk: 25, unlockSkill: "메테오",  evolTrigger: "staff",   desc: "마법사 전용. 공격력(+28). [🔥 메테오] 스킬 해제." },
-    { name: "학자의 로브",        type: "hp",  value: 50, def: 6, price: 45,  rarity: "common",    onlyFor: ["마법사"], bonusAcc: 12, evolTrigger: "robe",    desc: "마법사 전용. 체력(+50), 방어(+6), 명중률(+12%)." },
-    { name: "마력 증폭기",        type: "atk", value: 20, price: 75,  rarity: "rare",      onlyFor: ["마법사"], evolTrigger: "staff",   desc: "마법사 전용. 공격력(+20)." },
-    { name: "정령의 로브",        type: "hp",  value: 65, def: 8, price: 65,  rarity: "rare",      onlyFor: ["마법사"], evolTrigger: "robe",    desc: "마법사 전용. 체력(+65), 방어(+8)." },
+    { name: "대마법사의 지팡이",  type: "atk", value: 28, price: 100, rarity: "epic",      onlyFor: ["마법사"], unlockSkill: "메테오", evolTrigger: "staff", critMult: 0.4, desc: "마법사 전용. 공격력(+28). 치명타 배율(+40%). [🔥 메테오] 스킬 해제." },
+    { name: "학자의 로브",        type: "hp",  value: 50, def: 6, price: 45,  rarity: "common",    onlyFor: ["마법사"], bonusAcc: 12, evolTrigger: "robe", desc: "마법사 전용. 체력(+50), 방어(+6), 명중률(+12%)." },
+    { name: "마력 증폭기",        type: "atk", value: 20, price: 75,  rarity: "rare",      onlyFor: ["마법사"], evolTrigger: "staff", critMult: 0.25, desc: "마법사 전용. 공격력(+20). 치명타 배율(+25%)." },
+    { name: "정령의 로브",        type: "hp",  value: 65, def: 8, price: 65,  rarity: "rare",      onlyFor: ["마법사"], evolTrigger: "robe", desc: "마법사 전용. 체력(+65), 방어(+8)." },
     { name: "마나 크리스탈",      type: "atk", value: 15, price: 50,  rarity: "common",    onlyFor: ["마법사"], desc: "마법사 전용. 공격력(+15)." },
 
     // ===== 공용 =====
     { name: "드래곤의 심장",      type: "hp",  value: 130, def: 14, price: 180, rarity: "legendary", desc: "전설. 체력(+130), 방어(+14)." },
-    { name: "엑스칼리버",         type: "atk", value: 45, acc: 10, price: 200, rarity: "legendary", desc: "전설. 공격력(+45), 명중률(+10%)." },
-    { name: "흡혈 반지",          type: "atk", value: 8,  price: 60,  rarity: "rare",      lifesteal: 0.15, desc: "공용. 공격력(+8). 공격 시 피해의 15% 체력 흡수." },
-    { name: "흡혈 망토",          type: "hp",  value: 35, price: 75,  rarity: "rare",      lifesteal: 0.25, desc: "공용. 체력(+35). 공격 시 피해의 25% 체력 흡수." },
-    { name: "저주받은 검",        type: "atk", value: 38, price: 100, rarity: "epic",      penalty: { '워리어': 15, '헌터': 20, '마법사': 25 }, desc: "공용. 공격력(+38). 명중률 대폭 하락." },
+    { name: "엑스칼리버",         type: "atk", value: 45, acc: 10, price: 200, rarity: "legendary", critBonus: 10, critMult: 0.3, desc: "전설. 공격력(+45), 명중률(+10%). 치명타 확률(+10%), 배율(+30%)." },
+    { name: "흡혈 반지",          type: "atk", value: 8,  price: 60,  rarity: "rare",      lifesteal: 0.15, desc: "공용. 공격력(+8). 흡혈(15%)." },
+    { name: "흡혈 망토",          type: "hp",  value: 35, price: 75,  rarity: "rare",      lifesteal: 0.25, desc: "공용. 체력(+35). 흡혈(25%)." },
+    { name: "저주받은 검",        type: "atk", value: 38, price: 100, rarity: "epic",      penalty: { '워리어': 15, '헌터': 20, '마법사': 25 }, critBonus: 12, desc: "공용. 공격력(+38). 치명타 확률(+12%). 명중률 대폭 하락." },
     { name: "바람의 부츠",        type: "acc", value: 20, price: 55,  rarity: "rare",      desc: "공용. 명중률(+20%)." },
     { name: "중갑옷",             type: "hp",  value: 75, def: 12, price: 65,  rarity: "rare",      penalty: { '마법사': 20, '헌터': 15 }, desc: "공용. 체력(+75), 방어(+12). 마법사·헌터는 명중률 감소." },
     { name: "낡은 가죽 갑옷",     type: "hp",  value: 35, def: 4,  price: 25,  rarity: "common",    desc: "공용. 체력(+35), 방어(+4)." },
