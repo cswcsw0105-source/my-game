@@ -1030,11 +1030,7 @@ function saveCollection(itemName) {
     }
 }
 
-function loadCollection() {
-    const collection = JSON.parse(localStorage.getItem('item_collection_v5') || '[]');
-    const el = document.getElementById('collection-count');
-    if (el) el.innerText = `${collection.length} / ${equipmentPool.length}`;
-}
+function loadCollection() {}
 
 window.buyItem = (event, idx) => {
     const it = currentShopItems[idx];
