@@ -898,7 +898,8 @@ function updateUi() {
     document.getElementById('p-lifesteal-val').innerText = `${Math.round((player.lifesteal || 0) * 100)}%`;
 
     const collection = JSON.parse(localStorage.getItem('item_collection_v5') || '[]');
-    document.getElementById('collection-count').innerText = `${collection.length} / ${equipmentPool.length}`;
+    const allItemCount = equipmentPool.length + Object.values(floorUnlocks).filter(i=>i&&i.name&&i.rarity).length + Object.values(floorUnlocksHunter).filter(i=>i&&i.name).length + Object.values(floorUnlocksWizard).filter(i=>i&&i.name).length;
+    document.getElementById('collection-count').innerText = `${collection.length} / ${allItemCount}`;
 
     const invList = document.getElementById('inv-list');
     if (player.items.length === 0) {
