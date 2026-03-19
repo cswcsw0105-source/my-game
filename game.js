@@ -758,6 +758,49 @@ window.onclick = function(event) {
     if (event.target === document.getElementById('patch-modal')) togglePatchNotes(false);
     if (event.target === document.getElementById('rank-modal')) toggleRank(false);
     if (event.target === document.getElementById('inv-modal')) toggleInv(false);
+    if (event.target === document.getElementById('collection-modal')) toggleCollection(false);
+};
+window.toggleCollection = (show) => {
+    if (show) {
+        const collection = JSON.parse(localStorage.getItem('item_collection_v5') || '[]');
+        const allItems = [...equipmentPool, ...Object.values(floorUnlocks), ...Object.values(floorUnlocksHunter), ...Object.values(floorUnlocksWizard)];
+        const rarityOrder = { 'legendary': 0, 'epic': 1, 'rare': 2, 'common': 3 };
+        const rarityLabels = {
+            legendary: { label: 'LEGENDARY', color: '#e74c3c', bg: '#2d1a1a' },
+            epic:      { label: 'EPIC',      color: '#a55eea', bg: '#1e1a2d' },
+            rare:      { label: 'RARE',      color: '#1e90ff', bg: '#1a1e2d' },
+            common:    { label: 'COMMON',    color: '#888',    bg: '#2a2a2a' },
+        };
+
+        const groups = { legendary: [], epic: [], rare: [], common: [] };
+        allItems.forEach(it => {
+            if (it && it.name) {
+                const owned = collection.includes(it.name);
+                (groups[it.rarity] || groups.common).push({ ...it, owned });
+            }
+        });
+
+        let html = `<p style="color:#888; font-size:0.85em; margin-bottom:15px;">획득한 아이템: <b style="color:#f1c40f;">${collection.length}</b> / ${allItems.filter(i=>i&&i.name).length}</p>`;
+
+        Object.entries(groups).forEach(([rarity, items]) => {
+            if (items.length === 0) return;
+            const { label, color, bg } = rarityLabels[rarity];
+            html += `<div style="margin-bottom:12px;">
+                <div style="background:${bg}; color:${color}; font-size:0.7em; font-weight:700; padding:3px 8px; border-radius:4px; display:inline-block; margin-bottom:6px; letter-spacing:1px;">${label}</div>`;
+            items.forEach(it => {
+                const opacity = it.owned ? '1' : '0.3';
+                const icon = it.owned ? '✅' : '🔒';
+                html += `<div style="padding:8px 10px; background:#111; border-radius:6px; margin-bottom:4px; border-left:3px solid ${color}; opacity:${opacity};">
+                    <div style="color:${color}; font-weight:700; font-size:0.9em;">${icon} ${it.name}</div>
+                    <div style="color:#666; font-size:0.78em; margin-top:3px;">${it.desc}</div>
+                </div>`;
+            });
+            html += `</div>`;
+        });
+
+        document.getElementById('collection-list').innerHTML = html;
+    }
+    document.getElementById('collection-modal').style.display = show ? 'flex' : 'none';
 };
 
 function updateUi() {
