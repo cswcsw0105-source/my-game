@@ -38,8 +38,8 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 
 .potion-btn { background: #f1c40f !important; color: #111 !important; }
 .reroll-btn { background: #e67e22 !important; color: #fff !important; width: 100%; margin-top: 15px; }
-.patch-btn { background: #34495e !important; color: #fff !important; width: 100%; font-size: 0.9em; padding: 10px; margin: 4px 0; }
-.rank-btn { background: #2c2c3e !important; color: #f1c40f !important; border: 1px solid #f1c40f !important; width: 100%; font-size: 0.9em; padding: 10px; margin: 4px 0; }
+.patch-btn { background: #34495e !important; color: #fff !important; width: 100%; font-size: 0.9em; padding: 10px; margin: 2px 0; }
+.rank-btn { background: #2c2c3e !important; color: #f1c40f !important; border: 1px solid #f1c40f !important; width: 100%; font-size: 0.9em; padding: 10px; margin: 2px 0; }
 
 #log { background: #0a0a0a; padding: 15px; height: 180px; overflow-y: auto; border-radius: 8px; text-align: left; font-size: 0.9em; border: 1px solid #222; margin-top: 15px; color: #bbb; }
 
