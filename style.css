@@ -69,3 +69,8 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     .game-layout { flex-direction: column; }
     .sidebar, #sidebar-battle { max-width: 100%; min-width: unset; }
 }
+
+@keyframes slideIn {
+    from { transform: translateX(100px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
