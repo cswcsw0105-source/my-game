@@ -329,7 +329,7 @@ window.evolve = (idx) => {
 // =============================================
 // 층 해금 체크
 // =============================================
-ffunction checkFloorUnlock(f) {
+function checkFloorUnlock(f) {
     const baseJob = player.baseJob;
 
     // 10층마다 공용 해금 (직업 무관, 글로벌 저장)
