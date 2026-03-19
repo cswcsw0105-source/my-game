@@ -1206,7 +1206,6 @@ if (relicItems.length > 0) {
 }
 
 // 나머지 장비들 희귀도별 표시
-const rarityOrder = { 'legendary':0, 'epic':1, 'rare':2, 'common':3 };
 const rarityLabels = {
     legendary: { label:'LEGENDARY', color:'#e74c3c', bg:'#2d1a1a' },
     epic:      { label:'EPIC',      color:'#a55eea', bg:'#1e1a2d' },
