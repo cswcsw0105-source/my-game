@@ -407,7 +407,8 @@ window.useAction = (type) => {
         else if (relations[relKey].weak === enemy.job) { multiplier = 0.8; effectMsg = "<b style='color:#ff4757'>(상성 열세..)</b> "; }
     }
     // 명중률 100% 캡
-    const accRate = Math.min(100, 85 + player.acc);
+   const accRate = Math.min(95, 85 + player.acc);  
+        // 최대 95%로 캡
     if (Math.random() * 100 < accRate) {
         let baseDmg = player.atk + player.extraAtk + Math.floor(Math.random() * 8);
         // 치명타 체크
