@@ -42,6 +42,10 @@ function getUnlockedFloors(job) {
     return JSON.parse(localStorage.getItem(key) || '[]');
 }
 
+ffunction getUnlockedFloors(job) {
+    const key = job ? `unlocked_floors_${job}` : 'unlocked_floors_global';
+    return JSON.parse(localStorage.getItem(key) || '[]');
+}
 function saveUnlockedFloor(f, job) {
     const key = job ? `unlocked_floors_${job}` : 'unlocked_floors_global';
     const unlocked = getUnlockedFloors(job);
