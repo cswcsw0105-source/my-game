@@ -802,33 +802,65 @@ window.toggleInv = (show) => {
 window.toggleCollection = (show) => {
     if (show) {
         const collection = JSON.parse(localStorage.getItem('item_collection_v5') || '[]');
-        const allItems = [...equipmentPool, ...Object.values(floorUnlocks), ...Object.values(floorUnlocksHunter), ...Object.values(floorUnlocksWizard)];
+        const allItems = [
+            ...equipmentPool,
+            ...Object.values(floorUnlocks).filter(i => i && i.name),
+            ...Object.values(floorUnlocksHunter).filter(i => i && i.name),
+            ...Object.values(floorUnlocksWizard).filter(i => i && i.name)
+        ];
+
+        // 중복 제거
+        const seen = new Set();
+        const uniqueItems = allItems.filter(i => {
+            if (!i || !i.name || seen.has(i.name)) return false;
+            seen.add(i.name);
+            return true;
+        });
+
+        const rarityOrder = { 'legendary': 0, 'epic': 1, 'rare': 2, 'common': 3 };
         const rarityLabels = {
             legendary: { label: 'LEGENDARY', color: '#e74c3c', bg: '#2d1a1a' },
             epic:      { label: 'EPIC',      color: '#a55eea', bg: '#1e1a2d' },
             rare:      { label: 'RARE',      color: '#1e90ff', bg: '#1a1e2d' },
             common:    { label: 'COMMON',    color: '#888',    bg: '#2a2a2a' },
         };
+
         const groups = { legendary: [], epic: [], rare: [], common: [] };
-        allItems.forEach(it => {
-            if (it && it.name) {
-                const owned = collection.includes(it.name);
-                (groups[it.rarity] || groups.common).push({ ...it, owned });
-            }
+        uniqueItems.sort((a, b) => (rarityOrder[a.rarity] || 3) - (rarityOrder[b.rarity] || 3));
+        uniqueItems.forEach(it => {
+            const owned = collection.includes(it.name);
+            (groups[it.rarity] || groups.common).push({ ...it, owned });
         });
-        let html = `<p style="color:#888; font-size:0.85em; margin-bottom:15px;">획득한 아이템: <b style="color:#f1c40f;">${collection.length}</b> / ${allItems.filter(i=>i&&i.name).length}</p>`;
+
+        const total = uniqueItems.length;
+        const owned = collection.length;
+
+        let html = `<p style="color:#888; font-size:0.85em; margin-bottom:15px;">
+            해금: <b style="color:#f1c40f;">${owned}</b> / ${total}
+            <span style="color:#555; font-size:0.8em; margin-left:8px;">(구매 또는 사용한 아이템만 해금됩니다)</span>
+        </p>`;
+
         Object.entries(groups).forEach(([rarity, items]) => {
             if (items.length === 0) return;
             const { label, color, bg } = rarityLabels[rarity];
-            html += `<div style="margin-bottom:12px;"><div style="background:${bg}; color:${color}; font-size:0.7em; font-weight:700; padding:3px 8px; border-radius:4px; display:inline-block; margin-bottom:6px; letter-spacing:1px;">${label}</div>`;
+            html += `<div style="margin-bottom:12px;">
+                <div style="background:${bg}; color:${color}; font-size:0.7em; font-weight:700; padding:3px 8px; border-radius:4px; display:inline-block; margin-bottom:6px; letter-spacing:1px;">${label}</div>`;
             items.forEach(it => {
-                html += `<div style="padding:8px 10px; background:#111; border-radius:6px; margin-bottom:4px; border-left:3px solid ${color}; opacity:${it.owned ? '1' : '0.3'};">
-                    <div style="color:${color}; font-weight:700; font-size:0.9em;">${it.owned ? '✅' : '🔒'} ${it.name}</div>
-                    <div style="color:#666; font-size:0.78em; margin-top:3px;">${it.desc}</div>
-                </div>`;
+                if (it.owned) {
+                    html += `<div style="padding:8px 10px; background:#111; border-radius:6px; margin-bottom:4px; border-left:3px solid ${color};">
+                        <div style="color:${color}; font-weight:700; font-size:0.9em;">✅ ${it.name}</div>
+                        <div style="color:#666; font-size:0.78em; margin-top:3px;">${it.desc}</div>
+                    </div>`;
+                } else {
+                    html += `<div style="padding:8px 10px; background:#0a0a0a; border-radius:6px; margin-bottom:4px; border-left:3px solid #333;">
+                        <div style="color:#444; font-weight:700; font-size:0.9em;">🔒 ???</div>
+                        <div style="color:#333; font-size:0.78em; margin-top:3px;">???</div>
+                    </div>`;
+                }
             });
             html += `</div>`;
         });
+
         document.getElementById('collection-list').innerHTML = html;
     }
     document.getElementById('collection-modal').style.display = show ? 'flex' : 'none';
