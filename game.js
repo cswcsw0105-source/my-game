@@ -707,6 +707,8 @@ window.buyItem = (event, idx) => {
                 player.acc -= it.penalty[player.name];
                 writeLog(`[패널티] 명중률 -${it.penalty[player.name]}% 적용`);
             }
+            if (it.critBonus) player.crit = (player.crit || 5) + it.critBonus;
+            if (it.critMult)  player.critMult = (player.critMult || 1.8) + it.critMult;
             if (it.unlockSkill) {
                 player.unlockedSkill = it.unlockSkill;
                 writeLog(`[스킬 해제] 🔥 ${it.unlockSkill} 스킬 획득!`);
@@ -855,9 +857,10 @@ function updateUi() {
     document.getElementById('potion-t').innerText = player.potions;
     document.getElementById('shop-hp-t').innerText = `${Math.max(0, player.curHp)}/${player.maxHp}`;
     document.getElementById('shop-gold-t').innerText = gold;
-    // 기존 p-acc-val 줄 교체
     document.getElementById('p-acc-val').innerText = `${Math.min(100, 85 + player.acc)}%`;
-    // 아래 두 줄 추가
+    document.getElementById('p-crit-val').innerText = `${player.crit || 5}%`;
+    document.getElementById('p-lifesteal-val').innerText = `${Math.round((player.lifesteal || 0) * 100)}%`;
+    document.getElementById('p-acc-val').innerText = `${Math.min(100, 85 + player.acc)}%`;
     document.getElementById('p-crit-val').innerText = `${player.crit || 5}%`;
     document.getElementById('p-lifesteal-val').innerText = `${Math.round((player.lifesteal || 0) * 100)}%`;
 
