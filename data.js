@@ -91,25 +91,26 @@ const permanentUpgrades = [
 ];
 
 const equipmentPool = [
+    const equipmentPool = [
     // ===== 워리어 전용 =====
-    { name: "거인족의 대검",      type: "atk", value: 22, price: 90,  rarity: "epic",      onlyFor: ["워리어"], bonusAtk: 22, unlockSkill: "대회전",  evolTrigger: "attack2",  desc: "워리어 전용. 공격력(+22). [💥 대회전] 스킬 해제. 공격 전직 조건." },
-    { name: "미스릴 흉갑",        type: "hp",  value: 80, def: 16, price: 90,  rarity: "epic",      onlyFor: ["워리어"], bonusHp: 40, evolTrigger: "defense2", desc: "워리어 전용. 체력(+80), 방어(+16). 방어구 전직 조건." },
-    { name: "용사의 방패",        type: "hp",  value: 50, def: 14, price: 60,  rarity: "rare",      onlyFor: ["워리어"], evolTrigger: "defense2", desc: "워리어 전용. 체력(+50), 방어(+14). 방어구 전직 조건." },
-    { name: "전쟁의 도끼",        type: "atk", value: 18, price: 70,  rarity: "rare",      onlyFor: ["워리어"], evolTrigger: "attack2",  desc: "워리어 전용. 공격력(+18). 공격 전직 조건." },
+    { name: "거인족의 대검",      type: "atk", value: 22, price: 90,  rarity: "epic",      onlyFor: ["워리어"], unlockSkill: "대회전",  evolTrigger: "attack2",  desc: "워리어 전용. 공격력(+22). [💥 대회전] 스킬 해제." },
+    { name: "미스릴 흉갑",        type: "hp",  value: 80, def: 16, price: 90,  rarity: "epic",      onlyFor: ["워리어"], bonusHp: 40, evolTrigger: "defense2", desc: "워리어 전용. 체력(+80), 방어(+16)." },
+    { name: "용사의 방패",        type: "hp",  value: 50, def: 14, price: 60,  rarity: "rare",      onlyFor: ["워리어"], evolTrigger: "defense2", desc: "워리어 전용. 체력(+50), 방어(+14)." },
+    { name: "전쟁의 도끼",        type: "atk", value: 18, price: 70,  rarity: "rare",      onlyFor: ["워리어"], evolTrigger: "attack2",  desc: "워리어 전용. 공격력(+18)." },
     { name: "분노의 투구",        type: "atk", value: 12, price: 50,  rarity: "common",    onlyFor: ["워리어"], penalty: {'워리어': 10}, desc: "워리어 전용. 공격력(+12). 방어 성공률 -10%." },
 
     // ===== 헌터 전용 =====
-    { name: "정령왕의 활",        type: "atk", value: 22, price: 95,  rarity: "epic",      onlyFor: ["헌터"], bonusAtk: 20, unlockSkill: "폭풍화살", evolTrigger: "bow",    desc: "헌터 전용. 공격력(+22). [🌪️ 폭풍화살] 스킬 해제. 활 전직 조건." },
-    { name: "암살자의 단검",      type: "atk", value: 18, price: 70,  rarity: "rare",      onlyFor: ["헌터"], bonusAtk: 15, evolTrigger: "dagger",  desc: "헌터 전용. 공격력(+18). 단검 전직 조건." },
-    { name: "독화살 통",          type: "atk", value: 14, price: 55,  rarity: "rare",      onlyFor: ["헌터"], evolTrigger: "bow",     desc: "헌터 전용. 공격력(+14). 활 전직 조건." },
-    { name: "그림자 망토",        type: "hp",  value: 40, def: 4, price: 45,  rarity: "common",    onlyFor: ["헌터"], evolTrigger: "dagger",  desc: "헌터 전용. 체력(+40), 방어(+4). 단검 전직 조건." },
+    { name: "정령왕의 활",        type: "atk", value: 22, price: 95,  rarity: "epic",      onlyFor: ["헌터"], bonusAtk: 20, unlockSkill: "폭풍화살", evolTrigger: "bow",    desc: "헌터 전용. 공격력(+22). [🌪️ 폭풍화살] 스킬 해제." },
+    { name: "암살자의 단검",      type: "atk", value: 18, price: 70,  rarity: "rare",      onlyFor: ["헌터"], bonusAtk: 15, evolTrigger: "dagger",  desc: "헌터 전용. 공격력(+18)." },
+    { name: "독화살 통",          type: "atk", value: 14, price: 55,  rarity: "rare",      onlyFor: ["헌터"], evolTrigger: "bow",     desc: "헌터 전용. 공격력(+14)." },
+    { name: "그림자 망토",        type: "hp",  value: 40, def: 4, price: 45,  rarity: "common",    onlyFor: ["헌터"], evolTrigger: "dagger",  desc: "헌터 전용. 체력(+40), 방어(+4)." },
     { name: "사냥꾼의 장갑",      type: "acc", value: 18, price: 50,  rarity: "common",    onlyFor: ["헌터"], desc: "헌터 전용. 명중률(+18%)." },
 
     // ===== 마법사 전용 =====
-    { name: "대마법사의 지팡이",  type: "atk", value: 28, price: 100, rarity: "epic",      onlyFor: ["마법사"], bonusAtk: 25, unlockSkill: "메테오",  evolTrigger: "staff",   desc: "마법사 전용. 공격력(+28). [🔥 메테오] 스킬 해제. 지팡이 전직 조건." },
-    { name: "학자의 로브",        type: "hp",  value: 50, def: 6, price: 45,  rarity: "common",    onlyFor: ["마법사"], bonusAcc: 12, evolTrigger: "robe",    desc: "마법사 전용. 체력(+50), 방어(+6), 명중률(+12%). 로브 전직 조건." },
-    { name: "마력 증폭기",        type: "atk", value: 20, price: 75,  rarity: "rare",      onlyFor: ["마법사"], evolTrigger: "staff",   desc: "마법사 전용. 공격력(+20). 지팡이 전직 조건." },
-    { name: "정령의 로브",        type: "hp",  value: 65, def: 8, price: 65,  rarity: "rare",      onlyFor: ["마법사"], evolTrigger: "robe",    desc: "마법사 전용. 체력(+65), 방어(+8). 로브 전직 조건." },
+    { name: "대마법사의 지팡이",  type: "atk", value: 28, price: 100, rarity: "epic",      onlyFor: ["마법사"], bonusAtk: 25, unlockSkill: "메테오",  evolTrigger: "staff",   desc: "마법사 전용. 공격력(+28). [🔥 메테오] 스킬 해제." },
+    { name: "학자의 로브",        type: "hp",  value: 50, def: 6, price: 45,  rarity: "common",    onlyFor: ["마법사"], bonusAcc: 12, evolTrigger: "robe",    desc: "마법사 전용. 체력(+50), 방어(+6), 명중률(+12%)." },
+    { name: "마력 증폭기",        type: "atk", value: 20, price: 75,  rarity: "rare",      onlyFor: ["마법사"], evolTrigger: "staff",   desc: "마법사 전용. 공격력(+20)." },
+    { name: "정령의 로브",        type: "hp",  value: 65, def: 8, price: 65,  rarity: "rare",      onlyFor: ["마법사"], evolTrigger: "robe",    desc: "마법사 전용. 체력(+65), 방어(+8)." },
     { name: "마나 크리스탈",      type: "atk", value: 15, price: 50,  rarity: "common",    onlyFor: ["마법사"], desc: "마법사 전용. 공격력(+15)." },
 
     // ===== 공용 =====
