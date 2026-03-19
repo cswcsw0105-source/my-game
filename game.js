@@ -861,7 +861,7 @@ function updateUi() {
     document.getElementById('p-acc-val').innerText = `${Math.min(100, 85 + player.acc)}%`;
     document.getElementById('p-crit-val').innerText = `${player.crit || 5}%`;
     document.getElementById('p-lifesteal-val').innerText = `${Math.round((player.lifesteal || 0) * 100)}%`;
-    document.getElementById('p-acc-val').innerText = `${Math.min(100, 85 + player.acc)}%`;
+    document.getElementById('p-acc-val').innerText = `${Math.min(95, 85 + player.acc)}%`;
     document.getElementById('p-crit-val').innerText = `${player.crit || 5}%`;
     document.getElementById('p-lifesteal-val').innerText = `${Math.round((player.lifesteal || 0) * 100)}%`;
 
