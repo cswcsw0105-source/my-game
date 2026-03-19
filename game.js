@@ -229,18 +229,20 @@ window.buyPermUpgrade = (id) => {
 window.selectJobAndStart = (job) => {
     const perma = getPermaStats();
     player = {
-        ...jobBase[job],
-        curHp: jobBase[job].hp + perma.hp,
-        maxHp: jobBase[job].hp + perma.hp,
-        atk: jobBase[job].atk + perma.atk,
-        def: jobBase[job].def + perma.def,
-        acc: perma.acc,
-        items: [], extraAtk: 0, potions: perma.potion,
-        extraDef: 0, unlockedSkill: null,
-        lifesteal: 0, hasRegenPotion: false,
-        baseJob: jobBase[job].name,
-        evolved: false
-    };
+    ...jobBase[job],
+    curHp: jobBase[job].hp + perma.hp,
+    maxHp: jobBase[job].hp + perma.hp,
+    atk: jobBase[job].atk + perma.atk,
+    def: jobBase[job].def + perma.def,
+    acc: perma.acc,
+    crit: 5,        // 기본 치명타 확률 5%
+    critMult: 1.8,  // 치명타 배율 180%
+    items: [], extraAtk: 0, potions: perma.potion,
+    extraDef: 0, unlockedSkill: null,
+    lifesteal: 0, hasRegenPotion: false,
+    baseJob: jobBase[job].name,
+    evolved: false
+};
     floor = 1;
     gold = 0;
     totalGoldEarned = 0;
@@ -398,34 +400,41 @@ function renderActions() {
 window.useAction = (type) => {
     potionUsedThisTurn = false;
     if (type === '공격') {
-        let multiplier = 1.0; let effectMsg = "";
-        const relKey = relations[player.name] ? player.name : player.baseJob;
-        if (!enemy.isBoss && relations[relKey]) {
-            if (relations[relKey].strong === enemy.job) { multiplier = 1.5; effectMsg = "<b style='color:#2ed573'>(상성 우위!)</b> "; }
-            else if (relations[relKey].weak === enemy.job) { multiplier = 0.8; effectMsg = "<b style='color:#ff4757'>(상성 열세..)</b> "; }
-        }
-        if (Math.random() * 100 < (85 + player.acc)) {
-            let baseDmg = player.atk + player.extraAtk + Math.floor(Math.random() * 8);
-            let finalDmg = Math.max(1, Math.floor(baseDmg * multiplier) - enemy.def);
-            enemy.curHp -= finalDmg;
-            writeLog(`[명중] ${effectMsg}적에게 ${finalDmg} 피해!`);
-            if (player.lifesteal > 0) {
-                const heal = Math.floor(finalDmg * player.lifesteal);
-                player.curHp = Math.min(player.maxHp, player.curHp + heal);
-                writeLog(`[흡혈] 💉 ${heal} 체력 흡수!`);
-            }
-        } else writeLog(`[빗나감] 공격 실패!`);
-        if (enemy.curHp <= 0) return winBattle();
-    } else if (type === '궁극기') {
-        let ultDmg = player.atk + player.extraAtk + 40;
-        enemy.curHp -= ultDmg;
-        writeLog(`[궁극기] ${player.unlockedSkill} 작렬!!! 방어력 무시 ${ultDmg} 피해!`);
+    let multiplier = 1.0; let effectMsg = "";
+    const relKey = relations[player.name] ? player.name : player.baseJob;
+    if (!enemy.isBoss && relations[relKey]) {
+        if (relations[relKey].strong === enemy.job) { multiplier = 1.5; effectMsg = "<b style='color:#2ed573'>(상성 우위!)</b> "; }
+        else if (relations[relKey].weak === enemy.job) { multiplier = 0.8; effectMsg = "<b style='color:#ff4757'>(상성 열세..)</b> "; }
+    }
+    // 명중률 100% 캡
+    const accRate = Math.min(100, 85 + player.acc);
+    if (Math.random() * 100 < accRate) {
+        let baseDmg = player.atk + player.extraAtk + Math.floor(Math.random() * 8);
+        // 치명타 체크
+        let isCrit = Math.random() * 100 < player.crit;
+        if (isCrit) { baseDmg = Math.floor(baseDmg * player.critMult); effectMsg += "<b style='color:#f1c40f'>💥 치명타!</b> "; }
+        let finalDmg = Math.max(1, Math.floor(baseDmg * multiplier) - enemy.def);
+        enemy.curHp -= finalDmg;
+        writeLog(`[명중] ${effectMsg}적에게 ${finalDmg} 피해!`);
         if (player.lifesteal > 0) {
-            const heal = Math.floor(ultDmg * player.lifesteal);
+            const heal = Math.floor(finalDmg * player.lifesteal);
             player.curHp = Math.min(player.maxHp, player.curHp + heal);
             writeLog(`[흡혈] 💉 ${heal} 체력 흡수!`);
         }
-        if (enemy.curHp <= 0) return winBattle();
+    } else writeLog(`[빗나감] 공격 실패!`);
+    if (enemy.curHp <= 0) return winBattle();
+    } else if (type === '궁극기') {
+    let ultDmg = player.atk + player.extraAtk + 40;
+    const isCrit = Math.random() * 100 < player.crit;
+    if (isCrit) { ultDmg = Math.floor(ultDmg * player.critMult); }
+    enemy.curHp -= ultDmg;
+    writeLog(`[궁극기] ${player.unlockedSkill} 작렬!!! ${isCrit ? '💥 치명타! ' : ''}방어력 무시 ${ultDmg} 피해!`);
+    if (player.lifesteal > 0) {
+        const heal = Math.floor(ultDmg * player.lifesteal);
+        player.curHp = Math.min(player.maxHp, player.curHp + heal);
+        writeLog(`[흡혈] 💉 ${heal} 체력 흡수!`);
+    }
+    if (enemy.curHp <= 0) return winBattle();
     } else if (type === '방패방어') {
         if (Math.random() * 100 < 70) { defendingTurns = 2; writeLog(`[성공] 🛡️ 2턴간 피해 60% 감소!`); }
         else writeLog(`[실패] 방패 방어 실패!`);
