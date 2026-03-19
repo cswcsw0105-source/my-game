@@ -291,18 +291,30 @@ function spawnEnemy() {
     regenTurns = 0; regenAmount = 0;
     potionUsedThisTurn = false;
 
-    // 10층마다 보스
     if (floor % 10 === 0) {
-        const bossHp = floor <= 10
-            ? 150 + floor * 15
-            : 200 + floor * 24;
-        const bossAtk = floor <= 10
-            ? 8 + floor * 2
-            : 12 + floor * 3.5;
+        // 보스 — 구간별 급격한 상승
+        let bossHp, bossAtk, bossDef;
+        if (floor <= 10) {
+            bossHp = 200 + floor * 20;
+            bossAtk = 12 + floor * 3;
+            bossDef = 3 + Math.floor(floor / 3);
+        } else if (floor <= 30) {
+            bossHp = 400 + floor * 30;
+            bossAtk = 20 + floor * 5;
+            bossDef = 8 + Math.floor(floor / 2);
+        } else if (floor <= 60) {
+            bossHp = 800 + floor * 40;
+            bossAtk = 35 + floor * 7;
+            bossDef = 15 + Math.floor(floor / 2);
+        } else {
+            bossHp = 1500 + floor * 55;
+            bossAtk = 60 + floor * 10;
+            bossDef = 25 + Math.floor(floor / 2);
+        }
         enemy = {
             name: `👑 [보스] ${floor}층 군주`, job: '보스',
             hp: bossHp, curHp: bossHp,
-            atk: bossAtk, def: 2 + Math.floor(floor / 3),
+            atk: bossAtk, def: bossDef,
             isBoss: true, turnCount: 1, bossCharge: false
         };
         writeLog(`🚨 경고: ${floor}층의 지배자가 나타났습니다!`);
@@ -312,21 +324,33 @@ function spawnEnemy() {
         if (randomJob === lastEnemyJob) randomJob = eJobs[Math.floor(Math.random() * eJobs.length)];
         lastEnemyJob = randomJob;
 
-        // 1~10층: 낮은 난이도
-        const mobHp = floor <= 10
-            ? 30 + floor * 8
-            : 55 + floor * 13;
-        const mobAtk = floor <= 10
-            ? 5 + floor * 1.5
-            : 10 + floor * 2.5;
-        const mobDef = floor <= 10
-            ? Math.floor(floor / 3)
-            : 2 + Math.floor(floor / 2);
+        let mobHp, mobAtk, mobDef;
+        if (floor <= 10) {
+            // 1~10층: 쉬움
+            mobHp  = 30 + floor * 8;
+            mobAtk = 5  + floor * 1.5;
+            mobDef = Math.floor(floor / 4);
+        } else if (floor <= 30) {
+            // 11~30층: 보통
+            mobHp  = 100 + floor * 15;
+            mobAtk = 18  + floor * 3;
+            mobDef = 4   + Math.floor(floor / 3);
+        } else if (floor <= 60) {
+            // 31~60층: 어려움
+            mobHp  = 300 + floor * 22;
+            mobAtk = 35  + floor * 5;
+            mobDef = 10  + Math.floor(floor / 2);
+        } else {
+            // 61~100층: 매우 어려움
+            mobHp  = 700 + floor * 30;
+            mobAtk = 65  + floor * 8;
+            mobDef = 20  + Math.floor(floor / 2);
+        }
 
         enemy = {
             name: `[${randomJob}형] ${floor}층 괴수`, job: randomJob,
             hp: Math.floor(mobHp), curHp: Math.floor(mobHp),
-            atk: Math.floor(mobAtk), def: mobDef,
+            atk: Math.floor(mobAtk), def: Math.floor(mobDef),
             isBoss: false
         };
     }
@@ -889,16 +913,30 @@ function dungeonClear() {
             <p style="color:#e0e0e0; font-size:1.1em; margin:15px 0;">
                 <b style="color:#f1c40f;">${player.name}</b>이(가) 100층을 정복했습니다!
             </p>
-            <p style="color:#2ed573; font-size:0.95em;">💰 보존 골드: <b>${savedGold}G</b></p>
-            <p style="color:#888; font-size:0.9em;">전설로 기록되었습니다.</p>
-            <button onclick="location.reload()" style="background:#f1c40f; color:#111; margin-top:20px; padding:12px 30px; font-size:1em; font-weight:700;">
-                🏠 메인으로 돌아가기
-            </button>
+            <p style="color:#2ed573; font-size:0.95em; margin-bottom:5px;">💰 보존 골드: <b>${savedGold}G</b></p>
+            <p style="color:#888; font-size:0.85em; margin-bottom:25px;">전설로 기록되었습니다.</p>
+            <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+                <button onclick="startInfiniteMode()" style="background:#9b59b6; color:#fff; padding:14px 24px; font-size:1em; font-weight:700;">
+                    ♾️ 무한모드 도전
+                </button>
+                <button onclick="location.reload()" style="background:#f1c40f; color:#111; padding:14px 24px; font-size:1em; font-weight:700;">
+                    🏠 메인으로 돌아가기
+                </button>
+            </div>
+            <p style="color:#555; font-size:0.8em; margin-top:15px;">무한모드: 101층부터 끝없이 계속됩니다.</p>
         </div>
     `;
     writeLog(`🏆 ${player.name}이(가) 100층을 클리어했습니다!!!`);
 }
 
+window.startInfiniteMode = () => {
+    floor = 101;
+    document.querySelector('.screen').innerHTML = '';
+    document.getElementById('battle-area').style.display = 'block';
+    writeLog(`♾️ [무한모드] 101층부터 끝없는 도전이 시작됩니다!`);
+    spawnEnemy();
+    updateUi();
+};
 function gameOver() {
     saveRank();
     // 골드 10% 보존
