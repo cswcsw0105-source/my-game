@@ -11,6 +11,13 @@ firebase.initializeApp({
 const auth = firebase.auth();
 const db = firebase.firestore();
 
+// v6.1 영구강화 초기화 (구버전 데이터 리셋)
+if (!localStorage.getItem('perma_migrated_v61')) {
+    localStorage.removeItem('perma_stats');
+    localStorage.removeItem('perma_buy_count');
+    localStorage.removeItem('saved_gold');
+    localStorage.setItem('perma_migrated_v61', 'true');
+}
 let floor = 1, gold = 0, player = null, enemy = null;
 let defendingTurns = 0, dodgingTurns = 0, shieldedTurns = 0;
 let regenTurns = 0, regenAmount = 0;
