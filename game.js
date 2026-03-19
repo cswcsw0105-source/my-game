@@ -51,7 +51,6 @@ function enterBattleLayout() {
     document.getElementById('sidebar-normal').style.display = 'none';
     document.getElementById('sidebar-battle').style.display = 'flex';
     document.getElementById('log').style.display = 'none';
-    document.getElementById('log-battle').innerHTML = '';
 }
 function exitBattleLayout() {
     document.getElementById('sidebar-normal').style.display = 'flex';
@@ -93,12 +92,18 @@ auth.onAuthStateChanged((user) => {
         document.getElementById('user-info').innerText = user.email.split('@')[0] + " 님";
         document.getElementById('logout-btn').style.display = 'inline-block';
         document.getElementById('login-area').style.display = 'none';
+        // 처음엔 반드시 일반 사이드바 표시
+        document.getElementById('sidebar-normal').style.display = 'flex';
+        document.getElementById('sidebar-battle').style.display = 'none';
+        document.getElementById('log').style.display = 'block';
         showPreGameScreen();
         loadRank();
     } else {
         currentUser = null;
         document.getElementById('login-area').style.display = 'block';
         document.getElementById('start-area').style.display = 'none';
+        document.getElementById('sidebar-normal').style.display = 'flex';
+        document.getElementById('sidebar-battle').style.display = 'none';
     }
 });
 
