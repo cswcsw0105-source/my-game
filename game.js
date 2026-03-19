@@ -492,16 +492,25 @@ function winBattle() {
     player.curHp = Math.min(player.maxHp, player.curHp + Math.floor(player.maxHp * 0.15));
     writeLog(`[승리] ${gain}G 획득 및 체력 소량 회복.${bonusMsg}`);
 
-    // 100층 보스 클리어 시 던전 클리어
-    if (floor === 100 && enemy.isBoss) {
-        return dungeonClear();
+    // 100층 보스 클리어
+    if (floor === 100 && enemy.isBoss) return dungeonClear();
+
+    const clearedFloor = floor;
+    floor++;
+
+    // 층 해금 체크
+    checkFloorUnlock(clearedFloor);
+
+    // 10층 전직 체크 — clearedFloor가 10일 때
+    if (clearedFloor === 10 && !player.evolved) {
+        if (floor > 1 && floor % 3 === 0) pendingShop = true;
+        spawnEnemy();
+        setTimeout(() => checkEvolution(), 300);
+        return;
     }
 
-    floor++;
-checkFloorUnlock(floor - 1);
-if ((floor - 1) === 10) checkEvolution();  // floor++ 후에 floor-1이 10인지 체크
-if (floor > 1 && floor % 3 === 0) pendingShop = true;
-spawnEnemy();
+    if (floor > 1 && floor % 3 === 0) pendingShop = true;
+    spawnEnemy();
 }
 
 function openShop() {
