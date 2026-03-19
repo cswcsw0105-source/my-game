@@ -957,7 +957,48 @@ function updateUi() {
         }
     }
 }
+// 타격감 효과
+function showDmgFloat(dmg, isCrit, isPlayer) {
+    const battleArea = document.getElementById('battle-area');
+    if (!battleArea) return;
+    const el = document.createElement('div');
+    el.style.cssText = `
+        position:absolute; font-weight:900; font-size:${isCrit ? '2em' : '1.4em'};
+        color:${isPlayer ? '#ff4757' : '#2ed573'};
+        text-shadow: 0 0 10px ${isCrit ? '#f1c40f' : 'transparent'};
+        pointer-events:none; z-index:999;
+        left:${isPlayer ? '15%' : '60%'}; top:30%;
+        animation: dmgFloat 1s ease forwards;
+    `;
+    el.innerText = `${isCrit ? '💥' : ''}${dmg}`;
+    battleArea.style.position = 'relative';
+    battleArea.appendChild(el);
+    setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 1000);
+}
 
+function triggerCritEffect() {
+    const screen = document.querySelector('.screen');
+    if (screen) {
+        screen.classList.add('crit-flash');
+        setTimeout(() => screen.classList.remove('crit-flash'), 500);
+    }
+}
+
+function triggerShakeEffect() {
+    const eHp = document.getElementById('e-hp');
+    if (eHp) {
+        eHp.classList.add('shake');
+        setTimeout(() => eHp.classList.remove('shake'), 400);
+    }
+}
+
+function triggerBossWarning(on) {
+    const screen = document.querySelector('.screen');
+    if (screen) {
+        if (on) screen.classList.add('boss-warning');
+        else screen.classList.remove('boss-warning');
+    }
+}
 function writeLog(msg) {
     const battleSidebar = document.getElementById('sidebar-battle');
     const isBattle = battleSidebar && battleSidebar.style.display === 'flex';
