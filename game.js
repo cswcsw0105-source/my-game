@@ -1164,13 +1164,7 @@ window.toggleCollection = (show) => {
             if (!i || !i.name || seen.has(i.name)) return false;
             seen.add(i.name); return true;
         });
-        const rarityOrder = { 'legendary':0, 'epic':1, 'rare':2, 'common':3 };
-        const rarityLabels = {
-            legendary: { label:'LEGENDARY', color:'#e74c3c', bg:'#2d1a1a' },
-            epic:      { label:'EPIC',      color:'#a55eea', bg:'#1e1a2d' },
-            rare:      { label:'RARE',      color:'#1e90ff', bg:'#1a1e2d' },
-            common:    { label:'COMMON',    color:'#888',    bg:'#2a2a2a' },
-        };
+            
         const groups = { legendary:[], epic:[], rare:[], common:[] };
         uniqueItems.sort((a,b) => (rarityOrder[a.rarity]||3)-(rarityOrder[b.rarity]||3));
         uniqueItems.forEach(it => {
@@ -1206,12 +1200,6 @@ if (relicItems.length > 0) {
 }
 
 // 나머지 장비들 희귀도별 표시
-const rarityLabels = {
-    legendary: { label:'LEGENDARY', color:'#e74c3c', bg:'#2d1a1a' },
-    epic:      { label:'EPIC',      color:'#a55eea', bg:'#1e1a2d' },
-    rare:      { label:'RARE',      color:'#1e90ff', bg:'#1a1e2d' },
-    common:    { label:'COMMON',    color:'#888',    bg:'#2a2a2a' },
-};
 const groups = { legendary:[], epic:[], rare:[], common:[] };
 equipItems.sort((a,b) => (rarityOrder[a.rarity]||3)-(rarityOrder[b.rarity]||3));
 equipItems.forEach(it => {
