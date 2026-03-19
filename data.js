@@ -70,29 +70,24 @@ const floorUnlocksWizard = {
     45: { name: "신계의 마법진", type: "atk", value: 60, price: 160, rarity: "legendary", onlyFor: ["마법사","위저드","소환사"], unlockSkill: "차원 붕괴", desc: "45층 달성 해금. 마법사 계열 전용. 공격력(+60). [차원 붕괴] 스킬 해제." },
 };
 
-// 영구 강화 상점 (부활 전)
+// 영구 강화 — 각 스탯 20단계, 점진적 비용 증가
+function generateUpgrades(id, name, effectKey, baseEffect, baseCost, costMult) {
+    return Array.from({length: 20}, (_, i) => ({
+        id: `${id}_${i+1}`,
+        name: `${name} Lv.${i+1}`,
+        desc: `${name} +${baseEffect * (i+1)} 영구 적용 (누적)`,
+        effect: { [effectKey]: baseEffect },
+        price: Math.floor(baseCost * Math.pow(costMult, i)),
+        maxBuy: 1
+    }));
+}
+
 const permanentUpgrades = [
-    { id: 'perm_hp1',  name: "생명력 강화 I",   desc: "최대 체력 +20 영구 적용",  effect: { hp: 20 },  price: 30,  maxBuy: 1 },
-    { id: 'perm_hp2',  name: "생명력 강화 II",  desc: "최대 체력 +30 영구 적용",  effect: { hp: 30 },  price: 60,  maxBuy: 1 },
-    { id: 'perm_hp3',  name: "생명력 강화 III", desc: "최대 체력 +50 영구 적용",  effect: { hp: 50 },  price: 120, maxBuy: 1 },
-    { id: 'perm_hp4',  name: "생명력 강화 IV",  desc: "최대 체력 +80 영구 적용",  effect: { hp: 80 },  price: 220, maxBuy: 1 },
-    { id: 'perm_hp5',  name: "생명력 강화 V",   desc: "최대 체력 +120 영구 적용", effect: { hp: 120 }, price: 400, maxBuy: 1 },
-    { id: 'perm_atk1', name: "공격력 강화 I",   desc: "공격력 +3 영구 적용",      effect: { atk: 3 },  price: 40,  maxBuy: 1 },
-    { id: 'perm_atk2', name: "공격력 강화 II",  desc: "공격력 +5 영구 적용",      effect: { atk: 5 },  price: 80,  maxBuy: 1 },
-    { id: 'perm_atk3', name: "공격력 강화 III", desc: "공격력 +8 영구 적용",      effect: { atk: 8 },  price: 160, maxBuy: 1 },
-    { id: 'perm_atk4', name: "공격력 강화 IV",  desc: "공격력 +12 영구 적용",     effect: { atk: 12 }, price: 280, maxBuy: 1 },
-    { id: 'perm_atk5', name: "공격력 강화 V",   desc: "공격력 +18 영구 적용",     effect: { atk: 18 }, price: 500, maxBuy: 1 },
-    { id: 'perm_def1', name: "방어력 강화 I",   desc: "방어력 +2 영구 적용",      effect: { def: 2 },  price: 35,  maxBuy: 1 },
-    { id: 'perm_def2', name: "방어력 강화 II",  desc: "방어력 +4 영구 적용",      effect: { def: 4 },  price: 70,  maxBuy: 1 },
-    { id: 'perm_def3', name: "방어력 강화 III", desc: "방어력 +6 영구 적용",      effect: { def: 6 },  price: 140, maxBuy: 1 },
-    { id: 'perm_def4', name: "방어력 강화 IV",  desc: "방어력 +10 영구 적용",     effect: { def: 10 }, price: 250, maxBuy: 1 },
-    { id: 'perm_def5', name: "방어력 강화 V",   desc: "방어력 +15 영구 적용",     effect: { def: 15 }, price: 450, maxBuy: 1 },
-    { id: 'perm_acc1', name: "명중률 강화 I",   desc: "명중률 +3% 영구 적용",     effect: { acc: 3 },  price: 30,  maxBuy: 1 },
-    { id: 'perm_acc2', name: "명중률 강화 II",  desc: "명중률 +5% 영구 적용",     effect: { acc: 5 },  price: 70,  maxBuy: 1 },
-    { id: 'perm_acc3', name: "명중률 강화 III", desc: "명중률 +8% 영구 적용",     effect: { acc: 8 },  price: 150, maxBuy: 1 },
-    { id: 'perm_pot1', name: "포션 지급 I",     desc: "시작 시 포션 1개 지급",    effect: { potion: 1 }, price: 25, maxBuy: 1 },
-    { id: 'perm_pot2', name: "포션 지급 II",    desc: "시작 시 포션 2개 지급",    effect: { potion: 2 }, price: 80, maxBuy: 1 },
-    { id: 'perm_pot3', name: "포션 지급 III",   desc: "시작 시 포션 3개 지급",    effect: { potion: 3 }, price: 180, maxBuy: 1 },
+    ...generateUpgrades('hp',  '체력',   'hp',     20,  20,  1.35),
+    ...generateUpgrades('atk', '공격력', 'atk',    3,   30,  1.4),
+    ...generateUpgrades('def', '방어력', 'def',    2,   25,  1.4),
+    ...generateUpgrades('acc', '명중률', 'acc',    2,   25,  1.45),
+    ...generateUpgrades('pot', '포션',   'potion', 1,   40,  1.5),
 ];
 
 const equipmentPool = [
