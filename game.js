@@ -103,13 +103,15 @@ function showPreGameScreen() {
     const hunterUnlocked = getUnlockedFloors('헌터');
     const wizardUnlocked = getUnlockedFloors('마법사');
 
-    document.getElementById('start-area').style.display = 'block';
     document.getElementById('start-area').innerHTML = `
-        <div style="text-align:center; margin-bottom:20px;">
-            <h2 style="color:#f1c40f; margin-bottom:5px;">⚔️ 던전 입장</h2>
-            <p style="color:#888; font-size:0.85em;">보존 골드: <b style="color:#f1c40f;">${savedGold}G</b></p>
-            ${unlockedFloors.length > 0 ? `<p style="color:#2ed573; font-size:0.8em;">🔓 해금 층: ${unlockedFloors.join(', ')}층</p>` : ''}
-        </div>
+    <div style="text-align:center; margin-bottom:20px;">
+        <h2 style="color:#f1c40f; margin-bottom:5px;">⚔️ 던전 입장</h2>
+        <p style="color:#888; font-size:0.85em;">보존 골드: <b style="color:#f1c40f;">${savedGold}G</b></p>
+        ${globalUnlocked.length > 0 ? `<p style="color:#f1c40f; font-size:0.8em;">🔓 공용 해금: ${globalUnlocked.join(', ')}층</p>` : ''}
+        ${warriorUnlocked.length > 0 ? `<p style="color:#ff4757; font-size:0.8em;">🔓 워리어: ${warriorUnlocked.join(', ')}층</p>` : ''}
+        ${hunterUnlocked.length > 0 ? `<p style="color:#2ed573; font-size:0.8em;">🔓 헌터: ${hunterUnlocked.join(', ')}층</p>` : ''}
+        ${wizardUnlocked.length > 0 ? `<p style="color:#1e90ff; font-size:0.8em;">🔓 마법사: ${wizardUnlocked.join(', ')}층</p>` : ''}
+    </div>
 
         <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:20px;">
             ${['Warrior','Hunter','Wizard'].map(job => `
