@@ -1178,29 +1178,68 @@ window.toggleCollection = (show) => {
             (groups[it.rarity] || groups.common).push({ ...it, owned });
         });
         let html = `<p style="color:#888; font-size:0.85em; margin-bottom:15px;">
-            해금: <b style="color:#f1c40f;">${collection.length}</b> / ${uniqueItems.length}
-            <span style="color:#555; font-size:0.8em; margin-left:8px;">(구매한 아이템만 해금됩니다)</span>
-        </p>`;
-        Object.entries(groups).forEach(([rarity, items]) => {
-            if (items.length === 0) return;
-            const { label, color, bg } = rarityLabels[rarity];
-            html += `<div style="margin-bottom:12px;"><div style="background:${bg}; color:${color}; font-size:0.7em; font-weight:700; padding:3px 8px; border-radius:4px; display:inline-block; margin-bottom:6px; letter-spacing:1px;">${label}</div>`;
-            items.forEach(it => {
-                if (it.owned) {
-                    html += `<div style="padding:8px 10px; background:#111; border-radius:6px; margin-bottom:4px; border-left:3px solid ${color};">
-                        <div style="color:${color}; font-weight:700; font-size:0.9em;">✅ ${it.name}${it.type==='relic'?' ✨':''}</div>
-                        <div style="color:#666; font-size:0.78em; margin-top:3px;">${it.desc}</div>
-                    </div>`;
-                } else {
-                    html += `<div style="padding:8px 10px; background:#0a0a0a; border-radius:6px; margin-bottom:4px; border-left:3px solid #333;">
-                        <div style="color:#444; font-weight:700; font-size:0.9em;">🔒 ???</div>
-                        <div style="color:#333; font-size:0.78em; margin-top:3px;">???</div>
-                    </div>`;
-                }
-            });
-            html += `</div>`;
-        });
-        document.getElementById('collection-list').innerHTML = html;
+    해금: <b style="color:#f1c40f;">${collection.length}</b> / ${uniqueItems.length}
+    <span style="color:#555; font-size:0.8em; margin-left:8px;">(구매한 아이템만 해금됩니다)</span>
+</p>`;
+
+// 유물 섹션 따로 표시
+const relicItems = uniqueItems.filter(i => relicPool.some(r => r.name === i.name));
+const equipItems = uniqueItems.filter(i => !relicPool.some(r => r.name === i.name));
+
+if (relicItems.length > 0) {
+    html += `<div style="margin-bottom:16px; border-bottom:1px solid #333; padding-bottom:12px;">
+        <div style="background:#2a2a0a; color:#f1c40f; font-size:0.7em; font-weight:700; padding:3px 8px; border-radius:4px; display:inline-block; margin-bottom:8px; letter-spacing:1px;">✨ RELIC (유물)</div>`;
+    relicItems.forEach(it => {
+        if (it.owned) {
+            html += `<div style="padding:8px 10px; background:#111; border-radius:6px; margin-bottom:4px; border-left:3px solid #f1c40f;">
+                <div style="color:#f1c40f; font-weight:700; font-size:0.9em;">✅ ✨ ${it.name}</div>
+                <div style="color:#666; font-size:0.78em; margin-top:3px;">${it.desc}</div>
+            </div>`;
+        } else {
+            html += `<div style="padding:8px 10px; background:#0a0a0a; border-radius:6px; margin-bottom:4px; border-left:3px solid #333;">
+                <div style="color:#444; font-weight:700; font-size:0.9em;">🔒 ???</div>
+                <div style="color:#333; font-size:0.78em; margin-top:3px;">???</div>
+            </div>`;
+        }
+    });
+    html += `</div>`;
+}
+
+// 나머지 장비들 희귀도별 표시
+const rarityOrder = { 'legendary':0, 'epic':1, 'rare':2, 'common':3 };
+const rarityLabels = {
+    legendary: { label:'LEGENDARY', color:'#e74c3c', bg:'#2d1a1a' },
+    epic:      { label:'EPIC',      color:'#a55eea', bg:'#1e1a2d' },
+    rare:      { label:'RARE',      color:'#1e90ff', bg:'#1a1e2d' },
+    common:    { label:'COMMON',    color:'#888',    bg:'#2a2a2a' },
+};
+const groups = { legendary:[], epic:[], rare:[], common:[] };
+equipItems.sort((a,b) => (rarityOrder[a.rarity]||3)-(rarityOrder[b.rarity]||3));
+equipItems.forEach(it => {
+    const owned = collection.includes(it.name);
+    (groups[it.rarity] || groups.common).push({ ...it, owned });
+});
+Object.entries(groups).forEach(([rarity, items]) => {
+    if (items.length === 0) return;
+    const { label, color, bg } = rarityLabels[rarity];
+    html += `<div style="margin-bottom:12px;"><div style="background:${bg}; color:${color}; font-size:0.7em; font-weight:700; padding:3px 8px; border-radius:4px; display:inline-block; margin-bottom:6px; letter-spacing:1px;">${label}</div>`;
+    items.forEach(it => {
+        if (it.owned) {
+            html += `<div style="padding:8px 10px; background:#111; border-radius:6px; margin-bottom:4px; border-left:3px solid ${color};">
+                <div style="color:${color}; font-weight:700; font-size:0.9em;">✅ ${it.name}</div>
+                <div style="color:#666; font-size:0.78em; margin-top:3px;">${it.desc}</div>
+            </div>`;
+        } else {
+            html += `<div style="padding:8px 10px; background:#0a0a0a; border-radius:6px; margin-bottom:4px; border-left:3px solid #333;">
+                <div style="color:#444; font-weight:700; font-size:0.9em;">🔒 ???</div>
+                <div style="color:#333; font-size:0.78em; margin-top:3px;">???</div>
+            </div>`;
+        }
+    });
+    html += `</div>`;
+});
+
+document.getElementById('collection-list').innerHTML = html;
     }
     document.getElementById('collection-modal').style.display = show?'flex':'none';
 };
