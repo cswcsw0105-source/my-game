@@ -123,3 +123,14 @@ const permanentUpgrades = [
     { name: "회복의 목걸이",      type: "hp",  value: 20, price: 40,  rarity: "common",    regenPotion: true, desc: "공용. 체력(+20). 포션 사용 시 2턴간 서서히 회복." },
     { name: "대지의 반지",        type: "hp",  value: 45, def: 5,  price: 50,  rarity: "common",    desc: "공용. 체력(+45), 방어(+5)." },
 ];
+// 유물 시스템
+const relicPool = [
+    { id: 'relic_warrior_berserk', name: "분노의 심장", desc: "체력이 30% 이하일 때 치명타 확률 100%.", onlyFor: ["워리어","나이트","버서커"], rarity: "legendary", effect: "berserk_crit", price: 180 },
+    { id: 'relic_warrior_shield',  name: "철벽의 의지", desc: "방어 성공 시 다음 공격 데미지 +50%.", onlyFor: ["워리어","나이트","버서커"], rarity: "epic", effect: "shield_empower", price: 120 },
+    { id: 'relic_hunter_dodge',    name: "그림자 반격", desc: "회피 성공 시 공격력의 60% 고정 피해 + 체력 10 흡혈.", onlyFor: ["헌터","궁수","암살자"], rarity: "legendary", effect: "dodge_counter", price: 180 },
+    { id: 'relic_hunter_execute',  name: "처형자의 표식", desc: "적 체력이 20% 이하일 때 공격력 2배.", onlyFor: ["헌터","궁수","암살자"], rarity: "epic", effect: "execute", price: 120 },
+    { id: 'relic_wizard_chain',    name: "연쇄 마법진", desc: "치명타 발동 시 즉시 한 번 더 공격.", onlyFor: ["마법사","위저드","소환사"], rarity: "legendary", effect: "chain_cast", price: 180 },
+    { id: 'relic_wizard_barrier',  name: "마력 방벽", desc: "방어막 성공 시 받은 피해의 30% 반사.", onlyFor: ["마법사","위저드","소환사"], rarity: "epic", effect: "barrier_reflect", price: 120 },
+    { id: 'relic_common_vampire',  name: "뱀파이어의 반지", desc: "킬 시 최대 체력의 15% 즉시 회복.", onlyFor: null, rarity: "epic", effect: "kill_heal", price: 130 },
+    { id: 'relic_common_gambler',  name: "도박사의 주사위", desc: "매 전투 시작 시 50% 확률로 공격력 +30%, 50% 확률로 -10%.", onlyFor: null, rarity: "rare", effect: "gambler", price: 80 },
+];
