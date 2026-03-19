@@ -20,9 +20,8 @@ let rerollCost = 10;
 let currentUser = null;
 let pendingShop = false;
 let potionUsedThisTurn = false;
-let totalGoldEarned = 0; // 누적 골드 추적
+let totalGoldEarned = 0;
 
-// 영구 강화 저장소 (localStorage)
 function getPermaStats() {
     return JSON.parse(localStorage.getItem('perma_stats') || '{"hp":0,"atk":0,"def":0,"acc":0,"potion":0}');
 }
@@ -34,12 +33,6 @@ function getPermaBuyCount() {
 }
 function savePermaBuyCount(counts) {
     localStorage.setItem('perma_buy_count', JSON.stringify(counts));
-}
-
-// 해금된 층 아이템
-function getUnlockedFloors(job) {
-    const key = job ? `unlocked_floors_${job}` : 'unlocked_floors_global';
-    return JSON.parse(localStorage.getItem(key) || '[]');
 }
 
 function getUnlockedFloors(job) {
@@ -89,7 +82,7 @@ auth.onAuthStateChanged((user) => {
         document.getElementById('user-info').innerText = user.email.split('@')[0] + " 님";
         document.getElementById('logout-btn').style.display = 'inline-block';
         document.getElementById('login-area').style.display = 'none';
-        showPreGameScreen(); // 로그인 후 부활 전 화면
+        showPreGameScreen();
         loadRank();
     } else {
         currentUser = null;
@@ -98,24 +91,25 @@ auth.onAuthStateChanged((user) => {
     }
 });
 
-// =============================================
-// 부활 전 화면 (직업 선택 + 영구 강화 상점)
-// =============================================
 function showPreGameScreen() {
+    const savedGold = parseInt(localStorage.getItem('saved_gold') || '0');
+    const perma = getPermaStats();
+    const buyCounts = getPermaBuyCount();
     const globalUnlocked = getUnlockedFloors(null);
     const warriorUnlocked = getUnlockedFloors('워리어');
     const hunterUnlocked = getUnlockedFloors('헌터');
     const wizardUnlocked = getUnlockedFloors('마법사');
 
+    document.getElementById('start-area').style.display = 'block';
     document.getElementById('start-area').innerHTML = `
-    <div style="text-align:center; margin-bottom:20px;">
-        <h2 style="color:#f1c40f; margin-bottom:5px;">⚔️ 던전 입장</h2>
-        <p style="color:#888; font-size:0.85em;">보존 골드: <b style="color:#f1c40f;">${savedGold}G</b></p>
-        ${globalUnlocked.length > 0 ? `<p style="color:#f1c40f; font-size:0.8em;">🔓 공용 해금: ${globalUnlocked.join(', ')}층</p>` : ''}
-        ${warriorUnlocked.length > 0 ? `<p style="color:#ff4757; font-size:0.8em;">🔓 워리어: ${warriorUnlocked.join(', ')}층</p>` : ''}
-        ${hunterUnlocked.length > 0 ? `<p style="color:#2ed573; font-size:0.8em;">🔓 헌터: ${hunterUnlocked.join(', ')}층</p>` : ''}
-        ${wizardUnlocked.length > 0 ? `<p style="color:#1e90ff; font-size:0.8em;">🔓 마법사: ${wizardUnlocked.join(', ')}층</p>` : ''}
-    </div>
+        <div style="text-align:center; margin-bottom:20px;">
+            <h2 style="color:#f1c40f; margin-bottom:5px;">⚔️ 던전 입장</h2>
+            <p style="color:#888; font-size:0.85em;">보존 골드: <b style="color:#f1c40f;">${savedGold}G</b></p>
+            ${globalUnlocked.length > 0 ? `<p style="color:#f1c40f; font-size:0.8em;">🔓 공용 해금: ${globalUnlocked.join(', ')}층</p>` : ''}
+            ${warriorUnlocked.length > 0 ? `<p style="color:#ff4757; font-size:0.8em;">🔓 워리어: ${warriorUnlocked.join(', ')}층</p>` : ''}
+            ${hunterUnlocked.length > 0 ? `<p style="color:#2ed573; font-size:0.8em;">🔓 헌터: ${hunterUnlocked.join(', ')}층</p>` : ''}
+            ${wizardUnlocked.length > 0 ? `<p style="color:#1e90ff; font-size:0.8em;">🔓 마법사: ${wizardUnlocked.join(', ')}층</p>` : ''}
+        </div>
 
         <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:20px;">
             ${['Warrior','Hunter','Wizard'].map(job => `
@@ -134,8 +128,6 @@ function showPreGameScreen() {
 
         <div style="background:#1a1a1a; border:1px solid #333; border-radius:10px; padding:15px;">
             <h4 style="color:#f1c40f; margin:0 0 12px 0;">🏪 영구 강화 상점</h4>
-            
-            <!-- 카테고리 탭 -->
             <div style="display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap;">
                 ${[
                     { key: 'hp',  label: '❤️ 체력',   color: '#2ed573' },
@@ -146,17 +138,14 @@ function showPreGameScreen() {
                 ].map(cat => `
                     <button onclick="switchUpgradeTab('${cat.key}')"
                         id="tab_${cat.key}"
-                        style="background:${cat.color === '#2ed573' ? '#1a2e1a' : '#1a1a2a'}; color:${cat.color}; border:1px solid ${cat.color}; border-radius:6px; padding:6px 12px; font-size:0.8em; font-weight:700; cursor:pointer; transition:all 0.2s;">
+                        style="background:#1a1a2a; color:${cat.color}; border:1px solid ${cat.color}; border-radius:6px; padding:6px 12px; font-size:0.8em; font-weight:700; cursor:pointer;">
                         ${cat.label}
                     </button>
                 `).join('')}
             </div>
-
-            <!-- 강화 목록 -->
             <div id="upgrade-list" style="max-height:220px; overflow-y:auto;"></div>
         </div>
     `;
-
     switchUpgradeTab('hp');
 }
 
@@ -165,7 +154,6 @@ window.switchUpgradeTab = (key) => {
     const buyCounts = getPermaBuyCount();
     const catUpgrades = permanentUpgrades.filter(u => u.id.startsWith(key + '_'));
 
-    // 탭 스타일
     ['hp','atk','def','acc','pot'].forEach(k => {
         const tab = document.getElementById(`tab_${k}`);
         if (tab) tab.style.opacity = k === key ? '1' : '0.4';
@@ -175,18 +163,15 @@ window.switchUpgradeTab = (key) => {
     if (!list) return;
 
     const totalBought = catUpgrades.filter(u => buyCounts[u.id]).length;
-    const nextIdx = totalBought; // 다음에 살 수 있는 단계
+    const nextIdx = totalBought;
 
     list.innerHTML = catUpgrades.map((up, i) => {
         const bought = !!buyCounts[up.id];
         const isNext = i === nextIdx;
         const canAfford = savedGold >= up.price;
-        const locked = i > nextIdx; // 순서대로만 구매 가능
+        const locked = i > nextIdx;
 
-        let bg = '#1a1a1a';
-        let borderColor = '#333';
-        let textColor = '#888';
-
+        let bg = '#1a1a1a', borderColor = '#333', textColor = '#888';
         if (bought) { bg = '#0a1a0a'; borderColor = '#2ed573'; textColor = '#2ed573'; }
         else if (isNext && canAfford) { bg = '#1a1a0a'; borderColor = '#f1c40f'; textColor = '#e0e0e0'; }
         else if (isNext && !canAfford) { borderColor = '#555'; textColor = '#666'; }
@@ -202,8 +187,8 @@ window.switchUpgradeTab = (key) => {
                 </div>
                 <button onclick="buyPermUpgrade('${up.id}')"
                     ${bought || locked || !canAfford ? 'disabled' : ''}
-                    style="background:${bought ? '#0a2a0a' : isNext && canAfford ? '#f1c40f' : '#222'}; 
-                           color:${bought ? '#2ed573' : isNext && canAfford ? '#111' : '#444'}; 
+                    style="background:${bought ? '#0a2a0a' : isNext && canAfford ? '#f1c40f' : '#222'};
+                           color:${bought ? '#2ed573' : isNext && canAfford ? '#111' : '#444'};
                            padding:5px 12px; font-size:0.8em; font-weight:700; margin:0; border-radius:5px;
                            cursor:${bought || locked || !canAfford ? 'not-allowed' : 'pointer'}; white-space:nowrap;">
                     ${bought ? '완료' : locked ? '잠금' : up.price + 'G'}
@@ -220,7 +205,6 @@ window.buyPermUpgrade = (id) => {
     const buyCounts = getPermaBuyCount();
     if (buyCounts[id] || savedGold < up.price) return;
 
-    // 순서 체크 — 이전 단계가 구매됐는지 확인
     const parts = id.split('_');
     const level = parseInt(parts[parts.length - 1]);
     const prefix = parts.slice(0, -1).join('_');
@@ -238,10 +222,10 @@ window.buyPermUpgrade = (id) => {
     if (up.effect.potion) perma.potion += up.effect.potion;
     savePermaStats(perma);
 
-    const key = prefix.replace('perm_', '');
-    switchUpgradeTab(key);
+    switchUpgradeTab(prefix.replace('perm_', ''));
     showPreGameScreen();
 };
+
 window.selectJobAndStart = (job) => {
     const perma = getPermaStats();
     player = {
@@ -267,16 +251,11 @@ window.selectJobAndStart = (job) => {
     spawnEnemy();
 };
 
-// =============================================
-// 전직 시스템 (10층 도달 시)
-// =============================================
 function checkEvolution() {
     if (player.evolved) return;
     const baseJob = player.baseJob;
     if (jobEvolutions[baseJob]) {
-        setTimeout(() => {
-            showEvolutionChoice(jobEvolutions[baseJob]);
-        }, 500); // 승리 로그 뜬 후 팝업
+        setTimeout(() => { showEvolutionChoice(jobEvolutions[baseJob]); }, 500);
     }
 }
 
@@ -326,13 +305,8 @@ window.evolve = (idx) => {
     updateUi(); renderActions();
 };
 
-// =============================================
-// 층 해금 체크
-// =============================================
 function checkFloorUnlock(f) {
     const baseJob = player.baseJob;
-
-    // 10층마다 공용 해금 (직업 무관, 글로벌 저장)
     if (f % 10 === 0 && floorUnlocks[f]) {
         const globalUnlocked = getUnlockedFloors(null);
         if (!globalUnlocked.includes(f)) {
@@ -340,14 +314,11 @@ function checkFloorUnlock(f) {
             writeLog(`🔓 <b style='color:#f1c40f'>${f}층 달성!</b> 공용 아이템 [${floorUnlocks[f].name}] 해금!`);
         }
     }
-
-    // 5층마다 직업별 해금 (해당 직업 계정에만 저장)
     if (f % 5 === 0 && f % 10 !== 0) {
         let unlockItem = null;
         if (baseJob === '워리어' && floorUnlocks[f]) unlockItem = floorUnlocks[f];
         else if (baseJob === '헌터' && floorUnlocksHunter[f]) unlockItem = floorUnlocksHunter[f];
         else if (baseJob === '마법사' && floorUnlocksWizard[f]) unlockItem = floorUnlocksWizard[f];
-
         if (unlockItem) {
             const jobUnlocked = getUnlockedFloors(baseJob);
             if (!jobUnlocked.includes(f)) {
@@ -358,9 +329,6 @@ function checkFloorUnlock(f) {
     }
 }
 
-// =============================================
-// 적 스폰 (1~10층 낮은 난이도, 11층부터 상승)
-// =============================================
 function spawnEnemy() {
     if (pendingShop) { pendingShop = false; return openShop(); }
     defendingTurns = 0; dodgingTurns = 0; shieldedTurns = 0;
@@ -368,29 +336,14 @@ function spawnEnemy() {
     potionUsedThisTurn = false;
 
     if (floor % 10 === 0) {
-        // 보스 — 구간별 급격한 상승
         let bossHp, bossAtk, bossDef;
-        if (floor <= 10) {
-            bossHp = 200 + floor * 20;
-            bossAtk = 12 + floor * 3;
-            bossDef = 3 + Math.floor(floor / 3);
-        } else if (floor <= 30) {
-            bossHp = 400 + floor * 30;
-            bossAtk = 20 + floor * 5;
-            bossDef = 8 + Math.floor(floor / 2);
-        } else if (floor <= 60) {
-            bossHp = 800 + floor * 40;
-            bossAtk = 35 + floor * 7;
-            bossDef = 15 + Math.floor(floor / 2);
-        } else {
-            bossHp = 1500 + floor * 55;
-            bossAtk = 60 + floor * 10;
-            bossDef = 25 + Math.floor(floor / 2);
-        }
+        if (floor <= 10) { bossHp = 200 + floor * 20; bossAtk = 12 + floor * 3; bossDef = 3 + Math.floor(floor / 3); }
+        else if (floor <= 30) { bossHp = 400 + floor * 30; bossAtk = 20 + floor * 5; bossDef = 8 + Math.floor(floor / 2); }
+        else if (floor <= 60) { bossHp = 800 + floor * 40; bossAtk = 35 + floor * 7; bossDef = 15 + Math.floor(floor / 2); }
+        else { bossHp = 1500 + floor * 55; bossAtk = 60 + floor * 10; bossDef = 25 + Math.floor(floor / 2); }
         enemy = {
             name: `👑 [보스] ${floor}층 군주`, job: '보스',
-            hp: bossHp, curHp: bossHp,
-            atk: bossAtk, def: bossDef,
+            hp: bossHp, curHp: bossHp, atk: bossAtk, def: bossDef,
             isBoss: true, turnCount: 1, bossCharge: false
         };
         writeLog(`🚨 경고: ${floor}층의 지배자가 나타났습니다!`);
@@ -399,30 +352,11 @@ function spawnEnemy() {
         let randomJob = eJobs[Math.floor(Math.random() * eJobs.length)];
         if (randomJob === lastEnemyJob) randomJob = eJobs[Math.floor(Math.random() * eJobs.length)];
         lastEnemyJob = randomJob;
-
         let mobHp, mobAtk, mobDef;
-        if (floor <= 10) {
-            // 1~10층: 쉬움
-            mobHp  = 30 + floor * 8;
-            mobAtk = 5  + floor * 1.5;
-            mobDef = Math.floor(floor / 4);
-        } else if (floor <= 30) {
-            // 11~30층: 보통
-            mobHp  = 100 + floor * 15;
-            mobAtk = 18  + floor * 3;
-            mobDef = 4   + Math.floor(floor / 3);
-        } else if (floor <= 60) {
-            // 31~60층: 어려움
-            mobHp  = 300 + floor * 22;
-            mobAtk = 35  + floor * 5;
-            mobDef = 10  + Math.floor(floor / 2);
-        } else {
-            // 61~100층: 매우 어려움
-            mobHp  = 700 + floor * 30;
-            mobAtk = 65  + floor * 8;
-            mobDef = 20  + Math.floor(floor / 2);
-        }
-
+        if (floor <= 10) { mobHp = 30 + floor * 8; mobAtk = 5 + floor * 1.5; mobDef = Math.floor(floor / 4); }
+        else if (floor <= 30) { mobHp = 100 + floor * 15; mobAtk = 18 + floor * 3; mobDef = 4 + Math.floor(floor / 3); }
+        else if (floor <= 60) { mobHp = 300 + floor * 22; mobAtk = 35 + floor * 5; mobDef = 10 + Math.floor(floor / 2); }
+        else { mobHp = 700 + floor * 30; mobAtk = 65 + floor * 8; mobDef = 20 + Math.floor(floor / 2); }
         enemy = {
             name: `[${randomJob}형] ${floor}층 괴수`, job: randomJob,
             hp: Math.floor(mobHp), curHp: Math.floor(mobHp),
@@ -571,15 +505,12 @@ function enemyTurn() {
 function winBattle() {
     let baseGain;
     if (floor <= 10) {
-        baseGain = enemy.isBoss
-            ? 50 + floor * 5
-            : 28 + Math.floor(Math.random() * 8) + floor * 2;
+        baseGain = enemy.isBoss ? 50 + floor * 5 : 28 + Math.floor(Math.random() * 8) + floor * 2;
     } else {
         baseGain = enemy.isBoss
             ? 65 + Math.floor(Math.random() * 30) + floor * 4
             : 14 + Math.floor(Math.random() * 12) + Math.floor(floor * 1.2);
     }
-
     let bonus = 0; let bonusMsg = "";
     const relKey = relations[player.name] ? player.name : player.baseJob;
     if (!enemy.isBoss && relations[relKey] && relations[relKey].weak === enemy.job) {
@@ -592,16 +523,12 @@ function winBattle() {
     player.curHp = Math.min(player.maxHp, player.curHp + Math.floor(player.maxHp * 0.15));
     writeLog(`[승리] ${gain}G 획득 및 체력 소량 회복.${bonusMsg}`);
 
-    // 100층 보스 클리어
     if (floor === 100 && enemy.isBoss) return dungeonClear();
 
     const clearedFloor = floor;
     floor++;
-
-    // 층 해금 체크
     checkFloorUnlock(clearedFloor);
 
-    // 10층 전직 체크 — clearedFloor가 10일 때
     if (clearedFloor === 10 && !player.evolved) {
         if (floor > 1 && floor % 3 === 0) pendingShop = true;
         spawnEnemy();
@@ -628,16 +555,11 @@ window.nextFloor = () => {
 
 function getUnlockedPoolItems() {
     const baseJob = player.baseJob;
-    const jobName = player.name;
     const result = [];
-
-    // 공용 해금 아이템 (글로벌)
     const globalUnlocked = getUnlockedFloors(null);
     globalUnlocked.forEach(f => {
         if (f % 10 === 0 && floorUnlocks[f]) result.push(floorUnlocks[f]);
     });
-
-    // 직업별 해금 아이템 (현재 baseJob 기준)
     const jobUnlocked = getUnlockedFloors(baseJob);
     jobUnlocked.forEach(f => {
         if (f % 5 === 0 && f % 10 !== 0) {
@@ -646,7 +568,6 @@ function getUnlockedPoolItems() {
             else if (baseJob === '마법사' && floorUnlocksWizard[f]) result.push(floorUnlocksWizard[f]);
         }
     });
-
     return result;
 }
 
@@ -667,7 +588,6 @@ function renderShopItems() {
     const picked = [];
     let tries = 0;
 
-    // 해금 아이템 우선 1개 포함
     if (unlockedItems.length > 0) {
         const randUnlocked = unlockedItems[Math.floor(Math.random() * unlockedItems.length)];
         if (!player.items.some(i => i.name === randUnlocked.name)) picked.push(randUnlocked);
@@ -707,7 +627,6 @@ function renderShopItems() {
         else if (it.type === 'potion') typeIcon = '🧪';
         if (it.lifesteal) typeIcon = '🩸';
         if (it.regenPotion) typeIcon = '💚';
-
         const isUnlocked = getUnlockedPoolItems().some(u => u.name === it.name);
 
         d.style.cssText = `background:#1a1a1a; border:1px solid ${borderColor}; border-radius:10px; padding:14px; display:flex; flex-direction:column; gap:8px; transition:transform 0.15s; cursor:default;`;
@@ -868,24 +787,16 @@ window.toggleRank = (show) => {
 window.toggleInv = (show) => {
     document.getElementById('inv-modal').style.display = show ? 'flex' : 'none';
 };
-window.onclick = function(event) {
-    if (event.target === document.getElementById('patch-modal')) togglePatchNotes(false);
-    if (event.target === document.getElementById('rank-modal')) toggleRank(false);
-    if (event.target === document.getElementById('inv-modal')) toggleInv(false);
-    if (event.target === document.getElementById('collection-modal')) toggleCollection(false);
-};
 window.toggleCollection = (show) => {
     if (show) {
         const collection = JSON.parse(localStorage.getItem('item_collection_v5') || '[]');
         const allItems = [...equipmentPool, ...Object.values(floorUnlocks), ...Object.values(floorUnlocksHunter), ...Object.values(floorUnlocksWizard)];
-        const rarityOrder = { 'legendary': 0, 'epic': 1, 'rare': 2, 'common': 3 };
         const rarityLabels = {
             legendary: { label: 'LEGENDARY', color: '#e74c3c', bg: '#2d1a1a' },
             epic:      { label: 'EPIC',      color: '#a55eea', bg: '#1e1a2d' },
             rare:      { label: 'RARE',      color: '#1e90ff', bg: '#1a1e2d' },
             common:    { label: 'COMMON',    color: '#888',    bg: '#2a2a2a' },
         };
-
         const groups = { legendary: [], epic: [], rare: [], common: [] };
         allItems.forEach(it => {
             if (it && it.name) {
@@ -893,28 +804,28 @@ window.toggleCollection = (show) => {
                 (groups[it.rarity] || groups.common).push({ ...it, owned });
             }
         });
-
         let html = `<p style="color:#888; font-size:0.85em; margin-bottom:15px;">획득한 아이템: <b style="color:#f1c40f;">${collection.length}</b> / ${allItems.filter(i=>i&&i.name).length}</p>`;
-
         Object.entries(groups).forEach(([rarity, items]) => {
             if (items.length === 0) return;
             const { label, color, bg } = rarityLabels[rarity];
-            html += `<div style="margin-bottom:12px;">
-                <div style="background:${bg}; color:${color}; font-size:0.7em; font-weight:700; padding:3px 8px; border-radius:4px; display:inline-block; margin-bottom:6px; letter-spacing:1px;">${label}</div>`;
+            html += `<div style="margin-bottom:12px;"><div style="background:${bg}; color:${color}; font-size:0.7em; font-weight:700; padding:3px 8px; border-radius:4px; display:inline-block; margin-bottom:6px; letter-spacing:1px;">${label}</div>`;
             items.forEach(it => {
-                const opacity = it.owned ? '1' : '0.3';
-                const icon = it.owned ? '✅' : '🔒';
-                html += `<div style="padding:8px 10px; background:#111; border-radius:6px; margin-bottom:4px; border-left:3px solid ${color}; opacity:${opacity};">
-                    <div style="color:${color}; font-weight:700; font-size:0.9em;">${icon} ${it.name}</div>
+                html += `<div style="padding:8px 10px; background:#111; border-radius:6px; margin-bottom:4px; border-left:3px solid ${color}; opacity:${it.owned ? '1' : '0.3'};">
+                    <div style="color:${color}; font-weight:700; font-size:0.9em;">${it.owned ? '✅' : '🔒'} ${it.name}</div>
                     <div style="color:#666; font-size:0.78em; margin-top:3px;">${it.desc}</div>
                 </div>`;
             });
             html += `</div>`;
         });
-
         document.getElementById('collection-list').innerHTML = html;
     }
     document.getElementById('collection-modal').style.display = show ? 'flex' : 'none';
+};
+window.onclick = function(event) {
+    if (event.target === document.getElementById('patch-modal')) togglePatchNotes(false);
+    if (event.target === document.getElementById('rank-modal')) toggleRank(false);
+    if (event.target === document.getElementById('inv-modal')) toggleInv(false);
+    if (event.target === document.getElementById('collection-modal')) toggleCollection(false);
 };
 
 function updateUi() {
@@ -936,34 +847,28 @@ function updateUi() {
     document.getElementById('shop-hp-t').innerText = `${Math.max(0, player.curHp)}/${player.maxHp}`;
     document.getElementById('shop-gold-t').innerText = gold;
 
-    // 장비 수집률 — 구매한 아이템 목록 기반
     const collection = JSON.parse(localStorage.getItem('item_collection_v5') || '[]');
     document.getElementById('collection-count').innerText = `${collection.length} / ${equipmentPool.length}`;
 
-    // 인벤토리 — 희귀도 순 정렬
     const invList = document.getElementById('inv-list');
     if (player.items.length === 0) {
         invList.innerHTML = '<div style="color:#555; text-align:center; padding:20px;">장비가 없습니다.</div>';
     } else {
         const rarityOrder = { 'legendary': 0, 'epic': 1, 'rare': 2, 'common': 3 };
         const sorted = [...player.items].sort((a, b) => (rarityOrder[a.rarity] || 3) - (rarityOrder[b.rarity] || 3));
-
         const rarityGroups = { legendary: [], epic: [], rare: [], common: [] };
         sorted.forEach(it => { (rarityGroups[it.rarity] || rarityGroups.common).push(it); });
-
         const rarityLabels = {
             legendary: { label: 'LEGENDARY', color: '#e74c3c', bg: '#2d1a1a' },
             epic:      { label: 'EPIC',      color: '#a55eea', bg: '#1e1a2d' },
             rare:      { label: 'RARE',      color: '#1e90ff', bg: '#1a1e2d' },
             common:    { label: 'COMMON',    color: '#888',    bg: '#2a2a2a' },
         };
-
         let html = '';
         Object.entries(rarityGroups).forEach(([rarity, items]) => {
             if (items.length === 0) return;
             const { label, color, bg } = rarityLabels[rarity];
-            html += `<div style="margin-bottom:10px;">
-                <div style="background:${bg}; color:${color}; font-size:0.7em; font-weight:700; padding:3px 8px; border-radius:4px; display:inline-block; margin-bottom:6px; letter-spacing:1px;">${label}</div>`;
+            html += `<div style="margin-bottom:10px;"><div style="background:${bg}; color:${color}; font-size:0.7em; font-weight:700; padding:3px 8px; border-radius:4px; display:inline-block; margin-bottom:6px; letter-spacing:1px;">${label}</div>`;
             items.forEach(it => {
                 html += `<div style="padding:8px 10px; background:#111; border-radius:6px; margin-bottom:4px; border-left:3px solid ${color};">
                     <div style="color:${color}; font-weight:700; font-size:0.9em;">${it.name}</div>
@@ -980,12 +885,12 @@ function writeLog(msg) {
     const log = document.getElementById('log');
     log.innerHTML = `<p style="margin:4px 0; border-bottom:1px solid #333; padding-bottom:4px;">${msg}</p>` + log.innerHTML;
 }
+
 function dungeonClear() {
     saveRank();
     const savedGold = Math.floor(totalGoldEarned * 0.1);
     const prevSaved = parseInt(localStorage.getItem('saved_gold') || '0');
     localStorage.setItem('saved_gold', prevSaved + savedGold);
-
     document.getElementById('battle-area').style.display = 'none';
     const screen = document.querySelector('.screen');
     screen.innerHTML = `
@@ -997,12 +902,8 @@ function dungeonClear() {
             <p style="color:#2ed573; font-size:0.95em; margin-bottom:5px;">💰 보존 골드: <b>${savedGold}G</b></p>
             <p style="color:#888; font-size:0.85em; margin-bottom:25px;">전설로 기록되었습니다.</p>
             <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
-                <button onclick="startInfiniteMode()" style="background:#9b59b6; color:#fff; padding:14px 24px; font-size:1em; font-weight:700;">
-                    ♾️ 무한모드 도전
-                </button>
-                <button onclick="location.reload()" style="background:#f1c40f; color:#111; padding:14px 24px; font-size:1em; font-weight:700;">
-                    🏠 메인으로 돌아가기
-                </button>
+                <button onclick="startInfiniteMode()" style="background:#9b59b6; color:#fff; padding:14px 24px; font-size:1em; font-weight:700;">♾️ 무한모드 도전</button>
+                <button onclick="location.reload()" style="background:#f1c40f; color:#111; padding:14px 24px; font-size:1em; font-weight:700;">🏠 메인으로 돌아가기</button>
             </div>
             <p style="color:#555; font-size:0.8em; margin-top:15px;">무한모드: 101층부터 끝없이 계속됩니다.</p>
         </div>
@@ -1018,13 +919,12 @@ window.startInfiniteMode = () => {
     spawnEnemy();
     updateUi();
 };
+
 function gameOver() {
     saveRank();
-    // 골드 10% 보존
     const savedGold = Math.floor(totalGoldEarned * 0.1);
     const prevSaved = parseInt(localStorage.getItem('saved_gold') || '0');
     localStorage.setItem('saved_gold', prevSaved + savedGold);
-
     document.getElementById('battle-area').style.display = 'none';
     const screen = document.querySelector('.screen');
     screen.innerHTML = `
@@ -1036,9 +936,7 @@ function gameOver() {
             </p>
             <p style="color:#2ed573; font-size:0.95em;">💰 보존 골드: <b>${savedGold}G</b> (다음 게임에 사용 가능)</p>
             <p style="color:#888; font-size:0.9em;">기록이 명예의 전당에 저장되었습니다.</p>
-            <button onclick="location.reload()" style="background:#ff4757; margin-top:20px; padding:12px 30px; font-size:1em;">
-                🔄 다시 도전하기
-            </button>
+            <button onclick="location.reload()" style="background:#ff4757; margin-top:20px; padding:12px 30px; font-size:1em;">🔄 다시 도전하기</button>
         </div>
     `;
     writeLog(`💀 ${floor}층 게임 오버. ${enemy ? enemy.name : ''}에게 패배.`);
