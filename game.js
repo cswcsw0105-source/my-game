@@ -1286,7 +1286,6 @@ function updateUi() {
         if (allEquipped.length === 0) {
             invList.innerHTML = '<div style="color:#555; text-align:center; padding:20px;">장비가 없습니다.</div>';
         } else {
-            const rarityOrder = { 'legendary':0, 'epic':1, 'rare':2, 'common':3 };
             const sorted = [...player.items].sort((a,b) => (rarityOrder[a.rarity]||3)-(rarityOrder[b.rarity]||3));
             const rarityGroups = { legendary:[], epic:[], rare:[], common:[] };
             sorted.forEach(it => { (rarityGroups[it.rarity]||rarityGroups.common).push(it); });
