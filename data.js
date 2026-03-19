@@ -72,11 +72,27 @@ const floorUnlocksWizard = {
 
 // 영구 강화 상점 (부활 전)
 const permanentUpgrades = [
-    { id: 'perm_hp',  name: "생명력 강화",   desc: "최대 체력 +30 영구 적용",  effect: { hp: 30 },      price: 30,  maxBuy: 5 },
-    { id: 'perm_atk', name: "공격력 강화",   desc: "공격력 +5 영구 적용",      effect: { atk: 5 },     price: 40,  maxBuy: 5 },
-    { id: 'perm_def', name: "방어력 강화",   desc: "방어력 +3 영구 적용",      effect: { def: 3 },     price: 35,  maxBuy: 5 },
-    { id: 'perm_acc', name: "명중률 강화",   desc: "명중률 +5% 영구 적용",     effect: { acc: 5 },     price: 30,  maxBuy: 3 },
-    { id: 'perm_pot', name: "포션 지급",     desc: "시작 시 포션 1개 지급",    effect: { potion: 1 },  price: 25,  maxBuy: 3 },
+    { id: 'perm_hp1',  name: "생명력 강화 I",   desc: "최대 체력 +20 영구 적용",  effect: { hp: 20 },  price: 30,  maxBuy: 1 },
+    { id: 'perm_hp2',  name: "생명력 강화 II",  desc: "최대 체력 +30 영구 적용",  effect: { hp: 30 },  price: 60,  maxBuy: 1 },
+    { id: 'perm_hp3',  name: "생명력 강화 III", desc: "최대 체력 +50 영구 적용",  effect: { hp: 50 },  price: 120, maxBuy: 1 },
+    { id: 'perm_hp4',  name: "생명력 강화 IV",  desc: "최대 체력 +80 영구 적용",  effect: { hp: 80 },  price: 220, maxBuy: 1 },
+    { id: 'perm_hp5',  name: "생명력 강화 V",   desc: "최대 체력 +120 영구 적용", effect: { hp: 120 }, price: 400, maxBuy: 1 },
+    { id: 'perm_atk1', name: "공격력 강화 I",   desc: "공격력 +3 영구 적용",      effect: { atk: 3 },  price: 40,  maxBuy: 1 },
+    { id: 'perm_atk2', name: "공격력 강화 II",  desc: "공격력 +5 영구 적용",      effect: { atk: 5 },  price: 80,  maxBuy: 1 },
+    { id: 'perm_atk3', name: "공격력 강화 III", desc: "공격력 +8 영구 적용",      effect: { atk: 8 },  price: 160, maxBuy: 1 },
+    { id: 'perm_atk4', name: "공격력 강화 IV",  desc: "공격력 +12 영구 적용",     effect: { atk: 12 }, price: 280, maxBuy: 1 },
+    { id: 'perm_atk5', name: "공격력 강화 V",   desc: "공격력 +18 영구 적용",     effect: { atk: 18 }, price: 500, maxBuy: 1 },
+    { id: 'perm_def1', name: "방어력 강화 I",   desc: "방어력 +2 영구 적용",      effect: { def: 2 },  price: 35,  maxBuy: 1 },
+    { id: 'perm_def2', name: "방어력 강화 II",  desc: "방어력 +4 영구 적용",      effect: { def: 4 },  price: 70,  maxBuy: 1 },
+    { id: 'perm_def3', name: "방어력 강화 III", desc: "방어력 +6 영구 적용",      effect: { def: 6 },  price: 140, maxBuy: 1 },
+    { id: 'perm_def4', name: "방어력 강화 IV",  desc: "방어력 +10 영구 적용",     effect: { def: 10 }, price: 250, maxBuy: 1 },
+    { id: 'perm_def5', name: "방어력 강화 V",   desc: "방어력 +15 영구 적용",     effect: { def: 15 }, price: 450, maxBuy: 1 },
+    { id: 'perm_acc1', name: "명중률 강화 I",   desc: "명중률 +3% 영구 적용",     effect: { acc: 3 },  price: 30,  maxBuy: 1 },
+    { id: 'perm_acc2', name: "명중률 강화 II",  desc: "명중률 +5% 영구 적용",     effect: { acc: 5 },  price: 70,  maxBuy: 1 },
+    { id: 'perm_acc3', name: "명중률 강화 III", desc: "명중률 +8% 영구 적용",     effect: { acc: 8 },  price: 150, maxBuy: 1 },
+    { id: 'perm_pot1', name: "포션 지급 I",     desc: "시작 시 포션 1개 지급",    effect: { potion: 1 }, price: 25, maxBuy: 1 },
+    { id: 'perm_pot2', name: "포션 지급 II",    desc: "시작 시 포션 2개 지급",    effect: { potion: 2 }, price: 80, maxBuy: 1 },
+    { id: 'perm_pot3', name: "포션 지급 III",   desc: "시작 시 포션 3개 지급",    effect: { potion: 3 }, price: 180, maxBuy: 1 },
 ];
 
 const equipmentPool = [
