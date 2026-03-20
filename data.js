@@ -18,27 +18,27 @@ const jobBase = {
 
 const jobEvolutions = {
     '워리어': [
-        { name: '나이트',  bonusAtk: 24, bonusDef: 18, bonusHp: 420, desc: '철벽 수호자. 방어력과 체력이 크게 증가한다.', ult: '신성한 강타' },
-        { name: '버서커',  bonusAtk: 42, bonusDef: 5,  bonusHp: 340, desc: '광전사. 공격력이 폭발하지만 체력이 줄어든다.', ult: '분노의 일격' },
+        { name: '나이트',  bonusAtk: 26, bonusDef: 18, bonusHp: 420, desc: '철벽 수호자. 방어력과 체력이 크게 증가한다.', ult: '신성한 강타' },
+        { name: '버서커',  bonusAtk: 43, bonusDef: 6,  bonusHp: 340, desc: '광전사. 공격력이 폭발하지만 체력이 줄어든다.', ult: '분노의 일격' },
     ],
     '헌터': [
-        { name: '궁수',   bonusAtk: 34, bonusDef: 6,  bonusHp: 370, bonusAcc: 15, desc: '원거리 특화. 공격력과 명중률이 상승한다.', ult: '폭풍화살' },
-        { name: '암살자', bonusAtk: 46, bonusDef: 4,  bonusHp: 320, desc: '그림자 암살자. 공격력이 크게 오르지만 방어가 약해진다.', ult: '그림자 찌르기' },
+        { name: '궁수',   bonusAtk: 35, bonusDef: 7,  bonusHp: 370, bonusAcc: 15, desc: '원거리 특화. 공격력과 명중률이 상승한다.', ult: '폭풍화살' },
+        { name: '암살자', bonusAtk: 45, bonusDef: 4,  bonusHp: 320, desc: '그림자 암살자. 공격력이 크게 오르지만 방어가 약해진다.', ult: '그림자 찌르기' },
     ],
     '마법사': [
-        { name: '위저드',  bonusAtk: 78, bonusDef: 2,  bonusHp: 260, desc: '고위 마법사. 마법 공격력이 폭발적으로 증가한다.', ult: '메테오' },
-        { name: '소환사',  bonusAtk: 58, bonusDef: 10, bonusHp: 320, desc: '소환사. 소환수의 방어막으로 생존력이 증가한다.', ult: '차원 붕괴' },
+        { name: '위저드',  bonusAtk: 70, bonusDef: 3,  bonusHp: 275, desc: '고위 마법사. 마법 공격력이 폭발적으로 증가한다.', ult: '메테오' },
+        { name: '소환사',  bonusAtk: 52, bonusDef: 11, bonusHp: 330, desc: '소환사. 소환수의 방어막으로 생존력이 증가한다.', ult: '차원 붕괴' },
     ],
 };
 
 // 궁극기 스펙 정의
 const ultSkills = {
     '신성한 강타': { desc: '신성한 힘으로 적을 강타. 방어력 무시 초대형 피해.', dmgMult: 4.5, stackRequired: 4 },
-    '분노의 일격': { desc: '분노가 폭발하여 적에게 광기의 피해를 입힌다.', dmgMult: 5.0, stackRequired: 3 },
-    '폭풍화살':   { desc: '바람의 힘을 담아 적을 꿰뚫는다.', dmgMult: 4.0, stackRequired: 3 },
-    '그림자 찌르기': { desc: '그림자 속에서 나타나 치명적인 일격을 가한다.', dmgMult: 5.5, stackRequired: 4 },
-    '메테오':     { desc: '하늘에서 거대한 운석을 소환한다.', dmgMult: 5.0, stackRequired: 3 },
-    '차원 붕괴':  { desc: '차원을 찢어 적에게 혼돈의 피해를 입힌다.', dmgMult: 4.5, stackRequired: 4 },
+    '분노의 일격': { desc: '분노가 폭발하여 적에게 광기의 피해를 입힌다.', dmgMult: 4.8, stackRequired: 3 },
+    '폭풍화살':   { desc: '바람의 힘을 담아 적을 꿰뚫는다.', dmgMult: 4.2, stackRequired: 3 },
+    '그림자 찌르기': { desc: '그림자 속에서 나타나 치명적인 일격을 가한다.', dmgMult: 5.2, stackRequired: 4 },
+    '메테오':     { desc: '하늘에서 거대한 운석을 소환한다.', dmgMult: 4.6, stackRequired: 4 },
+    '차원 붕괴':  { desc: '차원을 찢어 적에게 혼돈의 피해를 입힌다.', dmgMult: 4.3, stackRequired: 4 },
 };
 
 const floorUnlocks = {
@@ -155,7 +155,7 @@ const equipmentPool = [
 ];
 
 const relicPool = [
-    { id: 'relic_warrior_berserk', name: "분노의 심장",    desc: "체력이 30% 이하일 때 치명타 확률 100%.", onlyFor: ["워리어","나이트","버서커"], rarity: "legendary", effect: "berserk_crit",    price: 180 },
+    { id: 'relic_warrior_berserk', name: "분노의 심장",    desc: "체력이 30% 이하일 때 치명타 확률이 크게 증가(상한 90%).", onlyFor: ["워리어","나이트","버서커"], rarity: "legendary", effect: "berserk_crit",    price: 180 },
     { id: 'relic_warrior_shield',  name: "철벽의 의지",    desc: "방어 성공 시 다음 공격 데미지 +50%.",    onlyFor: ["워리어","나이트","버서커"], rarity: "epic",      effect: "shield_empower",  price: 120 },
     { id: 'relic_hunter_dodge',    name: "그림자 반격",    desc: "회피 성공 시 공격력의 60% 고정 피해 + 체력 10 흡혈.", onlyFor: ["헌터","궁수","암살자"], rarity: "legendary", effect: "dodge_counter", price: 180 },
     { id: 'relic_hunter_execute',  name: "처형자의 표식",  desc: "적 체력이 20% 이하일 때 공격력 2배.",    onlyFor: ["헌터","궁수","암살자"], rarity: "epic",      effect: "execute",         price: 120 },

@@ -81,6 +81,21 @@ function triggerBossWarning(on) {
     if (s) { if (on) s.classList.add('boss-warning'); else s.classList.remove('boss-warning'); }
 }
 
+// 치명타 확률 상한(100% 고정으로 원킬이 너무 자주 발생하는 문제 완화)
+const CRIT_CHANCE_CAP = 90;
+function getCritInfo() {
+    const rawCrit = player && typeof player.crit === 'number' ? player.crit : 5;
+    let effectiveCrit = rawCrit;
+    let isBerserkCrit = false;
+    if (player && player.relics && player.relics.includes('berserk_crit') && player.maxHp && player.curHp <= player.maxHp * 0.3) {
+        // 분노 유물: 치명타를 '강제로 올리지만', 최종 확률은 상한에 의해 100%가 되지 않음
+        effectiveCrit = 100;
+        isBerserkCrit = true;
+    }
+    effectiveCrit = Math.min(CRIT_CHANCE_CAP, Math.max(0, effectiveCrit));
+    return { rawCrit, effectiveCrit, isBerserkCrit };
+}
+
 function showUnlockPopup(title, body, color) {
     const popup = document.createElement('div');
     popup.style.cssText = `position:fixed;top:20px;right:20px;z-index:9999;background:#1a1a1a;border:2px solid ${color};border-radius:10px;padding:16px 20px;max-width:280px;box-shadow:0 4px 20px rgba(0,0,0,0.8);animation:slideIn 0.3s ease;`;
@@ -673,8 +688,9 @@ window.useAction = (type) => {
         const accRate=Math.min(95,85+player.acc);
         if(Math.random()*100<accRate){
             let baseDmg=player.atk+player.extraAtk+Math.floor(Math.random()*8);
-            let effectiveCrit=player.crit;
-            if(player.relics&&player.relics.includes('berserk_crit')&&player.curHp<=player.maxHp*0.3){effectiveCrit=100;effectMsg+="<b style='color:#ff4757'>🔥 분노!</b> ";}
+            const critInfo=getCritInfo();
+            let effectiveCrit=critInfo.effectiveCrit;
+            if(critInfo.isBerserkCrit){effectMsg+="<b style='color:#ff4757'>🔥 분노!</b> ";}
             let relicAtkMult=1;
             if(player.relics&&player.relics.includes('execute')&&enemy.curHp<=enemy.hp*0.2){relicAtkMult=2;effectMsg+="<b style='color:#e74c3c'>💀 처형!</b> ";}
             if(player.shieldEmpowered){relicAtkMult*=1.5;player.shieldEmpowered=false;effectMsg+="<b style='color:#3498db'>🛡️ 강화!</b> ";}
@@ -692,7 +708,7 @@ window.useAction = (type) => {
                 if(isCrit&&player.bonusSkills.includes('bonus_explode')){const ed=Math.floor((player.atk+player.extraAtk)*0.5);enemy.curHp-=ed;writeLog(`[스킬] 폭발 일격! ${ed} 추가 피해!`);showDmgFloat(ed,false,false);}
             }
             if(isCrit&&player.relics&&player.relics.includes('chain_cast')&&enemy.curHp>0){
-                setTimeout(()=>{if(!enemy||enemy.curHp<=0)return;const cd=Math.max(1,Math.floor((player.atk+player.extraAtk)*0.7)-enemy.def);enemy.curHp-=cd;writeLog(`[유물] ⚡ 연쇄 마법! ${cd} 추가 피해!`);showDmgFloat(cd,false,false);if(enemy.curHp<=0)winBattle();else updateUi();},250);
+                setTimeout(()=>{if(!enemy||enemy.curHp<=0)return;const cd=Math.max(1,Math.floor((player.atk+player.extraAtk)*0.55)-enemy.def);enemy.curHp-=cd;writeLog(`[유물] ⚡ 연쇄 마법! ${cd} 추가 피해!`);showDmgFloat(cd,false,false);if(enemy.curHp<=0)winBattle();else updateUi();},250);
             }
             if(enemy.curHp<=0&&player.relics&&player.relics.includes('kill_heal')){const kh=Math.floor(player.maxHp*0.15);player.curHp=Math.min(player.maxHp,player.curHp+kh);writeLog(`[유물] 💚 킬 회복 ${kh}!`);}
         } else writeLog(`[빗나감] 공격 실패!`);
@@ -706,7 +722,8 @@ window.useAction = (type) => {
         const dmgMult = ultSpec ? ultSpec.dmgMult : 4.0;
         if (Math.random() < 0.5) {
             let ultDmg = Math.floor((player.atk + player.extraAtk) * dmgMult);
-            const isCrit = Math.random()*100 < player.crit;
+            const critInfo=getCritInfo();
+            const isCrit = Math.random()*100 < critInfo.effectiveCrit;
             if (isCrit) { ultDmg = Math.floor(ultDmg*player.critMult); triggerCritEffect(); }
             enemy.curHp -= ultDmg;
             showDmgFloat(ultDmg, isCrit, false); triggerShakeEffect();
@@ -1015,7 +1032,10 @@ function updateUi() {
     document.getElementById('p-atk-val').innerText=player.atk+player.extraAtk;
     document.getElementById('p-def-val').innerText=player.def+player.extraDef;
     document.getElementById('p-acc-val').innerText=`${Math.min(95,85+player.acc)}%`;
-    document.getElementById('p-crit-val').innerText=`${player.crit||5}%`;
+    const critInfo=getCritInfo();
+    document.getElementById('p-crit-val').innerText=`${Math.round(critInfo.effectiveCrit)}%`;
+    const critMultEl=document.getElementById('p-crit-mult-val');
+    if(critMultEl) critMultEl.innerText=`${(player.critMult||1.8).toFixed(2)}x`;
     document.getElementById('p-lifesteal-val').innerText=`${Math.round((player.lifesteal||0)*100)}%`;
     document.getElementById('e-name').innerText=enemy.name;
     document.getElementById('e-hp').style.width=`${Math.max(0,(enemy.curHp/enemy.hp)*100)}%`;
