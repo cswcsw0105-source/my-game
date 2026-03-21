@@ -42,7 +42,7 @@ let shopVisitCount = 0;
 let attackGcdUntil = 0;
 const ATTACK_GCD_MS = 500;
 /** 패치 노트/UI와 맞춰 두기 — 캐시 적용 여부 확인용 */
-const GAME_BUILD = '6.5.1b';
+const GAME_BUILD = '6.6.0';
 /** v6.5.1 핫픽스: 치명/흡혈 상한·명중 기본값 */
 const CRIT_SOFT_CAP = 65;
 const LIFESTEAL_SOFT_CAP = 0.85;
@@ -67,10 +67,50 @@ function saveSummonToStorage(s) {
     else localStorage.removeItem('summon_contract_json');
 }
 
-function getPermaStats() {
-    return JSON.parse(localStorage.getItem('perma_stats') || '{"hp":0,"atk":0,"def":0,"acc":0}');
+/** localStorage 깨짐/부분 저장 대비 — undefined 합산으로 NaN 방지 */
+function safeNum(v, fallback = 0) {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : fallback;
 }
-function savePermaStats(stats) { localStorage.setItem('perma_stats', JSON.stringify(stats)); }
+function getPermaStats() {
+    try {
+        const s = localStorage.getItem('perma_stats');
+        let raw = {};
+        if (s && s !== 'null' && s !== 'undefined') {
+            const p = JSON.parse(s);
+            if (p && typeof p === 'object' && !Array.isArray(p)) raw = p;
+        }
+        return {
+            hp: Math.max(0, safeNum(raw.hp, 0)),
+            atk: Math.max(0, safeNum(raw.atk, 0)),
+            def: Math.max(0, safeNum(raw.def, 0)),
+            acc: Math.max(0, safeNum(raw.acc, 0)),
+        };
+    } catch (e) {
+        return { hp: 0, atk: 0, def: 0, acc: 0 };
+    }
+}
+function getSavedGold() {
+    const n = parseInt(String(localStorage.getItem('saved_gold') ?? ''), 10);
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+}
+function savePermaStats(stats) {
+    const s = {
+        hp: Math.max(0, safeNum(stats && stats.hp, 0)),
+        atk: Math.max(0, safeNum(stats && stats.atk, 0)),
+        def: Math.max(0, safeNum(stats && stats.def, 0)),
+        acc: Math.max(0, safeNum(stats && stats.acc, 0)),
+    };
+    localStorage.setItem('perma_stats', JSON.stringify(s));
+}
+/** 한 번만: 깨진 perma_stats를 정상 JSON으로 덮어씀 */
+(function repairPermaStorageOnce() {
+    try {
+        if (localStorage.getItem('perma_repair_1')) return;
+        savePermaStats(getPermaStats());
+        localStorage.setItem('perma_repair_1', '1');
+    } catch (e) { /* ignore */ }
+})();
 function getPermaBuyCount() { return JSON.parse(localStorage.getItem('perma_buy_count') || '{}'); }
 function savePermaBuyCount(counts) { localStorage.setItem('perma_buy_count', JSON.stringify(counts)); }
 
@@ -125,15 +165,16 @@ function triggerBossWarning(on) {
 
 function getCritOverflowForMult() {
     if (!player) return 0;
-    let raw = typeof player.crit === 'number' ? player.crit : 5;
+    let raw = safeNum(player.crit, 5);
     if (player.relics && player.relics.includes('berserk_crit') && player.maxHp && player.curHp <= player.maxHp * 0.3) raw = 100;
     return Math.max(0, raw - CRIT_SOFT_CAP);
 }
 function getEffectiveCritMult() {
-    return (player.critMult || 1.8) + getCritOverflowForMult() * CRIT_OVERFLOW_TO_MULT;
+    const base = safeNum(player && player.critMult, 1.8);
+    return (base > 0 ? base : 1.8) + getCritOverflowForMult() * CRIT_OVERFLOW_TO_MULT;
 }
 function getCritInfo() {
-    const rawCrit = player && typeof player.crit === 'number' ? player.crit : 5;
+    const rawCrit = safeNum(player && player.crit, 5);
     let valueForCap = rawCrit;
     let isBerserkCrit = false;
     if (player && player.relics && player.relics.includes('berserk_crit') && player.maxHp && player.curHp <= player.maxHp * 0.3) {
@@ -144,17 +185,147 @@ function getCritInfo() {
     return { rawCrit, effectiveCrit, isBerserkCrit };
 }
 function getLifestealEffective() {
-    const r = player && typeof player.lifesteal === 'number' ? player.lifesteal : 0;
+    const r = safeNum(player && player.lifesteal, 0);
     return Math.min(LIFESTEAL_SOFT_CAP, Math.max(0, r));
 }
 function getLifestealOverflowAtk() {
-    const r = player && typeof player.lifesteal === 'number' ? player.lifesteal : 0;
+    const r = safeNum(player && player.lifesteal, 0);
     if (r <= LIFESTEAL_SOFT_CAP) return 0;
     return Math.floor((r - LIFESTEAL_SOFT_CAP) * 100);
 }
 function getEffectiveAttackPower() {
     if (!player) return 0;
-    return player.atk + (player.extraAtk || 0) + getLifestealOverflowAtk();
+    let base = safeNum(player.atk, 0) + safeNum(player.extraAtk, 0) + getLifestealOverflowAtk();
+    if (player._mercBattleAtkDebuff) base = Math.max(1, Math.floor(base * (1 + player._mercBattleAtkDebuff)));
+    return base;
+}
+
+function isMercenaryCaptainJob() {
+    return player && player.baseJob === '용병단장';
+}
+
+/** 상성 계산용 키: 용병단장 + 필드 용병 있으면 용병 직업(카멜레온) */
+function getAffinityRelKey() {
+    if (!player) return '';
+    if (isMercenaryCaptainJob() && player.fieldMerc && player.fieldMerc.mercHp > 0 && player.fieldMerc.mercJob) {
+        return player.fieldMerc.mercJob;
+    }
+    if (relations[player.name]) return player.name;
+    return player.baseJob;
+}
+
+function getMercGoldSkipCost() {
+    return 28 + floor * 6;
+}
+
+/** 필드 용병 피해 배율(고용 템 merc 스펙) */
+function getFieldMercAttackMult() {
+    if (!player || !player.fieldMerc || player.fieldMerc.mercHp <= 0) return 0;
+    const m = player.fieldMerc.merc;
+    if (!m) return 0.28;
+    if (m.kind === 'dmg') {
+        let mult = safeNum(m.mult, 0.28);
+        if (player.fieldMerc.infiniteGrowth) mult += safeNum(player.fieldMerc.growthStacks, 0) * 0.004;
+        return mult;
+    }
+    if (m.kind === 'both') return safeNum(m.dmgMult, 0.35);
+    if (m.kind === 'heal') return Math.max(0.15, safeNum(m.pct, 0.12) * 0.75);
+    return 0.28;
+}
+
+function buildFieldMercFromItem(item) {
+    const m = item.merc;
+    const mj = item.mercJob || '워리어';
+    const rarity = item.rarity || 'common';
+    const tier = { common: 1, rare: 1.2, epic: 1.45, legendary: 1.75, relic: 2.05 }[rarity] || 1;
+    const base = 48 + floor * 5;
+    const mercMaxHp = Math.max(20, Math.floor(base * tier + safeNum(player.maxHp, 100) * 0.14));
+    return {
+        sourceName: item.name,
+        mercJob: mj,
+        rarity,
+        infiniteGrowth: !!item.infiniteGrowth,
+        growthStacks: 0,
+        mercHp: mercMaxHp,
+        mercMaxHp: mercMaxHp,
+        merc: { ...m },
+    };
+}
+
+/** 일반 상점용: 용병 아이템 제외 */
+function getNonMercEquipmentPool() {
+    return equipmentPool.filter((i) => i && i.type !== 'merc');
+}
+
+function getMercCaptainShopPoolForRoll() {
+    const lc = Math.min(15, 2 + Math.floor(shopVisitCount / 5)),
+        ec = Math.min(35, 10 + Math.floor(shopVisitCount / 3)),
+        rc = Math.min(50, 30 + Math.floor(shopVisitCount / 4)),
+        cc = Math.max(0, 100 - lc - ec - rc);
+    const rand = Math.random() * 100;
+    if (rand < lc) {
+        const legs = mercenaryFullPool.filter((i) => i.rarity === 'legendary');
+        const rels = mercenaryFullPool.filter((i) => i.rarity === 'relic');
+        const pool = [...rels, ...legs];
+        return pool.length ? pool : mercenaryFullPool;
+    }
+    if (rand < lc + ec) {
+        const p = mercenaryFullPool.filter((i) => i.rarity === 'epic');
+        return p.length ? p : mercenaryFullPool;
+    }
+    if (rand < lc + ec + rc) {
+        const p = mercenaryFullPool.filter((i) => i.rarity === 'rare');
+        return p.length ? p : mercenaryFullPool;
+    }
+    const com = mercenaryFullPool.filter((i) => i.rarity === 'common');
+    return com.length ? com : mercenaryFullPool;
+}
+
+function tryMercenaryRandomEvent() {
+    if (!isMercenaryCaptainJob() || !player.fieldMerc || player.fieldMerc.mercHp <= 0) return;
+    if (Math.random() > 0.035) return;
+    const r = player.fieldMerc.rarity || 'common';
+    const low = r === 'common' || r === 'rare';
+    const high = r === 'epic' || r === 'legendary' || r === 'relic';
+    let neg = 0,
+        pos = 0;
+    if (low) {
+        neg = 0.38;
+        pos = 0.06;
+    } else if (high) {
+        neg = 0.004;
+        pos = 0.025;
+    } else {
+        neg = 0.12;
+        pos = 0.04;
+    }
+    const roll = Math.random();
+    if (roll < neg) {
+        if (high && Math.random() < 0.92) return;
+        player.mercNextBattleDebuff = { atkPct: -0.07 };
+        writeLog(`[용병 이벤트] 💢 술집 난투·사기 피해… <b>다음 전투</b> 공격력 일시 하락!`);
+        return;
+    }
+    if (roll < neg + pos) {
+        if (player.fieldMerc.infiniteGrowth) {
+            player.fieldMerc.growthStacks = safeNum(player.fieldMerc.growthStacks, 0) + 1;
+            writeLog(`[용병 이벤트] 🌟 루크의 성장! 무한 스택 +1 (누적 ${player.fieldMerc.growthStacks})`);
+            return;
+        }
+        if (high && Math.random() > 0.35) {
+            writeLog(`[용병 이벤트] 고급 용병은 흔들리지 않는다… (미미한 보상)`);
+            player.atk += 1;
+            return;
+        }
+        player.atk += 3;
+        player.crit += 1;
+        writeLog(`[용병 이벤트] ✨ 실전 경험! 공격력+3, 치명+1%`);
+        return;
+    }
+    if (player.fieldMerc.infiniteGrowth && Math.random() < 0.0009) {
+        player.fieldMerc.growthStacks = safeNum(player.fieldMerc.growthStacks, 0) + 2;
+        writeLog(`[용병 이벤트] 극히 드문 기적… 무한 성장 스택 +2!`);
+    }
 }
 
 function showUnlockPopup(title, body, color) {
@@ -200,7 +371,7 @@ auth.onAuthStateChanged((user) => {
 });
 
 function buildPermanentShopHtml() {
-    const savedGold = parseInt(localStorage.getItem('saved_gold') || '0');
+    const savedGold = getSavedGold();
     const buyCounts = getPermaBuyCount();
     const permaTot = getPermaStats();
     const sumLine = `<p style="color:#888;font-size:0.78em;margin:0 0 12px 0;line-height:1.5;">📌 <b>누적 영구 보너스</b> — 체력 <b style="color:#2ed573">+${permaTot.hp || 0}</b> · 공격 <b style="color:#f1c40f">+${permaTot.atk || 0}</b> · 방어 <b style="color:#1e90ff">+${permaTot.def || 0}</b> · 명중 <b style="color:#a55eea">+${permaTot.acc || 0}</b></p>`;
@@ -230,7 +401,7 @@ function buildPermanentShopHtml() {
 
 function showPreGameScreen() {
     exitBattleLayout();
-    const savedGold = parseInt(localStorage.getItem('saved_gold') || '0');
+    const savedGold = getSavedGold();
     const perma = getPermaStats();
     const globalUnlocked = getUnlockedFloors(null);
     const warriorUnlocked = getUnlockedFloors('워리어');
@@ -248,8 +419,8 @@ function showPreGameScreen() {
             ${hunterUnlocked.length>0?`<p style="color:#2ed573;font-size:0.8em;">🔓 헌터: ${hunterUnlocked.join(', ')}층</p>`:''}
             ${wizardUnlocked.length>0?`<p style="color:#1e90ff;font-size:0.8em;">🔓 마법사: ${wizardUnlocked.join(', ')}층</p>`:''}
         </div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;">
-            ${['Warrior','Hunter','Wizard'].map(job=>`
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px;max-width:520px;margin-left:auto;margin-right:auto;">
+            ${['Warrior','Hunter','Wizard','MercenaryCaptain'].map(job=>`
                 <div onclick="selectJobAndStart('${job}')" style="background:#1a1a1a;border:2px solid ${jobBase[job].color};border-radius:10px;padding:15px;cursor:pointer;text-align:center;transition:transform 0.15s;" onmouseenter="this.style.transform='translateY(-3px)'" onmouseleave="this.style.transform='translateY(0)'">
                     <div style="color:${jobBase[job].color};font-weight:700;font-size:1.1em;margin-bottom:8px;">${jobBase[job].name}</div>
                     <div style="color:#888;font-size:0.78em;line-height:1.6;">HP: <b style="color:#2ed573;">${jobBase[job].hp+perma.hp}</b><br>ATK: <b style="color:#f1c40f;">${jobBase[job].atk+perma.atk}</b><br>DEF: <b style="color:#1e90ff;">${jobBase[job].def+perma.def}</b></div>
@@ -272,7 +443,7 @@ window.buyPermUpgradeNext = (key) => {
 };
 
 window.buyPermUpgrade = (id) => {
-    const savedGold = parseInt(localStorage.getItem('saved_gold') || '0');
+    const savedGold = getSavedGold();
     const up = permanentUpgrades.find(u => u.id===id);
     if (!up) return;
     const buyCounts = getPermaBuyCount();
@@ -302,8 +473,13 @@ window.selectJobAndStart = (job) => {
         extraDef: 0, unlockedSkill: null, ultStack: 0, ultMaxStack: 0,
         lifesteal: 0, hasRegenPotion: false,
         baseJob: jobBase[job].name, evolved: false, shieldEmpowered: false,
-        summon: null, _awaitPlayerTurn: false
+        summon: null, _awaitPlayerTurn: false,
+        fieldMerc: null, mercCooldownTurns: 0, mercNextBattleDebuff: null, _mercBattleAtkDebuff: 0,
     };
+    if (job === 'MercenaryCaptain') {
+        const st = mercenaryHirePool.find((i) => i.name === '용병: 철검사 아렌');
+        if (st) player.items.push({ ...st });
+    }
     floor=1; gold=0; totalGoldEarned=0; rerollCost=10; shopVisitCount=0;
     document.getElementById('start-area').style.display='none';
     document.getElementById('battle-area').style.display='block';
@@ -312,7 +488,7 @@ window.selectJobAndStart = (job) => {
 };
 
 function checkEvolution() {
-    if (player.evolved) return;
+    if (player.evolved || player.baseJob === '용병단장') return;
     if (jobEvolutions[player.baseJob]) setTimeout(() => showEvolutionChoice(jobEvolutions[player.baseJob]), 500);
 }
 
@@ -535,6 +711,12 @@ window.resolveSkillEvent = (idx) => {
 
 // ===================== 대장간 =====================
 function showForgeEvent() {
+    if (isMercenaryCaptainJob() && player.items.length > 0 && player.items.every((i) => i.type === 'merc')) {
+        writeLog(`[이벤트층] ⚒️ 대장간: 장비 재료가 없어 지나갑니다.`);
+        if (floor > 1 && floor % 3 === 0) pendingShop = true;
+        spawnEnemy();
+        return;
+    }
     const commonItems = player.items.filter(i => i.rarity === 'common' && i.type !== 'merc');
     const rareItems = player.items.filter(i => i.rarity === 'rare' && i.type !== 'merc');
     const epicItems = player.items.filter(i => i.rarity === 'epic' && i.type !== 'merc');
@@ -622,7 +804,7 @@ const encounterEvents = [
     { title:"💀 피눈물 흘리는 여신상", desc:"여신상 앞에 섰습니다.", choices:[
         { label:"최대 체력 절반을 바치고 전설 아이템 획득", action:()=>{
             const s=Math.floor(player.maxHp*0.5); player.maxHp=Math.max(50,player.maxHp-s); player.curHp=Math.max(1,player.curHp-s);
-            const l=equipmentPool.filter(i=>i.rarity==='legendary'&&!player.items.some(p=>p.name===i.name));
+            const l=getNonMercEquipmentPool().filter(i=>i.rarity==='legendary'&&!player.items.some(p=>p.name===i.name));
             if(l.length>0){const it=l[Math.floor(Math.random()*l.length)];player.items.push(it);saveCollection(it.name);if(it.type!=='merc'){if(it.type==='atk')player.atk+=it.value;if(it.type==='hp'){player.maxHp+=it.value;player.curHp+=it.value;}if(it.critBonus)player.crit+=it.critBonus;if(it.critMult)player.critMult+=it.critMult;if(it.lifesteal)player.lifesteal+=it.lifesteal;}writeLog(`[이벤트] 💀 <b style='color:#e74c3c'>${it.name}</b> 획득!`);}
             else{gold+=200;writeLog(`[이벤트] 💀 골드 200G를 받았습니다.`);}
         }},
@@ -631,7 +813,7 @@ const encounterEvents = [
     { title:"🧙 떠돌이 상인", desc:"수상한 상인이 나타났습니다.", choices:[
         { label:"골드 50G로 랜덤 에픽 아이템", action:()=>{
             if(gold<50){writeLog(`[이벤트] 골드 부족!`);return;}gold-=50;
-            const e=equipmentPool.filter(i=>i.rarity==='epic'&&!player.items.some(p=>p.name===i.name));
+            const e=getNonMercEquipmentPool().filter(i=>i.rarity==='epic'&&!player.items.some(p=>p.name===i.name));
             if(e.length>0){const it=e[Math.floor(Math.random()*e.length)];player.items.push(it);saveCollection(it.name);if(it.type!=='merc'){if(it.type==='atk')player.atk+=it.value;if(it.type==='hp'){player.maxHp+=it.value;player.curHp+=it.value;}if(it.critBonus)player.crit+=it.critBonus;if(it.critMult)player.critMult+=it.critMult;}writeLog(`[이벤트] 🧙 <b style='color:#a55eea'>${it.name}</b> 획득!`);}
         }},
         {label:"거절한다",action:()=>writeLog(`[이벤트] 상인을 거절했습니다.`)}
@@ -732,9 +914,17 @@ function spawnEnemy() {
     defendingTurns=0; dodgingTurns=0; shieldedTurns=0;
     regenTurns=0; regenAmount=0; potionUsedThisTurn=false;
 
+    if (player && player.mercNextBattleDebuff && typeof player.mercNextBattleDebuff.atkPct === 'number') {
+        player._mercBattleAtkDebuff = player.mercNextBattleDebuff.atkPct;
+    } else if (player) {
+        player._mercBattleAtkDebuff = 0;
+    }
+    if (player) player.mercNextBattleDebuff = null;
+
     if (player.relics&&player.relics.includes('gambler')) {
-        if (Math.random()<0.5) { player.extraAtk=Math.floor(player.atk*0.3); writeLog(`[유물] 🎲 도박사: 행운! 공격력 +30%`); }
-        else { player.extraAtk=-Math.floor(player.atk*0.1); writeLog(`[유물] 🎲 도박사: 불운... 공격력 -10%`); }
+        const pa = safeNum(player.atk, 0);
+        if (Math.random()<0.5) { player.extraAtk=Math.floor(pa*0.3); writeLog(`[유물] 🎲 도박사: 행운! 공격력 +30%`); }
+        else { player.extraAtk=-Math.floor(pa*0.1); writeLog(`[유물] 🎲 도박사: 불운... 공격력 -10%`); }
     }
 
     if (floor%10===0) {
@@ -756,6 +946,15 @@ function spawnEnemy() {
         else if(floor<=60){mh=300+floor*22;ma=35+floor*5;md=10+Math.floor(floor/2);}
         else{mh=700+floor*30;ma=65+floor*8;md=20+Math.floor(floor/2);}
         enemy={name:`[${rj}형] ${floor}층 괴수`,job:rj,hp:Math.floor(mh),curHp:Math.floor(mh),atk:Math.floor(ma),def:Math.floor(md),isBoss:false,weakPoint:false};
+    }
+    if (isMercenaryCaptainJob() && !player.fieldMerc && player.mercCooldownTurns <= 0 && floor === 1) {
+        const mi = player.items.findIndex((i) => i.type === 'merc');
+        if (mi >= 0) {
+            const it = player.items[mi];
+            player.items.splice(mi, 1);
+            player.fieldMerc = buildFieldMercFromItem(it);
+            writeLog(`[용병단장] 첫 전투 생존: <b>${it.name}</b> 자동 전개 (인벤 1 소모)`);
+        }
     }
     player._awaitPlayerTurn = true;
     updateUi(); renderActions();
@@ -780,9 +979,22 @@ function renderActions() {
     defBtn.style.background='#888';
     const jn = player.name;
     if(['워리어','나이트','버서커'].includes(jn)){defBtn.innerText='🛡️ 방어 (70%)';defBtn.onclick=()=>useAction('방패방어');}
+    else if(player.baseJob === '용병단장'){defBtn.innerText='💨 회피 (75%)';defBtn.onclick=()=>useAction('회피');}
     else if(['헌터','궁수','암살자'].includes(jn)){defBtn.innerText='💨 회피 (75%)';defBtn.onclick=()=>useAction('회피');}
     else if(['마법사','위저드','소환사'].includes(jn)){defBtn.innerText='✨ 방어막 (60%)';defBtn.onclick=()=>useAction('방어막');}
     div.appendChild(defBtn);
+
+    if (isMercenaryCaptainJob() && player.mercCooldownTurns > 0 && (!player.fieldMerc || player.fieldMerc.mercHp <= 0)) {
+        const cost = getMercGoldSkipCost();
+        if (gold >= cost) {
+            const gBtn = document.createElement('button');
+            gBtn.style.background = '#f1c40f';
+            gBtn.style.color = '#111';
+            gBtn.innerText = `🪙 긴급 재가동 (${cost}G)`;
+            gBtn.onclick = () => mercGoldSkipCooldown();
+            div.appendChild(gBtn);
+        }
+    }
 
     // 궁극기 버튼 (20층 이상, 스택 표시)
     if (player.unlockedSkill && floor >= 20) {
@@ -837,7 +1049,7 @@ window.useAction = (type) => {
             player.ultStack = Math.min(player.ultMaxStack, player.ultStack + 1);
         }
         let multiplier=1.0, effectMsg="";
-        const relKey=relations[player.name]?player.name:player.baseJob;
+        const relKey=getAffinityRelKey();
         if(!enemy.isBoss&&relations[relKey]){
             if(relations[relKey].strong===enemy.job){multiplier=1.5;effectMsg="<b style='color:#2ed573'>(상성 우위!)</b> ";}
             else if(relations[relKey].weak===enemy.job){multiplier=0.8;effectMsg="<b style='color:#ff4757'>(상성 열세..)</b> ";}
@@ -846,7 +1058,33 @@ window.useAction = (type) => {
         if(Math.random()*100<accRate){
             let berserkMult = (player.name==='버서커' && player.curHp <= player.maxHp * 0.5) ? 1.35 : 1;
             if (berserkMult > 1) effectMsg += "<b style='color:#e74c3c'>【광폭화】</b> ";
-            let baseDmg=Math.floor((getEffectiveAttackPower()+Math.floor(Math.random()*8)) * berserkMult);
+            let baseDmg;
+            if (isMercenaryCaptainJob() && player.fieldMerc && player.fieldMerc.mercHp > 0) {
+                const mm = getFieldMercAttackMult();
+                baseDmg = Math.floor((getEffectiveAttackPower() * mm + Math.floor(Math.random() * 6)) * berserkMult);
+                const specialChance = 0.1 + Math.random() * 0.1;
+                if (Math.random() < specialChance) {
+                    baseDmg = Math.floor(baseDmg * 2.55);
+                    effectMsg += "<b style='color:#e67e22'>【용병 필살기】</b> ";
+                    triggerCritEffect();
+                    triggerShakeEffect();
+                }
+                const mk = player.fieldMerc.merc.kind;
+                if (mk === 'heal' || mk === 'both') {
+                    const pct = mk === 'heal' ? player.fieldMerc.merc.pct : player.fieldMerc.merc.healPct;
+                    if (pct) {
+                        const hh = Math.floor(player.maxHp * pct * 0.12);
+                        player.curHp = Math.min(player.maxHp, player.curHp + hh);
+                        writeLog(`[용병] 교환 타격 — 회복 +${hh}`);
+                    }
+                }
+                tryMercenaryRandomEvent();
+            } else if (isMercenaryCaptainJob()) {
+                baseDmg = Math.floor((getEffectiveAttackPower() * 0.62 + Math.floor(Math.random() * 6)) * berserkMult);
+                effectMsg += "<b style='color:#aaa'>(단장 직격)</b> ";
+            } else {
+                baseDmg=Math.floor((getEffectiveAttackPower()+Math.floor(Math.random()*8)) * berserkMult);
+            }
             const critInfo=getCritInfo();
             let effectiveCrit=critInfo.effectiveCrit;
             if(critInfo.isBerserkCrit){effectMsg+="<b style='color:#ff4757'>🔥 분노!</b> ";}
@@ -986,8 +1224,23 @@ function enemyTurn() {
                     dmg = Math.max(1, Math.floor(dmg * 0.82));
                     writeLog(`[소환] 🪨 골렘이 피해를 줄였습니다! (${dmg})`);
                 }
-                player.curHp-=dmg; showDmgFloat(dmg,false,true);
+                if (isMercenaryCaptainJob() && player.fieldMerc && player.fieldMerc.mercHp > 0) {
+                    player.fieldMerc.mercHp -= dmg;
+                    writeLog(`[어그로] 용병이 맞았다! ${dmg} (용병 ${Math.max(0, player.fieldMerc.mercHp)}/${player.fieldMerc.mercMaxHp})`);
+                    showDmgFloat(dmg, false, true);
+                    if (player.fieldMerc.mercHp <= 0) {
+                        player.fieldMerc = null;
+                        player.mercCooldownTurns = 3;
+                        writeLog(`💀 용병 전멸! 재소환까지 ${player.mercCooldownTurns}턴 (또는 🪙 긴급 재가동)`);
+                    }
+                } else {
+                    player.curHp-=dmg; showDmgFloat(dmg,false,true);
+                }
             } else writeLog(`[럭키] 적의 공격이 빗나갔습니다!`);
+        }
+        if (isMercenaryCaptainJob() && player.mercCooldownTurns > 0) {
+            player.mercCooldownTurns--;
+            if (player.mercCooldownTurns === 0) writeLog(`[용병] 재고용 가능 (쿨타임 종료)`);
         }
         if (player.name === '암살자' && enemy && Math.random() < 0.15) {
             enemy.weakPoint = true;
@@ -1005,7 +1258,7 @@ function winBattle() {
     if(floor<=10){baseGain=enemy.isBoss?50+floor*5:28+Math.floor(Math.random()*8)+floor*2;}
     else{baseGain=enemy.isBoss?65+Math.floor(Math.random()*30)+floor*4:14+Math.floor(Math.random()*12)+Math.floor(floor*1.2);}
     let bonus=0, bonusMsg="";
-    const relKey=relations[player.name]?player.name:player.baseJob;
+    const relKey=getAffinityRelKey();
     if(!enemy.isBoss&&relations[relKey]&&relations[relKey].weak===enemy.job){bonus=Math.floor(baseGain*0.3);bonusMsg=` <b style='color:#f1c40f'>(역전 보너스 +${bonus}G!)</b>`;}
     const gain=baseGain+bonus;
     gold+=gain; totalGoldEarned+=gain;
@@ -1065,10 +1318,11 @@ function getUnlockedPoolItems() {
 function getItemsByRarity() {
     const lc=Math.min(15,2+Math.floor(shopVisitCount/5)), ec=Math.min(35,10+Math.floor(shopVisitCount/3)), rc=Math.min(50,30+Math.floor(shopVisitCount/4));
     const rand=Math.random()*100;
-    if(rand<lc) return equipmentPool.filter(i=>i.rarity==='legendary');
-    if(rand<lc+ec) return equipmentPool.filter(i=>i.rarity==='epic');
-    if(rand<lc+ec+rc) return equipmentPool.filter(i=>i.rarity==='rare');
-    return equipmentPool.filter(i=>i.rarity==='common');
+    const pool = getNonMercEquipmentPool();
+    if(rand<lc) return pool.filter(i=>i.rarity==='legendary');
+    if(rand<lc+ec) return pool.filter(i=>i.rarity==='epic');
+    if(rand<lc+ec+rc) return pool.filter(i=>i.rarity==='rare');
+    return pool.filter(i=>i.rarity==='common');
 }
 
 function renderShopItems() {
@@ -1082,14 +1336,20 @@ function renderShopItems() {
     currentShopItems=[{name:"치유 포션",type:"potion",value:80,price:40,rarity:"common",desc:"최대 체력의 35%를 즉시 회복합니다."}];
     const unlockedItems=getUnlockedPoolItems(), picked=[];
     let tries=0;
-    if(floor>=20&&Math.random()<0.25&&player.relics){
+    if (isMercenaryCaptainJob()) {
+        if (floor >= 18 && Math.random() < 0.28) {
+            const ar = mercenaryRelicPool.filter((r) => !player.items.some((i) => i.name === r.name));
+            if (ar.length > 0) picked.push({ ...ar[Math.floor(Math.random() * ar.length)] });
+        }
+    } else if(floor>=20&&Math.random()<0.25&&player.relics){
         const ar=relicPool.filter(r=>{if(player.relics.includes(r.effect))return false;if(!r.onlyFor)return true;return r.onlyFor.some(j=>j===player.name||j===player.baseJob);});
         if(ar.length>0){const relic=ar[Math.floor(Math.random()*ar.length)];picked.push({...relic,type:'relic',value:0});}
     }
-    if(unlockedItems.length>0){const ru=unlockedItems[Math.floor(Math.random()*unlockedItems.length)];if(!player.items.some(i=>i.name===ru.name)&&!picked.some(p=>p.name===ru.name))picked.push(ru);}
+    if(!isMercenaryCaptainJob() && unlockedItems.length>0){const ru=unlockedItems[Math.floor(Math.random()*unlockedItems.length)];if(!player.items.some(i=>i.name===ru.name)&&!picked.some(p=>p.name===ru.name))picked.push(ru);}
     while(picked.length<3&&tries<50){
         tries++;
-        const pool=getItemsByRarity(); if(!pool.length)continue;
+        const pool=isMercenaryCaptainJob()?getMercCaptainShopPoolForRoll():getItemsByRarity();
+        if(!pool.length)continue;
         const item=pool[Math.floor(Math.random()*pool.length)];
         if(picked.some(i=>i.name===item.name))continue;
         if(item.onlyFor){const allowed=Array.isArray(item.onlyFor)?item.onlyFor:[item.onlyFor];if(!allowed.includes(player.name)&&!allowed.includes(player.baseJob))continue;}
@@ -1102,6 +1362,7 @@ function renderShopItems() {
         const isRelic=it.type==='relic', d=document.createElement('div');
         let bc='#444',bac='#888',bb='#2a2a2a',bt='COMMON';
         if(isRelic){bc='#f1c40f';bac='#f1c40f';bb='#2a2a0a';bt='RELIC';}
+        else if(it.rarity==='relic'){bc='#d35400';bac='#f39c12';bb='#2a1a0a';bt='RELIC(용병)';}
         else if(it.rarity==='legendary'){bc='#e74c3c';bac='#e74c3c';bb='#2d1a1a';bt='LEGENDARY';}
         else if(it.rarity==='epic'){bc='#a55eea';bac='#a55eea';bb='#1e1a2d';bt='EPIC';}
         else if(it.rarity==='rare'){bc='#1e90ff';bac='#1e90ff';bb='#1a1e2d';bt='RARE';}
@@ -1178,10 +1439,10 @@ async function saveRank() {
 async function loadRank() {
     try {
         if(!currentUser){document.getElementById('rank-list').innerHTML='<span style="color:#555;">로그인 후 확인 가능합니다.</span>';return;}
-        const jobs=['워리어','헌터','마법사']; let html='';
+        const jobs=['워리어','헌터','마법사','용병단장']; let html='';
         for(const job of jobs){
             const snap=await db.collection("global_ranks").where("baseJob","==",job).orderBy("floor","desc").limit(3).get();
-            const jc=job==='헌터'?'#2ed573':job==='마법사'?'#1e90ff':'#ff4757';
+            const jc=job==='헌터'?'#2ed573':job==='마법사'?'#1e90ff':job==='용병단장'?'#e67e22':'#ff4757';
             html+=`<div style="margin-bottom:16px;"><b style="color:${jc};font-size:0.95em;border-bottom:1px solid #333;display:block;padding-bottom:4px;margin-bottom:8px;">⚔️ ${job} 랭킹</b>`;
             if(snap.empty){html+=`<div style="color:#555;font-size:0.85em;">기록 없음</div>`;}
             else{let rank=1;snap.forEach(doc=>{const r=doc.data(),medal=rank===1?'🥇':rank===2?'🥈':'🥉',jd=r.job!==r.baseJob?`${r.baseJob}→${r.job}`:r.job;html+=`<div style="margin-bottom:6px;font-size:0.85em;">${medal} <b style="color:#e0e0e0;">${r.floor}층</b> <span style="color:#888;">(${jd})</span> <span style="color:#aaa;">👤${r.email}</span><br><span style="color:#ff4757;font-size:0.8em;margin-left:18px;">💀 ${r.killer}</span></div>`;rank++;});}
@@ -1195,67 +1456,118 @@ window.togglePatchNotes=(show)=>{document.getElementById('patch-modal').style.di
 window.toggleRank=(show)=>{document.getElementById('rank-modal').style.display=show?'flex':'none';if(show)loadRank();};
 window.toggleInv=(show)=>{document.getElementById('inv-modal').style.display=show?'flex':'none';};
 
-window.useMercenarySlot = (ix) => {
-    if (!player || !enemy) return writeLog('[고용] 전투 중에만 사용할 수 있습니다.');
-    const it = player.items[ix];
-    if (!it || it.type !== 'merc' || !it.merc) return;
-    const m = it.merc;
-    if (m.kind === 'dmg') {
-        const d = Math.max(1, Math.floor(getEffectiveAttackPower() * m.mult));
-        enemy.curHp -= d;
-        writeLog(`[고용] ${it.name} — ${d} 피해!`);
-        showDmgFloat(d, false, false); triggerShakeEffect();
-    } else if (m.kind === 'heal') {
-        const h = Math.floor(player.maxHp * m.pct);
-        player.curHp = Math.min(player.maxHp, player.curHp + h);
-        writeLog(`[고용] ${it.name} — ${h} 회복!`);
-    } else if (m.kind === 'both') {
-        const d = Math.max(1, Math.floor(getEffectiveAttackPower() * m.dmgMult));
-        enemy.curHp -= d;
-        const h = Math.floor(player.maxHp * m.healPct);
-        player.curHp = Math.min(player.maxHp, player.curHp + h);
-        writeLog(`[고용] ${it.name} — ${d} 피해 + ${h} 회복!`);
-        showDmgFloat(d, false, false); triggerShakeEffect();
-    }
-    player.items.splice(ix, 1);
-    if (enemy.curHp <= 0) return winBattle();
+window.mercGoldSkipCooldown = () => {
+    if (!player || !isMercenaryCaptainJob()) return;
+    const cost = getMercGoldSkipCost();
+    if (gold < cost) return writeLog('[자본주의] 골드가 부족합니다.');
+    gold -= cost;
+    player.mercCooldownTurns = 0;
+    writeLog(`[자본주의] 🪙 ${cost}G로 용병 쿨타임을 초기화했습니다!`);
     updateUi(); renderActions();
 };
-window.toggleCollection=(show)=>{
-    if(show){
-        const collection=JSON.parse(localStorage.getItem('item_collection_v5')||'[]');
-        const allItems=[...equipmentPool,...relicPool,...Object.values(floorUnlocks).filter(i=>i&&i.name),...Object.values(floorUnlocksHunter).filter(i=>i&&i.name),...Object.values(floorUnlocksWizard).filter(i=>i&&i.name)];
-        const seen=new Set();
-        const uniqueItems=allItems.filter(i=>{if(!i||!i.name||seen.has(i.name))return false;seen.add(i.name);return true;});
-        const rarityLabels={legendary:{label:'LEGENDARY',color:'#e74c3c',bg:'#2d1a1a'},epic:{label:'EPIC',color:'#a55eea',bg:'#1e1a2d'},rare:{label:'RARE',color:'#1e90ff',bg:'#1a1e2d'},common:{label:'COMMON',color:'#888',bg:'#2a2a2a'}};
-        const relicItems=uniqueItems.filter(i=>relicPool.some(r=>r.name===i.name));
-        const equipItems=uniqueItems.filter(i=>!relicPool.some(r=>r.name===i.name));
-        let html=`<p style="color:#888;font-size:0.85em;margin-bottom:15px;">해금: <b style="color:#f1c40f;">${collection.length}</b> / ${uniqueItems.length}</p>`;
-        if(relicItems.length>0){
-            html+=`<div style="margin-bottom:16px;border-bottom:1px solid #333;padding-bottom:12px;"><div style="background:#2a2a0a;color:#f1c40f;font-size:0.7em;font-weight:700;padding:3px 8px;border-radius:4px;display:inline-block;margin-bottom:8px;letter-spacing:1px;">✨ RELIC (유물)</div>`;
-            relicItems.forEach(it=>{
-                if(collection.includes(it.name))html+=`<div style="padding:8px 10px;background:#111;border-radius:6px;margin-bottom:4px;border-left:3px solid #f1c40f;"><div style="color:#f1c40f;font-weight:700;font-size:0.9em;">✅ ✨ ${it.name}</div><div style="color:#666;font-size:0.78em;margin-top:3px;">${it.desc}</div></div>`;
-                else html+=`<div style="padding:8px 10px;background:#0a0a0a;border-radius:6px;margin-bottom:4px;border-left:3px solid #333;"><div style="color:#444;font-weight:700;font-size:0.9em;">🔒 ???</div></div>`;
-            });
-            html+=`</div>`;
-        }
-        const rarityOrder={'legendary':0,'epic':1,'rare':2,'common':3};
-        const groups={legendary:[],epic:[],rare:[],common:[]};
-        equipItems.sort((a,b)=>(rarityOrder[a.rarity]||3)-(rarityOrder[b.rarity]||3));
-        equipItems.forEach(it=>{const owned=collection.includes(it.name);(groups[it.rarity]||groups.common).push({...it,owned});});
-        Object.entries(groups).forEach(([rarity,items])=>{
-            if(!items.length)return;
-            const{label,color,bg}=rarityLabels[rarity];
-            html+=`<div style="margin-bottom:12px;"><div style="background:${bg};color:${color};font-size:0.7em;font-weight:700;padding:3px 8px;border-radius:4px;display:inline-block;margin-bottom:6px;letter-spacing:1px;">${label}</div>`;
-            items.forEach(it=>{
-                if(it.owned)html+=`<div style="padding:8px 10px;background:#111;border-radius:6px;margin-bottom:4px;border-left:3px solid ${color};"><div style="color:${color};font-weight:700;font-size:0.9em;">✅ ${it.name}</div><div style="color:#666;font-size:0.78em;margin-top:3px;">${it.desc}</div></div>`;
-                else html+=`<div style="padding:8px 10px;background:#0a0a0a;border-radius:6px;margin-bottom:4px;border-left:3px solid #333;"><div style="color:#444;font-weight:700;font-size:0.9em;">🔒 ???</div></div>`;
-            });
-            html+=`</div>`;
+
+window.useMercenarySlot = (ix) => {
+    if (!player || !enemy) return writeLog('[고용] 전투 중에만 사용할 수 있습니다.');
+    if (!isMercenaryCaptainJob()) return writeLog('[고용] 용병 고용 아이템은 <b>용병단장</b>만 사용할 수 있습니다.');
+    if (player.mercCooldownTurns > 0) return writeLog(`[고용] 재가동 대기 ${player.mercCooldownTurns}턴 — 🪙 긴급 재가동 또는 턴 경과 후 가능.`);
+    const it = player.items[ix];
+    if (!it || it.type !== 'merc' || !it.merc) return;
+    player.items.splice(ix, 1);
+    player.fieldMerc = buildFieldMercFromItem(it);
+    writeLog(`[고용] <b>${it.name}</b> 필드 전개! 상성: <b>${player.fieldMerc.mercJob}</b> (어그로 1순위)`);
+    updateUi(); renderActions();
+};
+function codexItemMatchesTab(it, tab) {
+    if (!it || !it.name) return false;
+    if (tab === '용병') return it.type === 'merc';
+    if (it.type === 'merc') return false;
+    const of = it.onlyFor;
+    if (tab === '공용') return !of || (Array.isArray(of) && of.length === 0);
+    if (!of || !Array.isArray(of)) return false;
+    const W = ['워리어', '나이트', '버서커'];
+    const H = ['헌터', '궁수', '암살자'];
+    const M = ['마법사', '위저드', '소환사'];
+    if (tab === '워리어') return of.some((j) => W.includes(j));
+    if (tab === '헌터') return of.some((j) => H.includes(j));
+    if (tab === '마법사') return of.some((j) => M.includes(j));
+    return false;
+}
+
+window.setCodexTab = (t) => {
+    window._codexTab = t;
+    toggleCollection(true);
+};
+
+window.toggleCollection = (show) => {
+    if (show) {
+        if (!window._codexTab) window._codexTab = '공용';
+        const mercMode = player && player.baseJob === '용병단장';
+        if (mercMode && window._codexTab === '공용') window._codexTab = '용병';
+        const tab = window._codexTab;
+        const tabs = mercMode ? ['용병', '워리어', '헌터', '마법사'] : ['공용', '워리어', '헌터', '마법사'];
+        const collection = JSON.parse(localStorage.getItem('item_collection_v5') || '[]');
+        const allItems = [
+            ...equipmentPool,
+            ...relicPool,
+            ...Object.values(floorUnlocks).filter((i) => i && i.name),
+            ...Object.values(floorUnlocksHunter).filter((i) => i && i.name),
+            ...Object.values(floorUnlocksWizard).filter((i) => i && i.name),
+        ];
+        const seen = new Set();
+        const uniqueItems = allItems.filter((i) => {
+            if (!i || !i.name || seen.has(i.name)) return false;
+            seen.add(i.name);
+            return true;
         });
-        document.getElementById('collection-list').innerHTML=html;
+        const tabItems = uniqueItems.filter((i) => codexItemMatchesTab(i, tab));
+        const rarityLabels = {
+            relic: { label: 'RELIC', color: '#f39c12', bg: '#2a1a0a' },
+            legendary: { label: 'LEGENDARY', color: '#e74c3c', bg: '#2d1a1a' },
+            epic: { label: 'EPIC', color: '#a55eea', bg: '#1e1a2d' },
+            rare: { label: 'RARE', color: '#1e90ff', bg: '#1a1e2d' },
+            common: { label: 'COMMON', color: '#888', bg: '#2a2a2a' },
+        };
+        const rarityOrder = { relic: 0, legendary: 1, epic: 2, rare: 3, common: 4 };
+        const relicItems = tabItems.filter((i) => relicPool.some((r) => r.name === i.name));
+        const equipItems = tabItems.filter((i) => !relicPool.some((r) => r.name === i.name));
+        const tabBar = tabs
+            .map(
+                (t) =>
+                    `<button type="button" onclick="setCodexTab('${t}')" style="margin:2px;padding:6px 10px;font-size:0.75em;font-weight:700;border-radius:6px;border:1px solid ${t === tab ? '#f1c40f' : '#444'};background:${t === tab ? '#2a2a1a' : '#111'};color:${t === tab ? '#f1c40f' : '#888'};cursor:pointer;">${t}</button>`
+            )
+            .join('');
+        let html = `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px;align-items:center;">${tabBar}</div>`;
+        html += `<p style="color:#888;font-size:0.85em;margin-bottom:15px;">탭: <b style="color:#f1c40f;">${tab}</b> · 해금: <b style="color:#f1c40f;">${collection.length}</b> / ${uniqueItems.length}</p>`;
+        if (relicItems.length > 0) {
+            html += `<div style="margin-bottom:16px;border-bottom:1px solid #333;padding-bottom:12px;"><div style="background:#2a2a0a;color:#f1c40f;font-size:0.7em;font-weight:700;padding:3px 8px;border-radius:4px;display:inline-block;margin-bottom:8px;letter-spacing:1px;">✨ RELIC (유물)</div>`;
+            relicItems.forEach((it) => {
+                if (collection.includes(it.name))
+                    html += `<div style="padding:8px 10px;background:#111;border-radius:6px;margin-bottom:4px;border-left:3px solid #f1c40f;"><div style="color:#f1c40f;font-weight:700;font-size:0.9em;">✅ ✨ ${it.name}</div><div style="color:#666;font-size:0.78em;margin-top:3px;">${it.desc}</div></div>`;
+                else html += `<div style="padding:8px 10px;background:#0a0a0a;border-radius:6px;margin-bottom:4px;border-left:3px solid #333;"><div style="color:#444;font-weight:700;font-size:0.9em;">🔒 ???</div></div>`;
+            });
+            html += `</div>`;
+        }
+        const groups = { relic: [], legendary: [], epic: [], rare: [], common: [] };
+        equipItems.sort((a, b) => (rarityOrder[a.rarity] ?? 9) - (rarityOrder[b.rarity] ?? 9));
+        equipItems.forEach((it) => {
+            const owned = collection.includes(it.name);
+            const rk = it.rarity === 'relic' ? 'relic' : it.rarity || 'common';
+            (groups[rk] || groups.common).push({ ...it, owned });
+        });
+        Object.entries(groups).forEach(([rarity, items]) => {
+            if (!items.length) return;
+            const { label, color, bg } = rarityLabels[rarity] || rarityLabels.common;
+            html += `<div style="margin-bottom:12px;"><div style="background:${bg};color:${color};font-size:0.7em;font-weight:700;padding:3px 8px;border-radius:4px;display:inline-block;margin-bottom:6px;letter-spacing:1px;">${label}</div>`;
+            items.forEach((it) => {
+                if (it.owned)
+                    html += `<div style="padding:8px 10px;background:#111;border-radius:6px;margin-bottom:4px;border-left:3px solid ${color};"><div style="color:${color};font-weight:700;font-size:0.9em;">✅ ${it.name}</div><div style="color:#666;font-size:0.78em;margin-top:3px;">${it.desc}</div></div>`;
+                else html += `<div style="padding:8px 10px;background:#0a0a0a;border-radius:6px;margin-bottom:4px;border-left:3px solid #333;"><div style="color:#444;font-weight:700;font-size:0.9em;">🔒 ???</div></div>`;
+            });
+            html += `</div>`;
+        });
+        document.getElementById('collection-list').innerHTML = html;
     }
-    document.getElementById('collection-modal').style.display=show?'flex':'none';
+    document.getElementById('collection-modal').style.display = show ? 'flex' : 'none';
 };
 
 window.onclick=function(event){
@@ -1267,41 +1579,50 @@ window.onclick=function(event){
 
 function updateUi() {
     if(!player||!enemy) return;
+    const pMax = Math.max(1, safeNum(player.maxHp, 1));
+    const pCur = Math.max(0, safeNum(player.curHp, 0));
+    const eHp = Math.max(1, safeNum(enemy.hp, 1));
+    const eCur = Math.max(0, safeNum(enemy.curHp, 0));
+    const g = safeNum(gold, 0);
+    const pots = Math.max(0, safeNum(player.potions, 0));
     document.getElementById('p-name').innerText=player.name;
-    document.getElementById('p-hp').style.width=`${Math.max(0,(player.curHp/player.maxHp)*100)}%`;
-    document.getElementById('p-hp-t').innerText=`${Math.max(0,player.curHp)} / ${player.maxHp}`;
+    document.getElementById('p-hp').style.width=`${Math.max(0,(pCur/pMax)*100)}%`;
+    document.getElementById('p-hp-t').innerText=`${pCur} / ${pMax}`;
     const summLine = document.getElementById('p-summon-line');
     if (summLine) {
-        if (player.summon && player.summon.name) summLine.innerHTML = `<span style="color:#a55eea;">소환:</span> ${player.summon.name}`;
+        if (isMercenaryCaptainJob() && player.fieldMerc && player.fieldMerc.mercHp > 0) {
+            summLine.innerHTML = `<span style="color:#e67e22;">🛡️ 용병:</span> ${player.fieldMerc.sourceName} <span style="color:#888;">| HP ${player.fieldMerc.mercHp}/${player.fieldMerc.mercMaxHp} · 상성 ${player.fieldMerc.mercJob}</span>`;
+        } else if (player.summon && player.summon.name) summLine.innerHTML = `<span style="color:#a55eea;">소환:</span> ${player.summon.name}`;
         else summLine.innerHTML = '';
     }
     const ultLine = document.getElementById('p-ult-stack-line');
     if (ultLine) {
-        if (player.unlockedSkill && floor >= 20) ultLine.innerHTML = `<span style="color:#9b59b6;">궁극기</span> [${player.ultStack}/${player.ultMaxStack}]`;
+        if (player.unlockedSkill && floor >= 20) ultLine.innerHTML = `<span style="color:#9b59b6;">궁극기</span> [${safeNum(player.ultStack, 0)}/${Math.max(1, safeNum(player.ultMaxStack, 1))}]`;
         else ultLine.innerHTML = '';
     }
     document.getElementById('p-atk-val').textContent=String(getEffectiveAttackPower());
-    document.getElementById('p-def-val').textContent=String(player.def+player.extraDef);
-    document.getElementById('p-acc-val').textContent=`${Math.min(95,BASE_HIT_ACCURACY+player.acc)}%`;
+    document.getElementById('p-def-val').textContent=String(safeNum(player.def, 0) + safeNum(player.extraDef, 0));
+    document.getElementById('p-acc-val').textContent=`${Math.min(95, BASE_HIT_ACCURACY + safeNum(player.acc, 0))}%`;
     const critInfo=getCritInfo();
-    document.getElementById('p-crit-val').textContent=`${Math.round(critInfo.effectiveCrit)}%`;
+    document.getElementById('p-crit-val').textContent=`${Math.round(safeNum(critInfo.effectiveCrit, 0))}%`;
     const critMultEl=document.getElementById('p-crit-mult-val');
-    if(critMultEl) critMultEl.textContent=`${getEffectiveCritMult().toFixed(2)}x`;
+    const ecm = getEffectiveCritMult();
+    if(critMultEl) critMultEl.textContent=`${(Number.isFinite(ecm) ? ecm : 1.8).toFixed(2)}x`;
     const lsOv=getLifestealOverflowAtk();
     const lsMain=document.getElementById('p-lifesteal-val');
-    if(lsMain) lsMain.textContent=`${Math.round(getLifestealEffective()*100)}%`;
+    if(lsMain) lsMain.textContent=`${Math.round(safeNum(getLifestealEffective(), 0) * 100)}%`;
     const lsNote=document.getElementById('p-lifesteal-note');
     if(lsNote) lsNote.textContent=lsOv>0?`흡혈 초과분 → 공격력 +${lsOv}`:'';
     document.getElementById('e-name').innerText=enemy.name;
-    document.getElementById('e-hp').style.width=`${Math.max(0,(enemy.curHp/enemy.hp)*100)}%`;
-    document.getElementById('e-hp-t').innerText=`${Math.max(0,enemy.curHp)} / ${enemy.hp}`;
-    document.getElementById('e-atk-val').innerText=enemy.atk;
-    document.getElementById('e-def-val').innerText=enemy.def;
-    ['floor-t-battle','gold-t-battle','potion-t-battle'].forEach((id,i)=>{const el=document.getElementById(id);if(el)el.innerText=[floor,gold,player.potions][i];});
-    ['floor-t','gold-t','potion-t'].forEach((id,i)=>{const el=document.getElementById(id);if(el)el.innerText=[floor,gold,player.potions][i];});
+    document.getElementById('e-hp').style.width=`${Math.max(0,(eCur/eHp)*100)}%`;
+    document.getElementById('e-hp-t').innerText=`${eCur} / ${eHp}`;
+    document.getElementById('e-atk-val').innerText=String(safeNum(enemy.atk, 0));
+    document.getElementById('e-def-val').innerText=String(safeNum(enemy.def, 0));
+    ['floor-t-battle','gold-t-battle','potion-t-battle'].forEach((id,i)=>{const el=document.getElementById(id);if(el)el.innerText=[floor,g,pots][i];});
+    ['floor-t','gold-t','potion-t'].forEach((id,i)=>{const el=document.getElementById(id);if(el)el.innerText=[floor,g,pots][i];});
     const sh=document.getElementById('shop-hp-t'), sg=document.getElementById('shop-gold-t');
-    if(sh)sh.innerText=`${Math.max(0,player.curHp)}/${player.maxHp}`;
-    if(sg)sg.innerText=gold;
+    if(sh)sh.innerText=`${pCur}/${pMax}`;
+    if(sg)sg.innerText=String(g);
     const invList=document.getElementById('inv-list');
     if(invList){
         const hasItems=(player.items||[]).length>0||(player.relics||[]).length>0|(player.bonusSkills||[]).length>0;
@@ -1330,7 +1651,7 @@ function updateUi() {
                 html+=`<div style="margin-bottom:10px;"><div style="background:${bg};color:${color};font-size:0.7em;font-weight:700;padding:3px 8px;border-radius:4px;display:inline-block;margin-bottom:6px;">${label}</div>`;
                 items.forEach(it=>{
                     const oi=player.items.indexOf(it);
-                    const mercBtn=it.type==='merc'?`<button type="button" onclick="useMercenarySlot(${oi})" style="margin-top:6px;background:#e67e22;color:#111;border:none;padding:4px 10px;font-size:0.75em;font-weight:700;border-radius:4px;cursor:pointer;">⚔️ 고용 (전투)</button>`:'';
+                    const mercBtn=it.type==='merc'?(isMercenaryCaptainJob()?`<button type="button" onclick="useMercenarySlot(${oi})" style="margin-top:6px;background:#e67e22;color:#111;border:none;padding:4px 10px;font-size:0.75em;font-weight:700;border-radius:4px;cursor:pointer;">⚔️ 고용 (전투)</button>`:`<span style="color:#666;font-size:0.78em;">용병단장 전용</span>`):'';
                     html+=`<div style="padding:8px 10px;background:#111;border-radius:6px;margin-bottom:4px;border-left:3px solid ${color};"><div style="color:${color};font-weight:700;font-size:0.9em;">${it.type==='merc'?'🛡️ ':''}${it.name}</div><div style="color:#666;font-size:0.78em;margin-top:3px;line-height:1.4;">${it.desc}</div>${mercBtn}</div>`;
                 });
                 html+=`</div>`;
@@ -1349,7 +1670,7 @@ function writeLog(msg) {
 
 function dungeonClear() {
     saveRank(); triggerBossWarning(false);
-    const sg=Math.floor(totalGoldEarned*0.1), ps=parseInt(localStorage.getItem('saved_gold')||'0');
+    const sg=Math.floor(totalGoldEarned*0.1), ps=getSavedGold();
     localStorage.setItem('saved_gold',ps+sg); exitBattleLayout();
     document.getElementById('battle-area').style.display='none';
     document.querySelector('.screen').innerHTML=`<div style="text-align:center;padding:40px 20px;"><h2 style="color:#f1c40f;font-size:2em;">🏆 던전 클리어!</h2><p style="color:#e0e0e0;font-size:1.1em;margin:15px 0;"><b style="color:#f1c40f;">${player.name}</b>이(가) 100층을 정복했습니다!</p><p style="color:#2ed573;font-size:0.95em;margin-bottom:5px;">💰 보존 골드: <b>${sg}G</b></p><div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:20px;"><button onclick="startInfiniteMode()" style="background:#9b59b6;color:#fff;padding:14px 24px;font-size:1em;font-weight:700;">♾️ 무한모드 도전</button><button onclick="location.reload()" style="background:#f1c40f;color:#111;padding:14px 24px;font-size:1em;font-weight:700;">🏠 메인으로</button></div></div>`;
@@ -1364,7 +1685,7 @@ window.startInfiniteMode=()=>{
 
 function gameOver() {
     saveRank(); triggerBossWarning(false);
-    const sg=Math.floor(totalGoldEarned*0.1), ps=parseInt(localStorage.getItem('saved_gold')||'0');
+    const sg=Math.floor(totalGoldEarned*0.1), ps=getSavedGold();
     localStorage.setItem('saved_gold',ps+sg); exitBattleLayout();
     document.getElementById('battle-area').style.display='none';
     document.querySelector('.screen').innerHTML=`<div style="text-align:center;padding:40px 20px;"><h2 style="color:#ff4757;font-size:2em;">💀 GAME OVER</h2><p style="color:#e0e0e0;font-size:1.1em;margin:15px 0;"><b style="color:#f1c40f;">${floor}층</b>에서 <b style="color:#ff4757;">${enemy?enemy.name:'알 수 없는 적'}</b>에게 쓰러졌습니다.</p><p style="color:#2ed573;font-size:0.95em;">💰 보존 골드: <b>${sg}G</b></p><button onclick="location.reload()" style="background:#ff4757;margin-top:20px;padding:12px 30px;font-size:1em;">🔄 다시 도전하기</button></div>`;

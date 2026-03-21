@@ -14,6 +14,8 @@ const jobBase = {
     Warrior: { name: '워리어', hp: 275, atk: 18, def: 8, color: '#ff4757' },
     Hunter:  { name: '헌터',   hp: 240, atk: 22, def: 5,  color: '#2ed573' },
     Wizard:  { name: '마법사', hp: 170, atk: 44, def: 3,  color: '#1e90ff' },
+    /** 전용 메커: 필드 용병·용병 전용 상점. 본체는 무속성(상성은 소환 용병 직업 따름) */
+    MercenaryCaptain: { name: '용병단장', hp: 220, atk: 14, def: 5, color: '#e67e22' },
 };
 
 const jobEvolutions = {
@@ -94,29 +96,40 @@ const permanentUpgrades = [
     ...generateUpgrades('acc', '명중률', 'acc',    2,   25,  1.45),
 ];
 
-/** 고용 아이템: 인벤에서 1회 사용(고용), 전투 중에만 효과 */
-const mercenaryPool = [
-    { name: "용병: 철검사 아렌", type: "merc", rarity: "common", price: 42, merc: { kind: "dmg", mult: 0.32 }, desc: "고용: 즉시 피해(공격력×32%). 소모." },
-    { name: "용병: 방패병 토니", type: "merc", rarity: "common", price: 40, merc: { kind: "heal", pct: 0.12 }, desc: "고용: 최대 체력의 12% 회복. 소모." },
-    { name: "용병: 궁수 린", type: "merc", rarity: "common", price: 44, merc: { kind: "dmg", mult: 0.28 }, desc: "고용: 즉시 피해(공격력×28%). 소모." },
-    { name: "용병: 견습 마법사", type: "merc", rarity: "common", price: 38, merc: { kind: "dmg", mult: 0.25 }, desc: "고용: 즉시 피해(공격력×25%). 소모." },
-    { name: "용병: 치유사 엘라", type: "merc", rarity: "common", price: 46, merc: { kind: "heal", pct: 0.15 }, desc: "고용: 최대 체력의 15% 회복. 소모." },
-    { name: "용병: 도적 까마귀", type: "merc", rarity: "rare", price: 72, merc: { kind: "dmg", mult: 0.45 }, desc: "고용: 즉시 피해(공격력×45%). 소모." },
-    { name: "용병: 성직자 마르코", type: "merc", rarity: "rare", price: 75, merc: { kind: "heal", pct: 0.22 }, desc: "고용: 최대 체력의 22% 회복. 소모." },
-    { name: "용병: 쌍검 루카", type: "merc", rarity: "rare", price: 78, merc: { kind: "both", dmgMult: 0.2, healPct: 0.1 }, desc: "고용: 피해(공격×20%)+회복(최대HP×10%). 소모." },
-    { name: "용병: 포수 제이", type: "merc", rarity: "rare", price: 70, merc: { kind: "dmg", mult: 0.5 }, desc: "고용: 즉시 피해(공격력×50%). 소모." },
-    { name: "용병: 수도승 벤", type: "merc", rarity: "rare", price: 74, merc: { kind: "heal", pct: 0.18 }, desc: "고용: 최대 체력의 18% 회복. 소모." },
-    { name: "용병: 마검사 이리스", type: "merc", rarity: "epic", price: 115, merc: { kind: "dmg", mult: 0.65 }, desc: "고용: 즉시 피해(공격력×65%). 소모." },
-    { name: "용병: 대주교 세라핌", type: "merc", rarity: "epic", price: 118, merc: { kind: "heal", pct: 0.3 }, desc: "고용: 최대 체력의 30% 회복. 소모." },
-    { name: "용병: 용병대장 가론", type: "merc", rarity: "epic", price: 120, merc: { kind: "both", dmgMult: 0.35, healPct: 0.12 }, desc: "고용: 피해(공격×35%)+회복(최대HP×12%). 소모." },
-    { name: "용병: 그림자 암살자", type: "merc", rarity: "epic", price: 122, merc: { kind: "dmg", mult: 0.72 }, desc: "고용: 즉시 피해(공격력×72%). 소모." },
-    { name: "용병: 원소술사 케인", type: "merc", rarity: "epic", price: 116, merc: { kind: "dmg", mult: 0.6 }, desc: "고용: 즉시 피해(공격력×60%). 소모." },
-    { name: "용병: 전설 기사 데릭", type: "merc", rarity: "legendary", price: 175, merc: { kind: "dmg", mult: 0.95 }, desc: "고용: 즉시 피해(공격력×95%). 소모." },
-    { name: "용병: 천사의 손 아델", type: "merc", rarity: "legendary", price: 178, merc: { kind: "heal", pct: 0.4 }, desc: "고용: 최대 체력의 40% 회복. 소모." },
-    { name: "용병: 용창 용병왕", type: "merc", rarity: "legendary", price: 185, merc: { kind: "both", dmgMult: 0.55, healPct: 0.18 }, desc: "고용: 피해(공격×55%)+회복(최대HP×18%). 소모." },
-    { name: "용병: 마도 대가 오블리비아", type: "merc", rarity: "legendary", price: 180, merc: { kind: "dmg", mult: 1.05 }, desc: "고용: 즉시 피해(공격력×105%). 소모." },
-    { name: "용병: 황금 방패 군단", type: "merc", rarity: "legendary", price: 182, merc: { kind: "both", dmgMult: 0.45, healPct: 0.25 }, desc: "고용: 피해(공격×45%)+회복(최대HP×25%). 소모." },
+/** 고용 아이템: 용병단장 전용. mercJob = 상성(카멜레온)용 삼각 직업 */
+const mercenaryHirePool = [
+    { name: "용병: 철검사 아렌", type: "merc", rarity: "common", price: 42, mercJob: "워리어", merc: { kind: "dmg", mult: 0.32 }, desc: "고용: 필드 용병. 상성: 워리어. 전투 중 고용으로 소환." },
+    { name: "용병: 방패병 토니", type: "merc", rarity: "common", price: 40, mercJob: "워리어", merc: { kind: "heal", pct: 0.12 }, desc: "고용: 필드 용병. 상성: 워리어. 전투 중 고용으로 소환." },
+    { name: "용병: 궁수 린", type: "merc", rarity: "common", price: 44, mercJob: "헌터", merc: { kind: "dmg", mult: 0.28 }, desc: "고용: 필드 용병. 상성: 헌터. 전투 중 고용으로 소환." },
+    { name: "용병: 견습 마법사", type: "merc", rarity: "common", price: 38, mercJob: "마법사", merc: { kind: "dmg", mult: 0.25 }, desc: "고용: 필드 용병. 상성: 마법사. 전투 중 고용으로 소환." },
+    { name: "용병: 치유사 엘라", type: "merc", rarity: "common", price: 46, mercJob: "마법사", merc: { kind: "heal", pct: 0.15 }, desc: "고용: 필드 용병. 상성: 마법사. 전투 중 고용으로 소환." },
+    /** 극초반·무한 성장 전용: 매우 약하지만 이벤트로 상한 없이 성장 가능 */
+    { name: "용병: 빈털터리 루크", type: "merc", rarity: "common", price: 22, mercJob: "워리어", infiniteGrowth: true, merc: { kind: "dmg", mult: 0.06 }, desc: "고용: 최약체. 이벤트로 한계 없이 강해질 수 있음(희귀)." },
+    { name: "용병: 도적 까마귀", type: "merc", rarity: "rare", price: 72, mercJob: "헌터", merc: { kind: "dmg", mult: 0.45 }, desc: "고용: 필드 용병. 상성: 헌터." },
+    { name: "용병: 성직자 마르코", type: "merc", rarity: "rare", price: 75, mercJob: "마법사", merc: { kind: "heal", pct: 0.22 }, desc: "고용: 필드 용병. 상성: 마법사." },
+    { name: "용병: 쌍검 루카", type: "merc", rarity: "rare", price: 78, mercJob: "헌터", merc: { kind: "both", dmgMult: 0.2, healPct: 0.1 }, desc: "고용: 필드 용병. 상성: 헌터." },
+    { name: "용병: 포수 제이", type: "merc", rarity: "rare", price: 70, mercJob: "헌터", merc: { kind: "dmg", mult: 0.5 }, desc: "고용: 필드 용병. 상성: 헌터." },
+    { name: "용병: 수도승 벤", type: "merc", rarity: "rare", price: 74, mercJob: "워리어", merc: { kind: "heal", pct: 0.18 }, desc: "고용: 필드 용병. 상성: 워리어." },
+    { name: "용병: 마검사 이리스", type: "merc", rarity: "epic", price: 115, mercJob: "마법사", merc: { kind: "dmg", mult: 0.65 }, desc: "고용: 필드 용병. 상성: 마법사." },
+    { name: "용병: 대주교 세라핌", type: "merc", rarity: "epic", price: 118, mercJob: "마법사", merc: { kind: "heal", pct: 0.3 }, desc: "고용: 필드 용병. 상성: 마법사." },
+    { name: "용병: 용병대장 가론", type: "merc", rarity: "epic", price: 120, mercJob: "워리어", merc: { kind: "both", dmgMult: 0.35, healPct: 0.12 }, desc: "고용: 필드 용병. 상성: 워리어." },
+    { name: "용병: 그림자 암살자", type: "merc", rarity: "epic", price: 122, mercJob: "헌터", merc: { kind: "dmg", mult: 0.72 }, desc: "고용: 필드 용병. 상성: 헌터." },
+    { name: "용병: 원소술사 케인", type: "merc", rarity: "epic", price: 116, mercJob: "마법사", merc: { kind: "dmg", mult: 0.6 }, desc: "고용: 필드 용병. 상성: 마법사." },
+    { name: "용병: 전설 기사 데릭", type: "merc", rarity: "legendary", price: 175, mercJob: "워리어", merc: { kind: "dmg", mult: 0.95 }, desc: "고용: 필드 용병. 상성: 워리어." },
+    { name: "용병: 천사의 손 아델", type: "merc", rarity: "legendary", price: 178, mercJob: "마법사", merc: { kind: "heal", pct: 0.4 }, desc: "고용: 필드 용병. 상성: 마법사." },
+    { name: "용병: 용창 용병왕", type: "merc", rarity: "legendary", price: 185, mercJob: "워리어", merc: { kind: "both", dmgMult: 0.55, healPct: 0.18 }, desc: "고용: 필드 용병. 상성: 워리어." },
+    { name: "용병: 마도 대가 오블리비아", type: "merc", rarity: "legendary", price: 180, mercJob: "마법사", merc: { kind: "dmg", mult: 1.05 }, desc: "고용: 필드 용병. 상성: 마법사." },
+    { name: "용병: 황금 방패 군단", type: "merc", rarity: "legendary", price: 182, mercJob: "워리어", merc: { kind: "both", dmgMult: 0.45, healPct: 0.25 }, desc: "고용: 필드 용병. 상성: 워리어." },
 ];
+
+/** 용병단장 전용 ‘유물’ 등급 고용 계약 (상점 전설 슬롯에 근접 확률) */
+const mercenaryRelicPool = [
+    { name: "계약: 붉은 군단장", type: "merc", rarity: "relic", price: 240, mercJob: "워리어", merc: { kind: "both", dmgMult: 0.85, healPct: 0.22 }, desc: "유물급 고용. 필드 용병. 워리어 상성. 압도적 화력+회복." },
+    { name: "계약: 바람의 집행자", type: "merc", rarity: "relic", price: 245, mercJob: "헌터", merc: { kind: "dmg", mult: 1.15 }, desc: "유물급 고용. 헌터 상성. 극딜 특화." },
+    { name: "계약: 심연의 마도 용병", type: "merc", rarity: "relic", price: 248, mercJob: "마법사", merc: { kind: "both", dmgMult: 0.75, healPct: 0.28 }, desc: "유물급 고용. 마법사 상성. 마법 폭발+지원." },
+];
+
+const mercenaryFullPool = [...mercenaryHirePool, ...mercenaryRelicPool];
 
 /** 직업별 추가 장비 (희귀도별) */
 const equipmentPoolV651 = [
@@ -253,7 +266,8 @@ const equipmentPool = [
     { name: "폭군의 갑옷",        type: "hp",  value: 110, def: 20, price: 170, rarity: "legendary", critBonus: 5, desc: "전설. 체력(+110), 방어(+20), 치명타(+5%)." },
     { name: "세계수의 가지",      type: "hp",  value: 80, price: 150, rarity: "legendary", regenPotion: true, lifesteal: 0.2, desc: "전설. 체력(+80). 포션 강화, 흡혈(20%)." },
     ...equipmentPoolV651,
-    ...mercenaryPool,
+    ...mercenaryHirePool,
+    ...mercenaryRelicPool,
 ];
 
 const relicPool = [
