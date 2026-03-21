@@ -18,11 +18,11 @@ const jobBase = {
     MercenaryCaptain: { name: '용병단장', hp: 200, atk: 5, def: 4, color: '#e67e22' },
 };
 
-/** 시작 시 동료 1명: 워리어/헌터/마법사 (고용 아이템 없음) */
+/** 시작 시 동료 1명: 워리어/헌터/마법사 (고용 아이템 없음) — v6.6.3 기본 성장 상향 */
 const mercCompanionBases = {
-    워리어: { label: '선봉 검사', affinityJob: '워리어', dmgCoeff: 0.5, hpCoeff: 1.06 },
-    헌터: { label: '척후 궁수', affinityJob: '헌터', dmgCoeff: 0.53, hpCoeff: 0.97 },
-    마법사: { label: '견습 마도', affinityJob: '마법사', dmgCoeff: 0.56, hpCoeff: 0.9 },
+    워리어: { label: '선봉 검사', affinityJob: '워리어', dmgCoeff: 0.62, hpCoeff: 1.14 },
+    헌터: { label: '척후 궁수', affinityJob: '헌터', dmgCoeff: 0.64, hpCoeff: 1.05 },
+    마법사: { label: '견습 마도', affinityJob: '마법사', dmgCoeff: 0.66, hpCoeff: 0.98 },
 };
 
 /** 20~30층 1회: 용병 전직 (플레이어 전직보다 약한 배율) */
