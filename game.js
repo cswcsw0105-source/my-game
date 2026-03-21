@@ -42,7 +42,7 @@ let shopVisitCount = 0;
 let attackGcdUntil = 0;
 const ATTACK_GCD_MS = 500;
 /** 패치 노트/UI와 맞춰 두기 — 캐시 적용 여부 확인용 */
-const GAME_BUILD = '6.6.3';
+const GAME_BUILD = '6.6.4';
 /** 필드 용병 기본 피해 계수(전역 보정) */
 const MERC_DMG_GLOBAL_SCALE = 1.56;
 /** 층수에 따른 용병 딜/HP 성장 상한(과도한 폭주 방지) */
@@ -371,38 +371,109 @@ function getMercGachaBadChance() {
     return Math.max(0.05, 0.5 - reduction);
 }
 
-function getMercGachaMaxRarityTier() {
-    if (floor < 12) return 2;
-    if (floor < 28) return 3;
-    return 4;
-}
-
-const _rarityTier = { common: 1, rare: 2, epic: 3, legendary: 4, relic: 5 };
-
 function getMercGachaCandidatePool() {
     const keys = new Set(getMercEquipmentJobKeys());
     return equipmentPool.filter((it) => {
-        if (!it || mercCaptainExclusiveItem(it)) return false;
-        if (it.type === 'merc') return false;
+        if (!it || it.type === 'merc') return false;
         if (!it.onlyFor || !Array.isArray(it.onlyFor) || it.onlyFor.length === 0) return true;
         return it.onlyFor.some((j) => keys.has(j));
     });
 }
 
-function pickRandomMercGachaItemGood() {
-    const pool = getMercGachaCandidatePool();
-    const maxTier = getMercGachaMaxRarityTier();
-    const filtered = pool.filter((it) => {
-        const rk = it.rarity || 'common';
-        const tn = _rarityTier[rk] || 1;
-        if (tn > maxTier) return false;
-        if (rk === 'legendary' && floor < 28) return false;
-        if (rk === 'epic' && floor < 12) return false;
-        if (rk === 'relic') return false;
-        return true;
+function getMercExcludedItemNames() {
+    const s = new Set();
+    (player.fieldMerc && player.fieldMerc.mercItems ? player.fieldMerc.mercItems : []).forEach((i) => {
+        if (i && i.name) s.add(i.name);
     });
-    if (!filtered.length) return null;
-    return filtered[Math.floor(Math.random() * filtered.length)];
+    (player.mercInventory || []).forEach((i) => {
+        if (i && i.name) s.add(i.name);
+    });
+    return s;
+}
+
+/** battle | shop_direct | shop_fund — 등급 가중 + 동일 이름 중복 금지 */
+function pickMercItemForPlayer(mode) {
+    const ex = getMercExcludedItemNames();
+    const pool = getMercGachaCandidatePool().filter((it) => it && !ex.has(it.name));
+    if (!pool.length) return null;
+    const canLegendary = floor >= 28;
+    const canEpic = floor >= 12;
+    const byR = { common: [], rare: [], epic: [], legendary: [] };
+    for (const it of pool) {
+        let r = it.rarity || 'common';
+        if (r === 'relic') continue;
+        if (r === 'legendary' && !canLegendary) continue;
+        if (r === 'epic' && !canEpic) continue;
+        if (!byR[r]) r = 'common';
+        byR[r].push(it);
+    }
+    let wc = 0,
+        wr = 0,
+        we = 0,
+        wl = 0;
+    if (mode === 'battle') {
+        wc = floor < 8 ? 26 : floor < 15 ? 20 : 14;
+        wr = floor < 8 ? 44 : floor < 15 ? 36 : 32;
+        we = canEpic ? (floor < 22 ? 24 : 38) : 0;
+        wl = canLegendary ? (floor < 35 ? 6 : 18) : 0;
+    } else if (mode === 'shop_direct') {
+        wc = 18;
+        wr = 32;
+        we = canEpic ? 35 : 0;
+        wl = canLegendary ? 15 : 0;
+    } else if (mode === 'shop_fund') {
+        wc = 8;
+        wr = 22;
+        we = canEpic ? 45 : 0;
+        wl = canLegendary ? 25 : 0;
+    }
+    const sum = wc + wr + we + wl;
+    if (sum <= 0) {
+        for (const rk of ['common', 'rare', 'epic', 'legendary']) {
+            if (byR[rk] && byR[rk].length) return byR[rk][Math.floor(Math.random() * byR[rk].length)];
+        }
+        return pool[Math.floor(Math.random() * pool.length)];
+    }
+    let roll = Math.random() * sum;
+    let tier = 'common';
+    if ((roll -= wc) < 0) tier = 'common';
+    else if ((roll -= wr) < 0) tier = 'rare';
+    else if ((roll -= we) < 0) tier = 'epic';
+    else tier = 'legendary';
+    const order = ['legendary', 'epic', 'rare', 'common'];
+    for (let k = 0; k < 6; k++) {
+        const arr = byR[tier];
+        if (arr && arr.length) return arr[Math.floor(Math.random() * arr.length)];
+        const ix = order.indexOf(tier);
+        tier = order[(ix + 1) % 4];
+    }
+    return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function applyMercItemGainFromPool(gain) {
+    if (!gain || !player) return;
+    if (!player.mercInventory) player.mercInventory = [];
+    if (!player.fieldMerc || player.fieldMerc.mercHp <= 0) {
+        player.mercInventory.push({ ...gain });
+        saveCollection(gain.name);
+        writeLog(`[용병 장비] <b>${gain.name}</b> 비축 <span style="color:#888;">(${gain.rarity || 'common'})</span> — 복귀 시 장착`);
+        return;
+    }
+    if (!player.fieldMerc.mercItems) player.fieldMerc.mercItems = [];
+    player.fieldMerc.mercItems.push({ ...gain });
+    player.mercInventory = [...player.fieldMerc.mercItems];
+    const prevHp = player.fieldMerc.mercHp;
+    const prevMax = player.fieldMerc.mercMaxHp;
+    player.fieldMerc = buildFieldMercFromTemplate();
+    const deltaMax = player.fieldMerc.mercMaxHp - prevMax;
+    player.fieldMerc.mercHp = Math.min(
+        player.fieldMerc.mercMaxHp,
+        Math.max(1, prevHp + Math.max(0, Math.floor(deltaMax * 0.65)))
+    );
+    saveCollection(gain.name);
+    writeLog(
+        `[용병 장비] ✨ <b style="color:#2ed573">${gain.name}</b> 입수 <span style="color:#888;">(${gain.rarity || 'common'})</span>`
+    );
 }
 
 window.mercenaryFundGacha = () => {
@@ -436,33 +507,20 @@ window.mercenaryFundGacha = () => {
             writeLog(`[지원·악성] 💸 돈만 날렸다… (특별 획득 없음)`);
         }
     } else {
-        const it = pickRandomMercGachaItemGood();
+        const it = pickMercItemForPlayer('battle');
         if (!it) {
             const refund = Math.floor(cost * 0.35);
             gold += refund;
             writeLog(`[지원] 📭 마을에 물건이 없다… ${refund}G 환급`);
         } else {
-            const gain = { ...it };
-            if (!player.fieldMerc.mercItems) player.fieldMerc.mercItems = [];
-            player.fieldMerc.mercItems.push(gain);
-            player.mercInventory = [...player.fieldMerc.mercItems];
-            const prevHp = player.fieldMerc.mercHp;
-            const prevMax = player.fieldMerc.mercMaxHp;
-            player.fieldMerc = buildFieldMercFromTemplate();
-            const deltaMax = player.fieldMerc.mercMaxHp - prevMax;
-            player.fieldMerc.mercHp = Math.min(
-                player.fieldMerc.mercMaxHp,
-                Math.max(1, prevHp + Math.max(0, Math.floor(deltaMax * 0.65)))
-            );
-            saveCollection(gain.name);
-            writeLog(`[지원·호재] ✨ 용병이 <b style="color:#2ed573">${gain.name}</b>을(를) 입수! (${gain.rarity || 'common'})`);
+            applyMercItemGainFromPool({ ...it });
         }
     }
     updateUi();
     renderActions();
 };
 
-/** 용병단장 전용 장비만 — 타 직업 상점에서 제외 */
+/** 용병단장 전용(단독) 장비 — 타 직업 상점에서 제외 (데이터에 남아 있을 수 있음) */
 function mercCaptainExclusiveItem(it) {
     return it && it.onlyFor && Array.isArray(it.onlyFor) && it.onlyFor.length === 1 && it.onlyFor[0] === '용병단장';
 }
@@ -474,35 +532,6 @@ function getNonMercEquipmentPool() {
         if (mercCaptainExclusiveItem(i)) return false;
         return true;
     });
-}
-
-function getMercCaptainShopPoolBase() {
-    return [...mercenaryCaptainGearPool];
-}
-
-function getMercCaptainShopPoolForRoll() {
-    const full = getMercCaptainShopPoolBase();
-    const lc = Math.min(15, 2 + Math.floor(shopVisitCount / 5)),
-        ec = Math.min(35, 10 + Math.floor(shopVisitCount / 3)),
-        rc = Math.min(50, 30 + Math.floor(shopVisitCount / 4)),
-        cc = Math.max(0, 100 - lc - ec - rc);
-    const rand = Math.random() * 100;
-    if (rand < lc) {
-        const legs = full.filter((i) => i.rarity === 'legendary');
-        const rels = full.filter((i) => i.rarity === 'relic');
-        const pool = [...rels, ...legs];
-        return pool.length ? pool : full;
-    }
-    if (rand < lc + ec) {
-        const p = full.filter((i) => i.rarity === 'epic');
-        return p.length ? p : full;
-    }
-    if (rand < lc + ec + rc) {
-        const p = full.filter((i) => i.rarity === 'rare');
-        return p.length ? p : full;
-    }
-    const com = full.filter((i) => i.rarity === 'common');
-    return com.length ? com : full;
 }
 
 function tryMercenaryRandomEvent() {
@@ -687,6 +716,7 @@ window.selectJobAndStart = (job) => {
         baseJob: jobBase[job].name, evolved: false, shieldEmpowered: false,
         summon: null, _awaitPlayerTurn: false,
         fieldMerc: null, mercCooldownTurns: 0, mercNextBattleDebuff: null, _mercBattleAtkDebuff: 0,
+        mercReviveAt90Percent: false, _mercCooldownSkipOnce: false,
         mercCompanionKind: null, mercEvolution: null, mercEvolutionChosen: false,
         mercRegenTurns: 0, mercRegenAmount: 0,
         mercBattleTurnCount: 0, mercInventory: [],
@@ -1188,7 +1218,13 @@ function spawnEnemy() {
     }
     if (isMercenaryCaptainJob() && player.mercCompanionKind && !player.fieldMerc && player.mercCooldownTurns <= 0) {
         player.fieldMerc = buildFieldMercFromTemplate();
-        writeLog(`[용병] 동료 <b>${player.fieldMerc.sourceName}</b> 전개! 상성: <b>${player.fieldMerc.mercAffinityJob}</b>`);
+        const ratio = player.mercReviveAt90Percent ? 0.9 : 1;
+        player.fieldMerc.mercHp = Math.max(1, Math.floor(player.fieldMerc.mercMaxHp * ratio));
+        const hpNote = ratio < 1 ? ' · 부상 복귀 90%' : ' · 만전';
+        writeLog(
+            `[용병] 동료 <b>${player.fieldMerc.sourceName}</b> 전개! 상성: <b>${player.fieldMerc.mercAffinityJob}</b>${hpNote} (${player.fieldMerc.mercHp}/${player.fieldMerc.mercMaxHp})`
+        );
+        player.mercReviveAt90Percent = false;
     }
     player._awaitPlayerTurn = true;
     updateUi(); renderActions();
@@ -1497,6 +1533,8 @@ function enemyTurn() {
                         }
                         player.fieldMerc = null;
                         player.mercCooldownTurns = 3;
+                        player.mercReviveAt90Percent = true;
+                        player._mercCooldownSkipOnce = true;
                         writeLog(`💀 용병 전멸! 재소환까지 ${player.mercCooldownTurns}턴 (또는 🪙 긴급 재가동)`);
                     }
                 } else {
@@ -1505,8 +1543,20 @@ function enemyTurn() {
             } else writeLog(`[럭키] 적의 공격이 빗나갔습니다!`);
         }
         if (isMercenaryCaptainJob() && player.mercCooldownTurns > 0) {
-            player.mercCooldownTurns--;
-            if (player.mercCooldownTurns === 0) writeLog(`[용병] 재고용 가능 (쿨타임 종료)`);
+            if (player._mercCooldownSkipOnce) {
+                player._mercCooldownSkipOnce = false;
+            } else {
+                player.mercCooldownTurns--;
+            }
+        }
+        if (isMercenaryCaptainJob() && player.mercCooldownTurns === 0 && !player.fieldMerc && player.mercCompanionKind) {
+            player.fieldMerc = buildFieldMercFromTemplate();
+            const ratio = player.mercReviveAt90Percent ? 0.9 : 1;
+            player.fieldMerc.mercHp = Math.max(1, Math.floor(player.fieldMerc.mercMaxHp * ratio));
+            writeLog(
+                `[용병] ${ratio < 1 ? '부상에서 복귀' : '전열 재편성'}! HP ${player.fieldMerc.mercHp}/${player.fieldMerc.mercMaxHp} (${ratio < 1 ? '최대의 90%' : '만전'})`
+            );
+            player.mercReviveAt90Percent = false;
         }
         if (player.name === '암살자' && enemy && Math.random() < 0.15) {
             enemy.weakPoint = true;
@@ -1659,21 +1709,55 @@ function renderShopItems() {
     currentShopItems=[{name:"치유 포션",type:"potion",value:80,price:40,rarity:"common",desc:"최대 체력의 35%를 즉시 회복합니다."}];
     const unlockedItems=getUnlockedPoolItems(), picked=[];
     let tries=0;
-    if(!isMercenaryCaptainJob() && floor>=20&&Math.random()<0.25&&player.relics){
-        const ar=relicPool.filter(r=>{if(player.relics.includes(r.effect))return false;if(!r.onlyFor)return true;return r.onlyFor.some(j=>j===player.name||j===player.baseJob);});
-        if(ar.length>0){const relic=ar[Math.floor(Math.random()*ar.length)];picked.push({...relic,type:'relic',value:0});}
+    if (isMercenaryCaptainJob()) {
+        const pd = 95 + floor * 12;
+        const pf = 48 + floor * 6;
+        currentShopItems.push(
+            {
+                name: '직접 장비 구매 (직거래)',
+                type: 'merc_shop_direct',
+                price: pd,
+                rarity: 'epic',
+                desc: '비용이 큼. 사기 당할 확률 30%. 성공 시 동료·공용 장비 1개 (이미 보유한 이름 제외, 등급 가중 랜덤).',
+            },
+            {
+                name: '용병에게 자금 지원',
+                type: 'merc_shop_fund',
+                price: pf,
+                rarity: 'rare',
+                desc: '직거래보다 저렴. 사기 50%. 성공 시 고등급 확률↑ (이름 중복 없음).',
+            }
+        );
+    } else {
+        if (floor >= 20 && Math.random() < 0.25 && player.relics) {
+            const ar = relicPool.filter((r) => {
+                if (player.relics.includes(r.effect)) return false;
+                if (!r.onlyFor) return true;
+                return r.onlyFor.some((j) => j === player.name || j === player.baseJob);
+            });
+            if (ar.length > 0) {
+                const relic = ar[Math.floor(Math.random() * ar.length)];
+                picked.push({ ...relic, type: 'relic', value: 0 });
+            }
+        }
+        if (unlockedItems.length > 0) {
+            const ru = unlockedItems[Math.floor(Math.random() * unlockedItems.length)];
+            if (!player.items.some((i) => i.name === ru.name) && !picked.some((p) => p.name === ru.name)) picked.push(ru);
+        }
+        while (picked.length < 3 && tries < 50) {
+            tries++;
+            const pool = getItemsByRarity();
+            if (!pool.length) continue;
+            const item = pool[Math.floor(Math.random() * pool.length)];
+            if (picked.some((i) => i.name === item.name)) continue;
+            if (item.onlyFor) {
+                const allowed = Array.isArray(item.onlyFor) ? item.onlyFor : [item.onlyFor];
+                if (!allowed.includes(player.name) && !allowed.includes(player.baseJob)) continue;
+            }
+            picked.push(item);
+        }
+        currentShopItems.push(...picked);
     }
-    if(!isMercenaryCaptainJob() && unlockedItems.length>0){const ru=unlockedItems[Math.floor(Math.random()*unlockedItems.length)];if(!player.items.some(i=>i.name===ru.name)&&!picked.some(p=>p.name===ru.name))picked.push(ru);}
-    while(picked.length<3&&tries<50){
-        tries++;
-        const pool=isMercenaryCaptainJob()?getMercCaptainShopPoolForRoll():getItemsByRarity();
-        if(!pool.length)continue;
-        const item=pool[Math.floor(Math.random()*pool.length)];
-        if(picked.some(i=>i.name===item.name))continue;
-        if(item.onlyFor){const allowed=Array.isArray(item.onlyFor)?item.onlyFor:[item.onlyFor];if(!allowed.includes(player.name)&&!allowed.includes(player.baseJob))continue;}
-        picked.push(item);
-    }
-    currentShopItems.push(...picked);
     const grid=document.createElement('div');
     grid.style.cssText='display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:12px;';
     currentShopItems.forEach((it,idx)=>{
@@ -1686,7 +1770,7 @@ function renderShopItems() {
         else if(it.rarity==='rare'){bc='#1e90ff';bac='#1e90ff';bb='#1a1e2d';bt='RARE';}
         let nc=isRelic?'#f1c40f':it.rarity==='legendary'?'#e74c3c':it.rarity==='epic'?'#a55eea':it.rarity==='rare'?'#1e90ff':'#e0e0e0';
         let ti=isRelic?'✨':'🎒';
-        if(!isRelic){if(it.type==='atk')ti='⚔️';else if(it.type==='hp')ti='🛡️';else if(it.type==='acc')ti='🎯';else if(it.type==='potion')ti='🧪';else if(it.type==='merc')ti='⚔️';if(it.lifesteal)ti='🩸';if(it.regenPotion)ti='💚';}
+        if(!isRelic){if(it.type==='atk')ti='⚔️';else if(it.type==='hp')ti='🛡️';else if(it.type==='acc')ti='🎯';else if(it.type==='potion')ti='🧪';else if(it.type==='merc')ti='⚔️';else if(it.type==='merc_shop_direct')ti='💼';else if(it.type==='merc_shop_fund')ti='🤝';if(it.lifesteal)ti='🩸';if(it.regenPotion)ti='💚';}
         const iu=getUnlockedPoolItems().some(u=>u.name===it.name);
         d.style.cssText=`background:#1a1a1a;border:1px solid ${bc};border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px;transition:transform 0.15s;cursor:default;`;
         d.onmouseenter=()=>d.style.transform='translateY(-2px)'; d.onmouseleave=()=>d.style.transform='translateY(0)';
@@ -1712,6 +1796,27 @@ window.buyItem = (event, idx) => {
     const it=currentShopItems[idx];
     if(gold<it.price) return writeLog("골드 부족!");
     gold-=it.price;
+    if (it.type === 'merc_shop_direct' || it.type === 'merc_shop_fund') {
+        const scamRate = it.type === 'merc_shop_direct' ? 0.3 : 0.5;
+        const mode = it.type === 'merc_shop_direct' ? 'shop_direct' : 'shop_fund';
+        if (Math.random() < scamRate) {
+            writeLog(
+                `[상점] 💸 <b>${it.name}</b> — 사기당했다! 장비 없음. (사기 확률 ${Math.round(scamRate * 100)}%)`
+            );
+        } else {
+            const gain = pickMercItemForPlayer(mode);
+            if (!gain) {
+                const refund = Math.floor(it.price * 0.4);
+                gold += refund;
+                writeLog(`[상점] 📭 물건을 구할 수 없었다… ${refund}G 환급`);
+            } else {
+                applyMercItemGainFromPool({ ...gain });
+            }
+        }
+        updateUi();
+        renderActions();
+        return;
+    }
     if(it.type==='relic'){
         player.relics.push(it.effect); saveCollection(it.name);
         writeLog(`[유물 획득] ✨ <b style='color:#f1c40f'>${it.name}</b> 장착!`);
@@ -1789,7 +1894,12 @@ window.useMercenarySlot = () => {
 };
 function codexItemMatchesTab(it, tab) {
     if (!it || !it.name) return false;
-    if (tab === '용병') return mercCaptainExclusiveItem(it);
+    if (tab === '용병') {
+        const keys = new Set(getMercEquipmentJobKeys());
+        if (it.type === 'merc') return false;
+        if (!it.onlyFor || !Array.isArray(it.onlyFor) || it.onlyFor.length === 0) return true;
+        return it.onlyFor.some((j) => keys.has(j));
+    }
     if (it.type === 'merc') return false;
     const of = it.onlyFor;
     if (tab === '공용') return !of || (Array.isArray(of) && of.length === 0);
@@ -1849,7 +1959,7 @@ window.toggleCollection = (show) => {
         let html = `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px;align-items:center;">${tabBar}</div>`;
         html += `<p style="color:#888;font-size:0.85em;margin-bottom:15px;">탭: <b style="color:#f1c40f;">${tab}</b> · 해금: <b style="color:#f1c40f;">${collection.length}</b> / ${uniqueItems.length}</p>`;
         if (tab === '용병') {
-            html += `<p style="color:#b87333;font-size:0.78em;margin:-8px 0 12px;line-height:1.45;">📜 <b>단장 전용 장비</b> — 전투 <b>💰 용병 지원</b>으로 얻는 동료 장비는 인벤 「용병 장비」에 표시됩니다.</p>`;
+            html += `<p style="color:#b87333;font-size:0.78em;margin:-8px 0 12px;line-height:1.45;">📜 <b>동료 장비 풀</b> — 전투 <b>💰 용병 지원</b>·상점 <b>직거래/자금 지원</b>으로 얻는 장비입니다. (이름 중복 없이 랜덤)</p>`;
         }
         if (relicItems.length > 0) {
             html += `<div style="margin-bottom:16px;border-bottom:1px solid #333;padding-bottom:12px;"><div style="background:#2a2a0a;color:#f1c40f;font-size:0.7em;font-weight:700;padding:3px 8px;border-radius:4px;display:inline-block;margin-bottom:8px;letter-spacing:1px;">✨ RELIC (유물)</div>`;

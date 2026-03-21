@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
-    <title>던전 v6.6.3</title>
-    <link rel="stylesheet" href="style.css?v=6.6.3">
+    <title>던전 v6.6.4</title>
+    <link rel="stylesheet" href="style.css?v=6.6.4">
     <style>
         .auth-box { background: #2a2a2a; padding: 20px; border-radius: 8px; border: 1px solid #444; max-width: 300px; margin: 0 auto; }
         .auth-box input { width: 90%; padding: 10px; margin: 10px 0; border-radius: 4px; border: 1px solid #555; background: #111; color: white; }
@@ -13,7 +13,7 @@
 </head>
 <body>
     <div class="container">
-        <h1 style="color: #fff; letter-spacing: 1px;">⚔️ 던전 (v6.6.3)</h1>
+        <h1 style="color: #fff; letter-spacing: 1px;">⚔️ 던전 (v6.6.4)</h1>
         
         <div class="game-layout" id="main-layout">
             <div class="screen" id="main-screen">
@@ -139,6 +139,12 @@
             <table class="patch-table">
                 <thead><tr><th>버전</th><th>항목</th><th>상세 내용</th></tr></thead>
                 <tbody>
+                    <tr><td class="v-tag">v6.6.4</td><td>용병 상점·가챠·부활</td><td>
+    <b>가챠(💰 용병 지원):</b> 동일 <b>이름 중복 없음</b>, <b>등급 가중</b> 랜덤(층·모드별). 단장 전용 풀 제거 후 <b>동료·공용 장비 풀</b> 기준.<br>
+    <b>상점(단장):</b> 포션 + <b>직접 장비 구매(직거래)</b> 비쌈·사기 30% + <b>용병 자금 지원</b> 저렴·사기 50%·고등급 확률↑.<br>
+    <b>부활:</b> 용병 전멸 후 <b>3적 턴</b> 쿨(사망 턴에는 감소 없음). 쿨 종료 시 <b>적 턴 직후 최대 HP의 90%</b>로 복귀. 다음 층 스폰도 동일. <b>🪙 긴급 재가동</b>은 만전 HP.<br>
+    <b>도감 「용병」:</b> 단장 전용 대신 <b>동료 장비 풀</b> 표기.
+</td></tr>
                     <tr><td class="v-tag">v6.6.3</td><td>전열·지휘·가챠</td><td>
     <b>UI:</b> 전투 패널 <b>전열=용병</b>(HP·화력·명중·치명), <b>후열=단장 지휘</b>(단장 HP·악성가챠 확률·지원 비용). 어그로는 전열 용병 우선 유지.<br>
     <b>딜:</b> 용병은 <b>층수 기본 ATK + 동료 직업 장비 합산 + 소량 지휘 보정</b>으로 계산(단장 장비만으로 딜이 안 나가던 문제 완화).<br>
@@ -271,7 +277,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <!-- ?v= 쿼리로 브라우저 캐시 무효화 (수정이 안 보일 때 강력 새로고침도 함께) -->
-    <script src="data.js?v=6.6.3"></script>
-    <script src="game.js?v=6.6.3"></script>
+    <script src="data.js?v=6.6.4"></script>
+    <script src="game.js?v=6.6.4"></script>
 </body>
 </html>
