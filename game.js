@@ -15,6 +15,17 @@ if (!localStorage.getItem('perma_migrated_v62')) {
     localStorage.removeItem('saved_gold');
     localStorage.setItem('perma_migrated_v62', 'true');
 }
+if (!localStorage.getItem('perma_migrated_v651')) {
+    try {
+        const ps = JSON.parse(localStorage.getItem('perma_stats') || '{}');
+        if ('potion' in ps) delete ps.potion;
+        localStorage.setItem('perma_stats', JSON.stringify(ps));
+        const bc = JSON.parse(localStorage.getItem('perma_buy_count') || '{}');
+        Object.keys(bc).forEach((k) => { if (k.startsWith('pot_')) delete bc[k]; });
+        localStorage.setItem('perma_buy_count', JSON.stringify(bc));
+    } catch (e) { /* ignore */ }
+    localStorage.setItem('perma_migrated_v651', 'true');
+}
 
 let floor = 1, gold = 0, player = null, enemy = null;
 let defendingTurns = 0, dodgingTurns = 0, shieldedTurns = 0;
@@ -31,7 +42,12 @@ let shopVisitCount = 0;
 let attackGcdUntil = 0;
 const ATTACK_GCD_MS = 500;
 /** 패치 노트/UI와 맞춰 두기 — 캐시 적용 여부 확인용 */
-const GAME_BUILD = '6.5';
+const GAME_BUILD = '6.5.1';
+/** v6.5.1 핫픽스: 치명/흡혈 상한·명중 기본값 */
+const CRIT_SOFT_CAP = 70;
+const LIFESTEAL_SOFT_CAP = 0.9;
+const BASE_HIT_ACCURACY = 80;
+const CRIT_OVERFLOW_TO_MULT = 0.01;
 
 function clearSummonRunStorage() {
     localStorage.removeItem('summon_altar_done');
@@ -52,7 +68,7 @@ function saveSummonToStorage(s) {
 }
 
 function getPermaStats() {
-    return JSON.parse(localStorage.getItem('perma_stats') || '{"hp":0,"atk":0,"def":0,"acc":0,"potion":0}');
+    return JSON.parse(localStorage.getItem('perma_stats') || '{"hp":0,"atk":0,"def":0,"acc":0}');
 }
 function savePermaStats(stats) { localStorage.setItem('perma_stats', JSON.stringify(stats)); }
 function getPermaBuyCount() { return JSON.parse(localStorage.getItem('perma_buy_count') || '{}'); }
@@ -107,19 +123,38 @@ function triggerBossWarning(on) {
     if (s) { if (on) s.classList.add('boss-warning'); else s.classList.remove('boss-warning'); }
 }
 
-// 치명타 확률 상한(100% 고정으로 원킬이 너무 자주 발생하는 문제 완화)
-const CRIT_CHANCE_CAP = 90;
+function getCritOverflowForMult() {
+    if (!player) return 0;
+    let raw = typeof player.crit === 'number' ? player.crit : 5;
+    if (player.relics && player.relics.includes('berserk_crit') && player.maxHp && player.curHp <= player.maxHp * 0.3) raw = 100;
+    return Math.max(0, raw - CRIT_SOFT_CAP);
+}
+function getEffectiveCritMult() {
+    return (player.critMult || 1.8) + getCritOverflowForMult() * CRIT_OVERFLOW_TO_MULT;
+}
 function getCritInfo() {
     const rawCrit = player && typeof player.crit === 'number' ? player.crit : 5;
-    let effectiveCrit = rawCrit;
+    let valueForCap = rawCrit;
     let isBerserkCrit = false;
     if (player && player.relics && player.relics.includes('berserk_crit') && player.maxHp && player.curHp <= player.maxHp * 0.3) {
-        // 분노 유물: 치명타를 '강제로 올리지만', 최종 확률은 상한에 의해 100%가 되지 않음
-        effectiveCrit = 100;
+        valueForCap = 100;
         isBerserkCrit = true;
     }
-    effectiveCrit = Math.min(CRIT_CHANCE_CAP, Math.max(0, effectiveCrit));
+    const effectiveCrit = Math.min(CRIT_SOFT_CAP, Math.max(0, valueForCap));
     return { rawCrit, effectiveCrit, isBerserkCrit };
+}
+function getLifestealEffective() {
+    const r = player && typeof player.lifesteal === 'number' ? player.lifesteal : 0;
+    return Math.min(LIFESTEAL_SOFT_CAP, Math.max(0, r));
+}
+function getLifestealOverflowAtk() {
+    const r = player && typeof player.lifesteal === 'number' ? player.lifesteal : 0;
+    if (r <= LIFESTEAL_SOFT_CAP) return 0;
+    return Math.floor((r - LIFESTEAL_SOFT_CAP) * 100);
+}
+function getEffectiveAttackPower() {
+    if (!player) return 0;
+    return player.atk + (player.extraAtk || 0) + getLifestealOverflowAtk();
 }
 
 function showUnlockPopup(title, body, color) {
@@ -164,6 +199,32 @@ auth.onAuthStateChanged((user) => {
     }
 });
 
+function buildPermanentShopHtml() {
+    const savedGold = parseInt(localStorage.getItem('saved_gold') || '0');
+    const buyCounts = getPermaBuyCount();
+    const catKeys = ['hp', 'atk', 'def', 'acc'];
+    const labels = { hp: '❤️ 체력', atk: '⚔️ 공격력', def: '🛡️ 방어력', acc: '🎯 명중률' };
+    const colors = { hp: '#2ed573', atk: '#f1c40f', def: '#1e90ff', acc: '#a55eea' };
+    return catKeys.map((key) => {
+        const cat = permanentUpgrades.filter((u) => u.id.startsWith(key + '_'));
+        const lv = cat.filter((u) => buyCounts[u.id]).length;
+        const next = cat[lv];
+        const maxed = !next;
+        const price = next ? next.price : 0;
+        const can = next && savedGold >= price;
+        const btnBg = maxed ? '#222' : can ? '#f1c40f' : '#333';
+        const btnFg = maxed ? '#555' : can ? '#111' : '#666';
+        return `<div style="display:flex;justify-content:space-between;align-items:center;background:#111;border:1px solid #333;border-radius:8px;padding:10px 12px;margin-bottom:8px;">
+            <div style="flex:1;">
+                <span style="color:${colors[key]};font-weight:700;font-size:0.9em;">${labels[key]}</span>
+                <span style="color:#888;font-size:0.8em;margin-left:10px;">Lv.${lv} / ${cat.length}</span>
+                <div style="color:#555;font-size:0.72em;margin-top:3px;">${maxed ? '최대 강화' : `다음 비용: <b style="color:#f1c40f;">${price}G</b>`}</div>
+            </div>
+            <button type="button" onclick="buyPermUpgradeNext('${key}')" ${maxed || !can ? 'disabled' : ''} style="background:${btnBg};color:${btnFg};padding:8px 18px;font-size:0.82em;font-weight:700;border:none;border-radius:6px;cursor:${maxed || !can ? 'not-allowed' : 'pointer'};">${maxed ? 'MAX' : '강화'}</button>
+        </div>`;
+    }).join('');
+}
+
 function showPreGameScreen() {
     exitBattleLayout();
     const savedGold = parseInt(localStorage.getItem('saved_gold') || '0');
@@ -192,36 +253,19 @@ function showPreGameScreen() {
                 </div>`).join('')}
         </div>
         <div style="background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:15px;">
-            <h4 style="color:#f1c40f;margin:0 0 12px 0;">🏪 영구 강화 상점</h4>
-            <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">
-                ${[{key:'hp',label:'❤️ 체력',color:'#2ed573'},{key:'atk',label:'⚔️ 공격력',color:'#f1c40f'},{key:'def',label:'🛡️ 방어력',color:'#1e90ff'},{key:'acc',label:'🎯 명중률',color:'#a55eea'},{key:'pot',label:'🧪 포션',color:'#e67e22'}].map(cat=>`
-                    <button onclick="switchUpgradeTab('${cat.key}')" id="tab_${cat.key}" style="background:#1a1a2a;color:${cat.color};border:1px solid ${cat.color};border-radius:6px;padding:6px 12px;font-size:0.8em;font-weight:700;cursor:pointer;">${cat.label}</button>`).join('')}
-            </div>
-            <div id="upgrade-list" style="max-height:220px;overflow-y:auto;"></div>
+            <h4 style="color:#f1c40f;margin:0 0 8px 0;">🏪 영구 강화 상점</h4>
+            <p style="color:#666;font-size:0.75em;margin:0 0 12px 0;">항목마다 <b>강화</b> 한 번에 다음 레벨이 구매됩니다. (v6.5.1 — 포션 영구 강화 제거)</p>
+            <div style="max-height:280px;overflow-y:auto;">${buildPermanentShopHtml()}</div>
         </div>`;
-    switchUpgradeTab('hp');
 }
 
-window.switchUpgradeTab = (key) => {
-    const savedGold = parseInt(localStorage.getItem('saved_gold') || '0');
+window.buyPermUpgradeNext = (key) => {
     const buyCounts = getPermaBuyCount();
-    const catUpgrades = permanentUpgrades.filter(u => u.id.startsWith(key + '_'));
-    ['hp','atk','def','acc','pot'].forEach(k => { const t = document.getElementById(`tab_${k}`); if (t) t.style.opacity = k===key?'1':'0.4'; });
-    const list = document.getElementById('upgrade-list');
-    if (!list) return;
-    const nextIdx = catUpgrades.filter(u => buyCounts[u.id]).length;
-    list.innerHTML = catUpgrades.map((up, i) => {
-        const bought = !!buyCounts[up.id], isNext = i===nextIdx, canAfford = savedGold>=up.price, locked = i>nextIdx;
-        let bg='#1a1a1a', bc='#333', tc='#888';
-        if (bought) { bg='#0a1a0a'; bc='#2ed573'; tc='#2ed573'; }
-        else if (isNext&&canAfford) { bg='#1a1a0a'; bc='#f1c40f'; tc='#e0e0e0'; }
-        else if (isNext&&!canAfford) { bc='#555'; tc='#666'; }
-        else if (locked) { tc='#444'; }
-        return `<div style="display:flex;justify-content:space-between;align-items:center;background:${bg};border:1px solid ${bc};border-radius:6px;padding:8px 12px;margin-bottom:5px;">
-            <div><span style="color:${tc};font-weight:700;font-size:0.85em;">${bought?'✅':locked?'🔒':'⬜'} ${up.name}</span><div style="color:#555;font-size:0.75em;">${up.desc}</div></div>
-            <button onclick="buyPermUpgrade('${up.id}')" ${bought||locked||!canAfford?'disabled':''} style="background:${bought?'#0a2a0a':isNext&&canAfford?'#f1c40f':'#222'};color:${bought?'#2ed573':isNext&&canAfford?'#111':'#444'};padding:5px 12px;font-size:0.8em;font-weight:700;margin:0;border-radius:5px;cursor:${bought||locked||!canAfford?'not-allowed':'pointer'};white-space:nowrap;">
-                ${bought?'완료':locked?'잠금':up.price+'G'}</button></div>`;
-    }).join('');
+    const cat = permanentUpgrades.filter((u) => u.id.startsWith(key + '_'));
+    const lv = cat.filter((u) => buyCounts[u.id]).length;
+    const next = cat[lv];
+    if (!next) return;
+    buyPermUpgrade(next.id);
 };
 
 window.buyPermUpgrade = (id) => {
@@ -239,9 +283,7 @@ window.buyPermUpgrade = (id) => {
     if (up.effect.atk) perma.atk += up.effect.atk;
     if (up.effect.def) perma.def += up.effect.def;
     if (up.effect.acc) perma.acc += up.effect.acc;
-    if (up.effect.potion) perma.potion += up.effect.potion;
     savePermaStats(perma);
-    switchUpgradeTab(prefix.replace('perm_', ''));
     showPreGameScreen();
 };
 
@@ -253,7 +295,7 @@ window.selectJobAndStart = (job) => {
         curHp: jobBase[job].hp+perma.hp, maxHp: jobBase[job].hp+perma.hp,
         atk: jobBase[job].atk+perma.atk, def: jobBase[job].def+perma.def,
         acc: perma.acc, crit: 5, critMult: 1.8,
-        items: [], relics: [], extraAtk: 0, potions: perma.potion,
+        items: [], relics: [], extraAtk: 0, potions: 3,
         extraDef: 0, unlockedSkill: null, ultStack: 0, ultMaxStack: 0,
         lifesteal: 0, hasRegenPotion: false,
         baseJob: jobBase[job].name, evolved: false, shieldEmpowered: false,
@@ -300,7 +342,7 @@ window.evolve = (idx) => {
     if (evol.bonusHp) { player.maxHp=evol.bonusHp; player.curHp=Math.min(player.curHp,player.maxHp); }
     if (evol.bonusAcc) player.acc = evol.bonusAcc;
     player.extraAtk=0; player.extraDef=0;
-    player.items.forEach(it => { if (it.type==='atk') player.atk+=it.value; if (it.type==='acc') player.acc+=it.value; if (it.def) player.extraDef+=it.def; });
+    player.items.forEach(it => { if (it.type === 'merc') return; if (it.type==='atk') player.atk+=it.value; if (it.type==='acc') player.acc+=it.value; if (it.def) player.extraDef+=it.def; });
     // 궁극기 세팅
     player.unlockedSkill = evol.ult;
     const ultSpec = ultSkills[evol.ult];
@@ -490,9 +532,9 @@ window.resolveSkillEvent = (idx) => {
 
 // ===================== 대장간 =====================
 function showForgeEvent() {
-    const commonItems = player.items.filter(i => i.rarity === 'common');
-    const rareItems = player.items.filter(i => i.rarity === 'rare');
-    const epicItems = player.items.filter(i => i.rarity === 'epic');
+    const commonItems = player.items.filter(i => i.rarity === 'common' && i.type !== 'merc');
+    const rareItems = player.items.filter(i => i.rarity === 'rare' && i.type !== 'merc');
+    const epicItems = player.items.filter(i => i.rarity === 'epic' && i.type !== 'merc');
 
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;z-index:9999;overflow-y:auto;';
@@ -578,7 +620,7 @@ const encounterEvents = [
         { label:"최대 체력 절반을 바치고 전설 아이템 획득", action:()=>{
             const s=Math.floor(player.maxHp*0.5); player.maxHp=Math.max(50,player.maxHp-s); player.curHp=Math.max(1,player.curHp-s);
             const l=equipmentPool.filter(i=>i.rarity==='legendary'&&!player.items.some(p=>p.name===i.name));
-            if(l.length>0){const it=l[Math.floor(Math.random()*l.length)];player.items.push(it);saveCollection(it.name);if(it.type==='atk')player.atk+=it.value;if(it.type==='hp'){player.maxHp+=it.value;player.curHp+=it.value;}if(it.critBonus)player.crit+=it.critBonus;if(it.critMult)player.critMult+=it.critMult;if(it.lifesteal)player.lifesteal+=it.lifesteal;writeLog(`[이벤트] 💀 <b style='color:#e74c3c'>${it.name}</b> 획득!`);}
+            if(l.length>0){const it=l[Math.floor(Math.random()*l.length)];player.items.push(it);saveCollection(it.name);if(it.type!=='merc'){if(it.type==='atk')player.atk+=it.value;if(it.type==='hp'){player.maxHp+=it.value;player.curHp+=it.value;}if(it.critBonus)player.crit+=it.critBonus;if(it.critMult)player.critMult+=it.critMult;if(it.lifesteal)player.lifesteal+=it.lifesteal;}writeLog(`[이벤트] 💀 <b style='color:#e74c3c'>${it.name}</b> 획득!`);}
             else{gold+=200;writeLog(`[이벤트] 💀 골드 200G를 받았습니다.`);}
         }},
         {label:"무시하고 지나간다",action:()=>writeLog(`[이벤트] 여신상을 무시했습니다.`)}
@@ -587,7 +629,7 @@ const encounterEvents = [
         { label:"골드 50G로 랜덤 에픽 아이템", action:()=>{
             if(gold<50){writeLog(`[이벤트] 골드 부족!`);return;}gold-=50;
             const e=equipmentPool.filter(i=>i.rarity==='epic'&&!player.items.some(p=>p.name===i.name));
-            if(e.length>0){const it=e[Math.floor(Math.random()*e.length)];player.items.push(it);saveCollection(it.name);if(it.type==='atk')player.atk+=it.value;if(it.type==='hp'){player.maxHp+=it.value;player.curHp+=it.value;}if(it.critBonus)player.crit+=it.critBonus;if(it.critMult)player.critMult+=it.critMult;writeLog(`[이벤트] 🧙 <b style='color:#a55eea'>${it.name}</b> 획득!`);}
+            if(e.length>0){const it=e[Math.floor(Math.random()*e.length)];player.items.push(it);saveCollection(it.name);if(it.type!=='merc'){if(it.type==='atk')player.atk+=it.value;if(it.type==='hp'){player.maxHp+=it.value;player.curHp+=it.value;}if(it.critBonus)player.crit+=it.critBonus;if(it.critMult)player.critMult+=it.critMult;}writeLog(`[이벤트] 🧙 <b style='color:#a55eea'>${it.name}</b> 획득!`);}
         }},
         {label:"거절한다",action:()=>writeLog(`[이벤트] 상인을 거절했습니다.`)}
     ]},
@@ -763,8 +805,8 @@ function applySummonDarkTurnStart() {
     if (player.summon && player.summon.id === 'dark') {
         const hpCost = Math.max(1, Math.floor(player.maxHp * 0.05));
         player.curHp = Math.max(1, player.curHp - hpCost);
-        const rawAtk = player.atk + player.extraAtk;
-        const md = Math.max(1, Math.floor(2 * rawAtk - Math.floor(enemy.def * 0.5)));
+        const rawAtk = getEffectiveAttackPower();
+        const md = Math.max(1, Math.floor(1.65 * rawAtk - Math.floor(enemy.def * 0.5)));
         enemy.curHp -= md;
         writeLog(`[소환] 😈 어둠의 악마! 체력 -${hpCost}, 마법 피해 ${md}!`);
         showDmgFloat(md, true, false); triggerShakeEffect();
@@ -798,11 +840,11 @@ window.useAction = (type) => {
             if(relations[relKey].strong===enemy.job){multiplier=1.5;effectMsg="<b style='color:#2ed573'>(상성 우위!)</b> ";}
             else if(relations[relKey].weak===enemy.job){multiplier=0.8;effectMsg="<b style='color:#ff4757'>(상성 열세..)</b> ";}
         }
-        const accRate=Math.min(95,85+player.acc);
+        const accRate=Math.min(95,BASE_HIT_ACCURACY+player.acc);
         if(Math.random()*100<accRate){
             let berserkMult = (player.name==='버서커' && player.curHp <= player.maxHp * 0.5) ? 1.5 : 1;
             if (berserkMult > 1) effectMsg += "<b style='color:#e74c3c'>【광폭화】</b> ";
-            let baseDmg=Math.floor((player.atk+player.extraAtk+Math.floor(Math.random()*8)) * berserkMult);
+            let baseDmg=Math.floor((getEffectiveAttackPower()+Math.floor(Math.random()*8)) * berserkMult);
             const critInfo=getCritInfo();
             let effectiveCrit=critInfo.effectiveCrit;
             if(critInfo.isBerserkCrit){effectMsg+="<b style='color:#ff4757'>🔥 분노!</b> ";}
@@ -815,26 +857,26 @@ window.useAction = (type) => {
                 usedWeak = true;
                 enemy.weakPoint = false;
                 isCrit = true;
-                baseDmg = Math.floor(baseDmg * player.critMult * 2);
+                baseDmg = Math.floor(baseDmg * getEffectiveCritMult() * 2);
                 effectMsg += "<b style='color:#9b59b6'>【약점 노출】</b> <b style='color:#f1c40f'>💥 암살!</b> ";
                 triggerCritEffect();
             } else {
                 isCrit = Math.random()*100<effectiveCrit;
-                if(isCrit){baseDmg=Math.floor(baseDmg*player.critMult);effectMsg+="<b style='color:#f1c40f'>💥 치명타!</b> ";triggerCritEffect();}
+                if(isCrit){baseDmg=Math.floor(baseDmg*getEffectiveCritMult());effectMsg+="<b style='color:#f1c40f'>💥 치명타!</b> ";triggerCritEffect();}
             }
             const effDef = (usedWeak ? 0 : enemy.def);
             let finalDmg=Math.max(1,Math.floor(baseDmg*multiplier*relicAtkMult)-effDef);
             enemy.curHp-=finalDmg;
             showDmgFloat(finalDmg,isCrit,false); triggerShakeEffect();
             writeLog(`[명중] ${effectMsg}적에게 ${finalDmg} 피해!`);
-            if(player.lifesteal>0){const h=Math.floor(finalDmg*player.lifesteal);player.curHp=Math.min(player.maxHp,player.curHp+h);writeLog(`[흡혈] 💉 ${h}`);}
+            if(getLifestealEffective()>0){const h=Math.floor(finalDmg*getLifestealEffective());player.curHp=Math.min(player.maxHp,player.curHp+h);writeLog(`[흡혈] 💉 ${h}`);}
             if (player.name==='버서커' && player.curHp <= player.maxHp * 0.5) {
                 const rh = Math.floor(finalDmg * 0.3);
                 player.curHp = Math.min(player.maxHp, player.curHp + rh);
                 writeLog(`[패시브] 광폭화 흡혈 +${rh}`);
             }
             if (player.summon && player.summon.id === 'fire' && enemy.curHp > 0) {
-                const fireDmg = Math.max(1, Math.floor((player.atk + player.extraAtk) * 0.2));
+                const fireDmg = Math.max(1, Math.floor(getEffectiveAttackPower() * 0.12));
                 enemy.curHp -= fireDmg;
                 writeLog(`[소환] 🔥 불의 정령 추가 피해 ${fireDmg}!`);
                 showDmgFloat(fireDmg, false, false);
@@ -844,10 +886,10 @@ window.useAction = (type) => {
             // 보너스 스킬 처리
             if(player.bonusSkills){
                 if(player.bonusSkills.includes('bonus_bleed')&&Math.random()<0.10){const bd=Math.floor(finalDmg*0.8);enemy.curHp-=bd;writeLog(`[스킬] 피의 분노! ${bd} 추가 피해!`);showDmgFloat(bd,false,false);}
-                if(isCrit&&player.bonusSkills.includes('bonus_explode')){const ed=Math.floor((player.atk+player.extraAtk)*0.5);enemy.curHp-=ed;writeLog(`[스킬] 폭발 일격! ${ed} 추가 피해!`);showDmgFloat(ed,false,false);}
+                if(isCrit&&player.bonusSkills.includes('bonus_explode')){const ed=Math.floor(getEffectiveAttackPower()*0.5);enemy.curHp-=ed;writeLog(`[스킬] 폭발 일격! ${ed} 추가 피해!`);showDmgFloat(ed,false,false);}
             }
             if(isCrit&&player.relics&&player.relics.includes('chain_cast')&&enemy.curHp>0){
-                setTimeout(()=>{if(!enemy||enemy.curHp<=0)return;const cd=Math.max(1,Math.floor((player.atk+player.extraAtk)*0.55)-enemy.def);enemy.curHp-=cd;writeLog(`[유물] ⚡ 연쇄 마법! ${cd} 추가 피해!`);showDmgFloat(cd,false,false);if(enemy.curHp<=0)winBattle();else updateUi();},250);
+                setTimeout(()=>{if(!enemy||enemy.curHp<=0)return;const cd=Math.max(1,Math.floor(getEffectiveAttackPower()*0.55)-enemy.def);enemy.curHp-=cd;writeLog(`[유물] ⚡ 연쇄 마법! ${cd} 추가 피해!`);showDmgFloat(cd,false,false);if(enemy.curHp<=0)winBattle();else updateUi();},250);
             }
             if(enemy.curHp<=0&&player.relics&&player.relics.includes('kill_heal')){const kh=Math.floor(player.maxHp*0.15);player.curHp=Math.min(player.maxHp,player.curHp+kh);writeLog(`[유물] 💚 킬 회복 ${kh}!`);}
         } else writeLog(`[빗나감] 공격 실패!`);
@@ -862,14 +904,14 @@ window.useAction = (type) => {
         const dmgMult = ultSpec ? ultSpec.dmgMult : 4.0;
         if (Math.random() < 0.5) {
             let berserkMult = (player.name==='버서커' && player.curHp <= player.maxHp * 0.5) ? 1.5 : 1;
-            let ultDmg = Math.floor((player.atk + player.extraAtk) * dmgMult * berserkMult);
+            let ultDmg = Math.floor(getEffectiveAttackPower() * dmgMult * berserkMult);
             const critInfo=getCritInfo();
             const isCrit = Math.random()*100 < critInfo.effectiveCrit;
-            if (isCrit) { ultDmg = Math.floor(ultDmg*player.critMult); triggerCritEffect(); }
+            if (isCrit) { ultDmg = Math.floor(ultDmg*getEffectiveCritMult()); triggerCritEffect(); }
             enemy.curHp -= ultDmg;
             showDmgFloat(ultDmg, isCrit, false); triggerShakeEffect();
             writeLog(`[궁극기] 💥 ${player.unlockedSkill} 炸裂! ${isCrit?'🔥 치명타! ':''}${ultDmg} 피해!`);
-            if (player.lifesteal>0) { const h=Math.floor(ultDmg*player.lifesteal); player.curHp=Math.min(player.maxHp,player.curHp+h); writeLog(`[흡혈] 💉 ${h}`); }
+            if (getLifestealEffective()>0) { const h=Math.floor(ultDmg*getLifestealEffective()); player.curHp=Math.min(player.maxHp,player.curHp+h); writeLog(`[흡혈] 💉 ${h}`); }
             if (player.name==='버서커' && player.curHp <= player.maxHp * 0.5) {
                 const rh = Math.floor(ultDmg * 0.3);
                 player.curHp = Math.min(player.maxHp, player.curHp + rh);
@@ -937,7 +979,7 @@ function enemyTurn() {
                 else if(defendingTurns>0){dmg=Math.floor(dmg*0.4);defendingTurns--;writeLog(`[철벽 방어] 🛡️ 피해 60% 감소! (${dmg} 입음)`);}
                 else writeLog(`[피격] 적의 공격! ${dmg} 데미지.`);
                 if (player.summon && player.summon.id === 'golem') {
-                    dmg = Math.max(1, Math.floor(dmg * 0.7));
+                    dmg = Math.max(1, Math.floor(dmg * 0.78));
                     writeLog(`[소환] 🪨 골렘이 피해를 줄였습니다! (${dmg})`);
                 }
                 player.curHp-=dmg; showDmgFloat(dmg,false,true);
@@ -1061,7 +1103,7 @@ function renderShopItems() {
         else if(it.rarity==='rare'){bc='#1e90ff';bac='#1e90ff';bb='#1a1e2d';bt='RARE';}
         let nc=isRelic?'#f1c40f':it.rarity==='legendary'?'#e74c3c':it.rarity==='epic'?'#a55eea':it.rarity==='rare'?'#1e90ff':'#e0e0e0';
         let ti=isRelic?'✨':'🎒';
-        if(!isRelic){if(it.type==='atk')ti='⚔️';else if(it.type==='hp')ti='🛡️';else if(it.type==='acc')ti='🎯';else if(it.type==='potion')ti='🧪';if(it.lifesteal)ti='🩸';if(it.regenPotion)ti='💚';}
+        if(!isRelic){if(it.type==='atk')ti='⚔️';else if(it.type==='hp')ti='🛡️';else if(it.type==='acc')ti='🎯';else if(it.type==='potion')ti='🧪';else if(it.type==='merc')ti='⚔️';if(it.lifesteal)ti='🩸';if(it.regenPotion)ti='💚';}
         const iu=getUnlockedPoolItems().some(u=>u.name===it.name);
         d.style.cssText=`background:#1a1a1a;border:1px solid ${bc};border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px;transition:transform 0.15s;cursor:default;`;
         d.onmouseenter=()=>d.style.transform='translateY(-2px)'; d.onmouseleave=()=>d.style.transform='translateY(0)';
@@ -1093,6 +1135,11 @@ window.buyItem = (event, idx) => {
         showUnlockPopup(`✨ 유물 획득!`,`<b style="color:#f1c40f;">${it.name}</b><br>${it.desc}`,'#f1c40f');
     } else if(it.type==='potion'){
         player.potions++; writeLog(`[상점] 포션 구매 완료.`);
+    } else if(it.type==='merc'){
+        if(!player.items.some(i=>i.name===it.name)){
+            player.items.push(it); saveCollection(it.name);
+            writeLog(`[상점] ${it.name} 구매! (인벤에서 전투 중 <b>고용</b>)`);
+        } else { writeLog(`이미 보유한 고용 아이템입니다!`); gold+=it.price; }
     } else {
         if(!player.items.some(i=>i.name===it.name)){
             player.items.push(it); saveCollection(it.name);
@@ -1143,6 +1190,33 @@ async function loadRank() {
 window.togglePatchNotes=(show)=>{document.getElementById('patch-modal').style.display=show?'flex':'none';};
 window.toggleRank=(show)=>{document.getElementById('rank-modal').style.display=show?'flex':'none';if(show)loadRank();};
 window.toggleInv=(show)=>{document.getElementById('inv-modal').style.display=show?'flex':'none';};
+
+window.useMercenarySlot = (ix) => {
+    if (!player || !enemy) return writeLog('[고용] 전투 중에만 사용할 수 있습니다.');
+    const it = player.items[ix];
+    if (!it || it.type !== 'merc' || !it.merc) return;
+    const m = it.merc;
+    if (m.kind === 'dmg') {
+        const d = Math.max(1, Math.floor(getEffectiveAttackPower() * m.mult));
+        enemy.curHp -= d;
+        writeLog(`[고용] ${it.name} — ${d} 피해!`);
+        showDmgFloat(d, false, false); triggerShakeEffect();
+    } else if (m.kind === 'heal') {
+        const h = Math.floor(player.maxHp * m.pct);
+        player.curHp = Math.min(player.maxHp, player.curHp + h);
+        writeLog(`[고용] ${it.name} — ${h} 회복!`);
+    } else if (m.kind === 'both') {
+        const d = Math.max(1, Math.floor(getEffectiveAttackPower() * m.dmgMult));
+        enemy.curHp -= d;
+        const h = Math.floor(player.maxHp * m.healPct);
+        player.curHp = Math.min(player.maxHp, player.curHp + h);
+        writeLog(`[고용] ${it.name} — ${d} 피해 + ${h} 회복!`);
+        showDmgFloat(d, false, false); triggerShakeEffect();
+    }
+    player.items.splice(ix, 1);
+    if (enemy.curHp <= 0) return winBattle();
+    updateUi(); renderActions();
+};
 window.toggleCollection=(show)=>{
     if(show){
         const collection=JSON.parse(localStorage.getItem('item_collection_v5')||'[]');
@@ -1202,14 +1276,15 @@ function updateUi() {
         if (player.unlockedSkill && floor >= 20) ultLine.innerHTML = `<span style="color:#9b59b6;">궁극기</span> [${player.ultStack}/${player.ultMaxStack}]`;
         else ultLine.innerHTML = '';
     }
-    document.getElementById('p-atk-val').innerText=player.atk+player.extraAtk;
+    document.getElementById('p-atk-val').innerText=getEffectiveAttackPower();
     document.getElementById('p-def-val').innerText=player.def+player.extraDef;
-    document.getElementById('p-acc-val').innerText=`${Math.min(95,85+player.acc)}%`;
+    document.getElementById('p-acc-val').innerText=`${Math.min(95,BASE_HIT_ACCURACY+player.acc)}%`;
     const critInfo=getCritInfo();
     document.getElementById('p-crit-val').innerText=`${Math.round(critInfo.effectiveCrit)}%`;
     const critMultEl=document.getElementById('p-crit-mult-val');
-    if(critMultEl) critMultEl.innerText=`${(player.critMult||1.8).toFixed(2)}x`;
-    document.getElementById('p-lifesteal-val').innerText=`${Math.round((player.lifesteal||0)*100)}%`;
+    if(critMultEl) critMultEl.innerText=`${getEffectiveCritMult().toFixed(2)}x`;
+    const lsOv=getLifestealOverflowAtk();
+    document.getElementById('p-lifesteal-val').innerText=`${Math.round(getLifestealEffective()*100)}%${lsOv>0?` <span style="font-size:0.85em;color:#f1c40f;">(+${lsOv} ATK 초과분)</span>`:''}`;
     document.getElementById('e-name').innerText=enemy.name;
     document.getElementById('e-hp').style.width=`${Math.max(0,(enemy.curHp/enemy.hp)*100)}%`;
     document.getElementById('e-hp-t').innerText=`${Math.max(0,enemy.curHp)} / ${enemy.hp}`;
@@ -1246,7 +1321,11 @@ function updateUi() {
                 if(!items.length)return;
                 const{label,color,bg}=rl[rarity];
                 html+=`<div style="margin-bottom:10px;"><div style="background:${bg};color:${color};font-size:0.7em;font-weight:700;padding:3px 8px;border-radius:4px;display:inline-block;margin-bottom:6px;">${label}</div>`;
-                items.forEach(it=>{html+=`<div style="padding:8px 10px;background:#111;border-radius:6px;margin-bottom:4px;border-left:3px solid ${color};"><div style="color:${color};font-weight:700;font-size:0.9em;">${it.name}</div><div style="color:#666;font-size:0.78em;margin-top:3px;line-height:1.4;">${it.desc}</div></div>`;});
+                items.forEach(it=>{
+                    const oi=player.items.indexOf(it);
+                    const mercBtn=it.type==='merc'?`<button type="button" onclick="useMercenarySlot(${oi})" style="margin-top:6px;background:#e67e22;color:#111;border:none;padding:4px 10px;font-size:0.75em;font-weight:700;border-radius:4px;cursor:pointer;">⚔️ 고용 (전투)</button>`:'';
+                    html+=`<div style="padding:8px 10px;background:#111;border-radius:6px;margin-bottom:4px;border-left:3px solid ${color};"><div style="color:${color};font-weight:700;font-size:0.9em;">${it.type==='merc'?'🛡️ ':''}${it.name}</div><div style="color:#666;font-size:0.78em;margin-top:3px;line-height:1.4;">${it.desc}</div>${mercBtn}</div>`;
+                });
                 html+=`</div>`;
             });
             invList.innerHTML=html;
