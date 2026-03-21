@@ -27,6 +27,27 @@ let pendingShop = false;
 let potionUsedThisTurn = false;
 let totalGoldEarned = 0;
 let shopVisitCount = 0;
+/** 공격 버튼 GCD(광클 방지), 타격감 연출과 동일 500ms */
+let attackGcdUntil = 0;
+const ATTACK_GCD_MS = 500;
+
+function clearSummonRunStorage() {
+    localStorage.removeItem('summon_altar_done');
+    localStorage.removeItem('summon_contract_json');
+}
+
+function loadSummonFromStorage() {
+    try {
+        const raw = localStorage.getItem('summon_contract_json');
+        if (!raw) return null;
+        return JSON.parse(raw);
+    } catch (e) { return null; }
+}
+
+function saveSummonToStorage(s) {
+    if (s) localStorage.setItem('summon_contract_json', JSON.stringify(s));
+    else localStorage.removeItem('summon_contract_json');
+}
 
 function getPermaStats() {
     return JSON.parse(localStorage.getItem('perma_stats') || '{"hp":0,"atk":0,"def":0,"acc":0,"potion":0}');
@@ -220,6 +241,7 @@ window.buyPermUpgrade = (id) => {
 };
 
 window.selectJobAndStart = (job) => {
+    clearSummonRunStorage();
     const perma = getPermaStats();
     player = {
         ...jobBase[job],
@@ -229,7 +251,8 @@ window.selectJobAndStart = (job) => {
         items: [], relics: [], extraAtk: 0, potions: perma.potion,
         extraDef: 0, unlockedSkill: null, ultStack: 0, ultMaxStack: 0,
         lifesteal: 0, hasRegenPotion: false,
-        baseJob: jobBase[job].name, evolved: false, shieldEmpowered: false
+        baseJob: jobBase[job].name, evolved: false, shieldEmpowered: false,
+        summon: null, _awaitPlayerTurn: false
     };
     floor=1; gold=0; totalGoldEarned=0; rerollCost=10; shopVisitCount=0;
     document.getElementById('start-area').style.display='none';
@@ -278,6 +301,10 @@ window.evolve = (idx) => {
     const ultSpec = ultSkills[evol.ult];
     player.ultStack = 0;
     player.ultMaxStack = ultSpec ? ultSpec.stackRequired : 3;
+    if (evol.name === '소환사') {
+        const saved = loadSummonFromStorage();
+        if (saved && saved.id) player.summon = saved;
+    }
     document.body.removeChild(window._evolOverlay);
     writeLog(`⚡ [전직] ${oldName} → <b style='color:#f1c40f'>${evol.name}</b>! 궁극기 [${evol.ult}] 획득!`);
     updateUi(); renderActions();
@@ -582,6 +609,50 @@ const encounterEvents = [
     ]}
 ];
 
+/** 소환사 15층 1회: 계약의 제단 */
+function showContractAltar() {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;z-index:10000;';
+    overlay.innerHTML = `
+        <div style="background:#1a0a2a;border:2px solid #9b59b6;border-radius:12px;padding:28px;max-width:480px;width:92%;text-align:center;">
+            <h2 style="color:#9b59b6;margin-bottom:10px;">🔮 계약의 제단</h2>
+            <p style="color:#aaa;font-size:0.88em;margin-bottom:18px;line-height:1.5;">소환수와 계약을 맺습니다. 선택 후 이번 모험 내내 전투에 함께합니다.</p>
+            <div onclick="resolveContractAltar('fire')" style="background:#2a1a1a;border:1px solid #e74c3c;border-radius:8px;padding:12px;margin-bottom:10px;cursor:pointer;text-align:left;">
+                <b style="color:#e74c3c;">🔥 불의 정령</b>
+                <p style="color:#888;font-size:0.82em;margin:6px 0 0;">공격 적중 시, 공격력의 20%만큼 방어 무시 추가 피해.</p>
+            </div>
+            <div onclick="resolveContractAltar('golem')" style="background:#1a1a2a;border:1px solid #95a5a6;border-radius:8px;padding:12px;margin-bottom:10px;cursor:pointer;text-align:left;">
+                <b style="color:#bdc3c7;">🪨 바위 골렘</b>
+                <p style="color:#888;font-size:0.82em;margin:6px 0 0;">피격 시 받는 피해를 30% 추가 감소.</p>
+            </div>
+            <div onclick="resolveContractAltar('dark')" style="background:#0f0f1a;border:1px solid #8e44ad;border-radius:8px;padding:12px;margin-bottom:10px;cursor:pointer;text-align:left;">
+                <b style="color:#a55eea;">😈 어둠의 악마</b>
+                <p style="color:#888;font-size:0.82em;margin:6px 0 0;">내 턴 시작 시 최대 체력 5%를 잃고, 방어 50% 무시 마법 피해(공격력×2)를 추가로 가합니다.</p>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+    window._contractAltarOverlay = overlay;
+}
+
+window.resolveContractAltar = (id) => {
+    const map = {
+        fire: { id: 'fire', name: '불의 정령' },
+        golem: { id: 'golem', name: '바위 골렘' },
+        dark: { id: 'dark', name: '어둠의 악마' }
+    };
+    const s = map[id];
+    if (!s || !player) return;
+    player.summon = s;
+    saveSummonToStorage(s);
+    localStorage.setItem('summon_altar_done', '1');
+    if (window._contractAltarOverlay && window._contractAltarOverlay.parentNode) {
+        document.body.removeChild(window._contractAltarOverlay);
+    }
+    writeLog(`[계약] 🔮 <b style='color:#9b59b6'>${s.name}</b>과(와) 계약을 맺었습니다!`);
+    updateUi();
+    spawnEnemy();
+};
+
 function showRandomEncounter() {
     const event = encounterEvents[Math.floor(Math.random()*encounterEvents.length)];
     const overlay = document.createElement('div');
@@ -622,7 +693,7 @@ function spawnEnemy() {
         else if(floor<=30){bossHp=400+floor*30;bossAtk=20+floor*5;bossDef=8+Math.floor(floor/2);}
         else if(floor<=60){bossHp=800+floor*40;bossAtk=35+floor*7;bossDef=15+Math.floor(floor/2);}
         else{bossHp=1500+floor*55;bossAtk=60+floor*10;bossDef=25+Math.floor(floor/2);}
-        enemy={name:`👑 [보스] ${floor}층 군주`,job:'보스',hp:bossHp,curHp:bossHp,atk:bossAtk,def:bossDef,isBoss:true,turnCount:1,bossCharge:false};
+        enemy={name:`👑 [보스] ${floor}층 군주`,job:'보스',hp:bossHp,curHp:bossHp,atk:bossAtk,def:bossDef,isBoss:true,turnCount:1,bossCharge:false,weakPoint:false};
         writeLog(`🚨 경고: ${floor}층의 지배자가 나타났습니다!`);
     } else {
         const eJobs=['워리어','헌터','마법사'];
@@ -634,8 +705,9 @@ function spawnEnemy() {
         else if(floor<=30){mh=100+floor*15;ma=18+floor*3;md=4+Math.floor(floor/3);}
         else if(floor<=60){mh=300+floor*22;ma=35+floor*5;md=10+Math.floor(floor/2);}
         else{mh=700+floor*30;ma=65+floor*8;md=20+Math.floor(floor/2);}
-        enemy={name:`[${rj}형] ${floor}층 괴수`,job:rj,hp:Math.floor(mh),curHp:Math.floor(mh),atk:Math.floor(ma),def:Math.floor(md),isBoss:false};
+        enemy={name:`[${rj}형] ${floor}층 괴수`,job:rj,hp:Math.floor(mh),curHp:Math.floor(mh),atk:Math.floor(ma),def:Math.floor(md),isBoss:false,weakPoint:false};
     }
+    player._awaitPlayerTurn = true;
     updateUi(); renderActions();
 }
 
@@ -643,7 +715,15 @@ function renderActions() {
     const div = document.getElementById('action-btns');
     div.innerHTML = '';
     const atkBtn = document.createElement('button');
+    atkBtn.id = 'btn-attack';
     atkBtn.innerText='⚔️ 공격'; atkBtn.style.background=player.color;
+    const gcdLeft = attackGcdUntil - Date.now();
+    if (gcdLeft > 0) {
+        atkBtn.disabled = true;
+        atkBtn.style.opacity = '0.45';
+        atkBtn.style.cursor = 'not-allowed';
+        atkBtn.title = `쿨다운 ${Math.ceil(gcdLeft/100)/10}초`;
+    }
     atkBtn.onclick=()=>useAction('공격'); div.appendChild(atkBtn);
 
     const defBtn = document.createElement('button');
@@ -672,9 +752,37 @@ function renderActions() {
     pBtn.onclick=usePotion; div.appendChild(pBtn);
 }
 
+function applySummonDarkTurnStart() {
+    if (!player || !enemy || !player._awaitPlayerTurn) return;
+    player._awaitPlayerTurn = false;
+    if (player.summon && player.summon.id === 'dark') {
+        const hpCost = Math.max(1, Math.floor(player.maxHp * 0.05));
+        player.curHp = Math.max(1, player.curHp - hpCost);
+        const rawAtk = player.atk + player.extraAtk;
+        const md = Math.max(1, Math.floor(2 * rawAtk - Math.floor(enemy.def * 0.5)));
+        enemy.curHp -= md;
+        writeLog(`[소환] 😈 어둠의 악마! 체력 -${hpCost}, 마법 피해 ${md}!`);
+        showDmgFloat(md, true, false); triggerShakeEffect();
+        if (enemy.curHp <= 0) { winBattle(); return true; }
+    }
+    return false;
+}
+
 window.useAction = (type) => {
     potionUsedThisTurn=false;
+    if (type === '공격') {
+        const now = Date.now();
+        if (now < attackGcdUntil) {
+            return writeLog(`[쿨다운] 공격을 너무 빨리 눌렀습니다!`);
+        }
+    }
+    if (applySummonDarkTurnStart()) return;
+
     if (type==='공격') {
+        const now = Date.now();
+        attackGcdUntil = now + ATTACK_GCD_MS;
+        setTimeout(() => { renderActions(); }, ATTACK_GCD_MS);
+
         // 스택 증가
         if (player.unlockedSkill && floor >= 20) {
             player.ultStack = Math.min(player.ultMaxStack, player.ultStack + 1);
@@ -687,20 +795,46 @@ window.useAction = (type) => {
         }
         const accRate=Math.min(95,85+player.acc);
         if(Math.random()*100<accRate){
-            let baseDmg=player.atk+player.extraAtk+Math.floor(Math.random()*8);
+            let berserkMult = (player.name==='버서커' && player.curHp <= player.maxHp * 0.5) ? 1.5 : 1;
+            if (berserkMult > 1) effectMsg += "<b style='color:#e74c3c'>【광폭화】</b> ";
+            let baseDmg=Math.floor((player.atk+player.extraAtk+Math.floor(Math.random()*8)) * berserkMult);
             const critInfo=getCritInfo();
             let effectiveCrit=critInfo.effectiveCrit;
             if(critInfo.isBerserkCrit){effectMsg+="<b style='color:#ff4757'>🔥 분노!</b> ";}
             let relicAtkMult=1;
             if(player.relics&&player.relics.includes('execute')&&enemy.curHp<=enemy.hp*0.2){relicAtkMult=2;effectMsg+="<b style='color:#e74c3c'>💀 처형!</b> ";}
             if(player.shieldEmpowered){relicAtkMult*=1.5;player.shieldEmpowered=false;effectMsg+="<b style='color:#3498db'>🛡️ 강화!</b> ";}
-            const isCrit=Math.random()*100<effectiveCrit;
-            if(isCrit){baseDmg=Math.floor(baseDmg*player.critMult);effectMsg+="<b style='color:#f1c40f'>💥 치명타!</b> ";triggerCritEffect();}
-            let finalDmg=Math.max(1,Math.floor(baseDmg*multiplier*relicAtkMult)-enemy.def);
+            let isCrit = false;
+            let usedWeak = false;
+            if (enemy.weakPoint && player.name === '암살자') {
+                usedWeak = true;
+                enemy.weakPoint = false;
+                isCrit = true;
+                baseDmg = Math.floor(baseDmg * player.critMult * 2);
+                effectMsg += "<b style='color:#9b59b6'>【약점 노출】</b> <b style='color:#f1c40f'>💥 암살!</b> ";
+                triggerCritEffect();
+            } else {
+                isCrit = Math.random()*100<effectiveCrit;
+                if(isCrit){baseDmg=Math.floor(baseDmg*player.critMult);effectMsg+="<b style='color:#f1c40f'>💥 치명타!</b> ";triggerCritEffect();}
+            }
+            const effDef = (usedWeak ? 0 : enemy.def);
+            let finalDmg=Math.max(1,Math.floor(baseDmg*multiplier*relicAtkMult)-effDef);
             enemy.curHp-=finalDmg;
             showDmgFloat(finalDmg,isCrit,false); triggerShakeEffect();
             writeLog(`[명중] ${effectMsg}적에게 ${finalDmg} 피해!`);
             if(player.lifesteal>0){const h=Math.floor(finalDmg*player.lifesteal);player.curHp=Math.min(player.maxHp,player.curHp+h);writeLog(`[흡혈] 💉 ${h}`);}
+            if (player.name==='버서커' && player.curHp <= player.maxHp * 0.5) {
+                const rh = Math.floor(finalDmg * 0.3);
+                player.curHp = Math.min(player.maxHp, player.curHp + rh);
+                writeLog(`[패시브] 광폭화 흡혈 +${rh}`);
+            }
+            if (player.summon && player.summon.id === 'fire' && enemy.curHp > 0) {
+                const fireDmg = Math.max(1, Math.floor((player.atk + player.extraAtk) * 0.2));
+                enemy.curHp -= fireDmg;
+                writeLog(`[소환] 🔥 불의 정령 추가 피해 ${fireDmg}!`);
+                showDmgFloat(fireDmg, false, false);
+                if (enemy.curHp <= 0) { updateUi(); renderActions(); return winBattle(); }
+            }
 
             // 보너스 스킬 처리
             if(player.bonusSkills){
@@ -712,6 +846,7 @@ window.useAction = (type) => {
             }
             if(enemy.curHp<=0&&player.relics&&player.relics.includes('kill_heal')){const kh=Math.floor(player.maxHp*0.15);player.curHp=Math.min(player.maxHp,player.curHp+kh);writeLog(`[유물] 💚 킬 회복 ${kh}!`);}
         } else writeLog(`[빗나감] 공격 실패!`);
+        updateUi(); renderActions();
         if(enemy.curHp<=0) return winBattle();
 
     } else if (type==='궁극기') {
@@ -721,7 +856,8 @@ window.useAction = (type) => {
         const ultSpec = ultSkills[player.unlockedSkill];
         const dmgMult = ultSpec ? ultSpec.dmgMult : 4.0;
         if (Math.random() < 0.5) {
-            let ultDmg = Math.floor((player.atk + player.extraAtk) * dmgMult);
+            let berserkMult = (player.name==='버서커' && player.curHp <= player.maxHp * 0.5) ? 1.5 : 1;
+            let ultDmg = Math.floor((player.atk + player.extraAtk) * dmgMult * berserkMult);
             const critInfo=getCritInfo();
             const isCrit = Math.random()*100 < critInfo.effectiveCrit;
             if (isCrit) { ultDmg = Math.floor(ultDmg*player.critMult); triggerCritEffect(); }
@@ -729,10 +865,16 @@ window.useAction = (type) => {
             showDmgFloat(ultDmg, isCrit, false); triggerShakeEffect();
             writeLog(`[궁극기] 💥 ${player.unlockedSkill} 炸裂! ${isCrit?'🔥 치명타! ':''}${ultDmg} 피해!`);
             if (player.lifesteal>0) { const h=Math.floor(ultDmg*player.lifesteal); player.curHp=Math.min(player.maxHp,player.curHp+h); writeLog(`[흡혈] 💉 ${h}`); }
-            if (enemy.curHp<=0) return winBattle();
+            if (player.name==='버서커' && player.curHp <= player.maxHp * 0.5) {
+                const rh = Math.floor(ultDmg * 0.3);
+                player.curHp = Math.min(player.maxHp, player.curHp + rh);
+                writeLog(`[패시브] 광폭화 흡혈 +${rh}`);
+            }
+            if (enemy.curHp<=0) { updateUi(); renderActions(); return winBattle(); }
         } else {
             writeLog(`[궁극기] ❌ ${player.unlockedSkill} 발동 실패! (50% 확률)`);
         }
+        updateUi(); renderActions();
 
     } else if (type==='방패방어') {
         const guardRate = 70 + (player._guardBonus||0);
@@ -749,6 +891,7 @@ window.useAction = (type) => {
 };
 
 window.usePotion = () => {
+    if (applySummonDarkTurnStart()) return;
     if(player.potions<=0) return writeLog("포션이 없습니다!");
     if(potionUsedThisTurn) return writeLog("이번 턴에 이미 포션을 사용했습니다!");
     player.potions--; potionUsedThisTurn=true;
@@ -788,11 +931,20 @@ function enemyTurn() {
                 if(shieldedTurns>0){dmg=Math.floor(dmg*0.5);shieldedTurns--;writeLog(`[방어막] ✨ 피해 50% 감소! (${dmg} 입음)`);if(player.relics&&player.relics.includes('barrier_reflect')){const rd=Math.floor(dmg*0.3);enemy.curHp-=rd;writeLog(`[유물] 🔮 마력 반사! ${rd}`);if(enemy.curHp<=0){setTimeout(()=>winBattle(),100);}}}
                 else if(defendingTurns>0){dmg=Math.floor(dmg*0.4);defendingTurns--;writeLog(`[철벽 방어] 🛡️ 피해 60% 감소! (${dmg} 입음)`);}
                 else writeLog(`[피격] 적의 공격! ${dmg} 데미지.`);
+                if (player.summon && player.summon.id === 'golem') {
+                    dmg = Math.max(1, Math.floor(dmg * 0.7));
+                    writeLog(`[소환] 🪨 골렘이 피해를 줄였습니다! (${dmg})`);
+                }
                 player.curHp-=dmg; showDmgFloat(dmg,false,true);
             } else writeLog(`[럭키] 적의 공격이 빗나갔습니다!`);
         }
+        if (player.name === '암살자' && enemy && Math.random() < 0.15) {
+            enemy.weakPoint = true;
+            writeLog(`[패시브] 🎯 약점 노출! 다음 공격이 치명적으로 들어갑니다.`);
+        }
+        player._awaitPlayerTurn = true;
         if(player.curHp<=0) return gameOver();
-        updateUi();
+        updateUi(); renderActions();
     }, 400);
 }
 
@@ -811,6 +963,12 @@ function winBattle() {
     if(floor===100&&enemy.isBoss) return dungeonClear();
     const clearedFloor=floor; floor++;
     checkFloorUnlock(clearedFloor);
+
+    // 소환사 15층 도달 시 계약의 제단 (1회, 이벤트층/돌발 대신)
+    if (floor === 15 && player.name === '소환사' && !localStorage.getItem('summon_altar_done')) {
+        setTimeout(() => showContractAltar(), 500);
+        return;
+    }
 
     // 이벤트 층 체크
     if (checkEventFloor(floor)) {
@@ -1029,6 +1187,16 @@ function updateUi() {
     document.getElementById('p-name').innerText=player.name;
     document.getElementById('p-hp').style.width=`${Math.max(0,(player.curHp/player.maxHp)*100)}%`;
     document.getElementById('p-hp-t').innerText=`${Math.max(0,player.curHp)} / ${player.maxHp}`;
+    const summLine = document.getElementById('p-summon-line');
+    if (summLine) {
+        if (player.summon && player.summon.name) summLine.innerHTML = `<span style="color:#a55eea;">소환:</span> ${player.summon.name}`;
+        else summLine.innerHTML = '';
+    }
+    const ultLine = document.getElementById('p-ult-stack-line');
+    if (ultLine) {
+        if (player.unlockedSkill && floor >= 20) ultLine.innerHTML = `<span style="color:#9b59b6;">궁극기</span> [${player.ultStack}/${player.ultMaxStack}]`;
+        else ultLine.innerHTML = '';
+    }
     document.getElementById('p-atk-val').innerText=player.atk+player.extraAtk;
     document.getElementById('p-def-val').innerText=player.def+player.extraDef;
     document.getElementById('p-acc-val').innerText=`${Math.min(95,85+player.acc)}%`;

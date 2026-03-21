@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>던전 v6.3</title>
+    <title>던전 v6.5</title>
     <link rel="stylesheet" href="style.css">
     <style>
         .auth-box { background: #2a2a2a; padding: 20px; border-radius: 8px; border: 1px solid #444; max-width: 300px; margin: 0 auto; }
@@ -11,7 +11,7 @@
 </head>
 <body>
     <div class="container">
-        <h1 style="color: #fff; letter-spacing: 1px;">⚔️ 던전 (v6.3 온라인)</h1>
+        <h1 style="color: #fff; letter-spacing: 1px;">⚔️ 던전 (v6.5 온라인)</h1>
         
         <div class="game-layout" id="main-layout">
             <div class="screen" id="main-screen">
@@ -35,6 +35,8 @@
                             <h4 id="p-name" style="color: #fff;">나</h4>
                             <div class="hp-bar-outer"><div id="p-hp" class="hp-bar-inner"></div></div>
                             <span id="p-hp-t" style="font-weight:bold; color:#fff;"></span>
+                            <div id="p-summon-line" style="font-size:0.76em;color:#a55eea;margin-top:4px;min-height:1.1em;"></div>
+                            <div id="p-ult-stack-line" style="font-size:0.76em;color:#9b59b6;margin-top:2px;min-height:1.1em;"></div>
                             <div id="p-status" class="status-badge"></div>
                             <div class="stat-tag" style="cursor:default; font-size:0.82em;">
                                 ATK: <span id="p-atk-val" style="color:#f1c40f;">0</span> /
@@ -134,6 +136,19 @@
             <table class="patch-table">
                 <thead><tr><th>버전</th><th>항목</th><th>상세 내용</th></tr></thead>
                 <tbody>
+                    <tr><td class="v-tag">v6.5</td><td>시스템 &amp; 직업</td><td>
+    <b>공격 GCD(0.5초):</b> 공격 버튼 연타로 동시에 여러 번 실행되던 문제를 막기 위해, 공격 후 0.5초간 공격 버튼 비활성화(타격감 연출과 동일 타이밍).<br>
+    <b>버서커 패시브:</b> 체력 50% 이하 시 광폭화 — 공격력 1.5배, 가한 최종 피해의 30% 확정 회복.<br>
+    <b>암살자 패시브:</b> 적 턴 종료 시 15% 확률로 약점 노출 표식. 표식이 있는 적을 공격 시 방어 0으로 계산, 강제 치명타 및 치명 배율 2배(1회 소모).<br>
+    <b>소환사 15층 계약의 제단:</b> 1회 한정, 불의 정령 / 바위 골렘 / 어둠의 악마 중 계약. 전투 UI에 소환수 표시, 효과는 이후 전투에 지속.<br>
+    <b>궁극기 스택 UI:</b> 체력바 근처에 궁극기 스택이 실시간 표시되도록 수정.
+</td></tr>
+                    <tr><td class="v-tag">v6.4</td><td>밸런스</td><td>
+    <b>직업 밸런스 조정:</b> 마법사 전직(위저드/소환사) 중심의 과도한 딜 쏠림을 완화하고, 전직 전반의 체감 격차를 줄이도록 수치 조정.<br>
+    <b>치명타 상한 적용:</b> 치명타 확률이 100%에 고정되어 원킬이 과도하게 발생하는 현상을 줄이기 위해 치명타 확률 상한을 적용(분노 유물 포함).<br>
+    <b>치명타 배율 표시 추가:</b> 전투 UI에서 치명타 데미지 배율(`critMult`)을 실시간으로 함께 표시.<br>
+    <b>유물 ‘연쇄 마법진’ 너프:</b> 치명타 연계 추가 공격의 추가 피해 계수를 하향하여 특정 조건에서의 폭발 성능을 완화.
+</td></tr>
                     <tr><td class="v-tag">v6.3</td><td>대규모 시스템</td><td>
     <b>이벤트 층 추가:</b> 15, 25, 35, 45, 55, 65, 75, 85, 95층에 도달하면 특수 이벤트 발생. 20% 확률 대장간, 15% 확률 스킬 각성, 65% 확률 스탯 변환.<br>
     <b>스탯 변환 시스템:</b> 공격↔방어 전환, 방어→치명타 전환, 체력→공격 전환, 랜덤 강화 중 선택.<br>
