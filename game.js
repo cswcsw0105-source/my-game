@@ -42,9 +42,11 @@ let shopVisitCount = 0;
 let attackGcdUntil = 0;
 const ATTACK_GCD_MS = 500;
 /** 패치 노트/UI와 맞춰 두기 — 캐시 적용 여부 확인용 */
-const GAME_BUILD = '6.6.1';
-/** 필드 용병 기본 피해 계수(전역 보정) — v6.6.1 상향 */
+const GAME_BUILD = '6.6.2';
+/** 필드 용병 기본 피해 계수(전역 보정) */
 const MERC_DMG_GLOBAL_SCALE = 1.48;
+/** 층수에 따른 용병 딜/HP 성장 상한(과도한 폭주 방지) */
+const MERC_FLOOR_SCALE_CAP = 1.65;
 /** v6.5.1 핫픽스: 치명/흡혈 상한·명중 기본값 */
 const CRIT_SOFT_CAP = 65;
 const LIFESTEAL_SOFT_CAP = 0.85;
@@ -209,8 +211,8 @@ function isMercenaryCaptainJob() {
 /** 상성 계산용 키: 용병단장 + 필드 용병 있으면 용병 직업(카멜레온) */
 function getAffinityRelKey() {
     if (!player) return '';
-    if (isMercenaryCaptainJob() && player.fieldMerc && player.fieldMerc.mercHp > 0 && player.fieldMerc.mercJob) {
-        return player.fieldMerc.mercJob;
+    if (isMercenaryCaptainJob() && player.fieldMerc && player.fieldMerc.mercHp > 0) {
+        return player.fieldMerc.mercAffinityJob || player.fieldMerc.mercJob || '워리어';
     }
     if (relations[player.name]) return player.name;
     return player.baseJob;
@@ -220,36 +222,51 @@ function getMercGoldSkipCost() {
     return 28 + floor * 6;
 }
 
-/** 필드 용병 피해 배율(고용 템 merc 스펙) */
-function getFieldMercAttackMult() {
-    if (!player || !player.fieldMerc || player.fieldMerc.mercHp <= 0) return 0;
-    const m = player.fieldMerc.merc;
-    let mult = 0.3;
-    if (!m) mult = 0.3;
-    else if (m.kind === 'dmg') {
-        mult = safeNum(m.mult, 0.3);
-        if (player.fieldMerc.infiniteGrowth) mult += safeNum(player.fieldMerc.growthStacks, 0) * 0.005;
-    } else if (m.kind === 'both') mult = safeNum(m.dmgMult, 0.38);
-    else if (m.kind === 'heal') mult = Math.max(0.2, safeNum(m.pct, 0.12) * 0.82);
-    return Math.min(2.45, mult * MERC_DMG_GLOBAL_SCALE);
+/** 동료 용병 상성 키(전직 시 pathJob) */
+function getMercAffinityJobForField() {
+    const kind = player.mercCompanionKind;
+    if (!kind || !mercCompanionBases[kind]) return '워리어';
+    const ev = player.mercEvolution;
+    if (ev && ev.pathJob) return ev.pathJob;
+    return mercCompanionBases[kind].affinityJob;
 }
 
-function buildFieldMercFromItem(item) {
-    const m = item.merc;
-    const mj = item.mercJob || '워리어';
-    const rarity = item.rarity || 'common';
-    const tier = { common: 1, rare: 1.2, epic: 1.45, legendary: 1.75, relic: 2.05 }[rarity] || 1;
-    const base = 58 + floor * 7;
-    const mercMaxHp = Math.max(32, Math.floor(base * tier + safeNum(player.maxHp, 100) * 0.22));
+/** 층·동료·전직 기반 피해 계수 — 등급 아이템 의존 제거 */
+function computeMercDamageCoeff() {
+    const kind = player.mercCompanionKind;
+    if (!kind || !mercCompanionBases[kind]) return 0.2;
+    const base = mercCompanionBases[kind];
+    const ev = player.mercEvolution;
+    const floorScale = 1 + Math.min(MERC_FLOOR_SCALE_CAP - 1, floor * 0.088);
+    let c = base.dmgCoeff * floorScale;
+    if (ev && ev.dmgMult) c *= ev.dmgMult;
+    return Math.min(2.45, c * MERC_DMG_GLOBAL_SCALE);
+}
+
+function getFieldMercAttackMult() {
+    if (!player || !player.fieldMerc || player.fieldMerc.mercHp <= 0) return 0;
+    return computeMercDamageCoeff();
+}
+
+/** 시작 동료 / 전직 반영 필드 용병 생성 */
+function buildFieldMercFromTemplate() {
+    const kind = player.mercCompanionKind || '워리어';
+    const base = mercCompanionBases[kind] || mercCompanionBases['워리어'];
+    const ev = player.mercEvolution;
+    const floorScale = 1 + Math.min(MERC_FLOOR_SCALE_CAP - 1, floor * 0.088);
+    let hpMult = base.hpCoeff * floorScale;
+    if (ev && ev.hpMult) hpMult *= ev.hpMult;
+    const baseHp = 58 + floor * 7;
+    const mercMaxHp = Math.max(32, Math.floor(baseHp * hpMult + safeNum(player.maxHp, 100) * 0.18));
+    const evoName = ev ? ev.name : '';
+    const label = base.label + (evoName ? ` · ${evoName}` : '');
     return {
-        sourceName: item.name,
-        mercJob: mj,
-        rarity,
-        infiniteGrowth: !!item.infiniteGrowth,
-        growthStacks: 0,
+        sourceName: label,
+        mercJob: base.affinityJob,
+        mercAffinityJob: getMercAffinityJobForField(),
+        mercCompanionKind: kind,
         mercHp: mercMaxHp,
         mercMaxHp: mercMaxHp,
-        merc: { ...m },
     };
 }
 
@@ -268,7 +285,7 @@ function getNonMercEquipmentPool() {
 }
 
 function getMercCaptainShopPoolBase() {
-    return [...mercenaryFullPool, ...mercenaryCaptainGearPool];
+    return [...mercenaryCaptainGearPool];
 }
 
 function getMercCaptainShopPoolForRoll() {
@@ -299,15 +316,13 @@ function getMercCaptainShopPoolForRoll() {
 function tryMercenaryRandomEvent() {
     if (!isMercenaryCaptainJob() || !player.fieldMerc || player.fieldMerc.mercHp <= 0) return;
     if (Math.random() > 0.035) return;
-    const r = player.fieldMerc.rarity || 'common';
-    const low = r === 'common' || r === 'rare';
-    const high = r === 'epic' || r === 'legendary' || r === 'relic';
+    const tier = floor <= 12 ? 'low' : floor <= 35 ? 'mid' : 'high';
     let neg = 0,
         pos = 0;
-    if (low) {
+    if (tier === 'low') {
         neg = 0.38;
         pos = 0.06;
-    } else if (high) {
+    } else if (tier === 'high') {
         neg = 0.004;
         pos = 0.025;
     } else {
@@ -316,30 +331,20 @@ function tryMercenaryRandomEvent() {
     }
     const roll = Math.random();
     if (roll < neg) {
-        if (high && Math.random() < 0.92) return;
+        if (tier === 'high' && Math.random() < 0.92) return;
         player.mercNextBattleDebuff = { atkPct: -0.07 };
         writeLog(`[용병 이벤트] 💢 술집 난투·사기 피해… <b>다음 전투</b> 공격력 일시 하락!`);
         return;
     }
     if (roll < neg + pos) {
-        if (player.fieldMerc.infiniteGrowth) {
-            player.fieldMerc.growthStacks = safeNum(player.fieldMerc.growthStacks, 0) + 1;
-            writeLog(`[용병 이벤트] 🌟 루크의 성장! 무한 스택 +1 (누적 ${player.fieldMerc.growthStacks})`);
-            return;
-        }
-        if (high && Math.random() > 0.35) {
-            writeLog(`[용병 이벤트] 고급 용병은 흔들리지 않는다… (미미한 보상)`);
+        if (tier === 'high' && Math.random() > 0.35) {
+            writeLog(`[용병 이벤트] 고층의 실전은 거칠다… (미미한 보상)`);
             player.atk += 1;
             return;
         }
         player.atk += 3;
         player.crit += 1;
         writeLog(`[용병 이벤트] ✨ 실전 경험! 공격력+3, 치명+1%`);
-        return;
-    }
-    if (player.fieldMerc.infiniteGrowth && Math.random() < 0.0009) {
-        player.fieldMerc.growthStacks = safeNum(player.fieldMerc.growthStacks, 0) + 2;
-        writeLog(`[용병 이벤트] 극히 드문 기적… 무한 성장 스택 +2!`);
     }
 }
 
@@ -490,16 +495,47 @@ window.selectJobAndStart = (job) => {
         baseJob: jobBase[job].name, evolved: false, shieldEmpowered: false,
         summon: null, _awaitPlayerTurn: false,
         fieldMerc: null, mercCooldownTurns: 0, mercNextBattleDebuff: null, _mercBattleAtkDebuff: 0,
+        mercCompanionKind: null, mercEvolution: null, mercEvolutionChosen: false,
+        mercRegenTurns: 0, mercRegenAmount: 0,
     };
-    if (job === 'MercenaryCaptain') {
-        const st = mercenaryHirePool.find((i) => i.name === '용병: 철검사 아렌');
-        if (st) player.items.push({ ...st });
-    }
     floor=1; gold=0; totalGoldEarned=0; rerollCost=10; shopVisitCount=0;
     document.getElementById('start-area').style.display='none';
     document.getElementById('battle-area').style.display='block';
     document.getElementById('log-battle').innerHTML='';
-    enterBattleLayout(); loadCollection(); spawnEnemy();
+    enterBattleLayout(); loadCollection();
+    if (job === 'MercenaryCaptain') {
+        showMercCompanionPicker();
+        return;
+    }
+    spawnEnemy();
+};
+
+function showMercCompanionPicker() {
+    const overlay = document.createElement('div');
+    overlay.id = 'merc-companion-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;z-index:10001;';
+    overlay.innerHTML = `
+        <div style="background:#1a1a2e;border:2px solid #e67e22;border-radius:12px;padding:28px;max-width:480px;width:92%;text-align:center;">
+            <h2 style="color:#e67e22;margin-bottom:8px;">⚔️ 첫 동료 선택</h2>
+            <p style="color:#aaa;font-size:0.88em;margin-bottom:18px;line-height:1.45;">단장은 직접 싸우기 어렵습니다. <b>워리어 · 헌터 · 마법사</b> 중 동료 용병 1명을 고르세요.</p>
+            ${['워리어','헌터','마법사'].map((k) => {
+                const b = mercCompanionBases[k];
+                return `<div style="background:#2a2a3e;border:1px solid #555;border-radius:8px;padding:15px;margin-bottom:10px;cursor:pointer;" onclick="pickMercCompanion('${k}')" onmouseenter="this.style.borderColor='#e67e22'" onmouseleave="this.style.borderColor='#555'">
+                    <b style="color:#e0e0e0;">${b.label}</b> <span style="color:#888;font-size:0.85em;">(${k})</span>
+                    <p style="color:#666;font-size:0.78em;margin:6px 0 0;">기본 상성: ${b.affinityJob}</p>
+                </div>`;
+            }).join('')}
+        </div>`;
+    document.body.appendChild(overlay);
+}
+
+window.pickMercCompanion = (kind) => {
+    if (!player || player.baseJob !== '용병단장') return;
+    if (!['워리어','헌터','마법사'].includes(kind)) return;
+    player.mercCompanionKind = kind;
+    const el = document.getElementById('merc-companion-overlay');
+    if (el) el.remove();
+    spawnEnemy();
 };
 
 function checkEvolution() {
@@ -726,12 +762,6 @@ window.resolveSkillEvent = (idx) => {
 
 // ===================== 대장간 =====================
 function showForgeEvent() {
-    if (isMercenaryCaptainJob() && player.items.length > 0 && player.items.every((i) => i.type === 'merc')) {
-        writeLog(`[이벤트층] ⚒️ 대장간: 장비 재료가 없어 지나갑니다.`);
-        if (floor > 1 && floor % 3 === 0) pendingShop = true;
-        spawnEnemy();
-        return;
-    }
     const commonItems = player.items.filter(i => i.rarity === 'common' && i.type !== 'merc');
     const rareItems = player.items.filter(i => i.rarity === 'rare' && i.type !== 'merc');
     const epicItems = player.items.filter(i => i.rarity === 'epic' && i.type !== 'merc');
@@ -928,6 +958,7 @@ function spawnEnemy() {
     if (pendingShop) { pendingShop=false; return openShop(); }
     defendingTurns=0; dodgingTurns=0; shieldedTurns=0;
     regenTurns=0; regenAmount=0; potionUsedThisTurn=false;
+    if (player) { player.mercRegenTurns = 0; player.mercRegenAmount = 0; }
 
     if (player && player.mercNextBattleDebuff && typeof player.mercNextBattleDebuff.atkPct === 'number') {
         player._mercBattleAtkDebuff = player.mercNextBattleDebuff.atkPct;
@@ -962,14 +993,9 @@ function spawnEnemy() {
         else{mh=700+floor*30;ma=65+floor*8;md=20+Math.floor(floor/2);}
         enemy={name:`[${rj}형] ${floor}층 괴수`,job:rj,hp:Math.floor(mh),curHp:Math.floor(mh),atk:Math.floor(ma),def:Math.floor(md),isBoss:false,weakPoint:false};
     }
-    if (isMercenaryCaptainJob() && !player.fieldMerc && player.mercCooldownTurns <= 0 && floor === 1) {
-        const mi = player.items.findIndex((i) => i.type === 'merc');
-        if (mi >= 0) {
-            const it = player.items[mi];
-            player.items.splice(mi, 1);
-            player.fieldMerc = buildFieldMercFromItem(it);
-            writeLog(`[용병단장] 첫 전투 생존: <b>${it.name}</b> 자동 전개 (인벤 1 소모)`);
-        }
+    if (isMercenaryCaptainJob() && player.mercCompanionKind && !player.fieldMerc && player.mercCooldownTurns <= 0) {
+        player.fieldMerc = buildFieldMercFromTemplate();
+        writeLog(`[용병] 동료 <b>${player.fieldMerc.sourceName}</b> 전개! 상성: <b>${player.fieldMerc.mercAffinityJob}</b>`);
     }
     player._awaitPlayerTurn = true;
     updateUi(); renderActions();
@@ -1084,19 +1110,10 @@ window.useAction = (type) => {
                     triggerCritEffect();
                     triggerShakeEffect();
                 }
-                const mk = player.fieldMerc.merc.kind;
-                if (mk === 'heal' || mk === 'both') {
-                    const pct = mk === 'heal' ? player.fieldMerc.merc.pct : player.fieldMerc.merc.healPct;
-                    if (pct) {
-                        const hh = Math.floor(player.maxHp * pct * 0.12);
-                        player.curHp = Math.min(player.maxHp, player.curHp + hh);
-                        writeLog(`[용병] 교환 타격 — 회복 +${hh}`);
-                    }
-                }
                 tryMercenaryRandomEvent();
             } else if (isMercenaryCaptainJob()) {
-                baseDmg = Math.floor((getEffectiveAttackPower() * 0.62 + Math.floor(Math.random() * 6)) * berserkMult);
-                effectMsg += "<b style='color:#aaa'>(단장 직격)</b> ";
+                baseDmg = Math.floor((getEffectiveAttackPower() * 0.07 + Math.floor(Math.random() * 4)) * berserkMult);
+                effectMsg += "<b style='color:#888'>(단장 직격·최약)</b> ";
             } else {
                 baseDmg=Math.floor((getEffectiveAttackPower()+Math.floor(Math.random()*8)) * berserkMult);
             }
@@ -1197,17 +1214,34 @@ window.usePotion = () => {
     if(player.potions<=0) return writeLog("포션이 없습니다!");
     if(potionUsedThisTurn) return writeLog("이번 턴에 이미 포션을 사용했습니다!");
     player.potions--; potionUsedThisTurn=true;
-    if(player.hasRegenPotion){regenTurns=2;regenAmount=Math.floor(player.maxHp*0.25);writeLog(`[포션] 🧪 서서히 회복! (2턴간 매 턴 ${regenAmount})`);}
+    if (isMercenaryCaptainJob() && player.fieldMerc && player.fieldMerc.mercHp > 0) {
+        if (player.hasRegenPotion) {
+            player.mercRegenTurns = 2;
+            player.mercRegenAmount = Math.floor(player.fieldMerc.mercMaxHp * 0.22);
+            writeLog(`[포션] 🧪 용병에게 서서히 회복! (2턴간 매 적 턴 전 ${player.mercRegenAmount})`);
+        } else {
+            const h = Math.floor(player.fieldMerc.mercMaxHp * 0.38);
+            player.fieldMerc.mercHp = Math.min(player.fieldMerc.mercMaxHp, player.fieldMerc.mercHp + h);
+            writeLog(`[포션] 🧪 용병 체력 ${h} 회복! (${player.fieldMerc.mercHp}/${player.fieldMerc.mercMaxHp})`);
+        }
+    } else if (isMercenaryCaptainJob()) {
+        const h = Math.floor(player.maxHp * 0.12);
+        player.curHp = Math.min(player.maxHp, player.curHp + h);
+        writeLog(`[포션] 🧪 단장 긴급 체력 ${h} (동료 없음·최소 회복)`);
+    } else if(player.hasRegenPotion){regenTurns=2;regenAmount=Math.floor(player.maxHp*0.25);writeLog(`[포션] 🧪 서서히 회복! (2턴간 매 턴 ${regenAmount})`);}
     else{const h=Math.floor(player.maxHp*0.35);player.curHp=Math.min(player.maxHp,player.curHp+h);writeLog(`[포션] 🧪 즉시 체력 ${h} 회복!`);}
     updateUi(); renderActions();
-    /** 포션도 턴을 소모 — 적 턴으로 넘어가야 같은 턴에 공격 연타 불가 */
-    enemyTurn();
 };
 
 let autoRegenCounter = 0;
 function enemyTurn() {
     setTimeout(() => {
         if(regenTurns>0){player.curHp=Math.min(player.maxHp,player.curHp+regenAmount);regenTurns--;writeLog(`[재생] 💚 ${regenAmount} 회복! (남은 턴: ${regenTurns})`);}
+        if (isMercenaryCaptainJob() && player.mercRegenTurns > 0 && player.fieldMerc && player.fieldMerc.mercHp > 0) {
+            player.fieldMerc.mercHp = Math.min(player.fieldMerc.mercMaxHp, player.fieldMerc.mercHp + player.mercRegenAmount);
+            player.mercRegenTurns--;
+            writeLog(`[용병 재생] 💚 ${player.mercRegenAmount} (남은 턴: ${player.mercRegenTurns})`);
+        }
         potionUsedThisTurn=false;
 
         // 보너스 스킬: 강철 심장 (3턴마다 회복)
@@ -1267,6 +1301,76 @@ function enemyTurn() {
     }, 400);
 }
 
+function winBattleContinueFrom(clearedFloor) {
+    if (floor === 15 && player.name === '소환사' && !localStorage.getItem('summon_altar_done')) {
+        setTimeout(() => showContractAltar(), 500);
+        return;
+    }
+    if (checkEventFloor(floor)) {
+        setTimeout(() => showEventFloor(), 500);
+        return;
+    }
+    if (clearedFloor > 5 && !enemy.isBoss && Math.random() < 0.15) {
+        if (clearedFloor === 10 && !player.evolved) setTimeout(() => checkEvolution(), 300);
+        setTimeout(() => showRandomEncounter(), 500);
+        return;
+    }
+    if (clearedFloor === 10 && !player.evolved) {
+        if (floor > 1 && floor % 3 === 0) pendingShop = true;
+        spawnEnemy();
+        setTimeout(() => checkEvolution(), 300);
+        return;
+    }
+    if (floor > 1 && floor % 3 === 0) pendingShop = true;
+    spawnEnemy();
+}
+
+function showMercEvolutionChoice(onDone) {
+    const kind = player.mercCompanionKind;
+    const opts = mercCompanionEvolutions[kind];
+    if (!opts || !opts.length) {
+        if (onDone) onDone();
+        return;
+    }
+    window._mercEvoOnDone = onDone;
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;z-index:10002;';
+    overlay.innerHTML = `
+        <div style="background:#1a1a2e;border:2px solid #f1c40f;border-radius:12px;padding:26px;max-width:460px;width:92%;text-align:center;">
+            <h2 style="color:#f1c40f;margin-bottom:8px;">⚡ 20~30층: 용병 전직 (1회)</h2>
+            <p style="color:#aaa;font-size:0.86em;margin-bottom:16px;line-height:1.45;">플레이어 전직보다 약한 수치이지만 상성·딜에 큰 영향을 줍니다. <b>선택 중에는 적 턴이 없습니다.</b></p>
+            ${opts.map((e, i) => `
+                <div style="background:#2a2a3e;border:1px solid #555;border-radius:8px;padding:14px;margin-bottom:10px;cursor:pointer;text-align:left;" onclick="resolveMercEvolution(${i})" onmouseenter="this.style.borderColor='#f1c40f'" onmouseleave="this.style.borderColor='#555'">
+                    <b style="color:#e0e0e0;">${e.name}</b> <span style="color:#888;font-size:0.8em;">→ ${e.pathJob}</span>
+                    <p style="color:#888;font-size:0.82em;margin:6px 0 0;">${e.desc}</p>
+                </div>`).join('')}
+        </div>`;
+    window._mercEvoOverlay = overlay;
+    document.body.appendChild(overlay);
+}
+
+window.resolveMercEvolution = (idx) => {
+    const kind = player.mercCompanionKind;
+    const opts = mercCompanionEvolutions[kind];
+    if (!opts || !opts[idx]) return;
+    const ev = opts[idx];
+    player.mercEvolution = ev;
+    player.mercEvolutionChosen = true;
+    const ov = window._mercEvoOverlay;
+    if (ov && ov.parentNode) document.body.removeChild(ov);
+    window._mercEvoOverlay = null;
+    if (player.fieldMerc) {
+        const ratio = player.fieldMerc.mercHp / Math.max(1, player.fieldMerc.mercMaxHp);
+        player.fieldMerc = buildFieldMercFromTemplate();
+        player.fieldMerc.mercHp = Math.max(1, Math.floor(player.fieldMerc.mercMaxHp * ratio));
+    }
+    writeLog(`[용병 전직] <b>${ev.name}</b> (${ev.pathJob})!`);
+    const cb = window._mercEvoOnDone;
+    window._mercEvoOnDone = null;
+    if (cb) cb();
+    updateUi(); renderActions();
+};
+
 function winBattle() {
     triggerBossWarning(false);
     let baseGain;
@@ -1283,25 +1387,12 @@ function winBattle() {
     const clearedFloor=floor; floor++;
     checkFloorUnlock(clearedFloor);
 
-    // 소환사 15층 도달 시 계약의 제단 (1회, 이벤트층/돌발 대신)
-    if (floor === 15 && player.name === '소환사' && !localStorage.getItem('summon_altar_done')) {
-        setTimeout(() => showContractAltar(), 500);
+    /** 19~30층 클리어 직후(즉 도달 층 20~31) 1회 전직 — 30층 클리어 시에도 창이 뜨도록 clearedFloor 기준 */
+    if (isMercenaryCaptainJob() && clearedFloor >= 19 && clearedFloor <= 30 && !player.mercEvolutionChosen) {
+        setTimeout(() => showMercEvolutionChoice(() => winBattleContinueFrom(clearedFloor)), 450);
         return;
     }
-
-    // 이벤트 층 체크
-    if (checkEventFloor(floor)) {
-        setTimeout(() => showEventFloor(), 500);
-        return;
-    }
-    // 랜덤 인카운터
-    if(clearedFloor>5&&!enemy.isBoss&&Math.random()<0.15){
-        if(clearedFloor===10&&!player.evolved) setTimeout(()=>checkEvolution(),300);
-        setTimeout(()=>showRandomEncounter(),500); return;
-    }
-    if(clearedFloor===10&&!player.evolved){if(floor>1&&floor%3===0)pendingShop=true;spawnEnemy();setTimeout(()=>checkEvolution(),300);return;}
-    if(floor>1&&floor%3===0) pendingShop=true;
-    spawnEnemy();
+    winBattleContinueFrom(clearedFloor);
 }
 
 function openShop() {
@@ -1351,12 +1442,7 @@ function renderShopItems() {
     currentShopItems=[{name:"치유 포션",type:"potion",value:80,price:40,rarity:"common",desc:"최대 체력의 35%를 즉시 회복합니다."}];
     const unlockedItems=getUnlockedPoolItems(), picked=[];
     let tries=0;
-    if (isMercenaryCaptainJob()) {
-        if (floor >= 18 && Math.random() < 0.28) {
-            const ar = mercenaryRelicPool.filter((r) => !player.items.some((i) => i.name === r.name));
-            if (ar.length > 0) picked.push({ ...ar[Math.floor(Math.random() * ar.length)] });
-        }
-    } else if(floor>=20&&Math.random()<0.25&&player.relics){
+    if(!isMercenaryCaptainJob() && floor>=20&&Math.random()<0.25&&player.relics){
         const ar=relicPool.filter(r=>{if(player.relics.includes(r.effect))return false;if(!r.onlyFor)return true;return r.onlyFor.some(j=>j===player.name||j===player.baseJob);});
         if(ar.length>0){const relic=ar[Math.floor(Math.random()*ar.length)];picked.push({...relic,type:'relic',value:0});}
     }
@@ -1415,11 +1501,6 @@ window.buyItem = (event, idx) => {
         showUnlockPopup(`✨ 유물 획득!`,`<b style="color:#f1c40f;">${it.name}</b><br>${it.desc}`,'#f1c40f');
     } else if(it.type==='potion'){
         player.potions++; writeLog(`[상점] 포션 구매 완료.`);
-    } else if(it.type==='merc'){
-        if(!player.items.some(i=>i.name===it.name)){
-            player.items.push(it); saveCollection(it.name);
-            writeLog(`[상점] ${it.name} 구매! (인벤에서 전투 중 <b>고용</b>)`);
-        } else { writeLog(`이미 보유한 고용 아이템입니다!`); gold+=it.price; }
     } else {
         if(!player.items.some(i=>i.name===it.name)){
             player.items.push(it); saveCollection(it.name);
@@ -1477,24 +1558,21 @@ window.mercGoldSkipCooldown = () => {
     if (gold < cost) return writeLog('[자본주의] 골드가 부족합니다.');
     gold -= cost;
     player.mercCooldownTurns = 0;
-    writeLog(`[자본주의] 🪙 ${cost}G로 용병 쿨타임을 초기화했습니다!`);
+    if (player.mercCompanionKind) {
+        player.fieldMerc = buildFieldMercFromTemplate();
+        writeLog(`[자본주의] 🪙 ${cost}G로 동료를 재전개했습니다!`);
+    } else {
+        writeLog(`[자본주의] 🪙 ${cost}G로 쿨타임을 초기화했습니다!`);
+    }
     updateUi(); renderActions();
 };
 
-window.useMercenarySlot = (ix) => {
-    if (!player || !enemy) return writeLog('[고용] 전투 중에만 사용할 수 있습니다.');
-    if (!isMercenaryCaptainJob()) return writeLog('[고용] 용병 고용 아이템은 <b>용병단장</b>만 사용할 수 있습니다.');
-    if (player.mercCooldownTurns > 0) return writeLog(`[고용] 재가동 대기 ${player.mercCooldownTurns}턴 — 🪙 긴급 재가동 또는 턴 경과 후 가능.`);
-    const it = player.items[ix];
-    if (!it || it.type !== 'merc' || !it.merc) return;
-    player.items.splice(ix, 1);
-    player.fieldMerc = buildFieldMercFromItem(it);
-    writeLog(`[고용] <b>${it.name}</b> 필드 전개! 상성: <b>${player.fieldMerc.mercJob}</b> (어그로 1순위)`);
-    updateUi(); renderActions();
+window.useMercenarySlot = () => {
+    writeLog('[고용] 고용 아이템 시스템은 폐지되었습니다. 시작 시 동료 선택·쿨 종료·🪙 긴급 재가동을 이용하세요.');
 };
 function codexItemMatchesTab(it, tab) {
     if (!it || !it.name) return false;
-    if (tab === '용병') return it.type === 'merc' || (it.onlyFor && it.onlyFor.includes('용병단장'));
+    if (tab === '용병') return mercCaptainExclusiveItem(it);
     if (it.type === 'merc') return false;
     const of = it.onlyFor;
     if (tab === '공용') return !of || (Array.isArray(of) && of.length === 0);
@@ -1554,7 +1632,7 @@ window.toggleCollection = (show) => {
         let html = `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px;align-items:center;">${tabBar}</div>`;
         html += `<p style="color:#888;font-size:0.85em;margin-bottom:15px;">탭: <b style="color:#f1c40f;">${tab}</b> · 해금: <b style="color:#f1c40f;">${collection.length}</b> / ${uniqueItems.length}</p>`;
         if (tab === '용병') {
-            html += `<p style="color:#b87333;font-size:0.78em;margin:-8px 0 12px;line-height:1.45;">📜 <b>고용 계약</b> + ⚔️ <b>용병단장 전용 장비</b> — 용병단장은 이 탭에서만 전용 장비를 확인합니다.</p>`;
+            html += `<p style="color:#b87333;font-size:0.78em;margin:-8px 0 12px;line-height:1.45;">📜 <b>용병단장 전용 장비</b>만 표시됩니다. (v6.6.2 — 고용 아이템·유물 롤 제거)</p>`;
         }
         if (relicItems.length > 0) {
             html += `<div style="margin-bottom:16px;border-bottom:1px solid #333;padding-bottom:12px;"><div style="background:#2a2a0a;color:#f1c40f;font-size:0.7em;font-weight:700;padding:3px 8px;border-radius:4px;display:inline-block;margin-bottom:8px;letter-spacing:1px;">✨ RELIC (유물)</div>`;
@@ -1609,7 +1687,8 @@ function updateUi() {
     const summLine = document.getElementById('p-summon-line');
     if (summLine) {
         if (isMercenaryCaptainJob() && player.fieldMerc && player.fieldMerc.mercHp > 0) {
-            summLine.innerHTML = `<span style="color:#e67e22;">🛡️ 용병:</span> ${player.fieldMerc.sourceName} <span style="color:#888;">| HP ${player.fieldMerc.mercHp}/${player.fieldMerc.mercMaxHp} · 상성 ${player.fieldMerc.mercJob}</span>`;
+            const aff = player.fieldMerc.mercAffinityJob || player.fieldMerc.mercJob;
+            summLine.innerHTML = `<span style="color:#e67e22;">🛡️ 용병:</span> ${player.fieldMerc.sourceName} <span style="color:#888;">| HP ${player.fieldMerc.mercHp}/${player.fieldMerc.mercMaxHp} · 상성 ${aff}</span>`;
         } else if (player.summon && player.summon.name) summLine.innerHTML = `<span style="color:#a55eea;">소환:</span> ${player.summon.name}`;
         else summLine.innerHTML = '';
     }
@@ -1668,9 +1747,7 @@ function updateUi() {
                 const{label,color,bg}=rl[rarity];
                 html+=`<div style="margin-bottom:10px;"><div style="background:${bg};color:${color};font-size:0.7em;font-weight:700;padding:3px 8px;border-radius:4px;display:inline-block;margin-bottom:6px;">${label}</div>`;
                 items.forEach(it=>{
-                    const oi=player.items.indexOf(it);
-                    const mercBtn=it.type==='merc'?(isMercenaryCaptainJob()?`<button type="button" onclick="useMercenarySlot(${oi})" style="margin-top:6px;background:#e67e22;color:#111;border:none;padding:4px 10px;font-size:0.75em;font-weight:700;border-radius:4px;cursor:pointer;">⚔️ 고용 (전투)</button>`:`<span style="color:#666;font-size:0.78em;">용병단장 전용</span>`):'';
-                    html+=`<div style="padding:8px 10px;background:#111;border-radius:6px;margin-bottom:4px;border-left:3px solid ${color};"><div style="color:${color};font-weight:700;font-size:0.9em;">${it.type==='merc'?'🛡️ ':''}${it.name}</div><div style="color:#666;font-size:0.78em;margin-top:3px;line-height:1.4;">${it.desc}</div>${mercBtn}</div>`;
+                    html+=`<div style="padding:8px 10px;background:#111;border-radius:6px;margin-bottom:4px;border-left:3px solid ${color};"><div style="color:${color};font-weight:700;font-size:0.9em;">${it.name}</div><div style="color:#666;font-size:0.78em;margin-top:3px;line-height:1.4;">${it.desc}</div></div>`;
                 });
                 html+=`</div>`;
             });

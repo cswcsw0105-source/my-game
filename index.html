@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
-    <title>던전 v6.6.1</title>
-    <link rel="stylesheet" href="style.css?v=6.6.1">
+    <title>던전 v6.6.2</title>
+    <link rel="stylesheet" href="style.css?v=6.6.2">
     <style>
         .auth-box { background: #2a2a2a; padding: 20px; border-radius: 8px; border: 1px solid #444; max-width: 300px; margin: 0 auto; }
         .auth-box input { width: 90%; padding: 10px; margin: 10px 0; border-radius: 4px; border: 1px solid #555; background: #111; color: white; }
@@ -13,7 +13,7 @@
 </head>
 <body>
     <div class="container">
-        <h1 style="color: #fff; letter-spacing: 1px;">⚔️ 던전 (v6.6.1)</h1>
+        <h1 style="color: #fff; letter-spacing: 1px;">⚔️ 던전 (v6.6.2)</h1>
         
         <div class="game-layout" id="main-layout">
             <div class="screen" id="main-screen">
@@ -139,18 +139,23 @@
             <table class="patch-table">
                 <thead><tr><th>버전</th><th>항목</th><th>상세 내용</th></tr></thead>
                 <tbody>
+                    <tr><td class="v-tag">v6.6.2</td><td>용병단장 리뉴얼</td><td>
+    <b>고용 아이템 폐지:</b> 상점·인벤 <b>용병 계약</b> 제거. 시작 시 <b>워리어 / 헌터 / 마법사</b> 중 <b>동료 1명</b> 선택.<br>
+    <b>딜 공식:</b> 등급 아이템이 아닌 <b>동료 종류·층수·전직</b>으로 HP/피해가 단조 증가(상위가 하위보다 약해지는 현상 방지).<br>
+    <b>20~30층 1회 전직:</b> 본가 전직보다 약한 <b>용병 전직</b> 선택(선택 중 적 턴 없음). 30층 클리어 시에도 창이 뜨도록 보정.<br>
+    <b>단장:</b> 직접 공격은 <b>극최약</b>. 포션은 기본적으로 <b>용병 HP 회복</b>(회복 목걸이는 용병 지속 회복). <b>포션 사용 시 적 턴 없음.</b><br>
+    <b>상점:</b> 용병단장은 <b>단장 전용 장비 풀만</b>(고용·유물 롤 삭제). 도감 「용병」탭도 전용 장비만.
+</td></tr>
                     <tr><td class="v-tag">v6.6.1</td><td>용병 밸·도감</td><td>
-    <b>필드 용병 상향:</b> 용병 기본 피해에 <b>전역 배율(×1.48)</b> 적용, 고용 스펙·성장 스택 계수 소폭 상향. 용병 <b>최대 HP</b>·층수 계수 상향(전멸 전 버티기 쉬움).<br>
-    <b>장비 도감 「용병」탭:</b> <b>고용 계약</b> + <b>용병단장 전용 장비</b>가 함께 표시되도록 수정. 다른 직업도 <b>용병</b> 탭으로 용병 관련 목록 확인 가능.<br>
-    <b>신규 장비:</b> <b>mercenaryCaptainGearPool</b> — 단장 전용 무기·방어구 9종(일반~전설). 타 직업 상점·드랍에서는 <b>제외</b>, 용병단장 상점 풀에만 합류.
+    <i>(v6.6.2에서 고용 아이템·상점 유물 롤 등은 폐지/대체됨.)</i> 당시: 필드 용병 전역 배율·HP 보정, 단장 전용 장비 풀 도입, 도감 용병 탭 정비.
 </td></tr>
                     <tr><td class="v-tag">v6.6.0</td><td>신직업·도감</td><td>
-    <b>신 직업 「용병단장」:</b> 다른 직업과 분리된 전용 메커. 상점·드랍은 <b>용병 고용 아이템만</b>(일반~유물급 계약), 타 직업 상점·드랍에서 용병 아이템 <b>미등장</b>. 시작 시 <b>일반 용병 1명</b> 지급.<br>
-    <b>필드 용병:</b> 동시 1명만. <b>상성 카멜레온</b> — 필드 용병의 직업(워/헌/마)에 맞춰 기존 상성식 그대로 적용. 적 어그로는 <b>용병 우선</b>. 용병 사망 시 쿨타임 후 재고용, <b>골드로 쿨 초기화</b> 가능.<br>
-    <b>용병 필살기:</b> 용병 일반 공격 시 <b>10~20% 확률</b>로 대미지·연출 강화(별도 궁극기 UI 없음).<br>
-    <b>용병 랜덤 이벤트:</b> 등급에 따라 부정/긍정 확률 차등. 하위(일반·희귀)는 부정 이벤트 다수, 상위(에픽·전설·유물)는 부정 거의 차단·성장 완만. <b>「빈털터리 루크」</b>는 극초반 최약 + 이벤트로 <b>무한 성장</b> 가능(희귀).<br>
-    <b>장비 도감:</b> <b>공용 / 워리어 / 헌터 / 마법사</b> 탭(용병단장은 공용 탭 없음 → <b>용병·세 계열</b>만).<br>
-    <b>기타:</b> NaN 방지 패치 유지, 글로벌 랭킹에 용병단장 추가.
+    <b>신 직업 「용병단장」:</b> 전용 메커 도입. <i>(이후 v6.6.2에서 고용 아이템 시작 지급 → 동료 선택으로 변경.)</i><br>
+    <b>필드 용병:</b> 동시 1명. 상성·어그로·쿨·골드 재가동 등 핵심 규칙.<br>
+    <b>용병 필살기:</b> 일반 공격 시 확률 강화 연출.<br>
+    <b>용병 랜덤 이벤트:</b> 층 구간별 부정/긍정 확률. <i>(무한 성장 루크 등 구 시스템은 v6.6.2에서 제거.)</i><br>
+    <b>장비 도감:</b> 용병단장은 <b>용병·세 계열</b> 탭.<br>
+    <b>기타:</b> NaN 방지, 글로벌 랭킹 용병단장.
 </td></tr>
                     <tr><td class="v-tag">v6.5.1</td><td>핫픽스</td><td>
     <b>치명타·흡혈 상한:</b> 치명타 확률 <b>65%</b> 초과분은 <b>치명 배율</b>로 전환(1%당 배율 +0.01). 흡혈 <b>85%</b> 초과분은 <b>공격력</b>으로 전환(1%당 ATK +1).<br>
@@ -259,7 +264,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <!-- ?v= 쿼리로 브라우저 캐시 무효화 (수정이 안 보일 때 강력 새로고침도 함께) -->
-    <script src="data.js?v=6.6.1"></script>
-    <script src="game.js?v=6.6.1"></script>
+    <script src="data.js?v=6.6.2"></script>
+    <script src="game.js?v=6.6.2"></script>
 </body>
 </html>
