@@ -42,11 +42,11 @@ let shopVisitCount = 0;
 let attackGcdUntil = 0;
 const ATTACK_GCD_MS = 500;
 /** 패치 노트/UI와 맞춰 두기 — 캐시 적용 여부 확인용 */
-const GAME_BUILD = '6.5.1';
+const GAME_BUILD = '6.5.1b';
 /** v6.5.1 핫픽스: 치명/흡혈 상한·명중 기본값 */
-const CRIT_SOFT_CAP = 70;
-const LIFESTEAL_SOFT_CAP = 0.9;
-const BASE_HIT_ACCURACY = 80;
+const CRIT_SOFT_CAP = 65;
+const LIFESTEAL_SOFT_CAP = 0.85;
+const BASE_HIT_ACCURACY = 75;
 const CRIT_OVERFLOW_TO_MULT = 0.01;
 
 function clearSummonRunStorage() {
@@ -202,10 +202,12 @@ auth.onAuthStateChanged((user) => {
 function buildPermanentShopHtml() {
     const savedGold = parseInt(localStorage.getItem('saved_gold') || '0');
     const buyCounts = getPermaBuyCount();
+    const permaTot = getPermaStats();
+    const sumLine = `<p style="color:#888;font-size:0.78em;margin:0 0 12px 0;line-height:1.5;">📌 <b>누적 영구 보너스</b> — 체력 <b style="color:#2ed573">+${permaTot.hp || 0}</b> · 공격 <b style="color:#f1c40f">+${permaTot.atk || 0}</b> · 방어 <b style="color:#1e90ff">+${permaTot.def || 0}</b> · 명중 <b style="color:#a55eea">+${permaTot.acc || 0}</b></p>`;
     const catKeys = ['hp', 'atk', 'def', 'acc'];
     const labels = { hp: '❤️ 체력', atk: '⚔️ 공격력', def: '🛡️ 방어력', acc: '🎯 명중률' };
     const colors = { hp: '#2ed573', atk: '#f1c40f', def: '#1e90ff', acc: '#a55eea' };
-    return catKeys.map((key) => {
+    const rows = catKeys.map((key) => {
         const cat = permanentUpgrades.filter((u) => u.id.startsWith(key + '_'));
         const lv = cat.filter((u) => buyCounts[u.id]).length;
         const next = cat[lv];
@@ -223,6 +225,7 @@ function buildPermanentShopHtml() {
             <button type="button" onclick="buyPermUpgradeNext('${key}')" ${maxed || !can ? 'disabled' : ''} style="background:${btnBg};color:${btnFg};padding:8px 18px;font-size:0.82em;font-weight:700;border:none;border-radius:6px;cursor:${maxed || !can ? 'not-allowed' : 'pointer'};">${maxed ? 'MAX' : '강화'}</button>
         </div>`;
     }).join('');
+    return sumLine + rows;
 }
 
 function showPreGameScreen() {
@@ -254,7 +257,7 @@ function showPreGameScreen() {
         </div>
         <div style="background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:15px;">
             <h4 style="color:#f1c40f;margin:0 0 8px 0;">🏪 영구 강화 상점</h4>
-            <p style="color:#666;font-size:0.75em;margin:0 0 12px 0;">항목마다 <b>강화</b> 한 번에 다음 레벨이 구매됩니다. (v6.5.1 — 포션 영구 강화 제거)</p>
+            <p style="color:#666;font-size:0.75em;margin:0 0 12px 0;">항목마다 <b>강화</b> 한 번에 다음 레벨이 구매됩니다. 포션 영구 강화는 없습니다.</p>
             <div style="max-height:280px;overflow-y:auto;">${buildPermanentShopHtml()}</div>
         </div>`;
 }
@@ -806,7 +809,7 @@ function applySummonDarkTurnStart() {
         const hpCost = Math.max(1, Math.floor(player.maxHp * 0.05));
         player.curHp = Math.max(1, player.curHp - hpCost);
         const rawAtk = getEffectiveAttackPower();
-        const md = Math.max(1, Math.floor(1.65 * rawAtk - Math.floor(enemy.def * 0.5)));
+        const md = Math.max(1, Math.floor(1.4 * rawAtk - Math.floor(enemy.def * 0.5)));
         enemy.curHp -= md;
         writeLog(`[소환] 😈 어둠의 악마! 체력 -${hpCost}, 마법 피해 ${md}!`);
         showDmgFloat(md, true, false); triggerShakeEffect();
@@ -816,7 +819,6 @@ function applySummonDarkTurnStart() {
 }
 
 window.useAction = (type) => {
-    potionUsedThisTurn=false;
     if (type === '공격') {
         const now = Date.now();
         if (now < attackGcdUntil) {
@@ -842,7 +844,7 @@ window.useAction = (type) => {
         }
         const accRate=Math.min(95,BASE_HIT_ACCURACY+player.acc);
         if(Math.random()*100<accRate){
-            let berserkMult = (player.name==='버서커' && player.curHp <= player.maxHp * 0.5) ? 1.5 : 1;
+            let berserkMult = (player.name==='버서커' && player.curHp <= player.maxHp * 0.5) ? 1.35 : 1;
             if (berserkMult > 1) effectMsg += "<b style='color:#e74c3c'>【광폭화】</b> ";
             let baseDmg=Math.floor((getEffectiveAttackPower()+Math.floor(Math.random()*8)) * berserkMult);
             const critInfo=getCritInfo();
@@ -871,12 +873,12 @@ window.useAction = (type) => {
             writeLog(`[명중] ${effectMsg}적에게 ${finalDmg} 피해!`);
             if(getLifestealEffective()>0){const h=Math.floor(finalDmg*getLifestealEffective());player.curHp=Math.min(player.maxHp,player.curHp+h);writeLog(`[흡혈] 💉 ${h}`);}
             if (player.name==='버서커' && player.curHp <= player.maxHp * 0.5) {
-                const rh = Math.floor(finalDmg * 0.3);
+                const rh = Math.floor(finalDmg * 0.25);
                 player.curHp = Math.min(player.maxHp, player.curHp + rh);
                 writeLog(`[패시브] 광폭화 흡혈 +${rh}`);
             }
             if (player.summon && player.summon.id === 'fire' && enemy.curHp > 0) {
-                const fireDmg = Math.max(1, Math.floor(getEffectiveAttackPower() * 0.12));
+                const fireDmg = Math.max(1, Math.floor(getEffectiveAttackPower() * 0.10));
                 enemy.curHp -= fireDmg;
                 writeLog(`[소환] 🔥 불의 정령 추가 피해 ${fireDmg}!`);
                 showDmgFloat(fireDmg, false, false);
@@ -903,7 +905,7 @@ window.useAction = (type) => {
         const ultSpec = ultSkills[player.unlockedSkill];
         const dmgMult = ultSpec ? ultSpec.dmgMult : 4.0;
         if (Math.random() < 0.5) {
-            let berserkMult = (player.name==='버서커' && player.curHp <= player.maxHp * 0.5) ? 1.5 : 1;
+            let berserkMult = (player.name==='버서커' && player.curHp <= player.maxHp * 0.5) ? 1.35 : 1;
             let ultDmg = Math.floor(getEffectiveAttackPower() * dmgMult * berserkMult);
             const critInfo=getCritInfo();
             const isCrit = Math.random()*100 < critInfo.effectiveCrit;
@@ -913,7 +915,7 @@ window.useAction = (type) => {
             writeLog(`[궁극기] 💥 ${player.unlockedSkill} 炸裂! ${isCrit?'🔥 치명타! ':''}${ultDmg} 피해!`);
             if (getLifestealEffective()>0) { const h=Math.floor(ultDmg*getLifestealEffective()); player.curHp=Math.min(player.maxHp,player.curHp+h); writeLog(`[흡혈] 💉 ${h}`); }
             if (player.name==='버서커' && player.curHp <= player.maxHp * 0.5) {
-                const rh = Math.floor(ultDmg * 0.3);
+                const rh = Math.floor(ultDmg * 0.25);
                 player.curHp = Math.min(player.maxHp, player.curHp + rh);
                 writeLog(`[패시브] 광폭화 흡혈 +${rh}`);
             }
@@ -945,6 +947,8 @@ window.usePotion = () => {
     if(player.hasRegenPotion){regenTurns=2;regenAmount=Math.floor(player.maxHp*0.25);writeLog(`[포션] 🧪 서서히 회복! (2턴간 매 턴 ${regenAmount})`);}
     else{const h=Math.floor(player.maxHp*0.35);player.curHp=Math.min(player.maxHp,player.curHp+h);writeLog(`[포션] 🧪 즉시 체력 ${h} 회복!`);}
     updateUi(); renderActions();
+    /** 포션도 턴을 소모 — 적 턴으로 넘어가야 같은 턴에 공격 연타 불가 */
+    enemyTurn();
 };
 
 let autoRegenCounter = 0;
@@ -979,7 +983,7 @@ function enemyTurn() {
                 else if(defendingTurns>0){dmg=Math.floor(dmg*0.4);defendingTurns--;writeLog(`[철벽 방어] 🛡️ 피해 60% 감소! (${dmg} 입음)`);}
                 else writeLog(`[피격] 적의 공격! ${dmg} 데미지.`);
                 if (player.summon && player.summon.id === 'golem') {
-                    dmg = Math.max(1, Math.floor(dmg * 0.78));
+                    dmg = Math.max(1, Math.floor(dmg * 0.82));
                     writeLog(`[소환] 🪨 골렘이 피해를 줄였습니다! (${dmg})`);
                 }
                 player.curHp-=dmg; showDmgFloat(dmg,false,true);
@@ -1276,15 +1280,18 @@ function updateUi() {
         if (player.unlockedSkill && floor >= 20) ultLine.innerHTML = `<span style="color:#9b59b6;">궁극기</span> [${player.ultStack}/${player.ultMaxStack}]`;
         else ultLine.innerHTML = '';
     }
-    document.getElementById('p-atk-val').innerText=getEffectiveAttackPower();
-    document.getElementById('p-def-val').innerText=player.def+player.extraDef;
-    document.getElementById('p-acc-val').innerText=`${Math.min(95,BASE_HIT_ACCURACY+player.acc)}%`;
+    document.getElementById('p-atk-val').textContent=String(getEffectiveAttackPower());
+    document.getElementById('p-def-val').textContent=String(player.def+player.extraDef);
+    document.getElementById('p-acc-val').textContent=`${Math.min(95,BASE_HIT_ACCURACY+player.acc)}%`;
     const critInfo=getCritInfo();
-    document.getElementById('p-crit-val').innerText=`${Math.round(critInfo.effectiveCrit)}%`;
+    document.getElementById('p-crit-val').textContent=`${Math.round(critInfo.effectiveCrit)}%`;
     const critMultEl=document.getElementById('p-crit-mult-val');
-    if(critMultEl) critMultEl.innerText=`${getEffectiveCritMult().toFixed(2)}x`;
+    if(critMultEl) critMultEl.textContent=`${getEffectiveCritMult().toFixed(2)}x`;
     const lsOv=getLifestealOverflowAtk();
-    document.getElementById('p-lifesteal-val').innerText=`${Math.round(getLifestealEffective()*100)}%${lsOv>0?` <span style="font-size:0.85em;color:#f1c40f;">(+${lsOv} ATK 초과분)</span>`:''}`;
+    const lsMain=document.getElementById('p-lifesteal-val');
+    if(lsMain) lsMain.textContent=`${Math.round(getLifestealEffective()*100)}%`;
+    const lsNote=document.getElementById('p-lifesteal-note');
+    if(lsNote) lsNote.textContent=lsOv>0?`흡혈 초과분 → 공격력 +${lsOv}`:'';
     document.getElementById('e-name').innerText=enemy.name;
     document.getElementById('e-hp').style.width=`${Math.max(0,(enemy.curHp/enemy.hp)*100)}%`;
     document.getElementById('e-hp-t').innerText=`${Math.max(0,enemy.curHp)} / ${enemy.hp}`;
