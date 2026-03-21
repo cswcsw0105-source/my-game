@@ -30,6 +30,8 @@ let shopVisitCount = 0;
 /** 공격 버튼 GCD(광클 방지), 타격감 연출과 동일 500ms */
 let attackGcdUntil = 0;
 const ATTACK_GCD_MS = 500;
+/** 패치 노트/UI와 맞춰 두기 — 캐시 적용 여부 확인용 */
+const GAME_BUILD = '6.5';
 
 function clearSummonRunStorage() {
     localStorage.removeItem('summon_altar_done');
@@ -76,7 +78,10 @@ function exitBattleLayout() {
     document.getElementById('sidebar-battle').style.display = 'none';
     document.getElementById('log').style.display = 'block';
 }
-document.addEventListener('DOMContentLoaded', () => { exitBattleLayout(); });
+document.addEventListener('DOMContentLoaded', () => {
+    exitBattleLayout();
+    console.log('[던전] 클라이언트 빌드 v' + GAME_BUILD + ' — 로그에 이 안 보이면 예전 JS 캐시입니다. 강력 새로고침(Cmd+Shift+R)하세요.');
+});
 
 // ===================== 타격감 효과 =====================
 function showDmgFloat(dmg, isCrit, isPlayer) {
