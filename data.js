@@ -131,6 +131,19 @@ const mercenaryRelicPool = [
 
 const mercenaryFullPool = [...mercenaryHirePool, ...mercenaryRelicPool];
 
+/** 용병단장 전용 장비(무기·방어구) — 상점·도감 「용병」탭, 타 직업 상점·드랍 제외 */
+const mercenaryCaptainGearPool = [
+    { name: "단장의 지휘봉", type: "atk", value: 10, acc: 4, price: 36, rarity: "common", onlyFor: ["용병단장"], desc: "용병단장 전용. 공격(+10), 명중(+4%)." },
+    { name: "용병 길드 휘장", type: "hp", value: 42, def: 5, price: 40, rarity: "common", onlyFor: ["용병단장"], desc: "용병단장 전용. 체력(+42), 방어(+5)." },
+    { name: "계약 주화 목걸이", type: "acc", value: 12, price: 42, rarity: "common", onlyFor: ["용병단장"], desc: "용병단장 전용. 명중(+12%)." },
+    { name: "철혈 교범", type: "atk", value: 20, critBonus: 4, price: 68, rarity: "rare", onlyFor: ["용병단장"], desc: "용병단장 전용. 공격(+20), 치명(+4%)." },
+    { name: "주머니 골드 서클", type: "atk", value: 18, def: 6, price: 72, rarity: "rare", onlyFor: ["용병단장"], desc: "용병단장 전용. 공격(+18), 방어(+6)." },
+    { name: "왕국 용병 어깨장", type: "hp", value: 55, def: 11, price: 118, rarity: "epic", onlyFor: ["용병단장"], desc: "용병단장 전용. 체력(+55), 방어(+11)." },
+    { name: "용병왕의 증표", type: "atk", value: 30, critMult: 0.14, price: 125, rarity: "epic", onlyFor: ["용병단장"], desc: "용병단장 전용. 공격(+30), 치명 배율(+14%)." },
+    { name: "황금 계약 대검", type: "atk", value: 44, acc: 10, critBonus: 8, price: 198, rarity: "legendary", onlyFor: ["용병단장"], desc: "용병단장 전용. 공격(+44), 명중(+10%), 치명(+8%)." },
+    { name: "불멸의 군단 인장", type: "hp", value: 105, def: 19, lifesteal: 0.08, price: 205, rarity: "legendary", onlyFor: ["용병단장"], desc: "용병단장 전용. 체력(+105), 방어(+19), 흡혈(8%)." },
+];
+
 /** 직업별 추가 장비 (희귀도별) */
 const equipmentPoolV651 = [
     // 워리어 계열 — common x5
@@ -268,6 +281,7 @@ const equipmentPool = [
     ...equipmentPoolV651,
     ...mercenaryHirePool,
     ...mercenaryRelicPool,
+    ...mercenaryCaptainGearPool,
 ];
 
 const relicPool = [

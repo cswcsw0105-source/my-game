@@ -42,7 +42,9 @@ let shopVisitCount = 0;
 let attackGcdUntil = 0;
 const ATTACK_GCD_MS = 500;
 /** 패치 노트/UI와 맞춰 두기 — 캐시 적용 여부 확인용 */
-const GAME_BUILD = '6.6.0';
+const GAME_BUILD = '6.6.1';
+/** 필드 용병 기본 피해 계수(전역 보정) — v6.6.1 상향 */
+const MERC_DMG_GLOBAL_SCALE = 1.48;
 /** v6.5.1 핫픽스: 치명/흡혈 상한·명중 기본값 */
 const CRIT_SOFT_CAP = 65;
 const LIFESTEAL_SOFT_CAP = 0.85;
@@ -222,15 +224,14 @@ function getMercGoldSkipCost() {
 function getFieldMercAttackMult() {
     if (!player || !player.fieldMerc || player.fieldMerc.mercHp <= 0) return 0;
     const m = player.fieldMerc.merc;
-    if (!m) return 0.28;
-    if (m.kind === 'dmg') {
-        let mult = safeNum(m.mult, 0.28);
-        if (player.fieldMerc.infiniteGrowth) mult += safeNum(player.fieldMerc.growthStacks, 0) * 0.004;
-        return mult;
-    }
-    if (m.kind === 'both') return safeNum(m.dmgMult, 0.35);
-    if (m.kind === 'heal') return Math.max(0.15, safeNum(m.pct, 0.12) * 0.75);
-    return 0.28;
+    let mult = 0.3;
+    if (!m) mult = 0.3;
+    else if (m.kind === 'dmg') {
+        mult = safeNum(m.mult, 0.3);
+        if (player.fieldMerc.infiniteGrowth) mult += safeNum(player.fieldMerc.growthStacks, 0) * 0.005;
+    } else if (m.kind === 'both') mult = safeNum(m.dmgMult, 0.38);
+    else if (m.kind === 'heal') mult = Math.max(0.2, safeNum(m.pct, 0.12) * 0.82);
+    return Math.min(2.45, mult * MERC_DMG_GLOBAL_SCALE);
 }
 
 function buildFieldMercFromItem(item) {
@@ -238,8 +239,8 @@ function buildFieldMercFromItem(item) {
     const mj = item.mercJob || '워리어';
     const rarity = item.rarity || 'common';
     const tier = { common: 1, rare: 1.2, epic: 1.45, legendary: 1.75, relic: 2.05 }[rarity] || 1;
-    const base = 48 + floor * 5;
-    const mercMaxHp = Math.max(20, Math.floor(base * tier + safeNum(player.maxHp, 100) * 0.14));
+    const base = 58 + floor * 7;
+    const mercMaxHp = Math.max(32, Math.floor(base * tier + safeNum(player.maxHp, 100) * 0.22));
     return {
         sourceName: item.name,
         mercJob: mj,
@@ -252,33 +253,47 @@ function buildFieldMercFromItem(item) {
     };
 }
 
-/** 일반 상점용: 용병 아이템 제외 */
+/** 용병단장 전용 장비만 — 타 직업 상점에서 제외 */
+function mercCaptainExclusiveItem(it) {
+    return it && it.onlyFor && Array.isArray(it.onlyFor) && it.onlyFor.length === 1 && it.onlyFor[0] === '용병단장';
+}
+
+/** 일반 상점용: 용병 계약 + 단장 전용 장비 제외 */
 function getNonMercEquipmentPool() {
-    return equipmentPool.filter((i) => i && i.type !== 'merc');
+    return equipmentPool.filter((i) => {
+        if (!i || i.type === 'merc') return false;
+        if (mercCaptainExclusiveItem(i)) return false;
+        return true;
+    });
+}
+
+function getMercCaptainShopPoolBase() {
+    return [...mercenaryFullPool, ...mercenaryCaptainGearPool];
 }
 
 function getMercCaptainShopPoolForRoll() {
+    const full = getMercCaptainShopPoolBase();
     const lc = Math.min(15, 2 + Math.floor(shopVisitCount / 5)),
         ec = Math.min(35, 10 + Math.floor(shopVisitCount / 3)),
         rc = Math.min(50, 30 + Math.floor(shopVisitCount / 4)),
         cc = Math.max(0, 100 - lc - ec - rc);
     const rand = Math.random() * 100;
     if (rand < lc) {
-        const legs = mercenaryFullPool.filter((i) => i.rarity === 'legendary');
-        const rels = mercenaryFullPool.filter((i) => i.rarity === 'relic');
+        const legs = full.filter((i) => i.rarity === 'legendary');
+        const rels = full.filter((i) => i.rarity === 'relic');
         const pool = [...rels, ...legs];
-        return pool.length ? pool : mercenaryFullPool;
+        return pool.length ? pool : full;
     }
     if (rand < lc + ec) {
-        const p = mercenaryFullPool.filter((i) => i.rarity === 'epic');
-        return p.length ? p : mercenaryFullPool;
+        const p = full.filter((i) => i.rarity === 'epic');
+        return p.length ? p : full;
     }
     if (rand < lc + ec + rc) {
-        const p = mercenaryFullPool.filter((i) => i.rarity === 'rare');
-        return p.length ? p : mercenaryFullPool;
+        const p = full.filter((i) => i.rarity === 'rare');
+        return p.length ? p : full;
     }
-    const com = mercenaryFullPool.filter((i) => i.rarity === 'common');
-    return com.length ? com : mercenaryFullPool;
+    const com = full.filter((i) => i.rarity === 'common');
+    return com.length ? com : full;
 }
 
 function tryMercenaryRandomEvent() {
@@ -1479,7 +1494,7 @@ window.useMercenarySlot = (ix) => {
 };
 function codexItemMatchesTab(it, tab) {
     if (!it || !it.name) return false;
-    if (tab === '용병') return it.type === 'merc';
+    if (tab === '용병') return it.type === 'merc' || (it.onlyFor && it.onlyFor.includes('용병단장'));
     if (it.type === 'merc') return false;
     const of = it.onlyFor;
     if (tab === '공용') return !of || (Array.isArray(of) && of.length === 0);
@@ -1504,7 +1519,7 @@ window.toggleCollection = (show) => {
         const mercMode = player && player.baseJob === '용병단장';
         if (mercMode && window._codexTab === '공용') window._codexTab = '용병';
         const tab = window._codexTab;
-        const tabs = mercMode ? ['용병', '워리어', '헌터', '마법사'] : ['공용', '워리어', '헌터', '마법사'];
+        const tabs = mercMode ? ['용병', '워리어', '헌터', '마법사'] : ['공용', '워리어', '헌터', '마법사', '용병'];
         const collection = JSON.parse(localStorage.getItem('item_collection_v5') || '[]');
         const allItems = [
             ...equipmentPool,
@@ -1538,6 +1553,9 @@ window.toggleCollection = (show) => {
             .join('');
         let html = `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px;align-items:center;">${tabBar}</div>`;
         html += `<p style="color:#888;font-size:0.85em;margin-bottom:15px;">탭: <b style="color:#f1c40f;">${tab}</b> · 해금: <b style="color:#f1c40f;">${collection.length}</b> / ${uniqueItems.length}</p>`;
+        if (tab === '용병') {
+            html += `<p style="color:#b87333;font-size:0.78em;margin:-8px 0 12px;line-height:1.45;">📜 <b>고용 계약</b> + ⚔️ <b>용병단장 전용 장비</b> — 용병단장은 이 탭에서만 전용 장비를 확인합니다.</p>`;
+        }
         if (relicItems.length > 0) {
             html += `<div style="margin-bottom:16px;border-bottom:1px solid #333;padding-bottom:12px;"><div style="background:#2a2a0a;color:#f1c40f;font-size:0.7em;font-weight:700;padding:3px 8px;border-radius:4px;display:inline-block;margin-bottom:8px;letter-spacing:1px;">✨ RELIC (유물)</div>`;
             relicItems.forEach((it) => {

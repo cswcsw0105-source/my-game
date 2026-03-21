@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
-    <title>던전 v6.6.0</title>
-    <link rel="stylesheet" href="style.css?v=6.6.0">
+    <title>던전 v6.6.1</title>
+    <link rel="stylesheet" href="style.css?v=6.6.1">
     <style>
         .auth-box { background: #2a2a2a; padding: 20px; border-radius: 8px; border: 1px solid #444; max-width: 300px; margin: 0 auto; }
         .auth-box input { width: 90%; padding: 10px; margin: 10px 0; border-radius: 4px; border: 1px solid #555; background: #111; color: white; }
@@ -13,7 +13,7 @@
 </head>
 <body>
     <div class="container">
-        <h1 style="color: #fff; letter-spacing: 1px;">⚔️ 던전 (v6.6.0)</h1>
+        <h1 style="color: #fff; letter-spacing: 1px;">⚔️ 던전 (v6.6.1)</h1>
         
         <div class="game-layout" id="main-layout">
             <div class="screen" id="main-screen">
@@ -139,6 +139,11 @@
             <table class="patch-table">
                 <thead><tr><th>버전</th><th>항목</th><th>상세 내용</th></tr></thead>
                 <tbody>
+                    <tr><td class="v-tag">v6.6.1</td><td>용병 밸·도감</td><td>
+    <b>필드 용병 상향:</b> 용병 기본 피해에 <b>전역 배율(×1.48)</b> 적용, 고용 스펙·성장 스택 계수 소폭 상향. 용병 <b>최대 HP</b>·층수 계수 상향(전멸 전 버티기 쉬움).<br>
+    <b>장비 도감 「용병」탭:</b> <b>고용 계약</b> + <b>용병단장 전용 장비</b>가 함께 표시되도록 수정. 다른 직업도 <b>용병</b> 탭으로 용병 관련 목록 확인 가능.<br>
+    <b>신규 장비:</b> <b>mercenaryCaptainGearPool</b> — 단장 전용 무기·방어구 9종(일반~전설). 타 직업 상점·드랍에서는 <b>제외</b>, 용병단장 상점 풀에만 합류.
+</td></tr>
                     <tr><td class="v-tag">v6.6.0</td><td>신직업·도감</td><td>
     <b>신 직업 「용병단장」:</b> 다른 직업과 분리된 전용 메커. 상점·드랍은 <b>용병 고용 아이템만</b>(일반~유물급 계약), 타 직업 상점·드랍에서 용병 아이템 <b>미등장</b>. 시작 시 <b>일반 용병 1명</b> 지급.<br>
     <b>필드 용병:</b> 동시 1명만. <b>상성 카멜레온</b> — 필드 용병의 직업(워/헌/마)에 맞춰 기존 상성식 그대로 적용. 적 어그로는 <b>용병 우선</b>. 용병 사망 시 쿨타임 후 재고용, <b>골드로 쿨 초기화</b> 가능.<br>
@@ -254,7 +259,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <!-- ?v= 쿼리로 브라우저 캐시 무효화 (수정이 안 보일 때 강력 새로고침도 함께) -->
-    <script src="data.js?v=6.6.0"></script>
-    <script src="game.js?v=6.6.0"></script>
+    <script src="data.js?v=6.6.1"></script>
+    <script src="game.js?v=6.6.1"></script>
 </body>
 </html>
