@@ -6,8 +6,8 @@
     const STORAGE_KEY = 'dungeon_meta_v7';
     const MAX_SLOTS = 4;
 
-    /** 베이스캠프(영구 성장) 가능 층 — 이 층에 머물 때만 테크 구매 */
-    const BASE_CAMP_FLOORS = [10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100];
+    /** 30층 이상에서 상점을 통해서만 베이스캠프 UI (레거시 호환: 층>=30) */
+    const BASE_CAMP_FLOORS = [30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100];
 
     function uid() {
         return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -385,7 +385,65 @@
     };
 
     function isBaseCampFloor(f) {
-        return BASE_CAMP_FLOORS.includes(f);
+        return typeof f === 'number' && f >= 30;
+    }
+
+    function markRunCheckpoint(slotId) {
+        const m = loadMeta();
+        const slot = m.slots.find((s) => s.id === slotId);
+        if (!slot) return;
+        slot.runCheckpointMeta = { level: Math.max(1, slot.level || 1), exp: Math.max(0, slot.exp || 0) };
+        saveMeta(m);
+    }
+
+    function revertRunToCheckpoint(slotId) {
+        const m = loadMeta();
+        const slot = m.slots.find((s) => s.id === slotId);
+        if (!slot || !slot.runCheckpointMeta) return;
+        const c = slot.runCheckpointMeta;
+        slot.level = Math.max(1, c.level || 1);
+        slot.exp = Math.max(0, c.exp || 0);
+        saveMeta(m);
+    }
+
+    function setRunSnapshot(slotId, obj) {
+        const m = loadMeta();
+        const slot = m.slots.find((s) => s.id === slotId);
+        if (!slot) return;
+        slot.runSnapshot = obj;
+        saveMeta(m);
+    }
+
+    function clearRunSnapshot(slotId) {
+        const m = loadMeta();
+        const slot = m.slots.find((s) => s.id === slotId);
+        if (!slot) return;
+        slot.runSnapshot = null;
+        saveMeta(m);
+    }
+
+    function getRunSnapshot(slotId) {
+        const slot = getSlotById(slotId);
+        return slot && slot.runSnapshot ? slot.runSnapshot : null;
+    }
+
+    /** 보존 골드 없이 테크만 구매 처리 (런 골드는 game.js에서 차감) */
+    function commitTechPurchase(slotId, nodeId) {
+        const m = loadMeta();
+        const slot = m.slots.find((s) => s.id === slotId);
+        if (!slot) return { ok: false, msg: '슬롯 없음' };
+        if (!canPurchaseNode(slot, nodeId)) return { ok: false, msg: '구매 불가(선행 또는 라인 불일치)' };
+        const n = TECH_NODES.find((x) => x.id === nodeId);
+        if (!n) return { ok: false, msg: '노드 없음' };
+        slot.techPurchased = slot.techPurchased || [];
+        slot.techPurchased.push(nodeId);
+        recalcTechBonus(slot);
+        saveMeta(m);
+        return { ok: true, msg: n.name, cost: n.cost || 0 };
+    }
+
+    function getTechNodeById(nodeId) {
+        return TECH_NODES.find((x) => x.id === nodeId) || null;
     }
 
     const MetaRPG = {
@@ -414,6 +472,13 @@
         hasJobSlot,
         getRebirthGoldCost,
         applyReincarnation,
+        markRunCheckpoint,
+        revertRunToCheckpoint,
+        setRunSnapshot,
+        clearRunSnapshot,
+        getRunSnapshot,
+        commitTechPurchase,
+        getTechNodeById,
         setActiveSlot(id) {
             const m = loadMeta();
             if (!m.slots.some((s) => s.id === id)) return false;

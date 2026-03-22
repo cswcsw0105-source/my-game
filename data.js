@@ -359,9 +359,9 @@ const forgeRecipes = [
     { name: "파멸의 각인",   type: "atk", value: 50, price: 0, rarity: "legendary", desc: "대장간 합성. 공격력(+50). 흡혈(25%), 치명타 배율(+40%).", materials: 2, materialRarity: "epic", successRate: 0.50, lifesteal: 0.25, critMult: 0.4 },
 ];
 
-/** v7.0.3 — 장비·해금·대장간 스탯 전역 너프 (상점 풀은 배열 합성 후 일괄 적용) */
+/** v7.0.4 — 스탯만 약 30% 너프 (가격은 원본 유지) */
 (function applyItemBalance703() {
-    const M = 0.5;
+    const M = 0.7;
     function nerf(it) {
         if (!it || it._bal703) return;
         if (typeof it.value === 'number') it.value = Math.max(1, Math.round(it.value * M));
@@ -370,7 +370,6 @@ const forgeRecipes = [
         if (typeof it.critBonus === 'number') it.critBonus = Math.max(1, Math.round(it.critBonus * M));
         if (typeof it.critMult === 'number') it.critMult = Math.round(it.critMult * M * 100) / 100;
         if (typeof it.lifesteal === 'number') it.lifesteal = Math.round(it.lifesteal * M * 100) / 100;
-        if (typeof it.price === 'number') it.price = Math.max(8, Math.round(it.price * 0.88));
         it._bal703 = true;
     }
     if (typeof equipmentPool !== 'undefined' && Array.isArray(equipmentPool)) equipmentPool.forEach(nerf);

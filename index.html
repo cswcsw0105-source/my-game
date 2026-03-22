@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
-    <title>던전 v7.0.3</title>
-    <link rel="stylesheet" href="style.css?v=7.0.3">
+    <title>던전 v7.0.4</title>
+    <link rel="stylesheet" href="style.css?v=7.0.4">
     <style>
         .auth-box { background: #2a2a2a; padding: 20px; border-radius: 8px; border: 1px solid #444; max-width: 300px; margin: 0 auto; }
         .auth-box input { width: 90%; padding: 10px; margin: 10px 0; border-radius: 4px; border: 1px solid #555; background: #111; color: white; }
@@ -13,7 +13,7 @@
 </head>
 <body>
     <div class="container">
-        <h1 style="color: #fff; letter-spacing: 1px;">⚔️ 던전 (v7.0.3 · 로그라이트)</h1>
+        <h1 style="color: #fff; letter-spacing: 1px;">⚔️ 던전 (v7.0.4 · 로그라이트)</h1>
         
         <div class="game-layout" id="main-layout">
             <div class="screen" id="main-screen">
@@ -95,9 +95,8 @@
                     </div>
                 </div>
                 <button type="button" class="sidebar-action-btn sidebar-btn-inv" onclick="toggleInv(true)" style="margin-bottom:8px;">🎒 인벤토리 보기</button>
-                <button type="button" class="sidebar-action-btn" onclick="saveRunNow()" style="margin-bottom:8px;background:#1e90ff;color:#fff;border:1px solid #3498db;">💾 저장 (퀵세이브)</button>
-                <button type="button" class="sidebar-action-btn" onclick="returnToHubFromRun()" style="margin-bottom:8px;background:#444;color:#e0e0e0;border:1px solid #666;">🏠 메인 화면 (허브)</button>
-                <button type="button" id="sidebar-camp-btn" class="sidebar-action-btn" onclick="openBaseCampTech()" style="display:none;margin-bottom:8px;background:#9b59b6;color:#fff;border:1px solid #8e44ad;">🏕️ 베이스캠프</button>
+                <button type="button" class="sidebar-action-btn" onclick="saveAndExitToMain()" style="margin-bottom:8px;background:#1e90ff;color:#fff;border:1px solid #3498db;">💾 저장 후 메인</button>
+                <button type="button" class="sidebar-action-btn" onclick="exitToMainWithoutSave()" style="margin-bottom:8px;background:#c0392b;color:#fff;border:1px solid #922b21;">🚪 저장 없이 메인</button>
                 <div id="log-battle" style="font-size:0.85em; overflow-y:auto; max-height:460px;"></div>
             </div>
 
@@ -142,6 +141,9 @@
             <table class="patch-table">
                 <thead><tr><th>버전</th><th>항목</th><th>상세 내용</th></tr></thead>
                 <tbody>
+                    <tr><td class="v-tag">v7.0.4</td><td>저장·베이스캠프</td><td>
+    퀵세이브 제거 → <b>저장 후 메인</b> / <b>저장 없이 메인</b>. 미저장 퇴장 시 메타 레벨·런 진행 <b>체크포인트로 복구</b>. 베이스캠프는 <b>30층+ 상점</b>에서만 입장 · 테크·영구강화는 <b>런 골드</b>로 구매. 영구강화 UI <b>스크롤 위치 유지</b>. 장비 <b>가격 롤백</b>, 스탯만 <b>~30% 너프</b>.
+</td></tr>
                     <tr><td class="v-tag">v7.0.3</td><td>밸런스·환생</td><td>
     퀵세이브: <b>허브 퇴장 시 삭제</b>(보존 골드 중복 방지) · 상점 저장 시 <b>상점 유지</b> · HP0 적 재현 방지. 베이스캠프 영구강화 <b>슬롯 전용·무한 단계</b> + <b>치명/배율(소량)</b>. 장비·해금 <b>전역 너프</b> + <b>신규 50종</b>. <b>직업당 1캐</b> · <b>환생</b> 최대 3회(100층마다 물음·허브 유료). 패치노트 하단 <b>전직 도표</b>.
 </td></tr>
@@ -316,8 +318,8 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <!-- ?v= 쿼리로 브라우저 캐시 무효화 (수정이 안 보일 때 강력 새로고침도 함께) -->
-    <script src="data.js?v=7.0.3"></script>
-    <script src="rpg_v7.js?v=7.0.3"></script>
-    <script src="game.js?v=7.0.3"></script>
+    <script src="data.js?v=7.0.4"></script>
+    <script src="rpg_v7.js?v=7.0.4"></script>
+    <script src="game.js?v=7.0.4"></script>
 </body>
 </html>
