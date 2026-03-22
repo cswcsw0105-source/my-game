@@ -206,6 +206,64 @@ const equipmentPoolV651 = [
     { name: "세계수의 잎새", type: "hp", value: 85, def: 12, price: 196, rarity: "legendary", onlyFor: ["마법사","위저드","소환사"], desc: "체력(+85), 방어(+12)." },
 ];
 
+/** v7.0.3 — 상점 풀 확장 (밸런스 조정된 저~중 스탯) */
+const equipmentPoolExtra703 = [
+    { name: "낡은 끈", type: "hp", value: 6, price: 10, rarity: "common", desc: "공용. 체력(+6)." },
+    { name: "조각난 화살촉", type: "atk", value: 3, price: 11, rarity: "common", desc: "공용. 공격(+3)." },
+    { name: "구리 반지", type: "atk", value: 2, price: 12, rarity: "common", onlyFor: ["워리어", "나이트", "버서커"], desc: "워계. 공격(+2)." },
+    { name: "이끼 낀 돌", type: "hp", value: 9, def: 1, price: 13, rarity: "common", desc: "공용. 체력(+9), 방어(+1)." },
+    { name: "가죽 끈", type: "acc", value: 4, price: 14, rarity: "common", desc: "공용. 명중(+4%)." },
+    { name: "작은 철못", type: "atk", value: 4, price: 15, rarity: "common", onlyFor: ["헌터", "궁수", "암살자"], desc: "헌계. 공격(+4)." },
+    { name: "마른 허브", type: "hp", value: 7, price: 11, rarity: "common", onlyFor: ["마법사", "위저드", "소환사"], tags: ["arcane"], desc: "마계. 체력(+7)." },
+    { name: "부서진 수정", type: "atk", value: 4, critBonus: 1, price: 16, rarity: "common", onlyFor: ["마법사", "위저드", "소환사"], desc: "마계. 공격(+4), 치명(+1%)." },
+    { name: "녹슨 못", type: "atk", value: 3, def: 1, price: 12, rarity: "common", desc: "공용. 공격(+3), 방어(+1)." },
+    { name: "짚신", type: "hp", value: 8, price: 10, rarity: "common", desc: "공용. 체력(+8)." },
+    { name: "유리 조각", type: "atk", value: 5, critBonus: 1, price: 18, rarity: "common", desc: "공용. 공격(+5), 치명(+1%)." },
+    { name: "작은 방울", type: "acc", value: 5, price: 17, rarity: "common", desc: "공용. 명중(+5%)." },
+    { name: "밧줄 조각", type: "hp", value: 10, price: 14, rarity: "common", desc: "공용. 체력(+10)." },
+    { name: "납 동전", type: "atk", value: 4, price: 13, rarity: "common", desc: "공용. 공격(+4)." },
+    { name: "마른 고기", type: "hp", value: 11, price: 15, rarity: "common", lifesteal: 0.02, desc: "공용. 체력(+11), 흡혈(2%)." },
+    { name: "작은 방패 파편", type: "hp", value: 9, def: 2, price: 19, rarity: "common", onlyFor: ["워리어", "나이트", "버서커"], tags: ["heavy"], desc: "워계. 체력(+9), 방어(+2)." },
+    { name: "깃털 화살", type: "atk", value: 5, acc: 3, price: 20, rarity: "common", onlyFor: ["헌터", "궁수", "암살자"], tags: ["precision"], desc: "헌계. 공격(+5), 명중(+3%)." },
+    { name: "연습용 오브", type: "atk", value: 5, critMult: 0.04, price: 21, rarity: "common", onlyFor: ["마법사", "위저드", "소환사"], desc: "마계. 공격(+5), 치명 배율(+4%)." },
+    { name: "청동 팔찌", type: "atk", value: 6, def: 1, price: 22, rarity: "rare", desc: "공용. 공격(+6), 방어(+1)." },
+    { name: "은박 반지", type: "hp", value: 14, price: 24, rarity: "rare", desc: "공용. 체력(+14)." },
+    { name: "가는 철검", type: "atk", value: 7, critBonus: 2, price: 26, rarity: "rare", onlyFor: ["워리어", "나이트", "버서커"], desc: "워계. 공격(+7), 치명(+2%)." },
+    { name: "사냥꾼 주머니", type: "atk", value: 6, lifesteal: 0.03, price: 27, rarity: "rare", onlyFor: ["헌터", "궁수", "암살자"], desc: "헌계. 공격(+6), 흡혈(3%)." },
+    { name: "마력 잔물결", type: "atk", value: 6, price: 25, rarity: "rare", onlyFor: ["마법사", "위저드", "소환사"], desc: "마계. 공격(+6)." },
+    { name: "단단한 가죽", type: "hp", value: 16, def: 2, price: 28, rarity: "rare", desc: "공용. 체력(+16), 방어(+2)." },
+    { name: "바람 깃털", type: "acc", value: 8, critBonus: 1, price: 29, rarity: "rare", desc: "공용. 명중(+8%), 치명(+1%)." },
+    { name: "작은 루비", type: "atk", value: 8, price: 32, rarity: "rare", desc: "공용. 공격(+8)." },
+    { name: "강철 버클", type: "hp", value: 13, def: 3, price: 31, rarity: "rare", onlyFor: ["워리어", "나이트", "버서커"], desc: "워계. 체력(+13), 방어(+3)." },
+    { name: "야간 투시경", type: "acc", value: 9, price: 33, rarity: "rare", onlyFor: ["헌터", "궁수", "암살자"], desc: "헌계. 명중(+9%)." },
+    { name: "마나 잔디", type: "hp", value: 18, price: 34, rarity: "rare", onlyFor: ["마법사", "위저드", "소환사"], desc: "마계. 체력(+18)." },
+    { name: "냉기 결정", type: "atk", value: 9, critBonus: 2, price: 38, rarity: "epic", onlyFor: ["마법사", "위저드", "소환사"], desc: "마계. 공격(+9), 치명(+2%)." },
+    { name: "강철 너클", type: "atk", value: 10, critMult: 0.06, price: 39, rarity: "epic", onlyFor: ["워리어", "나이트", "버서커"], desc: "워계. 공격(+10), 치명 배율(+6%)." },
+    { name: "독침 통", type: "atk", value: 9, lifesteal: 0.05, price: 40, rarity: "epic", onlyFor: ["헌터", "궁수", "암살자"], desc: "헌계. 공격(+9), 흡혈(5%)." },
+    { name: "별무늬 천", type: "hp", value: 22, price: 41, rarity: "epic", desc: "공용. 체력(+22)." },
+    { name: "암흑 가루", type: "atk", value: 11, acc: 4, price: 44, rarity: "epic", desc: "공용. 공격(+11), 명중(+4%)." },
+    { name: "은빛 고리", type: "atk", value: 10, def: 2, price: 42, rarity: "epic", desc: "공용. 공격(+10), 방어(+2)." },
+    { name: "화염 잔재", type: "atk", value: 12, critBonus: 3, price: 48, rarity: "epic", desc: "공용. 공격(+12), 치명(+3%)." },
+    { name: "빛바랜 망토", type: "hp", value: 20, def: 3, price: 46, rarity: "epic", desc: "공용. 체력(+20), 방어(+3)." },
+    { name: "수정 렌즈", type: "acc", value: 11, critBonus: 2, price: 47, rarity: "epic", desc: "공용. 명중(+11%), 치명(+2%)." },
+    { name: "천상의 파편", type: "atk", value: 14, critMult: 0.08, price: 52, rarity: "legendary", desc: "전설. 공격(+14), 치명 배율(+8%)." },
+    { name: "고대 철판", type: "hp", value: 28, def: 5, price: 54, rarity: "legendary", desc: "전설. 체력(+28), 방어(+5)." },
+    { name: "폭풍의 씨앗", type: "atk", value: 13, acc: 5, price: 53, rarity: "legendary", onlyFor: ["마법사", "위저드", "소환사"], desc: "마계. 공격(+13), 명중(+5%)." },
+    { name: "용해액 병", type: "atk", value: 12, lifesteal: 0.07, price: 51, rarity: "legendary", onlyFor: ["헌터", "궁수", "암살자"], desc: "헌계. 공격(+12), 흡혈(7%)." },
+    { name: "성스러운 철", type: "atk", value: 13, def: 3, price: 55, rarity: "legendary", onlyFor: ["워리어", "나이트", "버서커"], desc: "워계. 공격(+13), 방어(+3)." },
+    { name: "심해 비늘", type: "hp", value: 26, lifesteal: 0.06, price: 56, rarity: "legendary", desc: "전설. 체력(+26), 흡혈(6%)." },
+    { name: "얼음 핵", type: "atk", value: 14, critBonus: 3, price: 57, rarity: "legendary", desc: "전설. 공격(+14), 치명(+3%)." },
+    { name: "시간의 가루", type: "hp", value: 24, def: 4, price: 58, rarity: "legendary", desc: "전설. 체력(+24), 방어(+4)." },
+    { name: "혼령 실", type: "atk", value: 11, critMult: 0.09, price: 50, rarity: "epic", desc: "공용. 공격(+11), 치명 배율(+9%)." },
+    { name: "태양 가루", type: "acc", value: 10, price: 45, rarity: "epic", desc: "공용. 명중(+10%)." },
+    { name: "암석 심장", type: "hp", value: 30, price: 59, rarity: "legendary", desc: "전설. 체력(+30)." },
+    { name: "유리한 거래", type: "atk", value: 9, price: 36, rarity: "rare", desc: "공용. 공격(+9)." },
+    { name: "잊힌 인장", type: "hp", value: 17, def: 2, price: 37, rarity: "rare", desc: "공용. 체력(+17), 방어(+2)." },
+    { name: "바람의 조각", type: "atk", value: 8, acc: 4, price: 35, rarity: "rare", desc: "공용. 공격(+8), 명중(+4%)." },
+    { name: "대지의 알", type: "hp", value: 19, price: 43, rarity: "epic", desc: "공용. 체력(+19)." },
+    { name: "불꽃 심지", type: "atk", value: 10, critBonus: 2, price: 49, rarity: "epic", desc: "공용. 공격(+10), 치명(+2%)." },
+];
+
 const equipmentPool = [
     // ===== 워리어 전용 =====
     { name: "거인족의 대검",      type: "atk", value: 22, price: 90,  rarity: "epic",   onlyFor: ["워리어","나이트","버서커"], critBonus: 6,  desc: "워리어 계열. 공격력(+22). 치명타 확률(+6%)." },
@@ -265,6 +323,7 @@ const equipmentPool = [
     { name: "폭군의 갑옷",        type: "hp",  value: 110, def: 20, price: 170, rarity: "legendary", critBonus: 5, desc: "전설. 체력(+110), 방어(+20), 치명타(+5%)." },
     { name: "세계수의 가지",      type: "hp",  value: 80, price: 150, rarity: "legendary", regenPotion: true, lifesteal: 0.2, desc: "전설. 체력(+80). 포션 강화, 흡혈(20%)." },
     ...equipmentPoolV651,
+    ...equipmentPoolExtra703,
 ];
 
 /**
@@ -272,9 +331,9 @@ const equipmentPool = [
  * @type {{id:string,name:string,needTags:string[],bonus:{atk?:number,hp?:number,def?:number,acc?:number,crit?:number}}[]}
  */
 const synergyRules = [
-    { id: 'syn_blade_blood', name: '⚔️ 피의 검귀', needTags: ['blade', 'blood'], bonus: { atk: 8, crit: 3 } },
-    { id: 'syn_heavy_wall', name: '🛡️ 중장갑', needTags: ['heavy', 'blood'], bonus: { hp: 40, def: 4 } },
-    { id: 'syn_precision_arcane', name: '🎯 마법 조준', needTags: ['precision', 'arcane'], bonus: { atk: 6, acc: 5 } },
+    { id: 'syn_blade_blood', name: '⚔️ 피의 검귀', needTags: ['blade', 'blood'], bonus: { atk: 4, crit: 2 } },
+    { id: 'syn_heavy_wall', name: '🛡️ 중장갑', needTags: ['heavy', 'blood'], bonus: { hp: 22, def: 2 } },
+    { id: 'syn_precision_arcane', name: '🎯 마법 조준', needTags: ['precision', 'arcane'], bonus: { atk: 3, acc: 3 } },
 ];
 
 const relicPool = [
@@ -299,3 +358,28 @@ const forgeRecipes = [
     { name: "불멸의 심장",   type: "hp",  value: 140, def: 22, price: 0, rarity: "legendary", desc: "대장간 합성. 체력(+140), 방어(+22).", materials: 3, materialRarity: "rare", successRate: 0.40 },
     { name: "파멸의 각인",   type: "atk", value: 50, price: 0, rarity: "legendary", desc: "대장간 합성. 공격력(+50). 흡혈(25%), 치명타 배율(+40%).", materials: 2, materialRarity: "epic", successRate: 0.50, lifesteal: 0.25, critMult: 0.4 },
 ];
+
+/** v7.0.3 — 장비·해금·대장간 스탯 전역 너프 (상점 풀은 배열 합성 후 일괄 적용) */
+(function applyItemBalance703() {
+    const M = 0.5;
+    function nerf(it) {
+        if (!it || it._bal703) return;
+        if (typeof it.value === 'number') it.value = Math.max(1, Math.round(it.value * M));
+        if (typeof it.def === 'number') it.def = Math.max(0, Math.round(it.def * M));
+        if (typeof it.acc === 'number') it.acc = Math.max(0, Math.round(it.acc * M));
+        if (typeof it.critBonus === 'number') it.critBonus = Math.max(1, Math.round(it.critBonus * M));
+        if (typeof it.critMult === 'number') it.critMult = Math.round(it.critMult * M * 100) / 100;
+        if (typeof it.lifesteal === 'number') it.lifesteal = Math.round(it.lifesteal * M * 100) / 100;
+        if (typeof it.price === 'number') it.price = Math.max(8, Math.round(it.price * 0.88));
+        it._bal703 = true;
+    }
+    if (typeof equipmentPool !== 'undefined' && Array.isArray(equipmentPool)) equipmentPool.forEach(nerf);
+    function nerfUnlock(obj) {
+        if (!obj) return;
+        Object.keys(obj).forEach((k) => nerf(obj[k]));
+    }
+    nerfUnlock(typeof floorUnlocks !== 'undefined' ? floorUnlocks : null);
+    nerfUnlock(typeof floorUnlocksHunter !== 'undefined' ? floorUnlocksHunter : null);
+    nerfUnlock(typeof floorUnlocksWizard !== 'undefined' ? floorUnlocksWizard : null);
+    if (typeof forgeRecipes !== 'undefined' && Array.isArray(forgeRecipes)) forgeRecipes.forEach(nerf);
+})();

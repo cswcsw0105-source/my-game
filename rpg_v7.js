@@ -22,6 +22,13 @@
         };
     }
 
+    function ensureSlotV703(s) {
+        if (!s) return;
+        if (!s.campPerma) s.campPerma = { hp: 0, atk: 0, def: 0, crit: 0, cm: 0 };
+        if (s.reincarnationCount == null) s.reincarnationCount = 0;
+        if (!s.rebirthStatBonus) s.rebirthStatBonus = { hp: 0, atk: 0, def: 0, acc: 0 };
+    }
+
     function loadMeta() {
         try {
             const raw = localStorage.getItem(STORAGE_KEY);
@@ -30,6 +37,7 @@
             if (!o || typeof o !== 'object') return defaultMeta();
             if (!Array.isArray(o.slots)) o.slots = [];
             if (o.savedGold == null) o.savedGold = 0;
+            o.slots.forEach(ensureSlotV703);
             return o;
         } catch (e) {
             return defaultMeta();
@@ -64,10 +72,13 @@
                     techPurchased: [],
                     legacyPerma: { hp, atk, def, acc },
                     extraPerma: { hp: 0, atk: 0, def: 0, acc: 0 },
+                    campPerma: { hp: 0, atk: 0, def: 0, crit: 0, cm: 0 },
                     level: 1,
                     exp: 0,
                     metaPenalty: { hp: 0, atk: 0, def: 0, acc: 0 },
                     questFlags: {},
+                    reincarnationCount: 0,
+                    rebirthStatBonus: { hp: 0, atk: 0, def: 0, acc: 0 },
                 });
                 m.activeSlotId = m.slots[0].id;
                 m.savedGold = sg;
@@ -126,6 +137,7 @@
 
     function recalcTechBonus(slot) {
         const bought = new Set(slot.techPurchased || []);
+        const techMult = 1 + Math.min(3, slot.reincarnationCount || 0) * 0.05;
         let hp = 0,
             atk = 0,
             def = 0,
@@ -137,11 +149,17 @@
             if (n.jobKey !== jb) continue;
             if (n.line !== line) continue;
             const e = n.effect || {};
-            hp += e.hp || 0;
-            atk += e.atk || 0;
-            def += e.def || 0;
-            acc += e.acc || 0;
+            hp += (e.hp || 0) * techMult;
+            atk += (e.atk || 0) * techMult;
+            def += (e.def || 0) * techMult;
+            acc += (e.acc || 0) * techMult;
         }
+        const cp = slot.campPerma || { hp: 0, atk: 0, def: 0, crit: 0, cm: 0 };
+        hp += (cp.hp || 0) * 20;
+        atk += (cp.atk || 0) * 3;
+        def += (cp.def || 0) * 2;
+        const critFromCamp = (cp.crit || 0) * 0.12;
+        const cmFromCamp = (cp.cm || 0) * 0.006;
         const leg = slot.legacyPerma || { hp: 0, atk: 0, def: 0, acc: 0 };
         const ex = slot.extraPerma || { hp: 0, atk: 0, def: 0, acc: 0 };
         const pen = slot.metaPenalty || { hp: 0, atk: 0, def: 0, acc: 0 };
@@ -150,6 +168,8 @@
             atk: Math.max(0, atk + (leg.atk || 0) + (ex.atk || 0) - (pen.atk || 0)),
             def: Math.max(0, def + (leg.def || 0) + (ex.def || 0) - (pen.def || 0)),
             acc: Math.max(0, acc + (leg.acc || 0) + (ex.acc || 0) - (pen.acc || 0)),
+            crit: critFromCamp,
+            critMult: cmFromCamp,
         };
     }
 
@@ -216,9 +236,49 @@
         };
     }
 
+    function hasJobSlot(jobKey) {
+        const m = loadMeta();
+        return m.slots.some((s) => s.jobKey === jobKey);
+    }
+
+    function getRebirthGoldCost(slot) {
+        const c = slot.reincarnationCount || 0;
+        if (c >= 3) return Infinity;
+        return 6000 + c * 10000;
+    }
+
+    /** 환생: 런 아이템·영구강화(캠프) 초기화, 환생 보너스 누적, 최대 3회 */
+    function applyReincarnation(slotId, options) {
+        const m = loadMeta();
+        const slot = m.slots.find((s) => s.id === slotId);
+        if (!slot) return { ok: false, msg: '슬롯 없음' };
+        const cur = slot.reincarnationCount || 0;
+        if (cur >= 3) return { ok: false, msg: '환생은 최대 3회까지입니다.' };
+        const cost = getRebirthGoldCost(slot);
+        if (options && options.payGold && m.savedGold < cost) return { ok: false, msg: '보존 골드 부족 (' + cost + 'G 필요)' };
+        if (options && options.payGold) m.savedGold = Math.max(0, m.savedGold - cost);
+        slot.reincarnationCount = cur + 1;
+        slot.campPerma = { hp: 0, atk: 0, def: 0, crit: 0, cm: 0 };
+        slot.legacyPerma = { hp: 0, atk: 0, def: 0, acc: 0 };
+        slot.extraPerma = { hp: 0, atk: 0, def: 0, acc: 0 };
+        slot.metaPenalty = { hp: 0, atk: 0, def: 0, acc: 0 };
+        slot.questFlags = {};
+        slot.rebirthStatBonus = slot.rebirthStatBonus || { hp: 0, atk: 0, def: 0, acc: 0 };
+        slot.rebirthStatBonus.hp += 28;
+        slot.rebirthStatBonus.atk += 2;
+        slot.rebirthStatBonus.def += 2;
+        slot.rebirthStatBonus.acc += 1;
+        recalcTechBonus(slot);
+        saveMeta(m);
+        return { ok: true, cost };
+    }
+
     function createCharacter(name, jobKey, techLine) {
         const m = loadMeta();
         if (m.slots.length >= MAX_SLOTS) return { ok: false, msg: '슬롯 가득 (최대 ' + MAX_SLOTS + ')' };
+        if (m.slots.some((s) => s.jobKey === jobKey)) {
+            return { ok: false, msg: '직업당 1명만 보유할 수 있습니다. 동일 직업을 다시 키우려면 허브에서 환생을 이용하세요.' };
+        }
         const slot = {
             id: uid(),
             name: name || '무명',
@@ -227,10 +287,13 @@
             techPurchased: [],
             legacyPerma: { hp: 0, atk: 0, def: 0, acc: 0 },
             extraPerma: { hp: 0, atk: 0, def: 0, acc: 0 },
+            campPerma: { hp: 0, atk: 0, def: 0, crit: 0, cm: 0 },
             level: 1,
             exp: 0,
             metaPenalty: { hp: 0, atk: 0, def: 0, acc: 0 },
             questFlags: {},
+            reincarnationCount: 0,
+            rebirthStatBonus: { hp: 0, atk: 0, def: 0, acc: 0 },
         };
         recalcTechBonus(slot);
         m.slots.push(slot);
@@ -348,6 +411,9 @@
         computeSynergyBonuses,
         isBaseCampFloor,
         expToNextLevel,
+        hasJobSlot,
+        getRebirthGoldCost,
+        applyReincarnation,
         setActiveSlot(id) {
             const m = loadMeta();
             if (!m.slots.some((s) => s.id === id)) return false;

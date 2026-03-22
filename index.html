@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
-    <title>던전 v7.0.2</title>
-    <link rel="stylesheet" href="style.css?v=7.0.2">
+    <title>던전 v7.0.3</title>
+    <link rel="stylesheet" href="style.css?v=7.0.3">
     <style>
         .auth-box { background: #2a2a2a; padding: 20px; border-radius: 8px; border: 1px solid #444; max-width: 300px; margin: 0 auto; }
         .auth-box input { width: 90%; padding: 10px; margin: 10px 0; border-radius: 4px; border: 1px solid #555; background: #111; color: white; }
@@ -13,7 +13,7 @@
 </head>
 <body>
     <div class="container">
-        <h1 style="color: #fff; letter-spacing: 1px;">⚔️ 던전 (v7.0.2 · 로그라이트)</h1>
+        <h1 style="color: #fff; letter-spacing: 1px;">⚔️ 던전 (v7.0.3 · 로그라이트)</h1>
         
         <div class="game-layout" id="main-layout">
             <div class="screen" id="main-screen">
@@ -142,6 +142,9 @@
             <table class="patch-table">
                 <thead><tr><th>버전</th><th>항목</th><th>상세 내용</th></tr></thead>
                 <tbody>
+                    <tr><td class="v-tag">v7.0.3</td><td>밸런스·환생</td><td>
+    퀵세이브: <b>허브 퇴장 시 삭제</b>(보존 골드 중복 방지) · 상점 저장 시 <b>상점 유지</b> · HP0 적 재현 방지. 베이스캠프 영구강화 <b>슬롯 전용·무한 단계</b> + <b>치명/배율(소량)</b>. 장비·해금 <b>전역 너프</b> + <b>신규 50종</b>. <b>직업당 1캐</b> · <b>환생</b> 최대 3회(100층마다 물음·허브 유료). 패치노트 하단 <b>전직 도표</b>.
+</td></tr>
                     <tr><td class="v-tag">v7.0.2</td><td>진행·상점</td><td>
     승리 후 <b>확인 없이</b> 다음 층 자동 진행. 전투 사이드바에 <b>저장 / 허브 / 베이스캠프(해당 층)</b>. <b>21층+</b> 「이 층 훈련」은 <b>상점 퇴장 시</b>만 선택 — 등반 재개는 상점에서 「등반 계속」.
 </td></tr>
@@ -285,6 +288,27 @@
     </td></tr>
 </tbody>
             </table>
+            <div style="margin-top:20px;padding-top:16px;border-top:1px solid #444;">
+                <h3 style="color:#f1c40f;margin:0 0 10px;font-size:1em;">🛡️ 플레이어 전직 도표</h3>
+                <p style="color:#888;font-size:0.82em;margin:0 0 10px;">10층 보스 클리어 시 전직 선택 · 궁극기는 전직 후 해금</p>
+                <table class="patch-table" style="font-size:0.85em;">
+                    <thead><tr><th>기본 직업</th><th>전직 A</th><th>전직 B</th></tr></thead>
+                    <tbody>
+                        <tr><td><b style="color:#ff4757;">워리어</b></td><td>나이트 (방어·체력)</td><td>버서커 (공격 특화)</td></tr>
+                        <tr><td><b style="color:#2ed573;">헌터</b></td><td>궁수 (원거리·명중)</td><td>암살자 (고딜)</td></tr>
+                        <tr><td><b style="color:#1e90ff;">마법사</b></td><td>위저드 (마법 화력)</td><td>소환사 (생존·소환)</td></tr>
+                    </tbody>
+                </table>
+                <h3 style="color:#aaa;margin:16px 0 8px;font-size:0.95em;">🛡️ 용병 동료 전직 (20~30층 1회)</h3>
+                <table class="patch-table" style="font-size:0.85em;">
+                    <thead><tr><th>동료 기반</th><th>경로 A</th><th>경로 B</th></tr></thead>
+                    <tbody>
+                        <tr><td>워리어 동료</td><td>철기사대 (나이트)</td><td>광전 부대 (버서커)</td></tr>
+                        <tr><td>헌터 동료</td><td>저격 지원 (궁수)</td><td>암살 계약 (암살자)</td></tr>
+                        <tr><td>마법사 동료</td><td>전투 마도 (위저드)</td><td>보조 소환 (소환사)</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -292,8 +316,8 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <!-- ?v= 쿼리로 브라우저 캐시 무효화 (수정이 안 보일 때 강력 새로고침도 함께) -->
-    <script src="data.js?v=7.0.1"></script>
-    <script src="rpg_v7.js?v=7.0.1"></script>
-    <script src="game.js?v=7.0.2"></script>
+    <script src="data.js?v=7.0.3"></script>
+    <script src="rpg_v7.js?v=7.0.3"></script>
+    <script src="game.js?v=7.0.3"></script>
 </body>
 </html>
