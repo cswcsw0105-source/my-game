@@ -155,11 +155,12 @@
             acc += (e.acc || 0) * techMult;
         }
         const cp = slot.campPerma || { hp: 0, atk: 0, def: 0, crit: 0, cm: 0 };
-        hp += (cp.hp || 0) * 20;
-        atk += (cp.atk || 0) * 3;
-        def += (cp.def || 0) * 2;
-        const critFromCamp = (cp.crit || 0) * 0.12;
-        const cmFromCamp = (cp.cm || 0) * 0.006;
+        /** 베이스캠프 영구: 단계당 체력/공/방 상향, 치명 1%/단계·배율 +0.10/단계 (무한) */
+        hp += (cp.hp || 0) * 32;
+        atk += (cp.atk || 0) * 5;
+        def += (cp.def || 0) * 3;
+        const critFromCamp = (cp.crit || 0) * 1.0;
+        const cmFromCamp = (cp.cm || 0) * 0.1;
         const leg = slot.legacyPerma || { hp: 0, atk: 0, def: 0, acc: 0 };
         const ex = slot.extraPerma || { hp: 0, atk: 0, def: 0, acc: 0 };
         const pen = slot.metaPenalty || { hp: 0, atk: 0, def: 0, acc: 0 };
@@ -258,6 +259,11 @@
         if (options && options.payGold && m.savedGold < cost) return { ok: false, msg: '보존 골드 부족 (' + cost + 'G 필요)' };
         if (options && options.payGold) m.savedGold = Math.max(0, m.savedGold - cost);
         slot.reincarnationCount = cur + 1;
+        /** 환생 후 이전 런 스냅샷·체크포인트 제거 (저장 런 잔존 버그 방지) */
+        slot.runSnapshot = null;
+        slot.runCheckpointMeta = { level: 1, exp: 0 };
+        slot.level = 1;
+        slot.exp = 0;
         slot.campPerma = { hp: 0, atk: 0, def: 0, crit: 0, cm: 0 };
         slot.legacyPerma = { hp: 0, atk: 0, def: 0, acc: 0 };
         slot.extraPerma = { hp: 0, atk: 0, def: 0, acc: 0 };

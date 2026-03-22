@@ -264,6 +264,103 @@ const equipmentPoolExtra703 = [
     { name: "불꽃 심지", type: "atk", value: 10, critBonus: 2, price: 49, rarity: "epic", desc: "공용. 공격(+10), 치명(+2%)." },
 ];
 
+/** 시즌1(베타) — 직업당 50개 추가 (워/헌/마) */
+const equipmentPoolS1Extra = (function generateEquipmentPoolS1Extra() {
+    const W = ['워리어', '나이트', '버서커'];
+    const H = ['헌터', '궁수', '암살자'];
+    const Z = ['마법사', '위저드', '소환사'];
+    const out = [];
+    function addLine(jobArr, tag, label, i) {
+        const rar = i % 25 === 0 ? 'legendary' : i % 6 === 0 ? 'epic' : i % 2 === 0 ? 'rare' : 'common';
+        const v = 6 + (i * 7) % 28;
+        const p = 22 + i * 2 + (rar === 'legendary' ? 100 : rar === 'epic' ? 40 : 0);
+        const k = i % 6;
+        const tg = tag ? [tag] : undefined;
+        if (k === 0) {
+            const d = Math.floor(v / 10);
+            out.push({
+                name: `시즌1 ${label}·철옹 ${i}`,
+                type: 'atk',
+                value: v,
+                def: d,
+                price: p,
+                rarity: rar,
+                onlyFor: jobArr,
+                tags: tg,
+                desc: `${label} 계열. 공격(+${v}), 방어(+${d}).`,
+            });
+        } else if (k === 1) {
+            const df = 4 + (i % 12);
+            out.push({
+                name: `시즌1 ${label}·둔중 ${i}`,
+                type: 'hp',
+                value: v * 2,
+                def: df,
+                price: p,
+                rarity: rar,
+                onlyFor: jobArr,
+                tags: tg,
+                desc: `${label} 계열. 체력(+${v * 2}), 방어(+${df}).`,
+            });
+        } else if (k === 2) {
+            const cb = 2 + (i % 9);
+            out.push({
+                name: `시즌1 ${label}·예리 ${i}`,
+                type: 'atk',
+                value: v,
+                critBonus: cb,
+                price: p,
+                rarity: rar,
+                onlyFor: jobArr,
+                tags: tg,
+                desc: `${label} 계열. 공격(+${v}), 치명(+${cb}%).`,
+            });
+        } else if (k === 3) {
+            const ac = 10 + (i % 15);
+            out.push({
+                name: `시즌1 ${label}·조준 ${i}`,
+                type: 'acc',
+                value: ac,
+                price: p,
+                rarity: rar,
+                onlyFor: jobArr,
+                tags: tg,
+                desc: `${label} 계열. 명중(+${ac}%).`,
+            });
+        } else if (k === 4) {
+            const ls = Math.round((0.04 + (i % 9) * 0.012) * 1000) / 1000;
+            out.push({
+                name: `시즌1 ${label}·흡혈 ${i}`,
+                type: 'atk',
+                value: v,
+                lifesteal: ls,
+                price: p,
+                rarity: rar,
+                onlyFor: jobArr,
+                tags: tg,
+                desc: `${label} 계열. 공격(+${v}), 흡혈(${Math.round(ls * 100)}%).`,
+            });
+        } else {
+            const cm = Math.round((0.06 + (i % 8) * 0.03) * 100) / 100;
+            out.push({
+                name: `시즌1 ${label}·파동 ${i}`,
+                type: 'atk',
+                value: v,
+                critMult: cm,
+                price: p,
+                rarity: rar,
+                onlyFor: jobArr,
+                tags: tg,
+                desc: `${label} 계열. 공격(+${v}), 치명 배율(+${Math.round(cm * 100)}%).`,
+            });
+        }
+    }
+    for (let i = 1; i <= 50; i++) addLine(W, 'heavy', '워리어', i);
+    for (let i = 1; i <= 50; i++) addLine(H, 'precision', '헌터', i);
+    for (let i = 1; i <= 50; i++) addLine(Z, 'arcane', '마법사', i);
+    return out;
+})();
+
 const equipmentPool = [
     // ===== 워리어 전용 =====
     { name: "거인족의 대검",      type: "atk", value: 22, price: 90,  rarity: "epic",   onlyFor: ["워리어","나이트","버서커"], critBonus: 6,  desc: "워리어 계열. 공격력(+22). 치명타 확률(+6%)." },
@@ -324,6 +421,7 @@ const equipmentPool = [
     { name: "세계수의 가지",      type: "hp",  value: 80, price: 150, rarity: "legendary", regenPotion: true, lifesteal: 0.2, desc: "전설. 체력(+80). 포션 강화, 흡혈(20%)." },
     ...equipmentPoolV651,
     ...equipmentPoolExtra703,
+    ...equipmentPoolS1Extra,
 ];
 
 /**
@@ -337,7 +435,7 @@ const synergyRules = [
 ];
 
 const relicPool = [
-    { id: 'relic_warrior_berserk', name: "분노의 심장",    desc: "체력이 30% 이하일 때 치명타가 극대화(표시 65%·초과분은 배율로 전환).", onlyFor: ["워리어","나이트","버서커"], rarity: "legendary", effect: "berserk_crit",    price: 180 },
+    { id: 'relic_warrior_berserk', name: "분노의 심장",    desc: "체력이 30% 이하일 때 치명타가 극대화(표시 70%·초과분은 배율로 전환).", onlyFor: ["워리어","나이트","버서커"], rarity: "legendary", effect: "berserk_crit",    price: 180 },
     { id: 'relic_warrior_shield',  name: "철벽의 의지",    desc: "방어 성공 시 다음 공격 데미지 +50%.",    onlyFor: ["워리어","나이트","버서커"], rarity: "epic",      effect: "shield_empower",  price: 120 },
     { id: 'relic_hunter_dodge',    name: "그림자 반격",    desc: "회피 성공 시 공격력의 60% 고정 피해 + 체력 10 흡혈.", onlyFor: ["헌터","궁수","암살자"], rarity: "legendary", effect: "dodge_counter", price: 180 },
     { id: 'relic_hunter_execute',  name: "처형자의 표식",  desc: "적 체력이 20% 이하일 때 공격력 2배.",    onlyFor: ["헌터","궁수","암살자"], rarity: "epic",      effect: "execute",         price: 120 },
@@ -359,18 +457,20 @@ const forgeRecipes = [
     { name: "파멸의 각인",   type: "atk", value: 50, price: 0, rarity: "legendary", desc: "대장간 합성. 공격력(+50). 흡혈(25%), 치명타 배율(+40%).", materials: 2, materialRarity: "epic", successRate: 0.50, lifesteal: 0.25, critMult: 0.4 },
 ];
 
-/** v7.0.4 — 스탯만 약 30% 너프 (가격은 원본 유지) */
-(function applyItemBalance703() {
-    const M = 0.7;
+/** 시즌1(베타) 장비 밸런스 — 스탯 추가 너프 + 가격 +20% (기존 0.7 대비 약 0.56 = ×0.8) */
+(function applyItemBalanceS1Beta() {
+    const M = 0.56;
+    const PRICE_MULT = 1.2;
     function nerf(it) {
-        if (!it || it._bal703) return;
+        if (!it || it._balS1b) return;
         if (typeof it.value === 'number') it.value = Math.max(1, Math.round(it.value * M));
         if (typeof it.def === 'number') it.def = Math.max(0, Math.round(it.def * M));
         if (typeof it.acc === 'number') it.acc = Math.max(0, Math.round(it.acc * M));
         if (typeof it.critBonus === 'number') it.critBonus = Math.max(1, Math.round(it.critBonus * M));
         if (typeof it.critMult === 'number') it.critMult = Math.round(it.critMult * M * 100) / 100;
         if (typeof it.lifesteal === 'number') it.lifesteal = Math.round(it.lifesteal * M * 100) / 100;
-        it._bal703 = true;
+        if (typeof it.price === 'number') it.price = Math.max(1, Math.ceil(it.price * PRICE_MULT));
+        it._balS1b = true;
     }
     if (typeof equipmentPool !== 'undefined' && Array.isArray(equipmentPool)) equipmentPool.forEach(nerf);
     function nerfUnlock(obj) {

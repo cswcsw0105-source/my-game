@@ -1,3 +1,37 @@
+/** 시즌 1 (베타) — 최초 1회 전체 진행 데이터 초기화 */
+(function applySeason1BetaWipeOnce() {
+    const SK = 'dungeon_season_id';
+    const SEASON = '1-beta';
+    if (localStorage.getItem(SK) === SEASON) return;
+    const wipe = [
+        'dungeon_meta_v7',
+        'perma_stats',
+        'perma_buy_count',
+        'saved_gold',
+        'item_collection_v5',
+        'unlocked_floors_global',
+        'unlocked_floors_워리어',
+        'unlocked_floors_헌터',
+        'unlocked_floors_마법사',
+        'summon_contract_json',
+        'summon_altar_done',
+        'dungeon_quicksave_v7',
+        'perma_migrated_v62',
+        'perma_migrated_v651',
+        'acc_perma_migrated_v71',
+        'v703_global_perma_migrated',
+        'meta_v7_legacy_migrated',
+        'perma_repair_1',
+        'user_exported_save_v7',
+    ];
+    try {
+        wipe.forEach((k) => localStorage.removeItem(k));
+        localStorage.setItem(SK, SEASON);
+    } catch (e) {
+        /* ignore */
+    }
+})();
+
 firebase.initializeApp({
     apiKey: "AIzaSyAVWf5U6eBm2ofCcvdirMxkyfZs_1uVIiU",
     authDomain: "project-dungeon-82f2a.firebaseapp.com",
@@ -42,18 +76,18 @@ let shopVisitCount = 0;
 let attackGcdUntil = 0;
 const ATTACK_GCD_MS = 500;
 /** 패치 노트/UI와 맞춰 두기 — 캐시 적용 여부 확인용 */
-const GAME_BUILD = '7.0.4';
+const GAME_BUILD = '7.0.5';
 /** 베이스캠프 오버레이 스크롤 유지 */
 window.__baseCampScrollTop = 0;
 /** 필드 용병 기본 피해 계수(전역 보정) */
 const MERC_DMG_GLOBAL_SCALE = 1.56;
 /** 층수에 따른 용병 딜/HP 성장 상한(과도한 폭주 방지) */
 const MERC_FLOOR_SCALE_CAP = 1.65;
-/** v6.5.1 핫픽스: 치명/흡혈 상한·명중 기본값 */
-const CRIT_SOFT_CAP = 65;
+/** 치명 확률 상한 70% — 초과분은 배율로 전환 (1%당 치명 배율 +0.10) */
+const CRIT_SOFT_CAP = 70;
 const LIFESTEAL_SOFT_CAP = 0.85;
 const BASE_HIT_ACCURACY = 75;
-const CRIT_OVERFLOW_TO_MULT = 0.01;
+const CRIT_OVERFLOW_TO_MULT = 0.1;
 
 function clearSummonRunStorage() {
     localStorage.removeItem('summon_altar_done');
@@ -679,14 +713,14 @@ auth.onAuthStateChanged((user) => {
     }
 });
 
-/** 베이스캠프 영구 강화 — 무한 단계, 슬롯 전용 (crit/cm은 소량만 상승) */
+/** 베이스캠프 영구 강화 — 무한 단계, 슬롯 전용 */
 function getCampPermaNextPrice(key, level) {
     const T = {
-        hp: [20, 1.35],
-        atk: [30, 1.4],
-        def: [25, 1.4],
-        crit: [140, 1.48],
-        cm: [220, 1.52],
+        hp: [18, 1.34],
+        atk: [26, 1.38],
+        def: [22, 1.38],
+        crit: [120, 1.45],
+        cm: [180, 1.48],
     };
     const pair = T[key] || T.hp;
     return Math.floor(pair[0] * Math.pow(pair[1], Math.max(0, level)));
@@ -702,15 +736,15 @@ function buildPermanentShopHtml() {
     const cp = slot.campPerma || { hp: 0, atk: 0, def: 0, crit: 0, cm: 0 };
     const tb = slot.techBonus || {};
     const runGold = safeNum(gold, 0);
-    const sumLine = `<p style="color:#888;font-size:0.78em;margin:0 0 12px 0;line-height:1.5;">📌 <b>이 캐릭터 누적</b> — 체력+테크 <b style="color:#2ed573">${Math.round(tb.hp || 0)}</b> · 공격 <b style="color:#f1c40f">${Math.round(tb.atk || 0)}</b> · 방어 <b style="color:#1e90ff">${Math.round(tb.def || 0)}</b> · 치명 <b style="color:#f39c12">+${(tb.crit || 0).toFixed(2)}%</b> · 배율 <b style="color:#e67e22">+${(tb.critMult || 0).toFixed(3)}</b></p><p style="color:#2ed573;font-size:0.8em;">💰 런 골드로 구매: <b>${runGold}G</b></p>`;
+    const sumLine = `<p style="color:#888;font-size:0.78em;margin:0 0 12px 0;line-height:1.5;">📌 <b>이 캐릭터 누적</b> — 체력+테크 <b style="color:#2ed573">${Math.round(tb.hp || 0)}</b> · 공격 <b style="color:#f1c40f">${Math.round(tb.atk || 0)}</b> · 방어 <b style="color:#1e90ff">${Math.round(tb.def || 0)}</b> · 치명 <b style="color:#f39c12">+${(tb.crit || 0).toFixed(1)}%</b> · 배율 <b style="color:#e67e22">+${(tb.critMult || 0).toFixed(2)}</b></p><p style="color:#2ed573;font-size:0.8em;">💰 런 골드로 구매: <b>${runGold}G</b></p>`;
     const catKeys = ['hp', 'atk', 'def', 'crit', 'cm'];
     const labels = { hp: '❤️ 체력', atk: '⚔️ 공격', def: '🛡️ 방어', crit: '💥 치명 확률', cm: '🎯 치명 배율' };
     const sub = {
-        hp: '+20/단계',
-        atk: '+3/단계',
-        def: '+2/단계',
-        crit: '+0.12%/단계 (소량)',
-        cm: '+0.006 배율/단계',
+        hp: '+32 HP/단계',
+        atk: '+5/단계',
+        def: '+3/단계',
+        crit: '+1%/단계',
+        cm: '+0.10 배율/단계 (≈10%)',
     };
     const colors = { hp: '#2ed573', atk: '#f1c40f', def: '#1e90ff', crit: '#f39c12', cm: '#e67e22' };
     const rows = catKeys
@@ -779,13 +813,13 @@ function showPreGameScreen() {
     const hunterUnlocked = getUnlockedFloors('헌터');
     const wizardUnlocked = getUnlockedFloors('마법사');
     const m = typeof MetaRPG !== 'undefined' ? MetaRPG.loadMeta() : { slots: [] };
+    const esc = (t) =>
+        String(t)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
     const slotSnapHints = [];
     if (typeof MetaRPG !== 'undefined') {
-        const esc = (t) =>
-            String(t)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;');
         m.slots.forEach((s) => {
             const sn = MetaRPG.getRunSnapshot(s.id);
             if (sn && sn.floor) slotSnapHints.push(`<b>${esc(s.name)}</b> ${sn.floor}층`);
@@ -800,15 +834,20 @@ function showPreGameScreen() {
                       const jb = jobBase[s.jobKey] || { name: '?', color: '#888' };
                       const line = s.techLine === 'B' ? 'B' : 'A';
                       const rct = s.reincarnationCount || 0;
+                      const gen = rct + 1;
                       const rebCost = MetaRPG.getRebirthGoldCost(s);
                       const canReb = rct < 3;
                       const rebBtn = canReb
                           ? `<button type="button" onclick="event.stopPropagation();reincarnateFromHub('${s.id}')" style="background:#c0392b;color:#fff;padding:8px 12px;font-weight:700;border:none;border-radius:8px;cursor:pointer;font-size:0.82em;">🔁 환생 (${rebCost}G)</button>`
                           : `<span style="color:#555;font-size:0.75em;">환생 3/3</span>`;
+                      const lifeBadge =
+                          gen > 1
+                              ? `<span style="color:#9b59b6;font-weight:700;">${jb.name} ${gen}세</span> · `
+                              : '';
                       return `<div style="background:#111;border:1px solid #444;border-radius:10px;padding:12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
                         <div style="text-align:left;">
-                            <div style="color:#f1c40f;font-weight:700;">${s.name}</div>
-                            <div style="color:#888;font-size:0.78em;">${jb.name} · 테크 ${line} · Lv.${s.level || 1} · 환생 ${rct}/3</div>
+                            <div style="color:#f1c40f;font-weight:700;">${esc(s.name)} ${gen > 1 ? `<span style="color:#aaa;font-size:0.85em;">(인생 ${gen}회차)</span>` : ''}</div>
+                            <div style="color:#888;font-size:0.78em;">${lifeBadge}테크 ${line} · 메타 Lv.${s.level || 1} · 환생 ${rct}/3</div>
                         </div>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
                         <button type="button" onclick="resumeMetaSlot('${s.id}')" style="background:#2ed573;color:#111;padding:8px 16px;font-weight:700;border:none;border-radius:8px;cursor:pointer;">이어하기</button>
@@ -832,9 +871,11 @@ function showPreGameScreen() {
     document.getElementById('start-area').style.display = 'block';
     document.getElementById('battle-area').style.display = 'none';
     document.getElementById('shop-area').style.display = 'none';
+    try {
     document.getElementById('start-area').innerHTML = `
         <div style="text-align:center; margin-bottom:16px;">
-            <h2 style="color:#f1c40f; margin-bottom:5px;">⚔️ v7 로그라이트 허브</h2>
+            <h2 style="color:#f1c40f; margin-bottom:5px;">⚔️ 로그라이트 허브</h2>
+            <p style="color:#9b59b6;font-size:0.88em;margin:0 0 8px;font-weight:700;">시즌1(베타)</p>
             <p style="color:#888; font-size:0.85em;">보존 골드: <b style="color:#f1c40f;">${savedGold}G</b> · 무한 층 · 베이스캠프에서만 영구 성장</p>
             ${globalUnlocked.length > 0 ? `<p style="color:#f1c40f;font-size:0.8em;">🔓 공용 해금: ${globalUnlocked.join(', ')}층</p>` : ''}
             ${warriorUnlocked.length > 0 ? `<p style="color:#ff4757;font-size:0.8em;">🔓 워리어: ${warriorUnlocked.join(', ')}층</p>` : ''}
@@ -858,6 +899,13 @@ function showPreGameScreen() {
             </label>
         </div>
         <p style="color:#666;font-size:0.75em;max-width:520px;margin:0 auto;line-height:1.5;">※ 승리 시 <b>확인 없이</b> 다음 층으로 진행합니다. 21층 이상은 <b>상점</b>에서만 「이 층 훈련」/「등반 계속」을 고를 수 있습니다. <b>30층 이상 상점</b>에서만 베이스캠프(연구·영구 강화)에 들어갈 수 있으며, <b>런 골드</b>로 구매합니다. 메인으로 나갈 때는 <b>저장 후 메인</b>을 권장합니다.</p>`;
+    } catch (err) {
+        console.error('[허브]', err);
+        document.getElementById('start-area').innerHTML =
+            '<p style="color:#ff6b6b;padding:20px;text-align:center;">허브를 불러오는 중 오류가 났습니다. 페이지를 새로고침 해 주세요.<br><span style="color:#888;font-size:0.85em;">' +
+            String(err && err.message ? err.message : err) +
+            '</span></p>';
+    }
 }
 
 window.resumeMetaSlot = (slotId) => {
@@ -879,7 +927,13 @@ window.reincarnateFromHub = function reincarnateFromHub(slotId) {
     const r = MetaRPG.applyReincarnation(slotId, { payGold: true });
     if (!r.ok) return alert(r.msg);
     alert('환생 완료. 「이어하기」로 새 런을 시작하세요.');
-    showPreGameScreen();
+    try {
+        showPreGameScreen();
+    } catch (e) {
+        console.error(e);
+        alert('허브 표시 중 오류가 났습니다. 새로고침 해 주세요.');
+        location.reload();
+    }
 };
 
 window.openTechLinePicker = (jobKey) => {
@@ -2924,14 +2978,66 @@ window.startInfiniteMode=()=>{
 
 function gameOver() {
     saveRank(); triggerBossWarning(false);
+    window.__deathApplied = false;
     const sg = Math.floor(totalGoldEarned * 0.1);
+    const slotId = player && player.metaSlotId;
+    const enName = enemy ? enemy.name : '알 수 없는 적';
+    const fl = floor;
+    let snap = null;
+    if (slotId && typeof MetaRPG !== 'undefined') {
+        snap = MetaRPG.getRunSnapshot(slotId);
+    }
+    window.__deathCtx = { sg, slotId, floor: fl, enemyName: enName };
+
+    exitBattleLayout();
+    document.getElementById('battle-area').style.display = 'none';
+
+    if (snap && snap.player && slotId) {
+        document.querySelector('.screen').innerHTML = `<div style="text-align:center;padding:40px 20px;">
+      <h2 style="color:#ff4757;font-size:2em;">💀 GAME OVER</h2>
+      <p style="color:#e0e0e0;font-size:1.1em;margin:15px 0;"><b style="color:#f1c40f;">${fl}층</b>에서 <b style="color:#ff4757;">${enName}</b>에게 쓰러졌습니다.</p>
+      <p style="color:#888;font-size:0.88em;max-width:420px;margin:0 auto 16px;line-height:1.5;">💾 「저장 후 메인」으로 남긴 런이 있으면 그 시점으로 돌아갈 수 있습니다. (패배 확정 시 보존 골드·퀘스트 페널티가 적용됩니다.)</p>
+      <button type="button" onclick="resumeFromLastSaveAfterDeath()" style="background:#2ed573;color:#111;margin:8px;padding:12px 22px;font-weight:700;border:none;border-radius:8px;cursor:pointer;display:inline-block;">💾 마지막 저장 지점에서 이어하기</button>
+      <button type="button" onclick="finalizeGameOverDeath()" style="background:#ff4757;color:#fff;margin:8px;padding:12px 22px;font-weight:700;border:none;border-radius:8px;cursor:pointer;display:inline-block;">패배 확정 (보존 +${sg}G 반영 후 허브)</button>
+    </div>`;
+        writeLog(`💀 ${fl}층 게임 오버.`);
+        return;
+    }
+    finalizeGameOverDeath();
+}
+
+/** 사망 후 저장 런으로 복구 — 보존/페널티 없음 */
+window.resumeFromLastSaveAfterDeath = function resumeFromLastSaveAfterDeath() {
+    window.__deathApplied = true;
+    const d = window.__deathCtx || {};
+    const slotId = d.slotId;
+    if (!slotId || typeof MetaRPG === 'undefined') return location.reload();
+    const snap = MetaRPG.getRunSnapshot(slotId);
+    if (!snap || !snap.player) {
+        alert('저장된 런이 없습니다.');
+        return location.reload();
+    }
+    MetaRPG.setActiveSlot(slotId);
+    document.querySelector('.screen').innerHTML = '';
+    loadRunFromMetaSnapshot(snap);
+};
+
+/** 사망 처리: 보존 골드·퀘스트 페널티 후 허브로 */
+window.finalizeGameOverDeath = function finalizeGameOverDeath() {
+    if (window.__deathApplied) return;
+    window.__deathApplied = true;
+    const d = window.__deathCtx || {};
+    const sg = d.sg != null ? d.sg : 0;
+    const slotId = d.slotId;
+    const fl = d.floor != null ? d.floor : floor;
+    const enName = d.enemyName || '알 수 없는 적';
     if (typeof MetaRPG !== 'undefined') {
         MetaRPG.addSavedGold(sg);
-        if (player && player.metaSlotId) {
-            const qdef = MetaRPG.FLOOR_QUESTS[floor];
-            const slot = MetaRPG.getSlotById(player.metaSlotId);
-            if (qdef && slot && !(slot.questFlags && slot.questFlags[qdef.id])) {
-                MetaRPG.applyQuestPenalty(player.metaSlotId, qdef.failPenalty);
+        if (slotId) {
+            const qdef = MetaRPG.FLOOR_QUESTS[fl];
+            const sl = MetaRPG.getSlotById(slotId);
+            if (qdef && sl && !(sl.questFlags && sl.questFlags[qdef.id])) {
+                MetaRPG.applyQuestPenalty(slotId, qdef.failPenalty);
                 writeLog(`[퀘스트 실패] 사망으로 <b>${qdef.title}</b> 패널티 적용`);
             }
         }
@@ -2939,8 +3045,6 @@ function gameOver() {
         const ps = getSavedGold();
         localStorage.setItem('saved_gold', ps + sg);
     }
-    exitBattleLayout();
-    document.getElementById('battle-area').style.display='none';
-    document.querySelector('.screen').innerHTML=`<div style="text-align:center;padding:40px 20px;"><h2 style="color:#ff4757;font-size:2em;">💀 GAME OVER</h2><p style="color:#e0e0e0;font-size:1.1em;margin:15px 0;"><b style="color:#f1c40f;">${floor}층</b>에서 <b style="color:#ff4757;">${enemy?enemy.name:'알 수 없는 적'}</b>에게 쓰러졌습니다.</p><p style="color:#2ed573;font-size:0.95em;">💰 보존 골드: <b>${sg}G</b></p><button onclick="location.reload()" style="background:#ff4757;margin-top:20px;padding:12px 30px;font-size:1em;">🔄 다시 도전하기</button></div>`;
-    writeLog(`💀 ${floor}층 게임 오버.`);
-}
+    document.querySelector('.screen').innerHTML = `<div style="text-align:center;padding:40px 20px;"><h2 style="color:#ff4757;font-size:2em;">💀 GAME OVER</h2><p style="color:#e0e0e0;font-size:1.1em;margin:15px 0;"><b style="color:#f1c40f;">${fl}층</b>에서 <b style="color:#ff4757;">${enName}</b>에게 쓰러졌습니다.</p><p style="color:#2ed573;font-size:0.95em;">💰 보존 골드: <b>+${sg}G</b></p><button type="button" onclick="location.reload()" style="background:#ff4757;margin-top:20px;padding:12px 30px;font-size:1em;border:none;border-radius:8px;cursor:pointer;color:#fff;">🔄 허브로</button></div>`;
+    writeLog(`💀 ${fl}층 게임 오버.`);
+};

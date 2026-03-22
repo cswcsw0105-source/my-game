@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
-    <title>던전 v7.0.4</title>
-    <link rel="stylesheet" href="style.css?v=7.0.4">
+    <title>던전 · 시즌1(베타)</title>
+    <link rel="stylesheet" href="style.css?v=s1beta">
     <style>
         .auth-box { background: #2a2a2a; padding: 20px; border-radius: 8px; border: 1px solid #444; max-width: 300px; margin: 0 auto; }
         .auth-box input { width: 90%; padding: 10px; margin: 10px 0; border-radius: 4px; border: 1px solid #555; background: #111; color: white; }
@@ -13,7 +13,8 @@
 </head>
 <body>
     <div class="container">
-        <h1 style="color: #fff; letter-spacing: 1px;">⚔️ 던전 (v7.0.4 · 로그라이트)</h1>
+        <h1 style="color: #fff; letter-spacing: 1px;">⚔️ 던전 · 로그라이트</h1>
+        <p style="color:#9b59b6;font-size:0.9em;margin:2px 0 8px;letter-spacing:0.5px;">시즌1(베타)</p>
         
         <div class="game-layout" id="main-layout">
             <div class="screen" id="main-screen">
@@ -141,6 +142,12 @@
             <table class="patch-table">
                 <thead><tr><th>버전</th><th>항목</th><th>상세 내용</th></tr></thead>
                 <tbody>
+                    <tr><td class="v-tag">시즌1(베타)</td><td>밸런스·장비</td><td>
+    치명 확률 상한 <b>70%</b> — 초과분은 <b>1%당 치명 배율 +0.10</b>로 전환. 장비 스탯 <b>추가 너프</b>, 가격 <b>+20%</b>. 워리어·헌터·마법사 계열 <b>직업 전용 장비 각 50종</b> 추가. 이후 패치도 <b>시즌2 지시 전까지</b> 화면 버전 번호는 고정.
+</td></tr>
+                    <tr><td class="v-tag">시즌1(베타)</td><td>시즌1·환생·사망</td><td>
+    최초 접속 시 <b>전체 진행 초기화</b>. 환생 시 <b>런 스냅샷·메타 Lv 초기화</b> + <b>○세 / 인생 ○회차</b>. 사망 시 <b>마지막 저장 런</b> 이어하기. 영구 강화 치명 <b>1%/단계</b>·배율 <b>+0.10/단계</b>.
+</td></tr>
                     <tr><td class="v-tag">v7.0.4</td><td>저장·베이스캠프</td><td>
     퀵세이브 제거 → <b>저장 후 메인</b> / <b>저장 없이 메인</b>. 미저장 퇴장 시 메타 레벨·런 진행 <b>체크포인트로 복구</b>. 베이스캠프는 <b>30층+ 상점</b>에서만 입장 · 테크·영구강화는 <b>런 골드</b>로 구매. 영구강화 UI <b>스크롤 위치 유지</b>. 장비 <b>가격 롤백</b>, 스탯만 <b>~30% 너프</b>.
 </td></tr>
@@ -318,8 +325,8 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <!-- ?v= 쿼리로 브라우저 캐시 무효화 (수정이 안 보일 때 강력 새로고침도 함께) -->
-    <script src="data.js?v=7.0.4"></script>
-    <script src="rpg_v7.js?v=7.0.4"></script>
-    <script src="game.js?v=7.0.4"></script>
+    <script src="data.js?v=s1beta"></script>
+    <script src="rpg_v7.js?v=s1beta"></script>
+    <script src="game.js?v=s1beta"></script>
 </body>
 </html>
