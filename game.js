@@ -42,7 +42,7 @@ let shopVisitCount = 0;
 let attackGcdUntil = 0;
 const ATTACK_GCD_MS = 500;
 /** 패치 노트/UI와 맞춰 두기 — 캐시 적용 여부 확인용 */
-const GAME_BUILD = '6.6.4';
+const GAME_BUILD = '7.0.0';
 /** 필드 용병 기본 피해 계수(전역 보정) */
 const MERC_DMG_GLOBAL_SCALE = 1.56;
 /** 층수에 따른 용병 딜/HP 성장 상한(과도한 폭주 방지) */
@@ -95,6 +95,10 @@ function getPermaStats() {
     }
 }
 function getSavedGold() {
+    if (typeof MetaRPG !== 'undefined') {
+        const m = MetaRPG.loadMeta();
+        return Math.max(0, safeNum(m.savedGold, 0));
+    }
     const n = parseInt(String(localStorage.getItem('saved_gold') ?? ''), 10);
     return Number.isFinite(n) && n >= 0 ? n : 0;
 }
@@ -185,7 +189,9 @@ function getCritInfo() {
         valueForCap = 100;
         isBerserkCrit = true;
     }
-    const effectiveCrit = Math.min(CRIT_SOFT_CAP, Math.max(0, valueForCap));
+    let synC = 0;
+    if (player && player._syn && player._syn.crit) synC = safeNum(player._syn.crit, 0);
+    const effectiveCrit = Math.min(CRIT_SOFT_CAP, Math.max(0, valueForCap + synC));
     return { rawCrit, effectiveCrit, isBerserkCrit };
 }
 function getLifestealEffective() {
@@ -200,6 +206,7 @@ function getLifestealOverflowAtk() {
 function getEffectiveAttackPower() {
     if (!player) return 0;
     let base = safeNum(player.atk, 0) + safeNum(player.extraAtk, 0) + getLifestealOverflowAtk();
+    if (player._syn && player._syn.atk) base += safeNum(player._syn.atk, 0);
     if (player._mercBattleAtkDebuff) base = Math.max(1, Math.floor(base * (1 + player._mercBattleAtkDebuff)));
     return base;
 }
@@ -642,36 +649,185 @@ function buildPermanentShopHtml() {
 
 function showPreGameScreen() {
     exitBattleLayout();
+    if (typeof MetaRPG !== 'undefined') {
+        const mx = MetaRPG.loadMeta();
+        mx.slots.forEach((s) => MetaRPG.recalcTechBonus(s));
+        MetaRPG.saveMeta(mx);
+    }
     const savedGold = getSavedGold();
-    const perma = getPermaStats();
     const globalUnlocked = getUnlockedFloors(null);
     const warriorUnlocked = getUnlockedFloors('워리어');
     const hunterUnlocked = getUnlockedFloors('헌터');
     const wizardUnlocked = getUnlockedFloors('마법사');
+    const m = typeof MetaRPG !== 'undefined' ? MetaRPG.loadMeta() : { slots: [] };
+    const slotRows =
+        m.slots.length === 0
+            ? `<p style="color:#888;font-size:0.85em;">저장된 캐릭터가 없습니다. 아래에서 <b>새 모험가</b>를 만들어 주세요.</p>`
+            : m.slots
+                  .map((s) => {
+                      MetaRPG.recalcTechBonus(s);
+                      const jb = jobBase[s.jobKey] || { name: '?', color: '#888' };
+                      const line = s.techLine === 'B' ? 'B' : 'A';
+                      return `<div style="background:#111;border:1px solid #444;border-radius:10px;padding:12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+                        <div style="text-align:left;">
+                            <div style="color:#f1c40f;font-weight:700;">${s.name}</div>
+                            <div style="color:#888;font-size:0.78em;">${jb.name} · 테크 ${line} · Lv.${s.level || 1}</div>
+                        </div>
+                        <button type="button" onclick="resumeMetaSlot('${s.id}')" style="background:#2ed573;color:#111;padding:8px 16px;font-weight:700;border:none;border-radius:8px;cursor:pointer;">이어하기</button>
+                    </div>`;
+                  })
+                  .join('');
+    const newCharGrid = ['Warrior', 'Hunter', 'Wizard', 'MercenaryCaptain']
+        .map(
+            (job) => `
+        <div onclick="openTechLinePicker('${job}')" style="background:#1a1a1a;border:2px solid ${jobBase[job].color};border-radius:10px;padding:12px;cursor:pointer;text-align:center;">
+            <div style="color:${jobBase[job].color};font-weight:700;">${jobBase[job].name}</div>
+            <div style="color:#666;font-size:0.72em;margin-top:4px;">새 캐릭터 (테크 선택)</div>
+        </div>`
+        )
+        .join('');
     document.getElementById('start-area').style.display = 'block';
     document.getElementById('battle-area').style.display = 'none';
     document.getElementById('shop-area').style.display = 'none';
     document.getElementById('start-area').innerHTML = `
-        <div style="text-align:center; margin-bottom:20px;">
-            <h2 style="color:#f1c40f; margin-bottom:5px;">⚔️ 던전 입장</h2>
-            <p style="color:#888; font-size:0.85em;">보존 골드: <b style="color:#f1c40f;">${savedGold}G</b></p>
-            ${globalUnlocked.length>0?`<p style="color:#f1c40f;font-size:0.8em;">🔓 공용 해금: ${globalUnlocked.join(', ')}층</p>`:''}
-            ${warriorUnlocked.length>0?`<p style="color:#ff4757;font-size:0.8em;">🔓 워리어: ${warriorUnlocked.join(', ')}층</p>`:''}
-            ${hunterUnlocked.length>0?`<p style="color:#2ed573;font-size:0.8em;">🔓 헌터: ${hunterUnlocked.join(', ')}층</p>`:''}
-            ${wizardUnlocked.length>0?`<p style="color:#1e90ff;font-size:0.8em;">🔓 마법사: ${wizardUnlocked.join(', ')}층</p>`:''}
+        <div style="text-align:center; margin-bottom:16px;">
+            <h2 style="color:#f1c40f; margin-bottom:5px;">⚔️ v7 로그라이트 허브</h2>
+            <p style="color:#888; font-size:0.85em;">보존 골드: <b style="color:#f1c40f;">${savedGold}G</b> · 무한 층 · 베이스캠프에서만 영구 성장</p>
+            ${globalUnlocked.length > 0 ? `<p style="color:#f1c40f;font-size:0.8em;">🔓 공용 해금: ${globalUnlocked.join(', ')}층</p>` : ''}
+            ${warriorUnlocked.length > 0 ? `<p style="color:#ff4757;font-size:0.8em;">🔓 워리어: ${warriorUnlocked.join(', ')}층</p>` : ''}
+            ${hunterUnlocked.length > 0 ? `<p style="color:#2ed573;font-size:0.8em;">🔓 헌터: ${hunterUnlocked.join(', ')}층</p>` : ''}
+            ${wizardUnlocked.length > 0 ? `<p style="color:#1e90ff;font-size:0.8em;">🔓 마법사: ${wizardUnlocked.join(', ')}층</p>` : ''}
         </div>
+        <div style="max-width:560px;margin:0 auto 16px;">
+            <h4 style="color:#f1c40f;margin:0 0 8px 0;">💾 캐릭터 슬롯 (최대 ${typeof MetaRPG !== 'undefined' ? MetaRPG.MAX_SLOTS : 4})</h4>
+            ${slotRows}
+        </div>
+        <h4 style="color:#aaa;font-size:0.9em;margin:12px 0;">새 모험가 — 직업 선택 후 <b>테크 라인(A/B)</b>이 영구 고정됩니다.</h4>
         <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px;max-width:520px;margin-left:auto;margin-right:auto;">
-            ${['Warrior','Hunter','Wizard','MercenaryCaptain'].map(job=>`
-                <div onclick="selectJobAndStart('${job}')" style="background:#1a1a1a;border:2px solid ${jobBase[job].color};border-radius:10px;padding:15px;cursor:pointer;text-align:center;transition:transform 0.15s;" onmouseenter="this.style.transform='translateY(-3px)'" onmouseleave="this.style.transform='translateY(0)'">
-                    <div style="color:${jobBase[job].color};font-weight:700;font-size:1.1em;margin-bottom:8px;">${jobBase[job].name}</div>
-                    <div style="color:#888;font-size:0.78em;line-height:1.6;">HP: <b style="color:#2ed573;">${jobBase[job].hp+perma.hp}</b><br>ATK: <b style="color:#f1c40f;">${jobBase[job].atk+perma.atk}</b><br>DEF: <b style="color:#1e90ff;">${jobBase[job].def+perma.def}</b></div>
-                </div>`).join('')}
+            ${newCharGrid}
         </div>
-        <div style="background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:15px;">
-            <h4 style="color:#f1c40f;margin:0 0 8px 0;">🏪 영구 강화 상점</h4>
-            <p style="color:#666;font-size:0.75em;margin:0 0 12px 0;">항목마다 <b>강화</b> 한 번에 다음 레벨이 구매됩니다. 포션 영구 강화는 없습니다.</p>
-            <div style="max-height:280px;overflow-y:auto;">${buildPermanentShopHtml()}</div>
-        </div>`;
+        <p style="color:#666;font-size:0.75em;max-width:520px;margin:0 auto;line-height:1.5;">※ 구 버전 영구 강화 수치는 첫 슬롯으로 1회 이관됩니다. 인런에서 승리 시 <b>다음 층 / 체류 파밍</b>을 고를 수 있습니다.</p>`;
+}
+
+window.resumeMetaSlot = (slotId) => {
+    if (typeof MetaRPG === 'undefined') return;
+    if (!MetaRPG.setActiveSlot(slotId)) return;
+    initRunFromMetaSlot();
+};
+
+window.openTechLinePicker = (jobKey) => {
+    if (typeof MetaRPG === 'undefined') return;
+    if (MetaRPG.loadMeta().slots.length >= MetaRPG.MAX_SLOTS) {
+        alert('슬롯이 가득 찼습니다.');
+        return;
+    }
+    const ov = document.createElement('div');
+    ov.id = 'tech-line-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:10060;display:flex;align-items:center;justify-content:center;';
+    const jn = jobBase[jobKey].name;
+    ov.innerHTML = `<div style="background:#1a1a2e;border:2px solid #f1c40f;border-radius:12px;padding:22px;max-width:440px;width:92%;text-align:center;">
+      <h3 style="color:#f1c40f;margin:0 0 10px;">테크 라인 (변경 불가)</h3>
+      <p style="color:#aaa;font-size:0.86em;margin-bottom:14px;">${jn} — 한 번 고르면 이 캐릭터는 영구적으로 이 라인만 강화합니다.</p>
+      <button type="button" id="tl-a" style="display:block;width:100%;margin:8px 0;padding:12px;background:#e74c3c;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;">A 라인 · 침투 / 화력 / 지휘</button>
+      <button type="button" id="tl-b" style="display:block;width:100%;margin:8px 0;padding:12px;background:#3498db;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;">B 라인 · 철벽 / 생존 / 결계</button>
+      <button type="button" id="tl-x" style="margin-top:10px;background:transparent;border:1px solid #555;color:#888;padding:6px 12px;cursor:pointer;border-radius:6px;">취소</button>
+    </div>`;
+    document.body.appendChild(ov);
+    document.getElementById('tl-a').onclick = () => {
+        ov.remove();
+        confirmNewCharacter(jobKey, 'A');
+    };
+    document.getElementById('tl-b').onclick = () => {
+        ov.remove();
+        confirmNewCharacter(jobKey, 'B');
+    };
+    document.getElementById('tl-x').onclick = () => ov.remove();
+};
+
+function confirmNewCharacter(jobKey, line) {
+    if (typeof MetaRPG === 'undefined') return;
+    const name = prompt('캐릭터 이름을 입력하세요 (비우면 무명):', '모험가');
+    const r = MetaRPG.createCharacter(name || '무명', jobKey, line);
+    if (!r.ok) {
+        alert(r.msg || '생성 실패');
+        return;
+    }
+    initRunFromMetaSlot();
+}
+
+function initRunFromMetaSlot() {
+    if (typeof MetaRPG === 'undefined') return false;
+    const m = MetaRPG.loadMeta();
+    const slot = m.slots.find((s) => s.id === m.activeSlotId);
+    if (!slot) return false;
+    MetaRPG.recalcTechBonus(slot);
+    MetaRPG.saveMeta(MetaRPG.loadMeta());
+    const jb = slot.jobKey;
+    const job = jobBase[jb];
+    if (!job) return false;
+    const tb = slot.techBonus || { hp: 0, atk: 0, def: 0, acc: 0 };
+    const lv = slot.level || 1;
+    const lb = MetaRPG.getLevelRuntimeBonus(lv);
+    clearSummonRunStorage();
+    player = {
+        ...job,
+        curHp: job.hp + tb.hp + lb.hp,
+        maxHp: job.hp + tb.hp + lb.hp,
+        atk: job.atk + tb.atk + lb.atk,
+        def: job.def + tb.def + lb.def,
+        acc: tb.acc + lb.acc,
+        crit: 5,
+        critMult: 1.8,
+        metaSlotId: slot.id,
+        runLevel: lv,
+        runExp: slot.exp || 0,
+        items: [],
+        relics: [],
+        extraAtk: 0,
+        potions: 3,
+        extraDef: 0,
+        unlockedSkill: null,
+        ultStack: 0,
+        ultMaxStack: 0,
+        lifesteal: 0,
+        hasRegenPotion: false,
+        baseJob: job.name,
+        evolved: false,
+        shieldEmpowered: false,
+        summon: null,
+        _awaitPlayerTurn: false,
+        fieldMerc: null,
+        mercCooldownTurns: 0,
+        mercNextBattleDebuff: null,
+        _mercBattleAtkDebuff: 0,
+        mercReviveAt90Percent: false,
+        _mercCooldownSkipOnce: false,
+        mercCompanionKind: null,
+        mercEvolution: null,
+        mercEvolutionChosen: false,
+        mercRegenTurns: 0,
+        mercRegenAmount: 0,
+        mercBattleTurnCount: 0,
+        mercInventory: [],
+        activeQuest: null,
+        farmingStay: false,
+    };
+    floor = 1;
+    gold = 0;
+    totalGoldEarned = 0;
+    rerollCost = 10;
+    shopVisitCount = 0;
+    document.getElementById('start-area').style.display = 'none';
+    document.getElementById('battle-area').style.display = 'block';
+    document.getElementById('log-battle').innerHTML = '';
+    enterBattleLayout();
+    loadCollection();
+    if (jb === 'MercenaryCaptain') {
+        showMercCompanionPicker();
+        return true;
+    }
+    spawnEnemy();
+    return true;
 }
 
 window.buyPermUpgradeNext = (key) => {
@@ -702,35 +858,9 @@ window.buyPermUpgrade = (id) => {
     showPreGameScreen();
 };
 
+/** @deprecated v7 — 슬롯/테크 시스템 사용. 직접 호출 시 테크 선택으로 연결 */
 window.selectJobAndStart = (job) => {
-    clearSummonRunStorage();
-    const perma = getPermaStats();
-    player = {
-        ...jobBase[job],
-        curHp: jobBase[job].hp+perma.hp, maxHp: jobBase[job].hp+perma.hp,
-        atk: jobBase[job].atk+perma.atk, def: jobBase[job].def+perma.def,
-        acc: perma.acc, crit: 5, critMult: 1.8,
-        items: [], relics: [], extraAtk: 0, potions: 3,
-        extraDef: 0, unlockedSkill: null, ultStack: 0, ultMaxStack: 0,
-        lifesteal: 0, hasRegenPotion: false,
-        baseJob: jobBase[job].name, evolved: false, shieldEmpowered: false,
-        summon: null, _awaitPlayerTurn: false,
-        fieldMerc: null, mercCooldownTurns: 0, mercNextBattleDebuff: null, _mercBattleAtkDebuff: 0,
-        mercReviveAt90Percent: false, _mercCooldownSkipOnce: false,
-        mercCompanionKind: null, mercEvolution: null, mercEvolutionChosen: false,
-        mercRegenTurns: 0, mercRegenAmount: 0,
-        mercBattleTurnCount: 0, mercInventory: [],
-    };
-    floor=1; gold=0; totalGoldEarned=0; rerollCost=10; shopVisitCount=0;
-    document.getElementById('start-area').style.display='none';
-    document.getElementById('battle-area').style.display='block';
-    document.getElementById('log-battle').innerHTML='';
-    enterBattleLayout(); loadCollection();
-    if (job === 'MercenaryCaptain') {
-        showMercCompanionPicker();
-        return;
-    }
-    spawnEnemy();
+    openTechLinePicker(job);
 };
 
 function showMercCompanionPicker() {
@@ -804,6 +934,20 @@ window.evolve = (idx) => {
     if (evol.name === '소환사') {
         const saved = loadSummonFromStorage();
         if (saved && saved.id) player.summon = saved;
+    }
+    if (player.metaSlotId && typeof MetaRPG !== 'undefined') {
+        const slot = MetaRPG.getSlotById(player.metaSlotId);
+        if (slot) {
+            MetaRPG.recalcTechBonus(slot);
+            const tb = slot.techBonus || { hp: 0, atk: 0, def: 0, acc: 0 };
+            const lb = MetaRPG.getLevelRuntimeBonus(slot.level || 1);
+            player.atk += tb.atk + lb.atk;
+            player.def += tb.def + lb.def;
+            player.acc += tb.acc + lb.acc;
+            player.maxHp += tb.hp + lb.hp;
+            player.curHp += tb.hp + lb.hp;
+            player.curHp = Math.min(player.maxHp, player.curHp);
+        }
     }
     document.body.removeChild(window._evolOverlay);
     writeLog(`⚡ [전직] ${oldName} → <b style='color:#f1c40f'>${evol.name}</b>! 궁극기 [${evol.ult}] 획득!`);
@@ -1226,8 +1370,26 @@ function spawnEnemy() {
         );
         player.mercReviveAt90Percent = false;
     }
+    tryActivateFloorQuest();
     player._awaitPlayerTurn = true;
     updateUi(); renderActions();
+}
+
+function tryActivateFloorQuest() {
+    if (!player || !player.metaSlotId || typeof MetaRPG === 'undefined') return;
+    const qdef = MetaRPG.FLOOR_QUESTS[floor];
+    if (!qdef) {
+        player.activeQuest = null;
+        return;
+    }
+    const slot = MetaRPG.getSlotById(player.metaSlotId);
+    if (slot && slot.questFlags && slot.questFlags[qdef.id]) {
+        player.activeQuest = null;
+        return;
+    }
+    player.activeQuest = { id: qdef.id, title: qdef.title };
+    player._questWins = 0;
+    writeLog(`[특수 퀘스트] <b>${qdef.title}</b> — ${qdef.desc}`);
 }
 
 function renderActions() {
@@ -1515,7 +1677,7 @@ function enemyTurn() {
         }
         if(hitLanded){
             if(Math.random()*100<80){
-                let dmg=Math.max(1,currentEnemyAtk-(player.def+player.extraDef));
+                let dmg=Math.max(1,currentEnemyAtk-(player.def+player.extraDef+safeNum(player._syn&&player._syn.def,0)));
                 if(shieldedTurns>0){dmg=Math.floor(dmg*0.5);shieldedTurns--;writeLog(`[방어막] ✨ 피해 50% 감소! (${dmg} 입음)`);if(player.relics&&player.relics.includes('barrier_reflect')){const rd=Math.floor(dmg*0.3);enemy.curHp-=rd;writeLog(`[유물] 🔮 마력 반사! ${rd}`);if(enemy.curHp<=0){setTimeout(()=>winBattle(),100);}}}
                 else if(defendingTurns>0){dmg=Math.floor(dmg*0.4);defendingTurns--;writeLog(`[철벽 방어] 🛡️ 피해 60% 감소! (${dmg} 입음)`);}
                 else writeLog(`[피격] 적의 공격! ${dmg} 데미지.`);
@@ -1638,6 +1800,28 @@ window.resolveMercEvolution = (idx) => {
     updateUi(); renderActions();
 };
 
+function processFloorQuestOnVictory() {
+    if (!player || !player.metaSlotId || typeof MetaRPG === 'undefined') return;
+    const FQ = MetaRPG.FLOOR_QUESTS;
+    const qdef = FQ[floor];
+    if (!qdef) return;
+    const slot = MetaRPG.getSlotById(player.metaSlotId);
+    if (!slot || (slot.questFlags && slot.questFlags[qdef.id])) return;
+    if (qdef.needWins) {
+        player._questWins = (player._questWins || 0) + 1;
+        if (player._questWins >= qdef.needWins) {
+            MetaRPG.grantQuestReward(player.metaSlotId, qdef.reward, qdef.id);
+            writeLog(`[퀘스트 완료] <b>${qdef.title}</b> — 영구 보상 적용!`);
+            player._questWins = 0;
+        } else {
+            writeLog(`[퀘스트] ${qdef.title} 진행: ${player._questWins}/${qdef.needWins}`);
+        }
+    } else if (qdef.needBoss && enemy && enemy.isBoss) {
+        MetaRPG.grantQuestReward(player.metaSlotId, qdef.reward, qdef.id);
+        writeLog(`[퀘스트 완료] <b>${qdef.title}</b> — 보스 격파!`);
+    }
+}
+
 function winBattle() {
     triggerBossWarning(false);
     let baseGain;
@@ -1650,17 +1834,174 @@ function winBattle() {
     gold+=gain; totalGoldEarned+=gain;
     player.curHp=Math.min(player.maxHp,player.curHp+Math.floor(player.maxHp*0.15));
     writeLog(`[승리] ${gain}G 획득 및 체력 소량 회복.${bonusMsg}`);
-    if(floor===100&&enemy.isBoss) return dungeonClear();
-    const clearedFloor=floor; floor++;
-    checkFloorUnlock(clearedFloor);
+    const expGain = 8 + Math.floor(floor * 0.85) + (enemy.isBoss ? 28 : 0);
+    if (player.metaSlotId && typeof MetaRPG !== 'undefined') {
+        const r = MetaRPG.addExpToSlot(player.metaSlotId, expGain);
+        if (r) {
+            player.runLevel = r.level;
+            player.runExp = r.exp;
+            const left = Math.max(0, (r.need || MetaRPG.expToNextLevel(r.level)) - r.exp);
+            writeLog(`[EXP] +${expGain} (Lv.${r.level}, 다음 ${left} EXP)`);
+        }
+    }
+    processFloorQuestOnVictory();
+    if(floor===100&&enemy.isBoss) return milestoneFloor100();
+    showVictoryChoiceModal();
+}
 
-    /** 19~30층 클리어 직후(즉 도달 층 20~31) 1회 전직 — 30층 클리어 시에도 창이 뜨도록 clearedFloor 기준 */
+window.showVictoryChoiceModal = function showVictoryChoiceModal() {
+    const old = document.getElementById('victory-choice-overlay');
+    if (old) old.remove();
+    const ov = document.createElement('div');
+    ov.id = 'victory-choice-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:10050;display:flex;align-items:center;justify-content:center;';
+    const camp = typeof MetaRPG !== 'undefined' && MetaRPG.isBaseCampFloor(floor);
+    ov.innerHTML = `<div style="background:#1a1a2e;border:2px solid #f1c40f;border-radius:12px;padding:22px;max-width:440px;width:92%;text-align:center;">
+    <h3 style="color:#f1c40f;margin:0 0 10px;">승리</h3>
+    <p style="color:#aaa;font-size:0.86em;margin-bottom:14px;">진행 방식을 선택하세요. (무한 던전)</p>
+    <button type="button" id="vc-next" style="display:block;width:100%;margin:8px 0;padding:12px;background:#2ed573;color:#111;font-weight:700;border:none;border-radius:8px;cursor:pointer;">⬆️ 다음 층으로 (${floor + 1}층)</button>
+    <button type="button" id="vc-stay" style="display:block;width:100%;margin:8px 0;padding:12px;background:#3498db;color:#fff;font-weight:700;border:none;border-radius:8px;cursor:pointer;">🔁 이 층에 머물기 (파밍)</button>
+    ${camp ? `<button type="button" id="vc-camp" style="display:block;width:100%;margin:8px 0;padding:12px;background:#9b59b6;color:#fff;font-weight:700;border:none;border-radius:8px;cursor:pointer;">🏕️ 베이스캠프 — 테크 트리 (보존 골드)</button>` : ''}
+    <button type="button" id="vc-hub" style="display:block;width:100%;margin:8px 0;padding:10px;background:#333;color:#aaa;border:1px solid #555;border-radius:8px;cursor:pointer;">🏠 허브로 (런 종료 · 진행 저장)</button>
+    </div>`;
+    document.body.appendChild(ov);
+    document.getElementById('vc-next').onclick = () => {
+        ov.remove();
+        proceedWinBattleNextFloor();
+    };
+    document.getElementById('vc-stay').onclick = () => {
+        ov.remove();
+        proceedWinBattleStay();
+    };
+    const cbtn = document.getElementById('vc-camp');
+    if (cbtn)
+        cbtn.onclick = () => {
+            ov.remove();
+            openBaseCampTech();
+        };
+    document.getElementById('vc-hub').onclick = () => {
+        ov.remove();
+        returnToHubFromRun();
+    };
+};
+
+function failActiveQuestIfLeavingFloor() {
+    if (!player || !player.metaSlotId || typeof MetaRPG === 'undefined') return;
+    const FQ = MetaRPG.FLOOR_QUESTS;
+    const qdef = FQ[floor];
+    if (!qdef || !qdef.needWins) return;
+    const slot = MetaRPG.getSlotById(player.metaSlotId);
+    if (!slot || (slot.questFlags && slot.questFlags[qdef.id])) return;
+    const need = qdef.needWins;
+    const cur = player._questWins || 0;
+    if (cur < need) {
+        MetaRPG.applyQuestPenalty(player.metaSlotId, qdef.failPenalty);
+        writeLog(`[퀘스트 실패] ${qdef.title} — 층 이탈/미완료 패널티!`);
+    }
+    player._questWins = 0;
+}
+
+function proceedWinBattleNextFloor() {
+    failActiveQuestIfLeavingFloor();
+    const clearedFloor = floor;
+    floor++;
+    checkFloorUnlock(clearedFloor);
     if (isMercenaryCaptainJob() && clearedFloor >= 19 && clearedFloor <= 30 && !player.mercEvolutionChosen) {
         setTimeout(() => showMercEvolutionChoice(() => winBattleContinueFrom(clearedFloor)), 450);
         return;
     }
     winBattleContinueFrom(clearedFloor);
 }
+
+function proceedWinBattleStay() {
+    player.farmingStay = true;
+    const clearedFloor = floor;
+    winBattleContinueFrom(clearedFloor);
+}
+
+function returnToHubFromRun() {
+    exitBattleLayout();
+    const sg = Math.floor(totalGoldEarned * 0.12);
+    if (typeof MetaRPG !== 'undefined') MetaRPG.addSavedGold(sg);
+    writeLog(`[허브] 런 종료 — 보존 골드 +${sg}G`);
+    player = null;
+    enemy = null;
+    document.getElementById('battle-area').style.display = 'none';
+    showPreGameScreen();
+}
+
+window.openBaseCampTech = function openBaseCampTech() {
+    if (typeof MetaRPG === 'undefined' || !player || !player.metaSlotId) return;
+    if (!MetaRPG.isBaseCampFloor(floor)) {
+        writeLog('[베이스캠프] 이 층에서는 연구할 수 없습니다.');
+        return;
+    }
+    const slot = MetaRPG.getSlotById(player.metaSlotId);
+    if (!slot) return;
+    MetaRPG.recalcTechBonus(slot);
+    MetaRPG.saveMeta(MetaRPG.loadMeta());
+    const nodes = MetaRPG.getTechNodesForSlot(slot);
+    const savedGold = getSavedGold();
+    const bought = new Set(slot.techPurchased || []);
+    const ov = document.createElement('div');
+    ov.id = 'base-camp-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:10055;overflow:auto;padding:20px;';
+    const rows = nodes
+        .map((n) => {
+            const has = bought.has(n.id);
+            const can = !has && MetaRPG.canPurchaseNode(slot, n.id) && savedGold >= n.cost;
+            const st = has ? '✅' : can ? '구매 가능' : '🔒';
+            return `<div style="background:#111;border:1px solid #444;border-radius:8px;padding:10px;margin-bottom:8px;text-align:left;">
+            <b style="color:#f1c40f;">${n.name}</b> <span style="color:#888;font-size:0.8em;">${st}</span>
+            <div style="color:#aaa;font-size:0.78em;margin:4px 0;">${JSON.stringify(n.effect)} · ${n.cost}G</div>
+            ${!has && MetaRPG.canPurchaseNode(slot, n.id) ? `<button type="button" onclick="buyTechNode('${n.id}')" style="background:#f1c40f;color:#111;border:none;padding:6px 12px;border-radius:6px;font-weight:700;cursor:pointer;" ${savedGold < n.cost ? 'disabled' : ''}>구매</button>` : ''}
+          </div>`;
+        })
+        .join('');
+    ov.innerHTML = `<div style="max-width:520px;margin:0 auto;background:#1a1a2e;border:2px solid #9b59b6;border-radius:12px;padding:20px;">
+      <h2 style="color:#9b59b6;margin:0 0 8px;">🏕️ 베이스캠프 · 테크 (${floor}층)</h2>
+      <p style="color:#888;font-size:0.85em;">보존 골드: <b style="color:#f1c40f;">${savedGold}G</b> · 라인 ${slot.techLine} (변경 불가)</p>
+      <div style="max-height:360px;overflow:auto;margin:12px 0;">${rows}</div>
+      <button type="button" onclick="document.getElementById('base-camp-overlay').remove()" style="width:100%;padding:10px;background:#444;color:#fff;border:none;border-radius:8px;cursor:pointer;">닫기</button>
+    </div>`;
+    document.body.appendChild(ov);
+};
+
+window.buyTechNode = (nodeId) => {
+    if (!player || !player.metaSlotId) return;
+    const r = MetaRPG.purchaseTechNode(player.metaSlotId, nodeId);
+    if (!r.ok) return writeLog(`[테크] ${r.msg}`);
+    writeLog(`[테크] ${r.msg} 구매!`);
+    const el = document.getElementById('base-camp-overlay');
+    if (el) el.remove();
+    openBaseCampTech();
+};
+
+function milestoneFloor100() {
+    saveRank();
+    triggerBossWarning(false);
+    const sg = Math.floor(totalGoldEarned * 0.15);
+    if (typeof MetaRPG !== 'undefined') MetaRPG.addSavedGold(sg);
+    exitBattleLayout();
+    document.getElementById('battle-area').style.display = 'none';
+    document.querySelector('.screen').innerHTML = `<div style="text-align:center;padding:40px 20px;">
+      <h2 style="color:#f1c40f;">🏆 100층 이정표</h2>
+      <p style="color:#ccc;">무한 던전은 계속됩니다. 선택하세요.</p>
+      <p style="color:#2ed573;">보존 +${sg}G</p>
+      <button onclick="continuePast100()" style="background:#9b59b6;color:#fff;padding:12px 20px;margin:8px;border:none;border-radius:8px;cursor:pointer;">♾️ 더 깊이 (101층~)</button>
+      <button onclick="location.reload()" style="background:#f1c40f;color:#111;padding:12px 20px;margin:8px;border:none;border-radius:8px;cursor:pointer;">🏠 허브</button>
+    </div>`;
+}
+
+window.continuePast100 = () => {
+    floor = 101;
+    document.querySelector('.screen').innerHTML = '';
+    document.getElementById('battle-area').style.display = 'block';
+    enterBattleLayout();
+    writeLog('♾️ 101층부터 무한 진행');
+    spawnEnemy();
+    updateUi();
+};
 
 function openShop() {
     shopVisitCount++;
@@ -1880,9 +2221,12 @@ window.mercGoldSkipCooldown = () => {
     if (gold < cost) return writeLog('[자본주의] 골드가 부족합니다.');
     gold -= cost;
     player.mercCooldownTurns = 0;
+    player._mercCooldownSkipOnce = false;
     if (player.mercCompanionKind) {
+        player.mercReviveAt90Percent = false;
         player.fieldMerc = buildFieldMercFromTemplate();
-        writeLog(`[자본주의] 🪙 ${cost}G로 동료를 재전개했습니다!`);
+        player.fieldMerc.mercHp = player.fieldMerc.mercMaxHp;
+        writeLog(`[자본주의] 🪙 ${cost}G로 동료를 만전 상태로 재전개! (${player.fieldMerc.mercHp}/${player.fieldMerc.mercMaxHp})`);
     } else {
         writeLog(`[자본주의] 🪙 ${cost}G로 쿨타임을 초기화했습니다!`);
     }
@@ -2002,7 +2346,12 @@ window.onclick=function(event){
 
 function updateUi() {
     if(!player||!enemy) return;
-    const pMax = Math.max(1, safeNum(player.maxHp, 1));
+    if (typeof MetaRPG !== 'undefined') {
+        player._syn = MetaRPG.computeSynergyBonuses(player);
+    } else {
+        player._syn = { atk: 0, hp: 0, def: 0, acc: 0, crit: 0, desc: [] };
+    }
+    const pMax = Math.max(1, safeNum(player.maxHp, 1) + safeNum(player._syn.hp, 0));
     const pCur = Math.max(0, safeNum(player.curHp, 0));
     const eHp = Math.max(1, safeNum(enemy.hp, 1));
     const eCur = Math.max(0, safeNum(enemy.curHp, 0));
@@ -2036,14 +2385,16 @@ function updateUi() {
         document.getElementById('p-hp').style.width = `${Math.max(0, (pCur / pMax) * 100)}%`;
         document.getElementById('p-hp-t').innerText = `${pCur} / ${pMax}`;
         if (summLine) {
+            const synHint = player._syn && player._syn.desc && player._syn.desc.length ? ` · <span style="color:#f1c40f;">시너지: ${player._syn.desc.join(', ')}</span>` : '';
+            const lvTxt = player.runLevel ? ` · Lv.${player.runLevel}` : '';
             if (isMercenaryCaptainJob()) {
-                summLine.innerHTML = `<span style="color:#e67e22;">🎖️ 지휘관 ${player.name}</span> <span style="color:#888;">| HP ${pCur}/${pMax} · 전열 없음${player.mercCooldownTurns > 0 ? ` · 재가동 ${player.mercCooldownTurns}T` : ''}</span>`;
+                summLine.innerHTML = `<span style="color:#e67e22;">🎖️ 지휘관 ${player.name}</span> <span style="color:#888;">| HP ${pCur}/${pMax}${lvTxt} · 전열 없음${player.mercCooldownTurns > 0 ? ` · 재가동 ${player.mercCooldownTurns}T` : ''}${synHint}</span>`;
             } else if (player.summon && player.summon.name) summLine.innerHTML = `<span style="color:#a55eea;">소환:</span> ${player.summon.name}`;
-            else summLine.innerHTML = '';
+            else summLine.innerHTML = `<span style="color:#888;font-size:0.85em;"><b>${player.name}</b>${lvTxt}${synHint}</span>`;
         }
         document.getElementById('p-atk-val').textContent = String(getEffectiveAttackPower());
-        document.getElementById('p-def-val').textContent = String(safeNum(player.def, 0) + safeNum(player.extraDef, 0));
-        document.getElementById('p-acc-val').textContent = `${Math.min(95, BASE_HIT_ACCURACY + safeNum(player.acc, 0))}%`;
+        document.getElementById('p-def-val').textContent = String(safeNum(player.def, 0) + safeNum(player.extraDef, 0) + safeNum(player._syn.def, 0));
+        document.getElementById('p-acc-val').textContent = `${Math.min(95, BASE_HIT_ACCURACY + safeNum(player.acc, 0) + safeNum(player._syn.acc, 0))}%`;
         const critInfo = getCritInfo();
         document.getElementById('p-crit-val').textContent = `${Math.round(safeNum(critInfo.effectiveCrit, 0))}%`;
         const ecm = getEffectiveCritMult();
@@ -2135,8 +2486,22 @@ window.startInfiniteMode=()=>{
 
 function gameOver() {
     saveRank(); triggerBossWarning(false);
-    const sg=Math.floor(totalGoldEarned*0.1), ps=getSavedGold();
-    localStorage.setItem('saved_gold',ps+sg); exitBattleLayout();
+    const sg = Math.floor(totalGoldEarned * 0.1);
+    if (typeof MetaRPG !== 'undefined') {
+        MetaRPG.addSavedGold(sg);
+        if (player && player.metaSlotId) {
+            const qdef = MetaRPG.FLOOR_QUESTS[floor];
+            const slot = MetaRPG.getSlotById(player.metaSlotId);
+            if (qdef && slot && !(slot.questFlags && slot.questFlags[qdef.id])) {
+                MetaRPG.applyQuestPenalty(player.metaSlotId, qdef.failPenalty);
+                writeLog(`[퀘스트 실패] 사망으로 <b>${qdef.title}</b> 패널티 적용`);
+            }
+        }
+    } else {
+        const ps = getSavedGold();
+        localStorage.setItem('saved_gold', ps + sg);
+    }
+    exitBattleLayout();
     document.getElementById('battle-area').style.display='none';
     document.querySelector('.screen').innerHTML=`<div style="text-align:center;padding:40px 20px;"><h2 style="color:#ff4757;font-size:2em;">💀 GAME OVER</h2><p style="color:#e0e0e0;font-size:1.1em;margin:15px 0;"><b style="color:#f1c40f;">${floor}층</b>에서 <b style="color:#ff4757;">${enemy?enemy.name:'알 수 없는 적'}</b>에게 쓰러졌습니다.</p><p style="color:#2ed573;font-size:0.95em;">💰 보존 골드: <b>${sg}G</b></p><button onclick="location.reload()" style="background:#ff4757;margin-top:20px;padding:12px 30px;font-size:1em;">🔄 다시 도전하기</button></div>`;
     writeLog(`💀 ${floor}층 게임 오버.`);

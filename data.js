@@ -1,3 +1,8 @@
+/**
+ * v7 장비 확장 필드 (선택)
+ * - tags: string[] — 시너지 키 (synergyRules.needTags 와 매칭)
+ * - meta: { setId?, season? } — 향후 세트/시즌용 확장 슬롯
+ */
 const relations = {
     '워리어':  { weak: '마법사', strong: '헌터' },
     '헌터':   { weak: '워리어', strong: '마법사' },
@@ -85,7 +90,7 @@ const floorUnlocks = {
 };
 
 const floorUnlocksHunter = {
-    5:  { name: "독수리의 눈",   type: "acc", value: 20, price: 50,  rarity: "rare", onlyFor: ["헌터","궁수","암살자"], desc: "5층 해금. 헌터 계열. 명중률(+20%)." },
+    5:  { name: "독수리의 눈",   type: "acc", value: 20, price: 50,  rarity: "rare", onlyFor: ["헌터","궁수","암살자"], tags: ["precision"], desc: "5층 해금. 헌터 계열. 명중률(+20%)." },
     15: { name: "바람의 화살",   type: "atk", value: 18, price: 70,  rarity: "rare", onlyFor: ["헌터","궁수","암살자"], desc: "15층 해금. 헌터 계열. 공격력(+18)." },
     25: { name: "그림자 단검",   type: "atk", value: 30, price: 100, rarity: "epic", onlyFor: ["헌터","궁수","암살자"], lifesteal: 0.2, desc: "25층 해금. 헌터 계열. 공격력(+30), 흡혈 20%." },
     35: { name: "암살자의 망토", type: "hp",  value: 40, price: 120, rarity: "epic", onlyFor: ["헌터","궁수","암살자"], desc: "35층 해금. 헌터 계열. 체력(+40)." },
@@ -122,7 +127,7 @@ const permanentUpgrades = [
 /** 직업별 추가 장비 (희귀도별) */
 const equipmentPoolV651 = [
     // 워리어 계열 — common x5
-    { name: "녹슨 철퇴", type: "atk", value: 7, def: 3, price: 28, rarity: "common", onlyFor: ["워리어","나이트","버서커"], desc: "공격(+7), 방어(+3)." },
+    { name: "녹슨 철퇴", type: "atk", value: 7, def: 3, price: 28, rarity: "common", onlyFor: ["워리어","나이트","버서커"], tags: ["blade", "heavy"], desc: "공격(+7), 방어(+3)." },
     { name: "훈련용 목검", type: "atk", value: 9, price: 32, rarity: "common", onlyFor: ["워리어","나이트","버서커"], desc: "공격(+9)." },
     { name: "보병의 흉갑", type: "hp", value: 28, def: 6, price: 30, rarity: "common", onlyFor: ["워리어","나이트","버서커"], desc: "체력(+28), 방어(+6)." },
     { name: "철벽 방패", type: "hp", value: 22, def: 8, price: 34, rarity: "common", onlyFor: ["워리어","나이트","버서커"], desc: "체력(+22), 방어(+8)." },
@@ -130,7 +135,7 @@ const equipmentPoolV651 = [
     // 워리어 — rare x5
     { name: "기사단 양날검", type: "atk", value: 16, critBonus: 3, price: 62, rarity: "rare", onlyFor: ["워리어","나이트","버서커"], desc: "공격(+16), 치명(+3%)." },
     { name: "가시 갑옷", type: "hp", value: 45, def: 10, price: 68, rarity: "rare", onlyFor: ["워리어","나이트","버서커"], desc: "체력(+45), 방어(+10)." },
-    { name: "광전사의 팔찌", type: "atk", value: 14, lifesteal: 0.06, price: 72, rarity: "rare", onlyFor: ["워리어","나이트","버서커"], desc: "공격(+14), 흡혈(6%)." },
+    { name: "광전사의 팔찌", type: "atk", value: 14, lifesteal: 0.06, price: 72, rarity: "rare", onlyFor: ["워리어","나이트","버서커"], tags: ["blood", "heavy"], desc: "공격(+14), 흡혈(6%)." },
     { name: "수호 기사의 인장", type: "hp", value: 35, def: 14, price: 65, rarity: "rare", onlyFor: ["워리어","나이트","버서커"], desc: "체력(+35), 방어(+14)." },
     { name: "철의 반지", type: "atk", value: 12, def: 5, price: 60, rarity: "rare", onlyFor: ["워리어","나이트","버서커"], desc: "공격(+12), 방어(+5)." },
     // 워리어 — epic x5 (fix: use hp+def instead of invalid type def)
@@ -170,7 +175,7 @@ const equipmentPoolV651 = [
     { name: "바람의 군주", type: "atk", value: 38, acc: 14, price: 204, rarity: "legendary", onlyFor: ["헌터","궁수","암살자"], desc: "공격(+38), 명중(+14%)." },
     { name: "피의 계약서", type: "atk", value: 32, lifesteal: 0.14, critBonus: 8, price: 206, rarity: "legendary", onlyFor: ["헌터","궁수","암살자"], desc: "공격(+32), 흡혈(14%), 치명(+8%)." },
     // 마법사 계열 — common x5
-    { name: "마나 잔류석", type: "atk", value: 9, price: 30, rarity: "common", onlyFor: ["마법사","위저드","소환사"], desc: "공격(+9)." },
+    { name: "마나 잔류석", type: "atk", value: 9, price: 30, rarity: "common", onlyFor: ["마법사","위저드","소환사"], tags: ["arcane"], desc: "공격(+9)." },
     { name: "초급 주문서", type: "atk", value: 7, critBonus: 2, price: 28, rarity: "common", onlyFor: ["마법사","위저드","소환사"], desc: "공격(+7), 치명(+2%)." },
     { name: "마법사 학도 로브", type: "hp", value: 40, def: 5, price: 32, rarity: "common", onlyFor: ["마법사","위저드","소환사"], desc: "체력(+40), 방어(+5)." },
     { name: "정령 가루", type: "atk", value: 8, critMult: 0.08, price: 31, rarity: "common", onlyFor: ["마법사","위저드","소환사"], desc: "공격(+8), 치명 배율(+8%)." },
@@ -254,6 +259,16 @@ const equipmentPool = [
     { name: "폭군의 갑옷",        type: "hp",  value: 110, def: 20, price: 170, rarity: "legendary", critBonus: 5, desc: "전설. 체력(+110), 방어(+20), 치명타(+5%)." },
     { name: "세계수의 가지",      type: "hp",  value: 80, price: 150, rarity: "legendary", regenPotion: true, lifesteal: 0.2, desc: "전설. 체력(+80). 포션 강화, 흡혈(20%)." },
     ...equipmentPoolV651,
+];
+
+/**
+ * v7 시너지: 장착 아이템 tags 조합 — 확장 시 tags·needTags만 추가하면 됨
+ * @type {{id:string,name:string,needTags:string[],bonus:{atk?:number,hp?:number,def?:number,acc?:number,crit?:number}}[]}
+ */
+const synergyRules = [
+    { id: 'syn_blade_blood', name: '⚔️ 피의 검귀', needTags: ['blade', 'blood'], bonus: { atk: 8, crit: 3 } },
+    { id: 'syn_heavy_wall', name: '🛡️ 중장갑', needTags: ['heavy', 'blood'], bonus: { hp: 40, def: 4 } },
+    { id: 'syn_precision_arcane', name: '🎯 마법 조준', needTags: ['precision', 'arcane'], bonus: { atk: 6, acc: 5 } },
 ];
 
 const relicPool = [

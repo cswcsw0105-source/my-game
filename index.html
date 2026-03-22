@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
-    <title>던전 v6.6.4</title>
-    <link rel="stylesheet" href="style.css?v=6.6.4">
+    <title>던전 v7.0.0</title>
+    <link rel="stylesheet" href="style.css?v=7.0.0">
     <style>
         .auth-box { background: #2a2a2a; padding: 20px; border-radius: 8px; border: 1px solid #444; max-width: 300px; margin: 0 auto; }
         .auth-box input { width: 90%; padding: 10px; margin: 10px 0; border-radius: 4px; border: 1px solid #555; background: #111; color: white; }
@@ -13,7 +13,7 @@
 </head>
 <body>
     <div class="container">
-        <h1 style="color: #fff; letter-spacing: 1px;">⚔️ 던전 (v6.6.4)</h1>
+        <h1 style="color: #fff; letter-spacing: 1px;">⚔️ 던전 (v7.0.0 · 로그라이트)</h1>
         
         <div class="game-layout" id="main-layout">
             <div class="screen" id="main-screen">
@@ -139,6 +139,12 @@
             <table class="patch-table">
                 <thead><tr><th>버전</th><th>항목</th><th>상세 내용</th></tr></thead>
                 <tbody>
+                    <tr><td class="v-tag">v7.0.0</td><td>로그라이트·메가</td><td>
+    <b>무한 층:</b> 100층을 엔딩이 아닌 <b>이정표</b>로 처리. 승리 후 <b>다음 층 / 체류 파밍 / 베이스캠프(테크) / 허브</b> 선택.<br>
+    <b>영구 강화 상점 삭제:</b> 대신 <b>베이스캠프 층</b>에서만 보존 골드로 <b>테크 트리</b> 구매 · 캐릭터 생성 시 <b>A/B 라인 영구 고정</b>.<br>
+    <b>다중 캐릭터 슬롯</b> + <b>EXP/레벨</b>(메타 슬롯 저장) + <b>아이템 시너지(tags)</b> + <b>층별 리스크 퀘스트</b>(보상/패널티).<br>
+    <code>rpg_v7.js</code> — 메타 로직 분리.
+</td></tr>
                     <tr><td class="v-tag">v6.6.4</td><td>용병 상점·가챠·부활</td><td>
     <b>가챠(💰 용병 지원):</b> 동일 <b>이름 중복 없음</b>, <b>등급 가중</b> 랜덤(층·모드별). 단장 전용 풀 제거 후 <b>동료·공용 장비 풀</b> 기준.<br>
     <b>상점(단장):</b> 포션 + <b>직접 장비 구매(직거래)</b> 비쌈·사기 30% + <b>용병 자금 지원</b> 저렴·사기 50%·고등급 확률↑.<br>
@@ -277,7 +283,8 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <!-- ?v= 쿼리로 브라우저 캐시 무효화 (수정이 안 보일 때 강력 새로고침도 함께) -->
-    <script src="data.js?v=6.6.4"></script>
-    <script src="game.js?v=6.6.4"></script>
+    <script src="data.js?v=7.0.0"></script>
+    <script src="rpg_v7.js?v=7.0.0"></script>
+    <script src="game.js?v=7.0.0"></script>
 </body>
 </html>

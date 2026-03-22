@@ -1,0 +1,378 @@
+/**
+ * 던전 v7 — 메타 진행(다중 캐릭터·테크트리·베이스캠프·퀘스트·시너지)
+ * game.js에서 MetaRPG.* 호출
+ */
+(function (global) {
+    const STORAGE_KEY = 'dungeon_meta_v7';
+    const MAX_SLOTS = 4;
+
+    /** 베이스캠프(영구 성장) 가능 층 — 이 층에 머물 때만 테크 구매 */
+    const BASE_CAMP_FLOORS = [10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100];
+
+    function uid() {
+        return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    }
+
+    function defaultMeta() {
+        return {
+            version: 1,
+            savedGold: 0,
+            activeSlotId: null,
+            slots: [],
+        };
+    }
+
+    function loadMeta() {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (!raw) return defaultMeta();
+            const o = JSON.parse(raw);
+            if (!o || typeof o !== 'object') return defaultMeta();
+            if (!Array.isArray(o.slots)) o.slots = [];
+            if (o.savedGold == null) o.savedGold = 0;
+            return o;
+        } catch (e) {
+            return defaultMeta();
+        }
+    }
+
+    function saveMeta(m) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(m));
+    }
+
+    /** 구 v6 영구 강화 → 첫 슬롯으로 1회 이관 */
+    function migrateLegacyOnce() {
+        if (localStorage.getItem('meta_v7_legacy_migrated')) return;
+        const m = loadMeta();
+        if (m.slots.length > 0) {
+            localStorage.setItem('meta_v7_legacy_migrated', '1');
+            return;
+        }
+        try {
+            const ps = JSON.parse(localStorage.getItem('perma_stats') || '{}');
+            const sg = parseInt(localStorage.getItem('saved_gold') || '0', 10) || 0;
+            const hp = Math.max(0, Number(ps.hp) || 0);
+            const atk = Math.max(0, Number(ps.atk) || 0);
+            const def = Math.max(0, Number(ps.def) || 0);
+            const acc = Math.max(0, Number(ps.acc) || 0);
+            if (hp + atk + def + acc > 0 || sg > 0) {
+                m.slots.push({
+                    id: uid(),
+                    name: '이전 모험가',
+                    jobKey: 'Warrior',
+                    techLine: 'A',
+                    techPurchased: [],
+                    legacyPerma: { hp, atk, def, acc },
+                    extraPerma: { hp: 0, atk: 0, def: 0, acc: 0 },
+                    level: 1,
+                    exp: 0,
+                    metaPenalty: { hp: 0, atk: 0, def: 0, acc: 0 },
+                    questFlags: {},
+                });
+                m.activeSlotId = m.slots[0].id;
+                m.savedGold = sg;
+                saveMeta(m);
+            }
+        } catch (e) { /* ignore */ }
+        localStorage.setItem('meta_v7_legacy_migrated', '1');
+    }
+
+    /** 테크 노드 정의 — line A/B는 생성 시 고정, 변경 불가 */
+    function buildTechNodes() {
+        const W = 'Warrior',
+            H = 'Hunter',
+            Wz = 'Wizard',
+            Mc = 'MercenaryCaptain';
+        const nodes = [
+            // Warrior A — 화력
+            { id: 'W_A_1', jobKey: W, line: 'A', name: '침투: 근력 I', cost: 60, requires: [], effect: { atk: 4 } },
+            { id: 'W_A_2', jobKey: W, line: 'A', name: '침투: 근력 II', cost: 110, requires: ['W_A_1'], effect: { atk: 7 } },
+            { id: 'W_A_3', jobKey: W, line: 'A', name: '침투: 치명 각성', cost: 160, requires: ['W_A_2'], effect: { atk: 5, acc: 3 } },
+            // Warrior B — 생존
+            { id: 'W_B_1', jobKey: W, line: 'B', name: '철벽: 체력 I', cost: 60, requires: [], effect: { hp: 45 } },
+            { id: 'W_B_2', jobKey: W, line: 'B', name: '철벽: 방어', cost: 110, requires: ['W_B_1'], effect: { hp: 35, def: 3 } },
+            { id: 'W_B_3', jobKey: W, line: 'B', name: '철벽: 불굴', cost: 160, requires: ['W_B_2'], effect: { def: 5, hp: 40 } },
+            // Hunter A
+            { id: 'H_A_1', jobKey: H, line: 'A', name: '추적: 민첩', cost: 60, requires: [], effect: { atk: 3, acc: 4 } },
+            { id: 'H_A_2', jobKey: H, line: 'A', name: '추적: 약점', cost: 110, requires: ['H_A_1'], effect: { atk: 8 } },
+            { id: 'H_A_3', jobKey: H, line: 'A', name: '추적: 일격', cost: 160, requires: ['H_A_2'], effect: { atk: 6, acc: 5 } },
+            // Hunter B
+            { id: 'H_B_1', jobKey: H, line: 'B', name: '은신: 체력', cost: 60, requires: [], effect: { hp: 40 } },
+            { id: 'H_B_2', jobKey: H, line: 'B', name: '은신: 회피 명중', cost: 110, requires: ['H_B_1'], effect: { acc: 10, hp: 25 } },
+            { id: 'H_B_3', jobKey: H, line: 'B', name: '은신: 흡혈 각성', cost: 160, requires: ['H_B_2'], effect: { atk: 5, hp: 30 } },
+            // Wizard A
+            { id: 'Z_A_1', jobKey: Wz, line: 'A', name: '마도: 파괴 I', cost: 60, requires: [], effect: { atk: 6 } },
+            { id: 'Z_A_2', jobKey: Wz, line: 'A', name: '마도: 파괴 II', cost: 110, requires: ['Z_A_1'], effect: { atk: 10 } },
+            { id: 'Z_A_3', jobKey: Wz, line: 'A', name: '마도: 폭풍', cost: 160, requires: ['Z_A_2'], effect: { atk: 8, acc: 4 } },
+            // Wizard B
+            { id: 'Z_B_1', jobKey: Wz, line: 'B', name: '결계: 체력', cost: 60, requires: [], effect: { hp: 35, def: 2 } },
+            { id: 'Z_B_2', jobKey: Wz, line: 'B', name: '결계: 방벽', cost: 110, requires: ['Z_B_1'], effect: { hp: 50, def: 3 } },
+            { id: 'Z_B_3', jobKey: Wz, line: 'B', name: '결계: 봉인', cost: 160, requires: ['Z_B_2'], effect: { def: 6, hp: 40 } },
+            // MercenaryCaptain (지휘·생존)
+            { id: 'M_A_1', jobKey: Mc, line: 'A', name: '지휘: 보급', cost: 60, requires: [], effect: { atk: 2, hp: 30 } },
+            { id: 'M_A_2', jobKey: Mc, line: 'A', name: '지휘: 전술', cost: 110, requires: ['M_A_1'], effect: { atk: 4, acc: 5 } },
+            { id: 'M_B_1', jobKey: Mc, line: 'B', name: '생존: 체력', cost: 60, requires: [], effect: { hp: 55 } },
+            { id: 'M_B_2', jobKey: Mc, line: 'B', name: '생존: 방어', cost: 110, requires: ['M_B_1'], effect: { hp: 45, def: 4 } },
+        ];
+        return nodes;
+    }
+
+    const TECH_NODES = buildTechNodes();
+
+    function getSlotById(id) {
+        const m = loadMeta();
+        return m.slots.find((s) => s.id === id) || null;
+    }
+
+    function recalcTechBonus(slot) {
+        const bought = new Set(slot.techPurchased || []);
+        let hp = 0,
+            atk = 0,
+            def = 0,
+            acc = 0;
+        const jb = slot.jobKey;
+        const line = slot.techLine;
+        for (const n of TECH_NODES) {
+            if (!bought.has(n.id)) continue;
+            if (n.jobKey !== jb) continue;
+            if (n.line !== line) continue;
+            const e = n.effect || {};
+            hp += e.hp || 0;
+            atk += e.atk || 0;
+            def += e.def || 0;
+            acc += e.acc || 0;
+        }
+        const leg = slot.legacyPerma || { hp: 0, atk: 0, def: 0, acc: 0 };
+        const ex = slot.extraPerma || { hp: 0, atk: 0, def: 0, acc: 0 };
+        const pen = slot.metaPenalty || { hp: 0, atk: 0, def: 0, acc: 0 };
+        slot.techBonus = {
+            hp: Math.max(0, hp + (leg.hp || 0) + (ex.hp || 0) - (pen.hp || 0)),
+            atk: Math.max(0, atk + (leg.atk || 0) + (ex.atk || 0) - (pen.atk || 0)),
+            def: Math.max(0, def + (leg.def || 0) + (ex.def || 0) - (pen.def || 0)),
+            acc: Math.max(0, acc + (leg.acc || 0) + (ex.acc || 0) - (pen.acc || 0)),
+        };
+    }
+
+    function getTechNodesForSlot(slot) {
+        if (!slot || !slot.techLine) return [];
+        return TECH_NODES.filter((n) => n.jobKey === slot.jobKey && n.line === slot.techLine);
+    }
+
+    function canPurchaseNode(slot, nodeId) {
+        const n = TECH_NODES.find((x) => x.id === nodeId);
+        if (!n || n.jobKey !== slot.jobKey || n.line !== slot.techLine) return false;
+        if ((slot.techPurchased || []).includes(nodeId)) return false;
+        const bought = new Set(slot.techPurchased || []);
+        for (const r of n.requires || []) {
+            if (!bought.has(r)) return false;
+        }
+        return true;
+    }
+
+    function purchaseTechNode(slotId, nodeId) {
+        const m = loadMeta();
+        const slot = m.slots.find((s) => s.id === slotId);
+        if (!slot) return { ok: false, msg: '슬롯 없음' };
+        if (!canPurchaseNode(slot, nodeId)) return { ok: false, msg: '구매 불가(선행 또는 라인 불일치)' };
+        const n = TECH_NODES.find((x) => x.id === nodeId);
+        const cost = n.cost || 0;
+        if (m.savedGold < cost) return { ok: false, msg: '보존 골드 부족' };
+        m.savedGold -= cost;
+        slot.techPurchased = slot.techPurchased || [];
+        slot.techPurchased.push(nodeId);
+        recalcTechBonus(slot);
+        saveMeta(m);
+        return { ok: true, msg: n.name };
+    }
+
+    function expToNextLevel(lv) {
+        return Math.floor(32 + lv * 18 + lv * lv * 0.35);
+    }
+
+    function addExpToSlot(slotId, amount) {
+        const m = loadMeta();
+        const slot = m.slots.find((s) => s.id === slotId);
+        if (!slot) return null;
+        slot.level = Math.max(1, slot.level || 1);
+        slot.exp = Math.max(0, (slot.exp || 0) + amount);
+        let need = expToNextLevel(slot.level);
+        while (slot.exp >= need) {
+            slot.exp -= need;
+            slot.level += 1;
+            need = expToNextLevel(slot.level);
+        }
+        saveMeta(m);
+        return { level: slot.level, exp: slot.exp, need };
+    }
+
+    /** 레벨에 따른 런타임 보너스 (소량) */
+    function getLevelRuntimeBonus(level) {
+        const lv = Math.max(1, level || 1);
+        return {
+            hp: Math.floor((lv - 1) * 4),
+            atk: Math.floor((lv - 1) * 0.6),
+            def: Math.floor((lv - 1) * 0.35),
+            acc: Math.floor((lv - 1) * 0.25),
+        };
+    }
+
+    function createCharacter(name, jobKey, techLine) {
+        const m = loadMeta();
+        if (m.slots.length >= MAX_SLOTS) return { ok: false, msg: '슬롯 가득 (최대 ' + MAX_SLOTS + ')' };
+        const slot = {
+            id: uid(),
+            name: name || '무명',
+            jobKey,
+            techLine: techLine === 'B' ? 'B' : 'A',
+            techPurchased: [],
+            legacyPerma: { hp: 0, atk: 0, def: 0, acc: 0 },
+            extraPerma: { hp: 0, atk: 0, def: 0, acc: 0 },
+            level: 1,
+            exp: 0,
+            metaPenalty: { hp: 0, atk: 0, def: 0, acc: 0 },
+            questFlags: {},
+        };
+        recalcTechBonus(slot);
+        m.slots.push(slot);
+        m.activeSlotId = slot.id;
+        saveMeta(m);
+        return { ok: true, slot };
+    }
+
+    function applyQuestPenalty(slotId, penalty) {
+        const m = loadMeta();
+        const slot = m.slots.find((s) => s.id === slotId);
+        if (!slot) return;
+        slot.metaPenalty = slot.metaPenalty || { hp: 0, atk: 0, def: 0, acc: 0 };
+        const p = penalty || {};
+        if (p.hp) slot.metaPenalty.hp += p.hp;
+        if (p.atk) slot.metaPenalty.atk += p.atk;
+        if (p.def) slot.metaPenalty.def += p.def;
+        if (p.acc) slot.metaPenalty.acc += p.acc;
+        if (p.goldLoss && m.savedGold > 0) {
+            m.savedGold = Math.max(0, Math.floor(m.savedGold * (1 - p.goldLoss)));
+        }
+        recalcTechBonus(slot);
+        saveMeta(m);
+    }
+
+    function grantQuestReward(slotId, reward, questId) {
+        const m = loadMeta();
+        const slot = m.slots.find((s) => s.id === slotId);
+        if (!slot || !reward) return;
+        if (reward.perma) {
+            slot.extraPerma = slot.extraPerma || { hp: 0, atk: 0, def: 0, acc: 0 };
+            if (reward.perma.hp) slot.extraPerma.hp += reward.perma.hp;
+            if (reward.perma.atk) slot.extraPerma.atk += reward.perma.atk;
+            if (reward.perma.def) slot.extraPerma.def += reward.perma.def;
+            if (reward.perma.acc) slot.extraPerma.acc += reward.perma.acc;
+        }
+        if (questId) {
+            slot.questFlags = slot.questFlags || {};
+            slot.questFlags[questId] = true;
+        }
+        recalcTechBonus(slot);
+        saveMeta(m);
+    }
+
+    /** 장착 아이템 태그 기반 시너지 — data.js synergyRules + 아이템 tags */
+    function computeSynergyBonuses(player) {
+        const out = { atk: 0, hp: 0, def: 0, acc: 0, crit: 0, desc: [] };
+        if (!player || !player.items) return out;
+        const tags = new Set();
+        for (const it of player.items) {
+            if (!it) continue;
+            const tg = it.tags || it.tagList;
+            if (Array.isArray(tg)) tg.forEach((t) => tags.add(t));
+        }
+        const rules = typeof synergyRules !== 'undefined' ? synergyRules : [];
+        for (const rule of rules) {
+            if (!rule || !rule.needTags) continue;
+            const ok = rule.needTags.every((t) => tags.has(t));
+            if (!ok) continue;
+            const b = rule.bonus || {};
+            out.atk += b.atk || 0;
+            out.hp += b.hp || 0;
+            out.def += b.def || 0;
+            out.acc += b.acc || 0;
+            out.crit += b.crit || 0;
+            if (rule.name) out.desc.push(rule.name);
+        }
+        return out;
+    }
+
+    /** 층별 리스크 퀘스트 정의 */
+    const FLOOR_QUESTS = {
+        12: {
+            id: 'q12',
+            title: '심연의 시험',
+            desc: '이 층에서 <b>연속 2전 승리</b> 없이 패배하면 패널티.',
+            needWins: 2,
+            reward: { perma: { atk: 3, hp: 20 } },
+            failPenalty: { atk: 2, hp: 15, goldLoss: 0.15 },
+        },
+        20: {
+            id: 'q20',
+            title: '보스 토벌',
+            desc: '<b>20층 보스</b>를 처치하면 보상. 층 이탈 시 실패.',
+            needBoss: 1,
+            reward: { perma: { def: 4, acc: 4 } },
+            failPenalty: { def: 3, acc: 3, goldLoss: 0.2 },
+        },
+    };
+
+    function isBaseCampFloor(f) {
+        return BASE_CAMP_FLOORS.includes(f);
+    }
+
+    const MetaRPG = {
+        STORAGE_KEY,
+        MAX_SLOTS,
+        BASE_CAMP_FLOORS,
+        TECH_NODES,
+        FLOOR_QUESTS,
+        loadMeta,
+        saveMeta,
+        migrateLegacyOnce,
+        getSlotById,
+        recalcTechBonus,
+        getTechNodesForSlot,
+        canPurchaseNode,
+        purchaseTechNode,
+        expToNextLevel,
+        addExpToSlot,
+        getLevelRuntimeBonus,
+        createCharacter,
+        applyQuestPenalty,
+        grantQuestReward,
+        computeSynergyBonuses,
+        isBaseCampFloor,
+        expToNextLevel,
+        setActiveSlot(id) {
+            const m = loadMeta();
+            if (!m.slots.some((s) => s.id === id)) return false;
+            m.activeSlotId = id;
+            saveMeta(m);
+            return true;
+        },
+        deleteSlot(id) {
+            const m = loadMeta();
+            const i = m.slots.findIndex((s) => s.id === id);
+            if (i < 0) return false;
+            m.slots.splice(i, 1);
+            if (m.activeSlotId === id) m.activeSlotId = m.slots[0] ? m.slots[0].id : null;
+            saveMeta(m);
+            return true;
+        },
+        addSavedGold(amount) {
+            const m = loadMeta();
+            m.savedGold = Math.max(0, (m.savedGold || 0) + amount);
+            saveMeta(m);
+            return m.savedGold;
+        },
+    };
+
+    migrateLegacyOnce();
+    global.MetaRPG = MetaRPG;
+    global.BASE_CAMP_FLOORS = BASE_CAMP_FLOORS;
+})(typeof window !== 'undefined' ? window : globalThis);
