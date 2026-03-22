@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
-    <title>던전 v7.0.1</title>
-    <link rel="stylesheet" href="style.css?v=7.0.1">
+    <title>던전 v7.0.2</title>
+    <link rel="stylesheet" href="style.css?v=7.0.2">
     <style>
         .auth-box { background: #2a2a2a; padding: 20px; border-radius: 8px; border: 1px solid #444; max-width: 300px; margin: 0 auto; }
         .auth-box input { width: 90%; padding: 10px; margin: 10px 0; border-radius: 4px; border: 1px solid #555; background: #111; color: white; }
@@ -13,7 +13,7 @@
 </head>
 <body>
     <div class="container">
-        <h1 style="color: #fff; letter-spacing: 1px;">⚔️ 던전 (v7.0.1 · 로그라이트)</h1>
+        <h1 style="color: #fff; letter-spacing: 1px;">⚔️ 던전 (v7.0.2 · 로그라이트)</h1>
         
         <div class="game-layout" id="main-layout">
             <div class="screen" id="main-screen">
@@ -65,7 +65,7 @@
                     <h2 style="color: #f1c40f;">🛒 신비한 상점</h2>
                     <p>현재 체력: <b id="shop-hp-t" style="color:#2ed573;">0/0</b> | 골드: <b id="shop-gold-t" style="color:#f1c40f;">0</b>G</p>
                     <div id="shop-list" style="margin-top: 20px;"></div>
-                    <button onclick="nextFloor()" style="background:#444; color:#fff; margin-top: 15px; width: 100%;">던전으로 돌아가기</button>
+                    <div id="shop-leave-actions" style="margin-top: 15px;"></div>
                 </div>
             </div>
 
@@ -96,6 +96,8 @@
                 </div>
                 <button type="button" class="sidebar-action-btn sidebar-btn-inv" onclick="toggleInv(true)" style="margin-bottom:8px;">🎒 인벤토리 보기</button>
                 <button type="button" class="sidebar-action-btn" onclick="saveRunNow()" style="margin-bottom:8px;background:#1e90ff;color:#fff;border:1px solid #3498db;">💾 저장 (퀵세이브)</button>
+                <button type="button" class="sidebar-action-btn" onclick="returnToHubFromRun()" style="margin-bottom:8px;background:#444;color:#e0e0e0;border:1px solid #666;">🏠 메인 화면 (허브)</button>
+                <button type="button" id="sidebar-camp-btn" class="sidebar-action-btn" onclick="openBaseCampTech()" style="display:none;margin-bottom:8px;background:#9b59b6;color:#fff;border:1px solid #8e44ad;">🏕️ 베이스캠프</button>
                 <div id="log-battle" style="font-size:0.85em; overflow-y:auto; max-height:460px;"></div>
             </div>
 
@@ -140,6 +142,9 @@
             <table class="patch-table">
                 <thead><tr><th>버전</th><th>항목</th><th>상세 내용</th></tr></thead>
                 <tbody>
+                    <tr><td class="v-tag">v7.0.2</td><td>진행·상점</td><td>
+    승리 후 <b>확인 없이</b> 다음 층 자동 진행. 전투 사이드바에 <b>저장 / 허브 / 베이스캠프(해당 층)</b>. <b>21층+</b> 「이 층 훈련」은 <b>상점 퇴장 시</b>만 선택 — 등반 재개는 상점에서 「등반 계속」.
+</td></tr>
                     <tr><td class="v-tag">v7.0.1</td><td>베이스캠프·저장</td><td>
     베이스캠프 테크 효과 <b>한글 표시</b>. <b>21층부터만</b> 승리 시 「이 층 머물기」. 영구 강화(체력/공격/방어)를 <b>베이스캠프</b>로 이동, <b>명중 영구 강화 제거 + 골드 환불</b>. <b>퀵세이브·JSON 백업</b>.
 </td></tr>
@@ -289,6 +294,6 @@
     <!-- ?v= 쿼리로 브라우저 캐시 무효화 (수정이 안 보일 때 강력 새로고침도 함께) -->
     <script src="data.js?v=7.0.1"></script>
     <script src="rpg_v7.js?v=7.0.1"></script>
-    <script src="game.js?v=7.0.1"></script>
+    <script src="game.js?v=7.0.2"></script>
 </body>
 </html>

@@ -42,7 +42,7 @@ let shopVisitCount = 0;
 let attackGcdUntil = 0;
 const ATTACK_GCD_MS = 500;
 /** 패치 노트/UI와 맞춰 두기 — 캐시 적용 여부 확인용 */
-const GAME_BUILD = '7.0.1';
+const GAME_BUILD = '7.0.2';
 const QUICKSAVE_KEY = 'dungeon_quicksave_v7';
 /** 필드 용병 기본 피해 계수(전역 보정) */
 const MERC_DMG_GLOBAL_SCALE = 1.56;
@@ -782,7 +782,7 @@ function showPreGameScreen() {
               <input type="file" accept=".json,application/json" style="width:100%;margin-top:6px;" onchange="importFullSave(this)">
             </label>
         </div>
-        <p style="color:#666;font-size:0.75em;max-width:520px;margin:0 auto;line-height:1.5;">※ 21층부터 승리 시 <b>이 층 머물기</b> 선택이 열립니다. 영구 강화는 <b>베이스캠프</b>에서만 합니다. 명중 영구 강화는 제거되었으며 골드로 환불됩니다.</p>`;
+        <p style="color:#666;font-size:0.75em;max-width:520px;margin:0 auto;line-height:1.5;">※ 승리 시 <b>확인 없이</b> 다음 층으로 진행합니다. 21층 이상은 <b>상점</b>에서만 「이 층 훈련」/「등반 계속」을 고를 수 있습니다. 영구 강화는 <b>베이스캠프</b>에서만 합니다.</p>`;
 }
 
 window.resumeMetaSlot = (slotId) => {
@@ -1932,48 +1932,21 @@ function winBattle() {
     }
     processFloorQuestOnVictory();
     if(floor===100&&enemy.isBoss) return milestoneFloor100();
-    showVictoryChoiceModal();
+    /** 21층 이상 + 상점에서 「훈련 모드」 선택 시에만 승리 후 층 유지, 그 외는 항상 다음 층 */
+    if (floor > 20 && player.farmingStay) proceedWinBattleFarmContinue();
+    else proceedWinBattleNextFloor();
 }
 
-window.showVictoryChoiceModal = function showVictoryChoiceModal() {
-    const old = document.getElementById('victory-choice-overlay');
-    if (old) old.remove();
-    const ov = document.createElement('div');
-    ov.id = 'victory-choice-overlay';
-    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:10050;display:flex;align-items:center;justify-content:center;';
-    const camp = typeof MetaRPG !== 'undefined' && MetaRPG.isBaseCampFloor(floor);
-    const showStay = floor > 20;
-    ov.innerHTML = `<div style="background:#1a1a2e;border:2px solid #f1c40f;border-radius:12px;padding:22px;max-width:440px;width:92%;text-align:center;">
-    <h3 style="color:#f1c40f;margin:0 0 10px;">승리</h3>
-    <p style="color:#aaa;font-size:0.86em;margin-bottom:14px;">진행 방식을 선택하세요.</p>
-    <button type="button" id="vc-next" style="display:block;width:100%;margin:8px 0;padding:12px;background:#2ed573;color:#111;font-weight:700;border:none;border-radius:8px;cursor:pointer;">⬆️ 다음 층으로 (${floor + 1}층)</button>
-    ${showStay ? `<button type="button" id="vc-stay" style="display:block;width:100%;margin:8px 0;padding:12px;background:#3498db;color:#fff;font-weight:700;border:none;border-radius:8px;cursor:pointer;">🔁 이 층에 머물기 (파밍)</button>` : ''}
-    ${camp ? `<button type="button" id="vc-camp" style="display:block;width:100%;margin:8px 0;padding:12px;background:#9b59b6;color:#fff;font-weight:700;border:none;border-radius:8px;cursor:pointer;">🏕️ 베이스캠프 (테크 + 영구 강화)</button>` : ''}
-    <button type="button" id="vc-hub" style="display:block;width:100%;margin:8px 0;padding:10px;background:#333;color:#aaa;border:1px solid #555;border-radius:8px;cursor:pointer;">🏠 허브로 (런 종료)</button>
-    </div>`;
-    document.body.appendChild(ov);
-    document.getElementById('vc-next').onclick = () => {
-        ov.remove();
-        proceedWinBattleNextFloor();
-    };
-    const st = document.getElementById('vc-stay');
-    if (st) {
-        st.onclick = () => {
-            ov.remove();
-            proceedWinBattleStay();
-        };
+/** 21층 이상 훈련 모드: 승리해도 층 증가 없음 (상점에서만 모드 전환) */
+function proceedWinBattleFarmContinue() {
+    const clearedFloor = floor;
+    checkFloorUnlock(clearedFloor);
+    if (isMercenaryCaptainJob() && clearedFloor >= 19 && clearedFloor <= 30 && !player.mercEvolutionChosen) {
+        setTimeout(() => showMercEvolutionChoice(() => winBattleContinueFrom(clearedFloor)), 450);
+        return;
     }
-    const cbtn = document.getElementById('vc-camp');
-    if (cbtn)
-        cbtn.onclick = () => {
-            ov.remove();
-            openBaseCampTech();
-        };
-    document.getElementById('vc-hub').onclick = () => {
-        ov.remove();
-        returnToHubFromRun();
-    };
-};
+    winBattleContinueFrom(clearedFloor);
+}
 
 function failActiveQuestIfLeavingFloor() {
     if (!player || !player.metaSlotId || typeof MetaRPG === 'undefined') return;
@@ -2000,12 +1973,6 @@ function proceedWinBattleNextFloor() {
         setTimeout(() => showMercEvolutionChoice(() => winBattleContinueFrom(clearedFloor)), 450);
         return;
     }
-    winBattleContinueFrom(clearedFloor);
-}
-
-function proceedWinBattleStay() {
-    player.farmingStay = true;
-    const clearedFloor = floor;
     winBattleContinueFrom(clearedFloor);
 }
 
@@ -2235,6 +2202,33 @@ function openShop() {
     rerollCost=10; updateUi(); renderShopItems();
 }
 
+/** 상점 하단: 21층 이상만 「등반 / 이 층 훈련」 분기 */
+function renderShopLeaveButtons() {
+    const wrap = document.getElementById('shop-leave-actions');
+    if (!wrap) return;
+    if (floor > 20) {
+        const train = player && player.farmingStay;
+        wrap.innerHTML = `<p style="color:#888;font-size:0.82em;margin:0 0 10px;line-height:1.45;">21층 이상: 던전으로 돌아갈 때 <b>등반</b>(승리마다 다음 층) 또는 <b>이 층 훈련</b>(승리해도 층 유지)을 고릅니다.</p>
+      <button type="button" onclick="leaveShopContinueAscent()" style="background:#2ed573;color:#111;margin-bottom:8px;width:100%;padding:12px;font-weight:700;border:none;border-radius:8px;cursor:pointer;">⬆️ 등반 계속 (승리 시 다음 층)</button>
+      <button type="button" onclick="leaveShopTrainHere()" style="background:#3498db;color:#fff;margin-bottom:8px;width:100%;padding:12px;font-weight:700;border:none;border-radius:8px;cursor:pointer;">🔁 이 층에 머물며 훈련</button>
+      <p style="color:${train ? '#2ed573' : '#aaa'};font-size:0.78em;margin:0;">${train ? '현재: 훈련 모드 (동일 층 반복)' : '현재: 등반 모드'}</p>`;
+    } else {
+        wrap.innerHTML = `<button type="button" onclick="nextFloor()" style="background:#444;color:#fff;width:100%;padding:12px;border:none;border-radius:8px;cursor:pointer;font-weight:700;">던전으로 돌아가기</button>`;
+    }
+}
+
+window.leaveShopContinueAscent = function leaveShopContinueAscent() {
+    if (player) player.farmingStay = false;
+    writeLog('[상점] 등반 모드 — 승리 시 자동으로 다음 층으로 이동합니다.');
+    nextFloor();
+};
+
+window.leaveShopTrainHere = function leaveShopTrainHere() {
+    if (player) player.farmingStay = true;
+    writeLog('[상점] 훈련 모드 — 이 층에서 반복 전투합니다. 등반을 재개하려면 다음 상점에서 「등반 계속」을 누르세요.');
+    nextFloor();
+};
+
 window.nextFloor = () => {
     document.getElementById('shop-area').style.display='none';
     document.getElementById('battle-area').style.display='block';
@@ -2345,6 +2339,7 @@ function renderShopItems() {
     });
     list.appendChild(grid);
     const rb=document.createElement('button'); rb.className='reroll-btn'; rb.innerText=`🔄 다시 돌리기 (${rerollCost}G)`; rb.onclick=rerollShop; list.appendChild(rb);
+    renderShopLeaveButtons();
 }
 
 window.rerollShop = () => {
@@ -2683,6 +2678,14 @@ function updateUi() {
                 html+=`</div>`;
             });
             invList.innerHTML=html;
+        }
+    }
+    const campBtn = document.getElementById('sidebar-camp-btn');
+    if (campBtn) {
+        if (player && typeof MetaRPG !== 'undefined' && MetaRPG.isBaseCampFloor(floor)) {
+            campBtn.style.display = 'block';
+        } else {
+            campBtn.style.display = 'none';
         }
     }
 }
