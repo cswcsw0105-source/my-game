@@ -42,7 +42,8 @@ let shopVisitCount = 0;
 let attackGcdUntil = 0;
 const ATTACK_GCD_MS = 500;
 /** 패치 노트/UI와 맞춰 두기 — 캐시 적용 여부 확인용 */
-const GAME_BUILD = '7.0.0';
+const GAME_BUILD = '7.0.1';
+const QUICKSAVE_KEY = 'dungeon_quicksave_v7';
 /** 필드 용병 기본 피해 계수(전역 보정) */
 const MERC_DMG_GLOBAL_SCALE = 1.56;
 /** 층수에 따른 용병 딜/HP 성장 상한(과도한 폭주 방지) */
@@ -88,7 +89,7 @@ function getPermaStats() {
             hp: Math.max(0, safeNum(raw.hp, 0)),
             atk: Math.max(0, safeNum(raw.atk, 0)),
             def: Math.max(0, safeNum(raw.def, 0)),
-            acc: Math.max(0, safeNum(raw.acc, 0)),
+            acc: 0,
         };
     } catch (e) {
         return { hp: 0, atk: 0, def: 0, acc: 0 };
@@ -107,7 +108,7 @@ function savePermaStats(stats) {
         hp: Math.max(0, safeNum(stats && stats.hp, 0)),
         atk: Math.max(0, safeNum(stats && stats.atk, 0)),
         def: Math.max(0, safeNum(stats && stats.def, 0)),
-        acc: Math.max(0, safeNum(stats && stats.acc, 0)),
+        acc: 0,
     };
     localStorage.setItem('perma_stats', JSON.stringify(s));
 }
@@ -144,8 +145,67 @@ function exitBattleLayout() {
 }
 document.addEventListener('DOMContentLoaded', () => {
     exitBattleLayout();
+    migrateAccPermaV71();
     console.log('[던전] 클라이언트 빌드 v' + GAME_BUILD + ' — 로그에 이 안 보이면 예전 JS 캐시입니다. 강력 새로고침(Cmd+Shift+R)하세요.');
 });
+
+/** 구 명중 영구강화 제거 + 골드 환불 (1회) */
+function migrateAccPermaV71() {
+    if (localStorage.getItem('acc_perma_migrated_v71')) return;
+    let refund = 0;
+    const buyCounts = getPermaBuyCount();
+    let hadAccBuy = false;
+    for (let i = 1; i <= 20; i++) {
+        const id = 'acc_' + i;
+        if (buyCounts[id]) {
+            hadAccBuy = true;
+            refund += typeof legacyAccUpgradePrice === 'function' ? legacyAccUpgradePrice(i) : 0;
+            delete buyCounts[id];
+        }
+    }
+    savePermaBuyCount(buyCounts);
+    const ps = getPermaStats();
+    if (!hadAccBuy && ps.acc > 0) {
+        const tiers = Math.min(20, Math.floor(ps.acc / 2));
+        for (let i = 1; i <= tiers; i++) {
+            refund += typeof legacyAccUpgradePrice === 'function' ? legacyAccUpgradePrice(i) : 0;
+        }
+    }
+    savePermaStats({ hp: ps.hp, atk: ps.atk, def: ps.def, acc: 0 });
+    if (refund > 0) {
+        if (typeof MetaRPG !== 'undefined') {
+            MetaRPG.addSavedGold(refund);
+            const m = MetaRPG.loadMeta();
+            m.slots.forEach((s) => {
+                if (s.legacyPerma) s.legacyPerma.acc = 0;
+                MetaRPG.recalcTechBonus(s);
+            });
+            MetaRPG.saveMeta(m);
+        } else {
+            const sg = parseInt(localStorage.getItem('saved_gold') || '0', 10) || 0;
+            localStorage.setItem('saved_gold', String(sg + refund));
+        }
+    } else if (typeof MetaRPG !== 'undefined') {
+        const m = MetaRPG.loadMeta();
+        m.slots.forEach((s) => {
+            if (s.legacyPerma && s.legacyPerma.acc) s.legacyPerma.acc = 0;
+            MetaRPG.recalcTechBonus(s);
+        });
+        MetaRPG.saveMeta(m);
+    }
+    localStorage.setItem('acc_perma_migrated_v71', '1');
+}
+
+/** 테크 노드 효과를 한글로 */
+function formatTechEffect(e) {
+    if (!e || typeof e !== 'object') return '';
+    const parts = [];
+    if (e.hp) parts.push(`체력 <b style="color:#2ed573">+${e.hp}</b>`);
+    if (e.atk) parts.push(`공격 <b style="color:#f1c40f">+${e.atk}</b>`);
+    if (e.def) parts.push(`방어 <b style="color:#1e90ff">+${e.def}</b>`);
+    if (e.acc) parts.push(`명중 <b style="color:#a55eea">+${e.acc}%</b>`);
+    return parts.length ? parts.join(' · ') : '—';
+}
 
 // ===================== 타격감 효과 =====================
 function showDmgFloat(dmg, isCrit, isPlayer) {
@@ -622,10 +682,10 @@ function buildPermanentShopHtml() {
     const savedGold = getSavedGold();
     const buyCounts = getPermaBuyCount();
     const permaTot = getPermaStats();
-    const sumLine = `<p style="color:#888;font-size:0.78em;margin:0 0 12px 0;line-height:1.5;">📌 <b>누적 영구 보너스</b> — 체력 <b style="color:#2ed573">+${permaTot.hp || 0}</b> · 공격 <b style="color:#f1c40f">+${permaTot.atk || 0}</b> · 방어 <b style="color:#1e90ff">+${permaTot.def || 0}</b> · 명중 <b style="color:#a55eea">+${permaTot.acc || 0}</b></p>`;
-    const catKeys = ['hp', 'atk', 'def', 'acc'];
-    const labels = { hp: '❤️ 체력', atk: '⚔️ 공격력', def: '🛡️ 방어력', acc: '🎯 명중률' };
-    const colors = { hp: '#2ed573', atk: '#f1c40f', def: '#1e90ff', acc: '#a55eea' };
+    const sumLine = `<p style="color:#888;font-size:0.78em;margin:0 0 12px 0;line-height:1.5;">📌 <b>누적 영구 보너스</b> — 체력 <b style="color:#2ed573">+${permaTot.hp || 0}</b> · 공격 <b style="color:#f1c40f">+${permaTot.atk || 0}</b> · 방어 <b style="color:#1e90ff">+${permaTot.def || 0}</b></p>`;
+    const catKeys = ['hp', 'atk', 'def'];
+    const labels = { hp: '❤️ 체력', atk: '⚔️ 공격력', def: '🛡️ 방어력' };
+    const colors = { hp: '#2ed573', atk: '#f1c40f', def: '#1e90ff' };
     const rows = catKeys.map((key) => {
         const cat = permanentUpgrades.filter((u) => u.id.startsWith(key + '_'));
         const lv = cat.filter((u) => buyCounts[u.id]).length;
@@ -660,6 +720,14 @@ function showPreGameScreen() {
     const hunterUnlocked = getUnlockedFloors('헌터');
     const wizardUnlocked = getUnlockedFloors('마법사');
     const m = typeof MetaRPG !== 'undefined' ? MetaRPG.loadMeta() : { slots: [] };
+    let qsHint = '';
+    try {
+        const qraw = localStorage.getItem(QUICKSAVE_KEY);
+        if (qraw) {
+            const qd = JSON.parse(qraw);
+            if (qd && qd.floor) qsHint = `${qd.floor}층`;
+        }
+    } catch (e) { /* ignore */ }
     const slotRows =
         m.slots.length === 0
             ? `<p style="color:#888;font-size:0.85em;">저장된 캐릭터가 없습니다. 아래에서 <b>새 모험가</b>를 만들어 주세요.</p>`
@@ -703,10 +771,18 @@ function showPreGameScreen() {
             ${slotRows}
         </div>
         <h4 style="color:#aaa;font-size:0.9em;margin:12px 0;">새 모험가 — 직업 선택 후 <b>테크 라인(A/B)</b>이 영구 고정됩니다.</h4>
-        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px;max-width:520px;margin-left:auto;margin-right:auto;">
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;max-width:520px;margin-left:auto;margin-right:auto;">
             ${newCharGrid}
         </div>
-        <p style="color:#666;font-size:0.75em;max-width:520px;margin:0 auto;line-height:1.5;">※ 구 버전 영구 강화 수치는 첫 슬롯으로 1회 이관됩니다. 인런에서 승리 시 <b>다음 층 / 체류 파밍</b>을 고를 수 있습니다.</p>`;
+        <div style="max-width:560px;margin:0 auto 16px;padding:14px;background:#111;border:1px solid #333;border-radius:10px;text-align:left;">
+            <h4 style="color:#f1c40f;margin:0 0 10px;text-align:center;">💾 저장 / 불러오기</h4>
+            ${qsHint ? `<button type="button" onclick="resumeFromQuicksave()" style="width:100%;margin-bottom:10px;padding:11px;background:#2ed573;color:#111;font-weight:700;border:none;border-radius:8px;cursor:pointer;">⏯ 퀵세이브 이어하기 (${qsHint})</button>` : '<p style="color:#555;font-size:0.8em;margin:0 0 8px;">퀵세이브 없음 — 전투 중 사이드바 <b>💾 저장</b>으로 기록하세요.</p>'}
+            <button type="button" onclick="exportFullSave()" style="width:100%;margin-bottom:8px;padding:10px;background:#1e90ff;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;">📥 전체 데이터 내보내기 (JSON 백업)</button>
+            <label style="display:block;color:#888;font-size:0.82em;">파일에서 복원:
+              <input type="file" accept=".json,application/json" style="width:100%;margin-top:6px;" onchange="importFullSave(this)">
+            </label>
+        </div>
+        <p style="color:#666;font-size:0.75em;max-width:520px;margin:0 auto;line-height:1.5;">※ 21층부터 승리 시 <b>이 층 머물기</b> 선택이 열립니다. 영구 강화는 <b>베이스캠프</b>에서만 합니다. 명중 영구 강화는 제거되었으며 골드로 환불됩니다.</p>`;
 }
 
 window.resumeMetaSlot = (slotId) => {
@@ -847,15 +923,25 @@ window.buyPermUpgrade = (id) => {
     if (buyCounts[id] || savedGold < up.price) return;
     const parts = id.split('_'), level = parseInt(parts[parts.length-1]), prefix = parts.slice(0,-1).join('_');
     if (level > 1 && !buyCounts[`${prefix}_${level-1}`]) return;
-    localStorage.setItem('saved_gold', savedGold - up.price);
+    if (typeof MetaRPG !== 'undefined') {
+        const m = MetaRPG.loadMeta();
+        m.savedGold = Math.max(0, safeNum(m.savedGold, 0) - up.price);
+        MetaRPG.saveMeta(m);
+    } else {
+        localStorage.setItem('saved_gold', String(savedGold - up.price));
+    }
     buyCounts[id] = true; savePermaBuyCount(buyCounts);
     const perma = getPermaStats();
     if (up.effect.hp) perma.hp += up.effect.hp;
     if (up.effect.atk) perma.atk += up.effect.atk;
     if (up.effect.def) perma.def += up.effect.def;
-    if (up.effect.acc) perma.acc += up.effect.acc;
     savePermaStats(perma);
-    showPreGameScreen();
+    if (document.getElementById('base-camp-overlay')) {
+        document.getElementById('base-camp-overlay').remove();
+        openBaseCampTech();
+    } else {
+        showPreGameScreen();
+    }
 };
 
 /** @deprecated v7 — 슬롯/테크 시스템 사용. 직접 호출 시 테크 선택으로 연결 */
@@ -1856,23 +1942,27 @@ window.showVictoryChoiceModal = function showVictoryChoiceModal() {
     ov.id = 'victory-choice-overlay';
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:10050;display:flex;align-items:center;justify-content:center;';
     const camp = typeof MetaRPG !== 'undefined' && MetaRPG.isBaseCampFloor(floor);
+    const showStay = floor > 20;
     ov.innerHTML = `<div style="background:#1a1a2e;border:2px solid #f1c40f;border-radius:12px;padding:22px;max-width:440px;width:92%;text-align:center;">
     <h3 style="color:#f1c40f;margin:0 0 10px;">승리</h3>
-    <p style="color:#aaa;font-size:0.86em;margin-bottom:14px;">진행 방식을 선택하세요. (무한 던전)</p>
+    <p style="color:#aaa;font-size:0.86em;margin-bottom:14px;">진행 방식을 선택하세요.</p>
     <button type="button" id="vc-next" style="display:block;width:100%;margin:8px 0;padding:12px;background:#2ed573;color:#111;font-weight:700;border:none;border-radius:8px;cursor:pointer;">⬆️ 다음 층으로 (${floor + 1}층)</button>
-    <button type="button" id="vc-stay" style="display:block;width:100%;margin:8px 0;padding:12px;background:#3498db;color:#fff;font-weight:700;border:none;border-radius:8px;cursor:pointer;">🔁 이 층에 머물기 (파밍)</button>
-    ${camp ? `<button type="button" id="vc-camp" style="display:block;width:100%;margin:8px 0;padding:12px;background:#9b59b6;color:#fff;font-weight:700;border:none;border-radius:8px;cursor:pointer;">🏕️ 베이스캠프 — 테크 트리 (보존 골드)</button>` : ''}
-    <button type="button" id="vc-hub" style="display:block;width:100%;margin:8px 0;padding:10px;background:#333;color:#aaa;border:1px solid #555;border-radius:8px;cursor:pointer;">🏠 허브로 (런 종료 · 진행 저장)</button>
+    ${showStay ? `<button type="button" id="vc-stay" style="display:block;width:100%;margin:8px 0;padding:12px;background:#3498db;color:#fff;font-weight:700;border:none;border-radius:8px;cursor:pointer;">🔁 이 층에 머물기 (파밍)</button>` : ''}
+    ${camp ? `<button type="button" id="vc-camp" style="display:block;width:100%;margin:8px 0;padding:12px;background:#9b59b6;color:#fff;font-weight:700;border:none;border-radius:8px;cursor:pointer;">🏕️ 베이스캠프 (테크 + 영구 강화)</button>` : ''}
+    <button type="button" id="vc-hub" style="display:block;width:100%;margin:8px 0;padding:10px;background:#333;color:#aaa;border:1px solid #555;border-radius:8px;cursor:pointer;">🏠 허브로 (런 종료)</button>
     </div>`;
     document.body.appendChild(ov);
     document.getElementById('vc-next').onclick = () => {
         ov.remove();
         proceedWinBattleNextFloor();
     };
-    document.getElementById('vc-stay').onclick = () => {
-        ov.remove();
-        proceedWinBattleStay();
-    };
+    const st = document.getElementById('vc-stay');
+    if (st) {
+        st.onclick = () => {
+            ov.remove();
+            proceedWinBattleStay();
+        };
+    }
     const cbtn = document.getElementById('vc-camp');
     if (cbtn)
         cbtn.onclick = () => {
@@ -1930,6 +2020,132 @@ function returnToHubFromRun() {
     showPreGameScreen();
 }
 
+/** 전투 중 퀵세이브 (언제든) */
+window.saveRunNow = function saveRunNow() {
+    if (!player) {
+        writeLog('[저장] 진행 중인 런이 없습니다.');
+        return;
+    }
+    try {
+        const payload = {
+            floor,
+            gold,
+            totalGoldEarned,
+            rerollCost,
+            shopVisitCount,
+            lastEnemyJob,
+            pendingShop,
+            attackGcdUntil,
+            defendingTurns,
+            dodgingTurns,
+            shieldedTurns,
+            regenTurns,
+            regenAmount,
+            player: JSON.parse(JSON.stringify(player)),
+            enemy: enemy ? JSON.parse(JSON.stringify(enemy)) : null,
+        };
+        localStorage.setItem(QUICKSAVE_KEY, JSON.stringify(payload));
+        writeLog('[저장] 퀵세이브 완료 — 허브에서 이어하기 가능');
+    } catch (e) {
+        writeLog('[저장] 실패: ' + (e && e.message));
+    }
+};
+
+window.resumeFromQuicksave = function resumeFromQuicksave() {
+    const raw = localStorage.getItem(QUICKSAVE_KEY);
+    if (!raw) return alert('퀵세이브가 없습니다.');
+    let d;
+    try {
+        d = JSON.parse(raw);
+    } catch (e) {
+        return alert('퀵세이브 데이터가 손상되었습니다.');
+    }
+    if (!d.player) return alert('저장 데이터가 올바르지 않습니다.');
+    if (typeof MetaRPG !== 'undefined' && d.player.metaSlotId) {
+        MetaRPG.setActiveSlot(d.player.metaSlotId);
+    }
+    floor = d.floor;
+    gold = d.gold;
+    totalGoldEarned = d.totalGoldEarned;
+    rerollCost = d.rerollCost != null ? d.rerollCost : 10;
+    shopVisitCount = d.shopVisitCount != null ? d.shopVisitCount : 0;
+    lastEnemyJob = d.lastEnemyJob || '';
+    pendingShop = !!d.pendingShop;
+    attackGcdUntil = d.attackGcdUntil || 0;
+    defendingTurns = d.defendingTurns || 0;
+    dodgingTurns = d.dodgingTurns || 0;
+    shieldedTurns = d.shieldedTurns || 0;
+    regenTurns = d.regenTurns || 0;
+    regenAmount = d.regenAmount || 0;
+    player = d.player;
+    enemy = d.enemy;
+    document.getElementById('start-area').style.display = 'none';
+    document.getElementById('shop-area').style.display = 'none';
+    document.getElementById('battle-area').style.display = 'block';
+    document.getElementById('log-battle').innerHTML = '';
+    enterBattleLayout();
+    if (!enemy) {
+        pendingShop = false;
+        spawnEnemy();
+    } else {
+        updateUi();
+        renderActions();
+    }
+    writeLog('[저장] 퀵세이브를 불러왔습니다.');
+};
+
+window.exportFullSave = function exportFullSave() {
+    const keys = [
+        'dungeon_meta_v7',
+        'perma_stats',
+        'perma_buy_count',
+        'saved_gold',
+        QUICKSAVE_KEY,
+        'item_collection_v5',
+        'unlocked_floors_global',
+        'unlocked_floors_워리어',
+        'unlocked_floors_헌터',
+        'unlocked_floors_마법사',
+    ];
+    const out = { v: 7, gameBuild: GAME_BUILD, exportedAt: new Date().toISOString() };
+    keys.forEach((k) => {
+        out[k] = localStorage.getItem(k);
+    });
+    const blob = new Blob([JSON.stringify(out, null, 0)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `dungeon-save-${GAME_BUILD}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    localStorage.setItem('user_exported_save_v7', '1');
+    alert('✅ 전체 저장 파일을 내려받았습니다. 안전한 곳에 보관하세요.');
+};
+
+window.importFullSave = function importFullSave(inputEl) {
+    const f = inputEl.files && inputEl.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+        try {
+            const data = JSON.parse(r.result);
+            if (!data || typeof data !== 'object') throw new Error('형식 오류');
+            Object.keys(data).forEach((k) => {
+                if (k === 'v' || k === 'gameBuild' || k === 'exportedAt') return;
+                if (typeof data[k] === 'string' || data[k] === null) {
+                    if (data[k] === null) localStorage.removeItem(k);
+                    else localStorage.setItem(k, data[k]);
+                }
+            });
+            alert('✅ 불러오기 완료. 화면을 새로고침합니다.');
+            location.reload();
+        } catch (e) {
+            alert('불러오기 실패: ' + (e && e.message));
+        }
+    };
+    r.readAsText(f);
+    inputEl.value = '';
+};
+
 window.openBaseCampTech = function openBaseCampTech() {
     if (typeof MetaRPG === 'undefined' || !player || !player.metaSlotId) return;
     if (!MetaRPG.isBaseCampFloor(floor)) {
@@ -1950,19 +2166,28 @@ window.openBaseCampTech = function openBaseCampTech() {
         .map((n) => {
             const has = bought.has(n.id);
             const can = !has && MetaRPG.canPurchaseNode(slot, n.id) && savedGold >= n.cost;
-            const st = has ? '✅' : can ? '구매 가능' : '🔒';
+            const st = has ? '✅ 보유' : can ? '구매 가능' : '🔒 선행 필요';
+            const fx = formatTechEffect(n.effect);
             return `<div style="background:#111;border:1px solid #444;border-radius:8px;padding:10px;margin-bottom:8px;text-align:left;">
             <b style="color:#f1c40f;">${n.name}</b> <span style="color:#888;font-size:0.8em;">${st}</span>
-            <div style="color:#aaa;font-size:0.78em;margin:4px 0;">${JSON.stringify(n.effect)} · ${n.cost}G</div>
+            <div style="color:#ccc;font-size:0.82em;margin:6px 0;line-height:1.4;">효과: ${fx}</div>
+            <div style="color:#f1c40f;font-size:0.8em;margin-bottom:6px;">비용: <b>${n.cost}G</b></div>
             ${!has && MetaRPG.canPurchaseNode(slot, n.id) ? `<button type="button" onclick="buyTechNode('${n.id}')" style="background:#f1c40f;color:#111;border:none;padding:6px 12px;border-radius:6px;font-weight:700;cursor:pointer;" ${savedGold < n.cost ? 'disabled' : ''}>구매</button>` : ''}
           </div>`;
         })
         .join('');
+    const permaBlock = `<div style="margin-top:20px;padding-top:16px;border-top:1px solid #444;">
+      <h3 style="color:#f1c40f;margin:0 0 10px;font-size:1em;">⚔️ 영구 강화 (보존 골드)</h3>
+      <p style="color:#888;font-size:0.78em;margin-bottom:10px;">체력·공격·방어만 강화됩니다. (명중률 영구 강화는 제거됨)</p>
+      ${buildPermanentShopHtml()}
+    </div>`;
     ov.innerHTML = `<div style="max-width:520px;margin:0 auto;background:#1a1a2e;border:2px solid #9b59b6;border-radius:12px;padding:20px;">
-      <h2 style="color:#9b59b6;margin:0 0 8px;">🏕️ 베이스캠프 · 테크 (${floor}층)</h2>
-      <p style="color:#888;font-size:0.85em;">보존 골드: <b style="color:#f1c40f;">${savedGold}G</b> · 라인 ${slot.techLine} (변경 불가)</p>
-      <div style="max-height:360px;overflow:auto;margin:12px 0;">${rows}</div>
-      <button type="button" onclick="document.getElementById('base-camp-overlay').remove()" style="width:100%;padding:10px;background:#444;color:#fff;border:none;border-radius:8px;cursor:pointer;">닫기</button>
+      <h2 style="color:#9b59b6;margin:0 0 8px;">🏕️ 베이스캠프 (${floor}층)</h2>
+      <p style="color:#888;font-size:0.85em;">보존 골드: <b style="color:#f1c40f;">${savedGold}G</b> · 테크 라인 <b>${slot.techLine}</b> (변경 불가)</p>
+      <h3 style="color:#e0e0e0;margin:14px 0 8px;font-size:0.95em;">📊 테크 트리</h3>
+      <div style="max-height:min(360px,50vh);overflow:auto;margin:12px 0;">${rows}</div>
+      ${permaBlock}
+      <button type="button" onclick="document.getElementById('base-camp-overlay').remove()" style="width:100%;margin-top:16px;padding:10px;background:#444;color:#fff;border:none;border-radius:8px;cursor:pointer;">닫기</button>
     </div>`;
     document.body.appendChild(ov);
 };

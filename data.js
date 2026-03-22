@@ -116,13 +116,19 @@ function generateUpgrades(id, name, effectKey, baseEffect, baseCost, costMult) {
     }));
 }
 
-/** 포션 영구 강화 없음 — 체력/공격/방어/명중 20단계 */
+/** 베이스캠프 영구 강화 — 체력/공격/방어만 (명중 제거 v7.0.1) */
 const permanentUpgrades = [
     ...generateUpgrades('hp',  '체력',   'hp',     20,  20,  1.35),
     ...generateUpgrades('atk', '공격력', 'atk',    3,   30,  1.4),
     ...generateUpgrades('def', '방어력', 'def',    2,   25,  1.4),
-    ...generateUpgrades('acc', '명중률', 'acc',    2,   25,  1.45),
 ];
+
+/** 구 명중 영구강화 단계별 비용 (환불 전용, generateUpgrades와 동일 식) */
+function legacyAccUpgradePrice(level) {
+    const baseCost = 25,
+        costMult = 1.45;
+    return Math.floor(baseCost * Math.pow(costMult, Math.max(0, level - 1)));
+}
 
 /** 직업별 추가 장비 (희귀도별) */
 const equipmentPoolV651 = [
