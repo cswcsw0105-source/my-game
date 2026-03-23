@@ -65,6 +65,7 @@ let floor = 1, gold = 0, player = null, enemy = null;
 let defendingTurns = 0, dodgingTurns = 0, shieldedTurns = 0;
 let regenTurns = 0, regenAmount = 0;
 let currentShopItems = [];
+let currentPotionOffer = null;
 let lastEnemyJob = "";
 let rerollCost = 10;
 let currentUser = null;
@@ -1068,6 +1069,7 @@ function initRunFromMetaSlot() {
         mercInventory: [],
         activeQuest: null,
         farmingStay: false,
+        shopRarityBoost: 0,
     };
     floor = 1;
     gold = 0;
@@ -2210,6 +2212,7 @@ function loadRunFromMetaSnapshot(d) {
     regenTurns = d.regenTurns || 0;
     regenAmount = d.regenAmount || 0;
     player = d.player;
+    if (player && player.shopRarityBoost == null) player.shopRarityBoost = 0;
     enemy = d.enemy;
     if (enemy && (safeNum(enemy.curHp, 0) <= 0 || safeNum(enemy.hp, 0) <= 0)) {
         enemy = null;
@@ -2519,30 +2522,90 @@ function getUnlockedPoolItems() {
 }
 
 function getItemsByRarity() {
-    const lc=Math.min(15,2+Math.floor(shopVisitCount/5)), ec=Math.min(35,10+Math.floor(shopVisitCount/3)), rc=Math.min(50,30+Math.floor(shopVisitCount/4));
+    const c = getShopRarityChances();
     const rand=Math.random()*100;
     const pool = getNonMercEquipmentPool();
-    if(rand<lc) return pool.filter(i=>i.rarity==='legendary');
-    if(rand<lc+ec) return pool.filter(i=>i.rarity==='epic');
-    if(rand<lc+ec+rc) return pool.filter(i=>i.rarity==='rare');
+    if(rand<c.legendary) return pool.filter(i=>i.rarity==='legendary');
+    if(rand<c.legendary+c.epic) return pool.filter(i=>i.rarity==='epic');
+    if(rand<c.legendary+c.epic+c.rare) return pool.filter(i=>i.rarity==='rare');
     return pool.filter(i=>i.rarity==='common');
+}
+
+function getShopRarityChances() {
+    const baseLegendary = Math.min(15, 2 + Math.floor(shopVisitCount / 5));
+    const baseEpic = Math.min(35, 10 + Math.floor(shopVisitCount / 3));
+    const baseRare = Math.min(50, 30 + Math.floor(shopVisitCount / 4));
+    const boostLv = Math.max(0, Math.min(8, safeNum(player && player.shopRarityBoost, 0)));
+    let legendary = baseLegendary + boostLv * 2;
+    let epic = baseEpic + boostLv * 3;
+    let rare = baseRare + boostLv * 3;
+    let common = Math.max(0, 100 - legendary - epic - rare);
+    if (common === 0 && legendary + epic + rare > 100) {
+        const overflow = legendary + epic + rare - 100;
+        rare = Math.max(5, rare - overflow);
+    }
+    common = Math.max(0, 100 - legendary - epic - rare);
+    return { legendary, epic, rare, common };
+}
+
+function applyShopRarityTuning(baseItem) {
+    if (!baseItem) return baseItem;
+    if (baseItem.type === 'relic' || baseItem.type === 'potion' || baseItem.type === 'merc_shop_direct' || baseItem.type === 'merc_shop_fund') {
+        return { ...baseItem };
+    }
+    const tuned = { ...baseItem };
+    const rk = tuned.rarity || 'common';
+    const bonusByRarity = {
+        common: { atk: 10, hp: 10, def: 10, acc: 6, critBonus: 5, critMult: 0.2, minPrice: 35 },
+        rare: { atk: 20, hp: 20, def: 20, acc: 12, critBonus: 10, critMult: 0.3, minPrice: 75 },
+        epic: { atk: 30, hp: 30, def: 30, acc: 18, critBonus: 15, critMult: 0.5, minPrice: 140 },
+        legendary: { atk: 50, hp: 50, def: 50, acc: 26, critBonus: 22, critMult: 0.8, minPrice: 220 },
+    };
+    const b = bonusByRarity[rk] || bonusByRarity.common;
+    if (tuned.type === 'atk') tuned.value = safeNum(tuned.value, 0) + b.atk;
+    if (tuned.type === 'hp') tuned.value = safeNum(tuned.value, 0) + b.hp;
+    if (tuned.type === 'acc') tuned.value = safeNum(tuned.value, 0) + b.acc;
+    tuned.def = safeNum(tuned.def, 0) + b.def;
+    tuned.critBonus = safeNum(tuned.critBonus, 0) + b.critBonus;
+    tuned.critMult = safeNum(tuned.critMult, 0) + b.critMult;
+    tuned.price = Math.max(b.minPrice, safeNum(tuned.price, 0));
+    tuned.desc = `${tuned.desc || ''} <span style="color:#f39c12;">[등급 보정 적용]</span>`;
+    return tuned;
+}
+
+function getShopRarityBoostPrice() {
+    const lv = Math.max(0, Math.min(8, safeNum(player && player.shopRarityBoost, 0)));
+    return 120 + lv * 90;
 }
 
 function renderShopItems() {
     const list=document.getElementById('shop-list');
     list.innerHTML='';
-    const lc=Math.min(15,2+Math.floor(shopVisitCount/5)), ec=Math.min(35,10+Math.floor(shopVisitCount/3)), rc=Math.min(50,30+Math.floor(shopVisitCount/4)), cc=Math.max(0,100-lc-ec-rc);
+    const c = getShopRarityChances();
     const cb=document.createElement('div');
     cb.style.cssText='font-size:0.78em;margin-bottom:10px;display:flex;gap:10px;flex-wrap:wrap;padding:8px;background:#111;border-radius:6px;';
-    cb.innerHTML=`<span style="color:#888;">📊 등급 확률 (${shopVisitCount}회)</span><span style="color:#e74c3c;">전설 ${lc}%</span><span style="color:#a55eea;">고급 ${ec}%</span><span style="color:#1e90ff;">희귀 ${rc}%</span><span style="color:#888;">일반 ${cc}%</span>`;
+    cb.innerHTML=`<span style="color:#888;">📊 등급 확률 (${shopVisitCount}회)</span><span style="color:#e74c3c;">전설 ${c.legendary}%</span><span style="color:#a55eea;">고급 ${c.epic}%</span><span style="color:#1e90ff;">희귀 ${c.rare}%</span><span style="color:#888;">일반 ${c.common}%</span>`;
     list.appendChild(cb);
+    if (player) {
+        const lv = Math.max(0, Math.min(8, safeNum(player.shopRarityBoost, 0)));
+        const b = document.createElement('div');
+        b.style.cssText = 'margin-bottom:12px;background:#151522;border:1px solid #4b5cff;border-radius:8px;padding:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;';
+        if (lv >= 8) {
+            b.innerHTML = `<span style="color:#9fb0ff;font-size:0.85em;">✨ 고등급 확률 강화 Lv.MAX (전설/고급/희귀 증가 완료)</span><button type="button" disabled style="background:#555;color:#bbb;border:none;padding:8px 12px;border-radius:6px;font-weight:700;">최대치</button>`;
+        } else {
+            const pc = getShopRarityBoostPrice();
+            b.innerHTML = `<span style="color:#9fb0ff;font-size:0.85em;">✨ 고등급 확률 강화 Lv.${lv} → Lv.${lv + 1}</span><button type="button" onclick="buyShopRarityBoost()" style="background:#4b5cff;color:#fff;border:none;padding:8px 12px;border-radius:6px;font-weight:700;cursor:pointer;">강화 (${pc}G)</button>`;
+        }
+        list.appendChild(b);
+    }
     if (typeof MetaRPG !== 'undefined' && player && MetaRPG.isBaseCampFloor(floor)) {
         const campRow = document.createElement('div');
         campRow.style.cssText = 'margin-bottom:12px;text-align:center;';
         campRow.innerHTML = `<button type="button" onclick="openBaseCampTech()" style="width:100%;padding:12px;background:#9b59b6;color:#fff;border:1px solid #8e44ad;border-radius:8px;font-weight:700;cursor:pointer;">🏕️ 베이스캠프 (연구·영구 강화)</button>`;
         list.appendChild(campRow);
     }
-    currentShopItems=[{name:"치유 포션",type:"potion",value:80,price:40,rarity:"common",desc:"최대 체력의 35%를 즉시 회복합니다."}];
+    currentPotionOffer = { name: "치유 포션", type: "potion", value: 80, price: 40, rarity: "common", desc: "최대 체력의 35%를 즉시 회복합니다." };
+    currentShopItems = [];
     const unlockedItems=getUnlockedPoolItems(), picked=[];
     let tries=0;
     if (isMercenaryCaptainJob()) {
@@ -2580,7 +2643,7 @@ function renderShopItems() {
             const ru = unlockedItems[Math.floor(Math.random() * unlockedItems.length)];
             if (!player.items.some((i) => i.name === ru.name) && !picked.some((p) => p.name === ru.name)) picked.push(ru);
         }
-        while (picked.length < 3 && tries < 50) {
+        while (picked.length < 4 && tries < 70) {
             tries++;
             const pool = getItemsByRarity();
             if (!pool.length) continue;
@@ -2590,9 +2653,15 @@ function renderShopItems() {
                 const allowed = Array.isArray(item.onlyFor) ? item.onlyFor : [item.onlyFor];
                 if (!allowed.includes(player.name) && !allowed.includes(player.baseJob)) continue;
             }
-            picked.push(item);
+            picked.push(applyShopRarityTuning(item));
         }
         currentShopItems.push(...picked);
+    }
+    if (currentPotionOffer) {
+        const pb = document.createElement('div');
+        pb.style.cssText = 'background:#1c2d1c;border:1px solid #2ecc71;border-radius:10px;padding:12px;margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;';
+        pb.innerHTML = `<div><div style="color:#2ecc71;font-weight:700;">🧪 포션 전용 구매</div><div style="color:#9dd8b4;font-size:0.82em;">${currentPotionOffer.desc}</div></div><button type="button" onclick="buyPotionOffer()" style="background:#2ecc71;color:#111;padding:8px 14px;border:none;border-radius:6px;font-weight:700;cursor:pointer;">구매 (${currentPotionOffer.price}G)</button>`;
+        list.appendChild(pb);
     }
     const grid=document.createElement('div');
     grid.style.cssText='display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:12px;';
@@ -2621,6 +2690,28 @@ function renderShopItems() {
 window.rerollShop = () => {
     if(gold<rerollCost) return writeLog(`[상점] 골드가 부족합니다.`);
     gold-=rerollCost; rerollCost+=10; writeLog(`[상점] 리롤 완료!`); updateUi(); renderShopItems();
+};
+
+window.buyPotionOffer = () => {
+    if (!player || !currentPotionOffer) return;
+    if (gold < currentPotionOffer.price) return writeLog('골드 부족!');
+    gold -= currentPotionOffer.price;
+    player.potions = safeNum(player.potions, 0) + 1;
+    writeLog('[상점] 포션 구매 완료.');
+    updateUi();
+};
+
+window.buyShopRarityBoost = () => {
+    if (!player) return;
+    const lv = Math.max(0, Math.min(8, safeNum(player.shopRarityBoost, 0)));
+    if (lv >= 8) return writeLog('[상점] 고등급 확률 강화가 최대입니다.');
+    const price = getShopRarityBoostPrice();
+    if (gold < price) return writeLog('[상점] 골드가 부족합니다.');
+    gold -= price;
+    player.shopRarityBoost = lv + 1;
+    writeLog(`[상점] ✨ 고등급 확률 강화 Lv.${lv + 1}!`);
+    updateUi();
+    renderShopItems();
 };
 
 function saveCollection(itemName) {
@@ -3010,23 +3101,11 @@ function gameOver() {
     const slotId = player && player.metaSlotId;
     const enName = enemy ? enemy.name : '알 수 없는 적';
     const fl = floor;
-    let snap = null;
-    if (slotId && typeof MetaRPG !== 'undefined') {
-        snap = MetaRPG.getRunSnapshot(slotId);
-    }
     window.__deathCtx = { sg, slotId, floor: fl, enemyName: enName };
 
     exitBattleLayout();
     document.getElementById('battle-area').style.display = 'none';
 
-    if (snap && snap.player && slotId) {
-        window.__deathApplied = true;
-        MetaRPG.setActiveSlot(slotId);
-        document.querySelector('.screen').innerHTML = '';
-        writeLog(`💀 ${fl}층 패배 — 마지막 저장 지점으로 복구합니다.`);
-        loadRunFromMetaSnapshot(snap);
-        return;
-    }
     finalizeGameOverDeath();
 }
 
@@ -3069,6 +3148,6 @@ window.finalizeGameOverDeath = function finalizeGameOverDeath() {
         const ps = getSavedGold();
         localStorage.setItem('saved_gold', ps + sg);
     }
-    document.querySelector('.screen').innerHTML = `<div style="text-align:center;padding:40px 20px;"><h2 style="color:#ff4757;font-size:2em;">💀 GAME OVER</h2><p style="color:#e0e0e0;font-size:1.1em;margin:15px 0;"><b style="color:#f1c40f;">${fl}층</b>에서 <b style="color:#ff4757;">${enName}</b>에게 쓰러졌습니다.</p><p style="color:#2ed573;font-size:0.95em;">💰 보존 골드: <b>+${sg}G</b></p><button type="button" onclick="location.reload()" style="background:#ff4757;margin-top:20px;padding:12px 30px;font-size:1em;border:none;border-radius:8px;cursor:pointer;color:#fff;">🔄 허브로</button></div>`;
-    writeLog(`💀 ${fl}층 게임 오버.`);
+    writeLog(`💀 ${fl}층에서 ${enName}에게 패배했습니다. 허브로 복귀합니다.`);
+    returnToHubFromRun(false);
 };
