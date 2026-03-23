@@ -27,6 +27,8 @@
         if (!s.campPerma) s.campPerma = { hp: 0, atk: 0, def: 0, crit: 0, cm: 0 };
         if (s.reincarnationCount == null) s.reincarnationCount = 0;
         if (!s.rebirthStatBonus) s.rebirthStatBonus = { hp: 0, atk: 0, def: 0, acc: 0 };
+        if (!s.rebirthPctBonus) s.rebirthPctBonus = { atkPct: 0, defPct: 0, critMultPct: 0 };
+        if (s.bestFloor == null) s.bestFloor = 1;
         /** A/B 라인 고정 제거 — 테크는 직업 내 노드 자유 조합 */
         if (s.techLine === 'A' || s.techLine === 'B') s.techLine = null;
     }
@@ -248,6 +250,20 @@
         return 6000 + c * 10000;
     }
 
+    function getRebirthMinFloor() {
+        return 500;
+    }
+
+    function updateBestFloor(slotId, floor) {
+        const m = loadMeta();
+        const slot = m.slots.find((s) => s.id === slotId);
+        if (!slot) return 1;
+        const f = Math.max(1, Math.floor(Number(floor) || 1));
+        slot.bestFloor = Math.max(1, slot.bestFloor || 1, f);
+        saveMeta(m);
+        return slot.bestFloor;
+    }
+
     /** 환생: 런 아이템·영구강화(캠프) 초기화, 환생 보너스 누적, 최대 3회 */
     function applyReincarnation(slotId, options) {
         const m = loadMeta();
@@ -255,6 +271,9 @@
         if (!slot) return { ok: false, msg: '슬롯 없음' };
         const cur = slot.reincarnationCount || 0;
         if (cur >= 3) return { ok: false, msg: '환생은 최대 3회까지입니다.' };
+        const needFloor = getRebirthMinFloor();
+        const bestFloor = Math.max(1, slot.bestFloor || 1);
+        if (bestFloor < needFloor) return { ok: false, msg: '환생 조건 미달 (최고 ' + bestFloor + '층, 필요 ' + needFloor + '층)' };
         const cost = getRebirthGoldCost(slot);
         if (options && options.payGold && m.savedGold < cost) return { ok: false, msg: '보존 골드 부족 (' + cost + 'G 필요)' };
         if (options && options.payGold) m.savedGold = Math.max(0, m.savedGold - cost);
@@ -264,16 +283,19 @@
         slot.runCheckpointMeta = { level: 1, exp: 0 };
         slot.level = 1;
         slot.exp = 0;
+        /** 영구 연구(테크)도 환생 시 초기화 */
+        slot.techLine = null;
+        slot.techPurchased = [];
         slot.campPerma = { hp: 0, atk: 0, def: 0, crit: 0, cm: 0 };
         slot.legacyPerma = { hp: 0, atk: 0, def: 0, acc: 0 };
         slot.extraPerma = { hp: 0, atk: 0, def: 0, acc: 0 };
         slot.metaPenalty = { hp: 0, atk: 0, def: 0, acc: 0 };
         slot.questFlags = {};
         slot.rebirthStatBonus = slot.rebirthStatBonus || { hp: 0, atk: 0, def: 0, acc: 0 };
-        slot.rebirthStatBonus.hp += 28;
-        slot.rebirthStatBonus.atk += 2;
-        slot.rebirthStatBonus.def += 2;
-        slot.rebirthStatBonus.acc += 1;
+        slot.rebirthPctBonus = slot.rebirthPctBonus || { atkPct: 0, defPct: 0, critMultPct: 0 };
+        slot.rebirthPctBonus.atkPct += 20;
+        slot.rebirthPctBonus.defPct += 20;
+        slot.rebirthPctBonus.critMultPct += 20;
         recalcTechBonus(slot);
         saveMeta(m);
         return { ok: true, cost };
@@ -300,6 +322,8 @@
             questFlags: {},
             reincarnationCount: 0,
             rebirthStatBonus: { hp: 0, atk: 0, def: 0, acc: 0 },
+            rebirthPctBonus: { atkPct: 0, defPct: 0, critMultPct: 0 },
+            bestFloor: 1,
         };
         recalcTechBonus(slot);
         m.slots.push(slot);
@@ -490,6 +514,8 @@
         expToNextLevel,
         hasJobSlot,
         getRebirthGoldCost,
+        getRebirthMinFloor,
+        updateBestFloor,
         applyReincarnation,
         markRunCheckpoint,
         revertRunToCheckpoint,

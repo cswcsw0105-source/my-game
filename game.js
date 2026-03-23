@@ -88,7 +88,7 @@ const MERC_FLOOR_SCALE_CAP = 1.65;
 const CRIT_SOFT_CAP = 70;
 const LIFESTEAL_SOFT_CAP = 0.85;
 const BASE_HIT_ACCURACY = 75;
-const CRIT_OVERFLOW_TO_MULT = 0.1;
+const CRIT_OVERFLOW_TO_MULT = 0.005;
 
 function clearSummonRunStorage() {
     localStorage.removeItem('summon_altar_done');
@@ -276,6 +276,24 @@ function getCritOverflowForMult() {
 function getEffectiveCritMult() {
     const base = safeNum(player && player.critMult, 1.8);
     return (base > 0 ? base : 1.8) + getCritOverflowForMult() * CRIT_OVERFLOW_TO_MULT;
+}
+function formatShopItemName(name) {
+    return String(name || '').replace(/\s*·\s*[워헌마]\d{2}\s*$/u, '');
+}
+function formatShopItemDesc(desc) {
+    let s = String(desc || '');
+    s = s.replace(/(?:워리어|헌터|마법사)\s*계열\.\s*/g, '');
+    return s.trim();
+}
+function applyRebirthPctBonusToPlayer(slot) {
+    if (!player || !slot) return;
+    const rb = slot.rebirthPctBonus || { atkPct: 0, defPct: 0, critMultPct: 0 };
+    const atkPct = Math.max(0, safeNum(rb.atkPct, 0));
+    const defPct = Math.max(0, safeNum(rb.defPct, 0));
+    const cmPct = Math.max(0, safeNum(rb.critMultPct, 0));
+    if (atkPct > 0) player.atk = Math.ceil(player.atk * (1 + atkPct / 100));
+    if (defPct > 0) player.def = Math.ceil(player.def * (1 + defPct / 100));
+    if (cmPct > 0) player.critMult = Math.ceil(player.critMult * (1 + cmPct / 100));
 }
 function getCritInfo() {
     const rawCrit = safeNum(player && player.crit, 5);
@@ -737,7 +755,7 @@ function buildPermanentShopHtml() {
     const cp = slot.campPerma || { hp: 0, atk: 0, def: 0, crit: 0, cm: 0 };
     const tb = slot.techBonus || {};
     const runGold = safeNum(gold, 0);
-    const sumLine = `<p style="color:#888;font-size:0.78em;margin:0 0 12px 0;line-height:1.5;">📌 <b>이 캐릭터 누적</b> — 체력+테크 <b style="color:#2ed573">${Math.round(tb.hp || 0)}</b> · 공격 <b style="color:#f1c40f">${Math.round(tb.atk || 0)}</b> · 방어 <b style="color:#1e90ff">${Math.round(tb.def || 0)}</b> · 치명 <b style="color:#f39c12">+${(tb.crit || 0).toFixed(1)}%</b> · 배율 <b style="color:#e67e22">+${(tb.critMult || 0).toFixed(2)}</b></p><p style="color:#2ed573;font-size:0.8em;">💰 런 골드로 구매: <b>${runGold}G</b></p>`;
+    const sumLine = `<p style="color:#888;font-size:0.78em;margin:0 0 12px 0;line-height:1.5;">📌 <b>이 캐릭터 누적</b> — 체력+테크 <b style="color:#2ed573">${Math.ceil(tb.hp || 0)}</b> · 공격 <b style="color:#f1c40f">${Math.ceil(tb.atk || 0)}</b> · 방어 <b style="color:#1e90ff">${Math.ceil(tb.def || 0)}</b> · 치명 <b style="color:#f39c12">+${Math.ceil(tb.crit || 0)}%</b> · 배율 <b style="color:#e67e22">+${Math.ceil((tb.critMult || 0) * 100)}%</b></p><p style="color:#2ed573;font-size:0.8em;">💰 런 골드로 구매: <b>${runGold}G</b></p>`;
     const catKeys = ['hp', 'atk', 'def', 'crit', 'cm'];
     const labels = { hp: '❤️ 체력', atk: '⚔️ 공격', def: '🛡️ 방어', crit: '💥 치명 확률', cm: '🎯 치명 배율' };
     const sub = {
@@ -808,7 +826,6 @@ function showPreGameScreen() {
         mx.slots.forEach((s) => MetaRPG.recalcTechBonus(s));
         MetaRPG.saveMeta(mx);
     }
-    const savedGold = getSavedGold();
     const globalUnlocked = getUnlockedFloors(null);
     const warriorUnlocked = getUnlockedFloors('워리어');
     const hunterUnlocked = getUnlockedFloors('헌터');
@@ -837,6 +854,8 @@ function showPreGameScreen() {
                       const rct = s.reincarnationCount || 0;
                       const gen = rct + 1;
                       const rebCost = MetaRPG.getRebirthGoldCost(s);
+                      const rebNeedFloor = MetaRPG.getRebirthMinFloor ? MetaRPG.getRebirthMinFloor() : 500;
+                      const bestFloor = Math.max(1, s.bestFloor || 1);
                       const canReb = rct < 3;
                       const rebBtn = canReb
                           ? `<button type="button" onclick="event.stopPropagation();reincarnateFromHub('${s.id}')" style="background:#c0392b;color:#fff;padding:8px 12px;font-weight:700;border:none;border-radius:8px;cursor:pointer;font-size:0.82em;">🔁 환생 (${rebCost}G)</button>`
@@ -848,7 +867,8 @@ function showPreGameScreen() {
                       return `<div style="background:#111;border:1px solid #444;border-radius:10px;padding:12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
                         <div style="text-align:left;">
                             <div style="color:#f1c40f;font-weight:700;">${esc(s.name)} ${gen > 1 ? `<span style="color:#aaa;font-size:0.85em;">(인생 ${gen}회차)</span>` : ''}</div>
-                            <div style="color:#888;font-size:0.78em;">${lifeBadge}${techFree} · 메타 Lv.${s.level || 1} · 환생 ${rct}/3</div>
+                            <div style="color:#888;font-size:0.78em;">직업 ${jb.name} · ${lifeBadge}${techFree} · 메타 Lv.${s.level || 1} · 최고 ${bestFloor}층 · 환생 ${rct}/3</div>
+                            <div style="color:#666;font-size:0.72em;">환생 조건: ${rebNeedFloor}층 이상 도달 + 골드 필요</div>
                         </div>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
                         <button type="button" onclick="resumeMetaSlot('${s.id}')" style="background:#2ed573;color:#111;padding:8px 16px;font-weight:700;border:none;border-radius:8px;cursor:pointer;">이어하기</button>
@@ -878,7 +898,7 @@ function showPreGameScreen() {
         <div style="text-align:center; margin-bottom:16px;">
             <h2 style="color:#f1c40f; margin-bottom:5px;">⚔️ 로그라이트 허브</h2>
             <p style="color:#9b59b6;font-size:0.88em;margin:0 0 8px;font-weight:700;">시즌1(베타)</p>
-            <p style="color:#888; font-size:0.85em;">보존 골드: <b style="color:#f1c40f;">${savedGold}G</b> · 무한 층 · 베이스캠프에서만 영구 성장</p>
+            <p style="color:#888; font-size:0.85em;">무한 층 · 베이스캠프에서만 영구 성장</p>
             ${globalUnlocked.length > 0 ? `<p style="color:#f1c40f;font-size:0.8em;">🔓 공용 해금: ${globalUnlocked.join(', ')}층</p>` : ''}
             ${warriorUnlocked.length > 0 ? `<p style="color:#ff4757;font-size:0.8em;">🔓 워리어: ${warriorUnlocked.join(', ')}층</p>` : ''}
             ${hunterUnlocked.length > 0 ? `<p style="color:#2ed573;font-size:0.8em;">🔓 헌터: ${hunterUnlocked.join(', ')}층</p>` : ''}
@@ -923,8 +943,11 @@ window.reincarnateFromHub = function reincarnateFromHub(slotId) {
     const slot = MetaRPG.getSlotById(slotId);
     if (!slot) return;
     const cost = MetaRPG.getRebirthGoldCost(slot);
+    const needFloor = MetaRPG.getRebirthMinFloor ? MetaRPG.getRebirthMinFloor() : 500;
+    const bestFloor = Math.max(1, slot.bestFloor || 1);
     if ((slot.reincarnationCount || 0) >= 3) return alert('환생은 최대 3회입니다.');
-    if (!confirm(`환생: ${cost}G를 지불하고 이 캐릭터의 베이스캠프 영구강화·퀘스트 보너스를 초기화합니다.\n이어하기 시 1층·빈 인벤에서 시작하며, 테크 트리는 유지·환생 스탯 보너스가 누적됩니다.`)) return;
+    if (bestFloor < needFloor) return alert(`환생 조건 미달: 최고 ${bestFloor}층 (필요 ${needFloor}층)`);
+    if (!confirm(`환생: ${cost}G를 지불하고 이 캐릭터의 베이스캠프 영구강화·퀘스트 보너스를 초기화합니다.\n조건: 최고 ${needFloor}층 이상. 환생 시 공격/방어/치명 배율 +20% 누적.`)) return;
     MetaRPG.setActiveSlot(slotId);
     const r = MetaRPG.applyReincarnation(slotId, { payGold: true });
     if (!r.ok) return alert(r.msg);
@@ -1071,6 +1094,7 @@ function initRunFromMetaSlot() {
         farmingStay: false,
         shopRarityBoost: 0,
     };
+    applyRebirthPctBonusToPlayer(slot);
     floor = 1;
     gold = 0;
     totalGoldEarned = 0;
@@ -2119,6 +2143,7 @@ function winBattle() {
 function proceedWinBattleFarmContinue() {
     const clearedFloor = floor;
     checkFloorUnlock(clearedFloor);
+    if (player && player.metaSlotId && typeof MetaRPG !== 'undefined' && MetaRPG.updateBestFloor) MetaRPG.updateBestFloor(player.metaSlotId, clearedFloor);
     if (isMercenaryCaptainJob() && clearedFloor >= 19 && clearedFloor <= 30 && !player.mercEvolutionChosen) {
         setTimeout(() => showMercEvolutionChoice(() => winBattleContinueFrom(clearedFloor)), 450);
         return;
@@ -2147,6 +2172,7 @@ function proceedWinBattleNextFloor() {
     const clearedFloor = floor;
     floor++;
     checkFloorUnlock(clearedFloor);
+    if (player && player.metaSlotId && typeof MetaRPG !== 'undefined' && MetaRPG.updateBestFloor) MetaRPG.updateBestFloor(player.metaSlotId, clearedFloor);
     if (isMercenaryCaptainJob() && clearedFloor >= 19 && clearedFloor <= 30 && !player.mercEvolutionChosen) {
         setTimeout(() => showMercEvolutionChoice(() => winBattleContinueFrom(clearedFloor)), 450);
         return;
@@ -2212,6 +2238,7 @@ function loadRunFromMetaSnapshot(d) {
     regenTurns = d.regenTurns || 0;
     regenAmount = d.regenAmount || 0;
     player = d.player;
+    if (player && player.metaSlotId && typeof MetaRPG !== 'undefined' && MetaRPG.updateBestFloor) MetaRPG.updateBestFloor(player.metaSlotId, d.floor || 1);
     if (player && player.shopRarityBoost == null) player.shopRarityBoost = 0;
     enemy = d.enemy;
     if (enemy && (safeNum(enemy.curHp, 0) <= 0 || safeNum(enemy.hp, 0) <= 0)) {
@@ -2562,6 +2589,7 @@ function applyShopRarityTuning(baseItem) {
         legendary: { atk: 50, hp: 50, def: 50, acc: 26, critBonus: 22, critMult: 0.8, minPrice: 220 },
     };
     const b = bonusByRarity[rk] || bonusByRarity.common;
+    tuned.name = formatShopItemName(tuned.name);
     if (tuned.type === 'atk') tuned.value = safeNum(tuned.value, 0) + b.atk;
     if (tuned.type === 'hp') tuned.value = safeNum(tuned.value, 0) + b.hp;
     if (tuned.type === 'acc') tuned.value = safeNum(tuned.value, 0) + b.acc;
@@ -2569,7 +2597,7 @@ function applyShopRarityTuning(baseItem) {
     tuned.critBonus = safeNum(tuned.critBonus, 0) + b.critBonus;
     tuned.critMult = safeNum(tuned.critMult, 0) + b.critMult;
     tuned.price = Math.max(b.minPrice, safeNum(tuned.price, 0));
-    tuned.desc = `${tuned.desc || ''} <span style="color:#f39c12;">[등급 보정 적용]</span>`;
+    tuned.desc = formatShopItemDesc(tuned.desc);
     return tuned;
 }
 
@@ -2641,7 +2669,7 @@ function renderShopItems() {
         }
         if (unlockedItems.length > 0) {
             const ru = unlockedItems[Math.floor(Math.random() * unlockedItems.length)];
-            if (!player.items.some((i) => i.name === ru.name) && !picked.some((p) => p.name === ru.name)) picked.push(ru);
+            if (!player.items.some((i) => i.name === ru.name) && !picked.some((p) => p.name === ru.name)) picked.push(applyShopRarityTuning(ru));
         }
         while (picked.length < 4 && tries < 70) {
             tries++;
@@ -2679,7 +2707,7 @@ function renderShopItems() {
         const iu=getUnlockedPoolItems().some(u=>u.name===it.name);
         d.style.cssText=`background:#1a1a1a;border:1px solid ${bc};border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px;transition:transform 0.15s;cursor:default;`;
         d.onmouseenter=()=>d.style.transform='translateY(-2px)'; d.onmouseleave=()=>d.style.transform='translateY(0)';
-        d.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;"><span style="background:${bb};color:${bac};border:1px solid ${bc};border-radius:4px;font-size:0.7em;font-weight:700;padding:2px 7px;letter-spacing:1px;">${iu?'🔓 ':''}${bt}</span><span style="font-size:1.3em;">${ti}</span></div><div style="color:${nc};font-weight:700;font-size:1em;line-height:1.3;">${it.name}</div><div style="color:#888;font-size:0.78em;line-height:1.5;flex:1;">${it.desc}</div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;"><span style="color:#f1c40f;font-weight:700;font-size:1em;">💰 ${it.price}G</span><button onclick="buyItem(event,${idx})" style="background:#f1c40f;color:#111;padding:6px 14px;font-size:0.85em;font-weight:700;margin:0;border-radius:6px;">구매</button></div>`;
+        d.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;"><span style="background:${bb};color:${bac};border:1px solid ${bc};border-radius:4px;font-size:0.7em;font-weight:700;padding:2px 7px;letter-spacing:1px;">${iu?'🔓 ':''}${bt}</span><span style="font-size:1.3em;">${ti}</span></div><div style="color:${nc};font-weight:700;font-size:1em;line-height:1.3;">${formatShopItemName(it.name)}</div><div style="color:#888;font-size:0.78em;line-height:1.5;flex:1;">${formatShopItemDesc(it.desc)}</div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;"><span style="color:#f1c40f;font-weight:700;font-size:1em;">💰 ${it.price}G</span><button onclick="buyItem(event,${idx})" style="background:#f1c40f;color:#111;padding:6px 14px;font-size:0.85em;font-weight:700;margin:0;border-radius:6px;">구매</button></div>`;
         grid.appendChild(d);
     });
     list.appendChild(grid);
@@ -2985,7 +3013,7 @@ function updateUi() {
         document.getElementById('p-acc-val').textContent = `${Math.min(95, BASE_HIT_ACCURACY + safeNum(player.acc, 0) + getMercBonusAcc())}%`;
         document.getElementById('p-crit-val').textContent = `${Math.round(getMercEffectiveCritForMercAttack())}%`;
         const ecmM = getMercEffectiveCritMultForMercAttack();
-        if (critMultEl) critMultEl.textContent = `${(Number.isFinite(ecmM) ? ecmM : 1.8).toFixed(2)}x`;
+        if (critMultEl) critMultEl.textContent = `${Math.ceil(Number.isFinite(ecmM) ? ecmM : 1.8)}x`;
         const lsMain = document.getElementById('p-lifesteal-val');
         const lsNote = document.getElementById('p-lifesteal-note');
         if (lsMain) lsMain.textContent = `${Math.round(safeNum(fm.mercBonusLifesteal, 0) * 100)}%`;
@@ -3008,7 +3036,7 @@ function updateUi() {
         const critInfo = getCritInfo();
         document.getElementById('p-crit-val').textContent = `${Math.round(safeNum(critInfo.effectiveCrit, 0))}%`;
         const ecm = getEffectiveCritMult();
-        if (critMultEl) critMultEl.textContent = `${(Number.isFinite(ecm) ? ecm : 1.8).toFixed(2)}x`;
+        if (critMultEl) critMultEl.textContent = `${Math.ceil(Number.isFinite(ecm) ? ecm : 1.8)}x`;
         const lsOv = getLifestealOverflowAtk();
         const lsMain = document.getElementById('p-lifesteal-val');
         const lsNote = document.getElementById('p-lifesteal-note');

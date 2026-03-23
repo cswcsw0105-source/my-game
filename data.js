@@ -279,8 +279,7 @@ const equipmentPoolS1Extra = (function generateEquipmentPoolS1Extra() {
     function nameFor(job, i, pArr, sArr) {
         const a = pArr[(i * 7) % pArr.length];
         const b = sArr[(i * 11) % sArr.length];
-        const tag = job === 'w' ? '워' : job === 'h' ? '헌' : '마';
-        return `${a} ${b} · ${tag}${String(i).padStart(2, '0')}`;
+        return `${a} ${b}`;
     }
     function addLine(jobArr, tag, jobKey, i, pArr, sArr) {
         const rar = i % 25 === 0 ? 'legendary' : i % 6 === 0 ? 'epic' : i % 2 === 0 ? 'rare' : 'common';
@@ -289,7 +288,6 @@ const equipmentPoolS1Extra = (function generateEquipmentPoolS1Extra() {
         const k = i % 6;
         const tg = tag ? [tag] : undefined;
         const nm = nameFor(jobKey, i, pArr, sArr);
-        const lab = jobKey === 'w' ? '워리어' : jobKey === 'h' ? '헌터' : '마법사';
         if (k === 0) {
             const d = Math.floor(v / 10);
             out.push({
@@ -301,7 +299,7 @@ const equipmentPoolS1Extra = (function generateEquipmentPoolS1Extra() {
                 rarity: rar,
                 onlyFor: jobArr,
                 tags: tg,
-                desc: `${lab} 계열. 공격(+${v}), 방어(+${d}).`,
+                desc: `공격(+${v}), 방어(+${d}).`,
             });
         } else if (k === 1) {
             const df = 4 + (i % 12);
@@ -314,7 +312,7 @@ const equipmentPoolS1Extra = (function generateEquipmentPoolS1Extra() {
                 rarity: rar,
                 onlyFor: jobArr,
                 tags: tg,
-                desc: `${lab} 계열. 체력(+${v * 2}), 방어(+${df}).`,
+                desc: `체력(+${v * 2}), 방어(+${df}).`,
             });
         } else if (k === 2) {
             const cb = 2 + (i % 9);
@@ -327,7 +325,7 @@ const equipmentPoolS1Extra = (function generateEquipmentPoolS1Extra() {
                 rarity: rar,
                 onlyFor: jobArr,
                 tags: tg,
-                desc: `${lab} 계열. 공격(+${v}), 치명(+${cb}%).`,
+                desc: `공격(+${v}), 치명(+${cb}%).`,
             });
         } else if (k === 3) {
             const ac = 10 + (i % 15);
@@ -339,7 +337,7 @@ const equipmentPoolS1Extra = (function generateEquipmentPoolS1Extra() {
                 rarity: rar,
                 onlyFor: jobArr,
                 tags: tg,
-                desc: `${lab} 계열. 명중(+${ac}%).`,
+                desc: `명중(+${ac}%).`,
             });
         } else if (k === 4) {
             const ls = Math.round((0.04 + (i % 9) * 0.012) * 1000) / 1000;
@@ -352,7 +350,7 @@ const equipmentPoolS1Extra = (function generateEquipmentPoolS1Extra() {
                 rarity: rar,
                 onlyFor: jobArr,
                 tags: tg,
-                desc: `${lab} 계열. 공격(+${v}), 흡혈(${Math.round(ls * 100)}%).`,
+                desc: `공격(+${v}), 흡혈(${Math.round(ls * 100)}%).`,
             });
         } else {
             const cm = Math.round((0.06 + (i % 8) * 0.03) * 100) / 100;
@@ -365,7 +363,7 @@ const equipmentPoolS1Extra = (function generateEquipmentPoolS1Extra() {
                 rarity: rar,
                 onlyFor: jobArr,
                 tags: tg,
-                desc: `${lab} 계열. 공격(+${v}), 치명 배율(+${Math.round(cm * 100)}%).`,
+                desc: `공격(+${v}), 치명 배율(+${Math.round(cm * 100)}%).`,
             });
         }
     }
