@@ -27,6 +27,8 @@
         if (!s.campPerma) s.campPerma = { hp: 0, atk: 0, def: 0, crit: 0, cm: 0 };
         if (s.reincarnationCount == null) s.reincarnationCount = 0;
         if (!s.rebirthStatBonus) s.rebirthStatBonus = { hp: 0, atk: 0, def: 0, acc: 0 };
+        /** A/B 라인 고정 제거 — 테크는 직업 내 노드 자유 조합 */
+        if (s.techLine === 'A' || s.techLine === 'B') s.techLine = null;
     }
 
     function loadMeta() {
@@ -68,7 +70,7 @@
                     id: uid(),
                     name: '이전 모험가',
                     jobKey: 'Warrior',
-                    techLine: 'A',
+                    techLine: null,
                     techPurchased: [],
                     legacyPerma: { hp, atk, def, acc },
                     extraPerma: { hp: 0, atk: 0, def: 0, acc: 0 },
@@ -143,11 +145,9 @@
             def = 0,
             acc = 0;
         const jb = slot.jobKey;
-        const line = slot.techLine;
         for (const n of TECH_NODES) {
             if (!bought.has(n.id)) continue;
             if (n.jobKey !== jb) continue;
-            if (n.line !== line) continue;
             const e = n.effect || {};
             hp += (e.hp || 0) * techMult;
             atk += (e.atk || 0) * techMult;
@@ -175,13 +175,13 @@
     }
 
     function getTechNodesForSlot(slot) {
-        if (!slot || !slot.techLine) return [];
-        return TECH_NODES.filter((n) => n.jobKey === slot.jobKey && n.line === slot.techLine);
+        if (!slot || !slot.jobKey) return [];
+        return TECH_NODES.filter((n) => n.jobKey === slot.jobKey);
     }
 
     function canPurchaseNode(slot, nodeId) {
         const n = TECH_NODES.find((x) => x.id === nodeId);
-        if (!n || n.jobKey !== slot.jobKey || n.line !== slot.techLine) return false;
+        if (!n || n.jobKey !== slot.jobKey) return false;
         if ((slot.techPurchased || []).includes(nodeId)) return false;
         const bought = new Set(slot.techPurchased || []);
         for (const r of n.requires || []) {
@@ -279,7 +279,7 @@
         return { ok: true, cost };
     }
 
-    function createCharacter(name, jobKey, techLine) {
+    function createCharacter(name, jobKey) {
         const m = loadMeta();
         if (m.slots.length >= MAX_SLOTS) return { ok: false, msg: '슬롯 가득 (최대 ' + MAX_SLOTS + ')' };
         if (m.slots.some((s) => s.jobKey === jobKey)) {
@@ -289,7 +289,7 @@
             id: uid(),
             name: name || '무명',
             jobKey,
-            techLine: techLine === 'B' ? 'B' : 'A',
+            techLine: null,
             techPurchased: [],
             legacyPerma: { hp: 0, atk: 0, def: 0, acc: 0 },
             extraPerma: { hp: 0, atk: 0, def: 0, acc: 0 },

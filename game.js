@@ -832,7 +832,7 @@ function showPreGameScreen() {
                   .map((s) => {
                       MetaRPG.recalcTechBonus(s);
                       const jb = jobBase[s.jobKey] || { name: '?', color: '#888' };
-                      const line = s.techLine === 'B' ? 'B' : 'A';
+                      const techFree = '테크 자유';
                       const rct = s.reincarnationCount || 0;
                       const gen = rct + 1;
                       const rebCost = MetaRPG.getRebirthGoldCost(s);
@@ -847,10 +847,11 @@ function showPreGameScreen() {
                       return `<div style="background:#111;border:1px solid #444;border-radius:10px;padding:12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
                         <div style="text-align:left;">
                             <div style="color:#f1c40f;font-weight:700;">${esc(s.name)} ${gen > 1 ? `<span style="color:#aaa;font-size:0.85em;">(인생 ${gen}회차)</span>` : ''}</div>
-                            <div style="color:#888;font-size:0.78em;">${lifeBadge}테크 ${line} · 메타 Lv.${s.level || 1} · 환생 ${rct}/3</div>
+                            <div style="color:#888;font-size:0.78em;">${lifeBadge}${techFree} · 메타 Lv.${s.level || 1} · 환생 ${rct}/3</div>
                         </div>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
                         <button type="button" onclick="resumeMetaSlot('${s.id}')" style="background:#2ed573;color:#111;padding:8px 16px;font-weight:700;border:none;border-radius:8px;cursor:pointer;">이어하기</button>
+                        ${MetaRPG.getRunSnapshot(s.id) ? `<button type="button" onclick="event.stopPropagation();deleteRunSnapshotForSlot('${s.id}')" style="background:#34495e;color:#ecf0f1;padding:8px 12px;font-weight:700;border:none;border-radius:8px;cursor:pointer;font-size:0.82em;">🗑 저장 삭제</button>` : ''}
                         ${rebBtn}
                         </div>
                     </div>`;
@@ -860,7 +861,7 @@ function showPreGameScreen() {
         .map((job) => {
             const taken = m.slots.some((x) => x.jobKey === job);
             const dim = taken ? 'opacity:0.42;pointer-events:none;' : 'cursor:pointer;';
-            const sub = taken ? '<div style="color:#888;font-size:0.65em;margin-top:4px;">직업당 1명 (환생으로 재도전)</div>' : '<div style="color:#666;font-size:0.72em;margin-top:4px;">새 캐릭터 (테크 선택)</div>';
+            const sub = taken ? '<div style="color:#888;font-size:0.65em;margin-top:4px;">직업당 1명 (환생으로 재도전)</div>' : '<div style="color:#666;font-size:0.72em;margin-top:4px;">새 캐릭터</div>';
             return `
         <div onclick="${taken ? 'void(0)' : `openTechLinePicker('${job}')`}" style="background:#1a1a1a;border:2px solid ${jobBase[job].color};border-radius:10px;padding:12px;text-align:center;${dim}">
             <div style="color:${jobBase[job].color};font-weight:700;">${jobBase[job].name}</div>
@@ -886,7 +887,7 @@ function showPreGameScreen() {
             <h4 style="color:#f1c40f;margin:0 0 8px 0;">💾 캐릭터 슬롯 (최대 ${typeof MetaRPG !== 'undefined' ? MetaRPG.MAX_SLOTS : 4})</h4>
             ${slotRows}
         </div>
-        <h4 style="color:#aaa;font-size:0.9em;margin:12px 0;">새 모험가 — 직업 선택 후 <b>테크 라인(A/B)</b>이 영구 고정됩니다.</h4>
+        <h4 style="color:#aaa;font-size:0.9em;margin:12px 0;">새 모험가 — 직업만 고르면 됩니다. <b>테크·장비</b>는 플레이 중 원하는 대로 고릅니다.</h4>
         <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;max-width:520px;margin-left:auto;margin-right:auto;">
             ${newCharGrid}
         </div>
@@ -946,33 +947,20 @@ window.openTechLinePicker = (jobKey) => {
         alert('슬롯이 가득 찼습니다.');
         return;
     }
-    const ov = document.createElement('div');
-    ov.id = 'tech-line-overlay';
-    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:10060;display:flex;align-items:center;justify-content:center;';
-    const jn = jobBase[jobKey].name;
-    ov.innerHTML = `<div style="background:#1a1a2e;border:2px solid #f1c40f;border-radius:12px;padding:22px;max-width:440px;width:92%;text-align:center;">
-      <h3 style="color:#f1c40f;margin:0 0 10px;">테크 라인 (변경 불가)</h3>
-      <p style="color:#aaa;font-size:0.86em;margin-bottom:14px;">${jn} — 한 번 고르면 이 캐릭터는 영구적으로 이 라인만 강화합니다.</p>
-      <button type="button" id="tl-a" style="display:block;width:100%;margin:8px 0;padding:12px;background:#e74c3c;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;">A 라인 · 침투 / 화력 / 지휘</button>
-      <button type="button" id="tl-b" style="display:block;width:100%;margin:8px 0;padding:12px;background:#3498db;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;">B 라인 · 철벽 / 생존 / 결계</button>
-      <button type="button" id="tl-x" style="margin-top:10px;background:transparent;border:1px solid #555;color:#888;padding:6px 12px;cursor:pointer;border-radius:6px;">취소</button>
-    </div>`;
-    document.body.appendChild(ov);
-    document.getElementById('tl-a').onclick = () => {
-        ov.remove();
-        confirmNewCharacter(jobKey, 'A');
-    };
-    document.getElementById('tl-b').onclick = () => {
-        ov.remove();
-        confirmNewCharacter(jobKey, 'B');
-    };
-    document.getElementById('tl-x').onclick = () => ov.remove();
+    confirmNewCharacter(jobKey);
 };
 
-function confirmNewCharacter(jobKey, line) {
+window.deleteRunSnapshotForSlot = function deleteRunSnapshotForSlot(slotId) {
+    if (typeof MetaRPG === 'undefined') return;
+    if (!confirm('이 캐릭터의 「저장 후 메인」 런 데이터를 삭제할까요?\n삭제 후에는 이어하기로 복구할 수 없습니다.')) return;
+    MetaRPG.clearRunSnapshot(slotId);
+    showPreGameScreen();
+};
+
+function confirmNewCharacter(jobKey) {
     if (typeof MetaRPG === 'undefined') return;
     const name = prompt('캐릭터 이름을 입력하세요 (비우면 무명):', '모험가');
-    const r = MetaRPG.createCharacter(name || '무명', jobKey, line);
+    const r = MetaRPG.createCharacter(name || '무명', jobKey);
     if (!r.ok) {
         alert(r.msg || '생성 실패');
         return;
@@ -2334,7 +2322,7 @@ window.openBaseCampTech = function openBaseCampTech() {
     if (!slot) return;
     MetaRPG.recalcTechBonus(slot);
     MetaRPG.saveMeta(MetaRPG.loadMeta());
-    const nodes = MetaRPG.getTechNodesForSlot(slot);
+    const nodes = MetaRPG.getTechNodesForSlot(slot).slice().sort((a, b) => (a.line || '').localeCompare(b.line || '') || (a.id || '').localeCompare(b.id || ''));
     const runGold = safeNum(gold, 0);
     const bought = new Set(slot.techPurchased || []);
     const ov = document.createElement('div');
@@ -2361,7 +2349,7 @@ window.openBaseCampTech = function openBaseCampTech() {
     </div>`;
     ov.innerHTML = `<div style="max-width:520px;margin:0 auto;background:#1a1a2e;border:2px solid #9b59b6;border-radius:12px;padding:20px;">
       <h2 style="color:#9b59b6;margin:0 0 8px;">🏕️ 베이스캠프 (${floor}층)</h2>
-      <p style="color:#888;font-size:0.85em;">런 골드: <b style="color:#f1c40f;">${runGold}G</b> · 테크 라인 <b>${slot.techLine}</b> (변경 불가)</p>
+      <p style="color:#888;font-size:0.85em;">런 골드: <b style="color:#f1c40f;">${runGold}G</b> · 테크: <b>직업 내 노드 자유 조합</b></p>
       <h3 style="color:#e0e0e0;margin:14px 0 8px;font-size:0.95em;">📊 테크 트리</h3>
       <div style="max-height:min(360px,50vh);overflow:auto;margin:12px 0;">${rows}</div>
       ${permaBlock}
@@ -2993,14 +2981,11 @@ function gameOver() {
     document.getElementById('battle-area').style.display = 'none';
 
     if (snap && snap.player && slotId) {
-        document.querySelector('.screen').innerHTML = `<div style="text-align:center;padding:40px 20px;">
-      <h2 style="color:#ff4757;font-size:2em;">💀 GAME OVER</h2>
-      <p style="color:#e0e0e0;font-size:1.1em;margin:15px 0;"><b style="color:#f1c40f;">${fl}층</b>에서 <b style="color:#ff4757;">${enName}</b>에게 쓰러졌습니다.</p>
-      <p style="color:#888;font-size:0.88em;max-width:420px;margin:0 auto 16px;line-height:1.5;">💾 「저장 후 메인」으로 남긴 런이 있으면 그 시점으로 돌아갈 수 있습니다. (패배 확정 시 보존 골드·퀘스트 페널티가 적용됩니다.)</p>
-      <button type="button" onclick="resumeFromLastSaveAfterDeath()" style="background:#2ed573;color:#111;margin:8px;padding:12px 22px;font-weight:700;border:none;border-radius:8px;cursor:pointer;display:inline-block;">💾 마지막 저장 지점에서 이어하기</button>
-      <button type="button" onclick="finalizeGameOverDeath()" style="background:#ff4757;color:#fff;margin:8px;padding:12px 22px;font-weight:700;border:none;border-radius:8px;cursor:pointer;display:inline-block;">패배 확정 (보존 +${sg}G 반영 후 허브)</button>
-    </div>`;
-        writeLog(`💀 ${fl}층 게임 오버.`);
+        window.__deathApplied = true;
+        MetaRPG.setActiveSlot(slotId);
+        document.querySelector('.screen').innerHTML = '';
+        writeLog(`💀 ${fl}층 패배 — 마지막 저장 지점으로 복구합니다.`);
+        loadRunFromMetaSnapshot(snap);
         return;
     }
     finalizeGameOverDeath();

@@ -264,22 +264,36 @@ const equipmentPoolExtra703 = [
     { name: "불꽃 심지", type: "atk", value: 10, critBonus: 2, price: 49, rarity: "epic", desc: "공용. 공격(+10), 치명(+2%)." },
 ];
 
-/** 시즌1(베타) — 직업당 50개 추가 (워/헌/마) */
+/** 직업 전용 장비 추가 (워·헌·마 각 50종, 이름 중복 없음) */
 const equipmentPoolS1Extra = (function generateEquipmentPoolS1Extra() {
     const W = ['워리어', '나이트', '버서커'];
     const H = ['헌터', '궁수', '암살자'];
     const Z = ['마법사', '위저드', '소환사'];
+    const wP = ['철벽','강철','용병','성역','전장','파쇄','불굴','수호','심연','맹세','야수','검은','붉은','푸른','금빛','은빛','전설','파멸','천벌','신성','맹렬','철기','용맹','빛의','어둠','불꽃','얼음','폭풍','번개','대지','하늘','재앙','구원','철의','강철심','불굴','수호','심연','야수','맹렬','성기사','광전','성역','검은철','붉은장','푸른빛','은빛','금빛','낡은','전장','맹세'];
+    const wS = ['대검','방패','흉갑','각반','투구','메이스','링','인장','요새','유산','건틀릿','벨트','부츠','망토','휘장','방울','도끼','창','너클','갑옷'];
+    const hP = ['바람','그림자','맹금','독','야생','달빛','별빛','숲','늪','절벽','저격','추적','은신','암살','날렵','민첩','독수리','뱀','여우','늑대','새벽','황혼','서리','폭풍','번개','유령','맹독','실버','골드','크림슨','밤','안개','이슬','빙결','화염','천둥','유성','유령','침묵','속삭임','날쌤','예리','냉기','불꽃','질풍','신속','급습','매복'];
+    const hS = ['활','단검','화살','시위','망토','장갑','부츠','깃털','눈','화살통','목걸이','반지','주머니','표식','가죽','망원경','표창','띠','침','함정','석궁','쇠뇌','비수','단검집','투시경','투척칼','갈고리','독침','망토','휘장'];
+    const zP = ['고대','마나','별','심연','시간','공허','불꽃','얼음','번개','혼돈','성스러운','금지된','잊힌','비밀','대마도','소환','차원','천공','심장','눈동자','지팡이','오브','룬','인장','페이지','서적','모래','수정','수호','파동','잔향','심연','성역','마력','주문','봉인','파괴','정화','저주','축복','각성','각인','결계','마도','영혼','불사','불멸','환영','심연'];
+    const zS = ['룬스톤','오브','로브','링','지팡이','페이지','서적','모래시계','수정','수호진','인장','결계','주문서','마도서','결정','파편','불꽃','빙결','번개','혼돈','성유물','파동','파수','장막','심장','보주','구슬','마력','각인','인장','펜던트','브로치','토템','수정','오브','지팡이','완드','스태프','서적'];
     const out = [];
-    function addLine(jobArr, tag, label, i) {
+    function nameFor(job, i, pArr, sArr) {
+        const a = pArr[(i * 7) % pArr.length];
+        const b = sArr[(i * 11) % sArr.length];
+        const tag = job === 'w' ? '워' : job === 'h' ? '헌' : '마';
+        return `${a} ${b} · ${tag}${String(i).padStart(2, '0')}`;
+    }
+    function addLine(jobArr, tag, jobKey, i, pArr, sArr) {
         const rar = i % 25 === 0 ? 'legendary' : i % 6 === 0 ? 'epic' : i % 2 === 0 ? 'rare' : 'common';
         const v = 6 + (i * 7) % 28;
         const p = 22 + i * 2 + (rar === 'legendary' ? 100 : rar === 'epic' ? 40 : 0);
         const k = i % 6;
         const tg = tag ? [tag] : undefined;
+        const nm = nameFor(jobKey, i, pArr, sArr);
+        const lab = jobKey === 'w' ? '워리어' : jobKey === 'h' ? '헌터' : '마법사';
         if (k === 0) {
             const d = Math.floor(v / 10);
             out.push({
-                name: `시즌1 ${label}·철옹 ${i}`,
+                name: nm,
                 type: 'atk',
                 value: v,
                 def: d,
@@ -287,12 +301,12 @@ const equipmentPoolS1Extra = (function generateEquipmentPoolS1Extra() {
                 rarity: rar,
                 onlyFor: jobArr,
                 tags: tg,
-                desc: `${label} 계열. 공격(+${v}), 방어(+${d}).`,
+                desc: `${lab} 계열. 공격(+${v}), 방어(+${d}).`,
             });
         } else if (k === 1) {
             const df = 4 + (i % 12);
             out.push({
-                name: `시즌1 ${label}·둔중 ${i}`,
+                name: nm,
                 type: 'hp',
                 value: v * 2,
                 def: df,
@@ -300,12 +314,12 @@ const equipmentPoolS1Extra = (function generateEquipmentPoolS1Extra() {
                 rarity: rar,
                 onlyFor: jobArr,
                 tags: tg,
-                desc: `${label} 계열. 체력(+${v * 2}), 방어(+${df}).`,
+                desc: `${lab} 계열. 체력(+${v * 2}), 방어(+${df}).`,
             });
         } else if (k === 2) {
             const cb = 2 + (i % 9);
             out.push({
-                name: `시즌1 ${label}·예리 ${i}`,
+                name: nm,
                 type: 'atk',
                 value: v,
                 critBonus: cb,
@@ -313,24 +327,24 @@ const equipmentPoolS1Extra = (function generateEquipmentPoolS1Extra() {
                 rarity: rar,
                 onlyFor: jobArr,
                 tags: tg,
-                desc: `${label} 계열. 공격(+${v}), 치명(+${cb}%).`,
+                desc: `${lab} 계열. 공격(+${v}), 치명(+${cb}%).`,
             });
         } else if (k === 3) {
             const ac = 10 + (i % 15);
             out.push({
-                name: `시즌1 ${label}·조준 ${i}`,
+                name: nm,
                 type: 'acc',
                 value: ac,
                 price: p,
                 rarity: rar,
                 onlyFor: jobArr,
                 tags: tg,
-                desc: `${label} 계열. 명중(+${ac}%).`,
+                desc: `${lab} 계열. 명중(+${ac}%).`,
             });
         } else if (k === 4) {
             const ls = Math.round((0.04 + (i % 9) * 0.012) * 1000) / 1000;
             out.push({
-                name: `시즌1 ${label}·흡혈 ${i}`,
+                name: nm,
                 type: 'atk',
                 value: v,
                 lifesteal: ls,
@@ -338,12 +352,12 @@ const equipmentPoolS1Extra = (function generateEquipmentPoolS1Extra() {
                 rarity: rar,
                 onlyFor: jobArr,
                 tags: tg,
-                desc: `${label} 계열. 공격(+${v}), 흡혈(${Math.round(ls * 100)}%).`,
+                desc: `${lab} 계열. 공격(+${v}), 흡혈(${Math.round(ls * 100)}%).`,
             });
         } else {
             const cm = Math.round((0.06 + (i % 8) * 0.03) * 100) / 100;
             out.push({
-                name: `시즌1 ${label}·파동 ${i}`,
+                name: nm,
                 type: 'atk',
                 value: v,
                 critMult: cm,
@@ -351,13 +365,13 @@ const equipmentPoolS1Extra = (function generateEquipmentPoolS1Extra() {
                 rarity: rar,
                 onlyFor: jobArr,
                 tags: tg,
-                desc: `${label} 계열. 공격(+${v}), 치명 배율(+${Math.round(cm * 100)}%).`,
+                desc: `${lab} 계열. 공격(+${v}), 치명 배율(+${Math.round(cm * 100)}%).`,
             });
         }
     }
-    for (let i = 1; i <= 50; i++) addLine(W, 'heavy', '워리어', i);
-    for (let i = 1; i <= 50; i++) addLine(H, 'precision', '헌터', i);
-    for (let i = 1; i <= 50; i++) addLine(Z, 'arcane', '마법사', i);
+    for (let i = 1; i <= 50; i++) addLine(W, 'heavy', 'w', i, wP, wS);
+    for (let i = 1; i <= 50; i++) addLine(H, 'precision', 'h', i, hP, hS);
+    for (let i = 1; i <= 50; i++) addLine(Z, 'arcane', 'm', i, zP, zS);
     return out;
 })();
 
@@ -457,17 +471,43 @@ const forgeRecipes = [
     { name: "파멸의 각인",   type: "atk", value: 50, price: 0, rarity: "legendary", desc: "대장간 합성. 공격력(+50). 흡혈(25%), 치명타 배율(+40%).", materials: 2, materialRarity: "epic", successRate: 0.50, lifesteal: 0.25, critMult: 0.4 },
 ];
 
-/** 시즌1(베타) 장비 밸런스 — 스탯 추가 너프 + 가격 +20% (기존 0.7 대비 약 0.56 = ×0.8) */
+/** 장비 밸런스 — 이전 계수 대비 스탯 약 +20%, 가격 +20%, 너프 후에도 원본의 최소 10% 유지 */
 (function applyItemBalanceS1Beta() {
-    const M = 0.56;
+    const M = 0.672;
     const PRICE_MULT = 1.2;
+    function minFrac(orig, scaled, isInt) {
+        if (orig == null || orig === 0) return scaled;
+        const floor10 = typeof orig === 'number' && orig < 1 ? orig * 0.1 : Math.max(1, Math.ceil(Number(orig) * 0.1));
+        if (isInt) return Math.max(floor10, scaled);
+        return Math.max(orig * 0.1, scaled);
+    }
     function nerf(it) {
         if (!it || it._balS1b) return;
-        if (typeof it.value === 'number') it.value = Math.max(1, Math.round(it.value * M));
-        if (typeof it.def === 'number') it.def = Math.max(0, Math.round(it.def * M));
-        if (typeof it.acc === 'number') it.acc = Math.max(0, Math.round(it.acc * M));
-        if (typeof it.critBonus === 'number') it.critBonus = Math.max(1, Math.round(it.critBonus * M));
-        if (typeof it.critMult === 'number') it.critMult = Math.round(it.critMult * M * 100) / 100;
+        const ov = it.value,
+            od = it.def,
+            oa = it.acc,
+            oc = it.critBonus,
+            om = it.critMult;
+        if (typeof it.value === 'number') {
+            const r = Math.max(1, Math.round(it.value * M));
+            it.value = minFrac(ov, r, true);
+        }
+        if (typeof it.def === 'number') {
+            const r = Math.max(0, Math.round(it.def * M));
+            it.def = od ? minFrac(od, r, true) : r;
+        }
+        if (typeof it.acc === 'number') {
+            const r = Math.max(0, Math.round(it.acc * M));
+            it.acc = oa ? minFrac(oa, r, true) : r;
+        }
+        if (typeof it.critBonus === 'number') {
+            const r = Math.max(1, Math.round(it.critBonus * M));
+            it.critBonus = oc ? minFrac(oc, r, true) : r;
+        }
+        if (typeof it.critMult === 'number') {
+            const r = Math.round(it.critMult * M * 100) / 100;
+            it.critMult = om ? minFrac(om, r, false) : r;
+        }
         if (typeof it.lifesteal === 'number') it.lifesteal = Math.round(it.lifesteal * M * 100) / 100;
         if (typeof it.price === 'number') it.price = Math.max(1, Math.ceil(it.price * PRICE_MULT));
         it._balS1b = true;
