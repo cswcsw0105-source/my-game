@@ -428,6 +428,19 @@
         saveMeta(m);
     }
 
+    /** 저장 런 스냅샷 제거 + 런 체크포인트·메타 레벨·EXP 초기화 (저장 삭제 확정 시) */
+    function wipeSavedRunAndResetMetaLevel(slotId) {
+        const m = loadMeta();
+        const slot = m.slots.find((s) => s.id === slotId);
+        if (!slot) return;
+        slot.runSnapshot = null;
+        slot.runCheckpointMeta = { level: 1, exp: 0 };
+        slot.level = 1;
+        slot.exp = 0;
+        recalcTechBonus(slot);
+        saveMeta(m);
+    }
+
     function getRunSnapshot(slotId) {
         const slot = getSlotById(slotId);
         return slot && slot.runSnapshot ? slot.runSnapshot : null;
@@ -482,6 +495,7 @@
         revertRunToCheckpoint,
         setRunSnapshot,
         clearRunSnapshot,
+        wipeSavedRunAndResetMetaLevel,
         getRunSnapshot,
         commitTechPurchase,
         getTechNodeById,

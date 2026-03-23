@@ -952,9 +952,48 @@ window.openTechLinePicker = (jobKey) => {
 
 window.deleteRunSnapshotForSlot = function deleteRunSnapshotForSlot(slotId) {
     if (typeof MetaRPG === 'undefined') return;
-    if (!confirm('이 캐릭터의 「저장 후 메인」 런 데이터를 삭제할까요?\n삭제 후에는 이어하기로 복구할 수 없습니다.')) return;
-    MetaRPG.clearRunSnapshot(slotId);
-    showPreGameScreen();
+    const existing = document.getElementById('delete-save-confirm-overlay');
+    if (existing) existing.remove();
+
+    const ov = document.createElement('div');
+    ov.id = 'delete-save-confirm-overlay';
+    ov.setAttribute('role', 'dialog');
+    ov.setAttribute('aria-modal', 'true');
+    ov.style.cssText =
+        'position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:10070;display:flex;align-items:center;justify-content:center;padding:16px;';
+    ov.innerHTML = `
+<div style="background:#1a1a2e;border:2px solid #e74c3c;border-radius:14px;padding:22px 20px;max-width:420px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+  <h3 style="color:#e74c3c;margin:0 0 10px;font-size:1.15em;">저장 데이터 삭제</h3>
+  <p style="color:#ddd;font-size:0.9em;line-height:1.55;margin:0 0 16px;text-align:left;">
+    이 캐릭터의 <b>저장된 런(이어하기) 파일</b>이 <b>완전히 삭제</b>됩니다.<br>
+    또한 <b>메타 레벨·EXP가 1 / 0으로 초기화</b>됩니다.<br>
+    <span style="color:#f39c12;">삭제 후에는 복구할 수 없습니다.</span> 정말 삭제할까요?
+  </p>
+  <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+    <button type="button" id="del-save-cancel" style="background:#555;color:#eee;padding:10px 18px;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.95em;">취소</button>
+    <button type="button" id="del-save-confirm" style="background:#c0392b;color:#fff;padding:10px 18px;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.95em;">예, 삭제합니다</button>
+  </div>
+</div>`;
+    document.body.appendChild(ov);
+
+    const close = () => {
+        ov.remove();
+        document.removeEventListener('keydown', onKey);
+    };
+    const onKey = (e) => {
+        if (e.key === 'Escape') close();
+    };
+    document.addEventListener('keydown', onKey);
+
+    ov.querySelector('#del-save-cancel').onclick = close;
+    ov.onclick = (e) => {
+        if (e.target === ov) close();
+    };
+    ov.querySelector('#del-save-confirm').onclick = () => {
+        close();
+        MetaRPG.wipeSavedRunAndResetMetaLevel(slotId);
+        showPreGameScreen();
+    };
 };
 
 function confirmNewCharacter(jobKey) {
