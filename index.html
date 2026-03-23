@@ -76,13 +76,12 @@
                 <p id="user-info" style="color:#2ed573; font-weight:bold; margin-bottom:5px;">로그인 필요</p>
                 <button onclick="handleLogout()" style="background:#ff4757; padding:6px 12px; font-size:0.8em; display:none;" id="logout-btn">로그아웃</button>
                 <hr style="border-top:1px solid #333; width: 100%;">
-                <h4 style="color: #fff;">📊 상태 및 도감</h4>
-                <p>층수: <b id="floor-t" style="color:#fff;">1</b>F | 골드: <b id="gold-t" style="color:#f1c40f;">0</b>G</p>
-                <p>소지 포션: <b id="potion-t" style="color:#2ed573;">0</b>개</p>
-<button type="button" class="sidebar-action-btn sidebar-btn-inv" onclick="toggleInv(true)">🎒 인벤토리 보기</button>
-<button type="button" class="sidebar-action-btn sidebar-btn-collection" onclick="toggleCollection(true)">📖 장비 도감</button>
-<button type="button" class="sidebar-action-btn sidebar-btn-rank" onclick="toggleRank(true)">🏆 명예의 전당 보기</button>
-<button type="button" class="sidebar-action-btn sidebar-btn-patch" onclick="togglePatchNotes(true)">📜 패치 노트 보기</button>
+                <h4 style="color: #fff;">📊 도감</h4>
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                    <button type="button" class="sidebar-action-btn sidebar-btn-collection" onclick="toggleCollection(true)">📖 장비 도감</button>
+                    <button type="button" class="sidebar-action-btn sidebar-btn-rank" onclick="toggleRank(true)">🏆 명예의 전당 보기</button>
+                    <button type="button" class="sidebar-action-btn sidebar-btn-patch" onclick="togglePatchNotes(true)">📜 패치 노트 보기</button>
+                </div>
             </div>
 
            <!-- 전투 로그: 전투 중에만 오른쪽에 표시 -->
@@ -142,6 +141,20 @@
             <table class="patch-table">
                 <thead><tr><th>버전</th><th>항목</th><th>상세 내용</th></tr></thead>
                 <tbody>
+                    <tr><td class="v-tag">시즌1(베타)</td><td>허브·사망·환생 안정화</td><td>
+    <b>사망 처리:</b> 사망 시 빈 화면/복구 꼬임 수정, 즉시 허브 복귀로 통일.<br>
+    <b>저장 삭제:</b> 허브 「저장 삭제」에 <b>삭제/취소 확인 창</b> 추가, 확정 시 저장 런 완전 삭제 + 메타 Lv/EXP 초기화.<br>
+    <b>환생:</b> 조건을 <b>500층</b>으로 상향, 환생 보너스를 <b>공격/방어/치명 배율 +20% 누적</b>으로 변경(최대 3회).<br>
+    <b>환생 초기화 버그 수정:</b> 런 스냅샷·체크포인트·메타 Lv/EXP + 영구강화(<b>캠프/레거시/추가/테크 라인·연구</b>) 초기화 보장.<br>
+    <b>허브 UI:</b> 슬롯에 직업/최고층 표기 추가, 허브 상단 보존 골드 문구 제거.
+</td></tr>
+                    <tr><td class="v-tag">시즌1(베타)</td><td>상점·아이템 밸런스/표기</td><td>
+    <b>상점 구성:</b> 포션을 <b>전용 구매 칸</b>으로 분리, 기존 포션 칸은 장비로 대체해 리롤 시 <b>아이템 4개</b> 노출.<br>
+    <b>고등급 확률 강화:</b> 상점에서 골드로 전설/고급/희귀 확률을 단계적으로 올리는 기능 추가.<br>
+    <b>희귀도 보정:</b> 저등급이 고등급보다 비싸거나 강한 역전 케이스를 줄이도록 희귀도 기반 스탯/가격 보정 적용.<br>
+    <b>치명 밸런스:</b> 치명 확률 초과분 전환을 <b>1%당 치명 배율 +0.5%</b>로 조정.<br>
+    <b>표기 버그 수정:</b> 아이템명의 불필요 태그(예: <b>· 마50</b>) 제거, 설명의 「등급 보정 적용」·「직업 계열」 문구 제거, 소수점 표기 정리(올림 표기).
+</td></tr>
                     <tr><td class="v-tag">시즌1(베타)</td><td>테크·저장·장비</td><td>
     캐릭터 생성 시 <b>A/B 메타 고정 제거</b> — 베이스캠프에서 <b>직업 내 테크 노드 자유 조합</b>. 사망 시 <b>저장 런이 있으면 자동으로 마지막 저장으로 복구</b>. 허브에 <b>저장 삭제</b> 버튼. 장비 스탯 <b>+20% 향상</b>·가격 유지·너프 시 <b>원본 대비 최소 10%</b> 보장. 직업 전용 추가 장비 <b>이름·중복 방지</b> 정리(시즌 문구 제거).
 </td></tr>
