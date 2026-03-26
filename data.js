@@ -13,6 +13,7 @@ const relations = {
     '암살자':  { weak: '워리어', strong: '마법사' },
     '위저드':  { weak: '헌터',  strong: '워리어' },
     '소환사':  { weak: '헌터',  strong: '워리어' },
+    '성직자':  { weak: '헌터',  strong: '워리어' },
 };
 
 const jobBase = {
@@ -58,6 +59,7 @@ const jobEvolutions = {
     '마법사': [
         { name: '위저드',  bonusAtk: 52, bonusDef: 3,  bonusHp: 245, desc: '고위 마법사. 마법 공격력이 폭발적으로 증가한다.', ult: '메테오' },
         { name: '소환사',  bonusAtk: 40, bonusDef: 9, bonusHp: 285, desc: '소환사. 소환수의 방어막으로 생존력이 증가한다.', ult: '차원 붕괴' },
+        { name: '성직자',  bonusAtk: 38, bonusDef: 12, bonusHp: 270, desc: '신성력으로 버틴다. 공격 시 신성력 축적·기도로 가속.', ult: '성광 심판' },
     ],
 };
 
@@ -69,6 +71,7 @@ const ultSkills = {
     '그림자 찌르기': { desc: '그림자 속에서 나타나 치명적인 일격을 가한다.', dmgMult: 5.05, stackRequired: 4 },
     '메테오':     { desc: '하늘에서 거대한 운석을 소환한다.', dmgMult: 4.45, stackRequired: 4 },
     '차원 붕괴':  { desc: '차원을 찢어 적에게 혼돈의 피해를 입힌다.', dmgMult: 4.15, stackRequired: 4 },
+    '성광 심판': { desc: '신성한 빛이 적을 심판한다.', dmgMult: 4.25, stackRequired: 4 },
 };
 
 const floorUnlocks = {
@@ -98,11 +101,11 @@ const floorUnlocksHunter = {
 };
 
 const floorUnlocksWizard = {
-    5:  { name: "마나의 수정",   type: "atk", value: 15, price: 50,  rarity: "rare", onlyFor: ["마법사","위저드","소환사"], desc: "5층 해금. 마법사 계열. 공격력(+15)." },
-    15: { name: "고대의 서적",   type: "atk", value: 25, price: 70,  rarity: "rare", onlyFor: ["마법사","위저드","소환사"], desc: "15층 해금. 마법사 계열. 공격력(+25)." },
-    25: { name: "혼돈의 오브",   type: "atk", value: 38, price: 100, rarity: "epic", onlyFor: ["마법사","위저드","소환사"], desc: "25층 해금. 마법사 계열. 공격력(+38)." },
-    35: { name: "시간의 모래시계", type: "hp", value: 50, def: 10, price: 120, rarity: "epic", onlyFor: ["마법사","위저드","소환사"], desc: "35층 해금. 마법사 계열. 체력(+50), 방어(+10)." },
-    45: { name: "신계의 마법진", type: "atk", value: 60, price: 160, rarity: "legendary", onlyFor: ["마법사","위저드","소환사"], desc: "45층 해금. 마법사 계열. 공격력(+60)." },
+    5:  { name: "마나의 수정",   type: "atk", value: 15, price: 50,  rarity: "rare", onlyFor: ["마법사","위저드","소환사","성직자"], desc: "5층 해금. 마법사 계열. 공격력(+15)." },
+    15: { name: "고대의 서적",   type: "atk", value: 25, price: 70,  rarity: "rare", onlyFor: ["마법사","위저드","소환사","성직자"], desc: "15층 해금. 마법사 계열. 공격력(+25)." },
+    25: { name: "혼돈의 오브",   type: "atk", value: 38, price: 100, rarity: "epic", onlyFor: ["마법사","위저드","소환사","성직자"], desc: "25층 해금. 마법사 계열. 공격력(+38)." },
+    35: { name: "시간의 모래시계", type: "hp", value: 50, def: 10, price: 120, rarity: "epic", onlyFor: ["마법사","위저드","소환사","성직자"], desc: "35층 해금. 마법사 계열. 체력(+50), 방어(+10)." },
+    45: { name: "신계의 마법진", type: "atk", value: 60, price: 160, rarity: "legendary", onlyFor: ["마법사","위저드","소환사","성직자"], desc: "45층 해금. 마법사 계열. 공격력(+60)." },
 };
 
 function generateUpgrades(id, name, effectKey, baseEffect, baseCost, costMult) {
@@ -373,6 +376,39 @@ const equipmentPoolS1Extra = (function generateEquipmentPoolS1Extra() {
     return out;
 })();
 
+/** 성직자 전용 장비 60종 — 신성력 획득 보너스(divinityGainBonus) 일부 포함 */
+const equipmentPoolPriest = (function genPriestPool() {
+    const out = [];
+    const rc = ['common', 'common', 'rare', 'epic', 'legendary'];
+    for (let i = 0; i < 60; i++) {
+        const r = rc[i % 5];
+        const typ = i % 3 === 0 ? 'atk' : i % 3 === 1 ? 'hp' : 'acc';
+        const nm = `성역 유물 ${String(i + 1).padStart(2, '0')}`;
+        const base = 4 + (i % 20);
+        const price = 20 + i * 2 + (r === 'legendary' ? 90 : r === 'epic' ? 45 : 0);
+        const o = {
+            name: nm,
+            type: typ,
+            rarity: r,
+            onlyFor: ['성직자'],
+            price,
+            desc: '성직자 전용.',
+        };
+        if (typ === 'atk') {
+            o.value = base + 2;
+            if (i % 4 === 0) o.critBonus = 2 + (i % 4);
+        } else if (typ === 'hp') {
+            o.value = base * 3 + 8;
+            if (i % 5 === 1) o.def = 3 + (i % 6);
+        } else {
+            o.value = 5 + (i % 16);
+        }
+        if (i % 7 === 0) o.divinityGainBonus = 0.05 + (i % 8) * 0.015;
+        out.push(o);
+    }
+    return out;
+})();
+
 const equipmentPool = [
     // ===== 워리어 전용 =====
     { name: "거인족의 대검",      type: "atk", value: 22, price: 90,  rarity: "epic",   onlyFor: ["워리어","나이트","버서커"], critBonus: 6,  desc: "워리어 계열. 공격력(+22). 치명타 확률(+6%)." },
@@ -434,6 +470,7 @@ const equipmentPool = [
     ...equipmentPoolV651,
     ...equipmentPoolExtra703,
     ...equipmentPoolS1Extra,
+    ...equipmentPoolPriest,
 ];
 
 /**
@@ -451,8 +488,8 @@ const relicPool = [
     { id: 'relic_warrior_shield',  name: "철벽의 의지",    desc: "방어 성공 시 다음 공격 데미지 +50%.",    onlyFor: ["워리어","나이트","버서커"], rarity: "epic",      effect: "shield_empower",  price: 120 },
     { id: 'relic_hunter_dodge',    name: "그림자 반격",    desc: "회피 성공 시 공격력의 60% 고정 피해 + 체력 10 흡혈.", onlyFor: ["헌터","궁수","암살자"], rarity: "legendary", effect: "dodge_counter", price: 180 },
     { id: 'relic_hunter_execute',  name: "처형자의 표식",  desc: "적 체력이 20% 이하일 때 공격력 2배.",    onlyFor: ["헌터","궁수","암살자"], rarity: "epic",      effect: "execute",         price: 120 },
-    { id: 'relic_wizard_chain',    name: "연쇄 마법진",    desc: "치명타 발동 시 즉시 한 번 더 공격.",     onlyFor: ["마법사","위저드","소환사"], rarity: "legendary", effect: "chain_cast",     price: 180 },
-    { id: 'relic_wizard_barrier',  name: "마력 방벽",      desc: "방어막 성공 시 받은 피해의 30% 반사.",   onlyFor: ["마법사","위저드","소환사"], rarity: "epic",      effect: "barrier_reflect", price: 120 },
+    { id: 'relic_wizard_chain',    name: "연쇄 마법진",    desc: "치명타 발동 시 즉시 한 번 더 공격.",     onlyFor: ["마법사","위저드","소환사","성직자"], rarity: "legendary", effect: "chain_cast",     price: 180 },
+    { id: 'relic_wizard_barrier',  name: "마력 방벽",      desc: "방어막 성공 시 받은 피해의 30% 반사.",   onlyFor: ["마법사","위저드","소환사","성직자"], rarity: "epic",      effect: "barrier_reflect", price: 120 },
     { id: 'relic_common_vampire',  name: "뱀파이어의 반지", desc: "킬 시 최대 체력의 15% 즉시 회복.",      onlyFor: null, rarity: "epic",      effect: "kill_heal",       price: 130 },
     { id: 'relic_common_gambler',  name: "도박사의 주사위", desc: "매 전투 시작 시 50% 확률로 공격력 +30%, 50% 확률로 -10%.", onlyFor: null, rarity: "rare", effect: "gambler", price: 80 },
 ];

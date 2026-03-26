@@ -4,6 +4,34 @@
  */
 (function (global) {
     const STORAGE_KEY = 'dungeon_meta_v7';
+    /** 레거시 단일 저장 키 — migrate 후 파일 슬롯으로 이관 */
+    const LEGACY_META_KEY = 'dungeon_meta_v7';
+    const SAVE_SLOT_COUNT = 3;
+    const ACTIVE_FILE_KEY = 'dungeon_meta_v7_active_file';
+    const FILE_MIG_FLAG = 'dungeon_meta_v7_file_migrated_v2';
+
+    function slotFileKey(i) {
+        return 'dungeon_meta_v7_f' + i;
+    }
+
+    function getActiveFileIndex() {
+        const v = parseInt(localStorage.getItem(ACTIVE_FILE_KEY) || '0', 10);
+        return v >= 0 && v < SAVE_SLOT_COUNT ? v : 0;
+    }
+
+    function migrateLegacyMetaToFileSlots() {
+        if (localStorage.getItem(FILE_MIG_FLAG)) return;
+        try {
+            const leg = localStorage.getItem(LEGACY_META_KEY);
+            if (leg && !localStorage.getItem(slotFileKey(0))) {
+                localStorage.setItem(slotFileKey(0), leg);
+            }
+        } catch (e) {
+            /* ignore */
+        }
+        localStorage.setItem(FILE_MIG_FLAG, '1');
+    }
+
     const MAX_SLOTS = 4;
 
     /** 30층 이상에서 상점을 통해서만 베이스캠프 UI (레거시 호환: 층>=30) */
@@ -34,8 +62,9 @@
     }
 
     function loadMeta() {
+        migrateLegacyMetaToFileSlots();
         try {
-            const raw = localStorage.getItem(STORAGE_KEY);
+            const raw = localStorage.getItem(slotFileKey(getActiveFileIndex()));
             if (!raw) return defaultMeta();
             const o = JSON.parse(raw);
             if (!o || typeof o !== 'object') return defaultMeta();
@@ -49,7 +78,41 @@
     }
 
     function saveMeta(m) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(m));
+        localStorage.setItem(slotFileKey(getActiveFileIndex()), JSON.stringify(m));
+    }
+
+    function setActiveSaveFileIndex(i) {
+        if (i < 0 || i >= SAVE_SLOT_COUNT) return false;
+        localStorage.setItem(ACTIVE_FILE_KEY, String(i));
+        return true;
+    }
+
+    function clearSaveFile(i) {
+        if (i < 0 || i >= SAVE_SLOT_COUNT) return false;
+        localStorage.removeItem(slotFileKey(i));
+        return true;
+    }
+
+    function getSaveFileSlotCount() {
+        return SAVE_SLOT_COUNT;
+    }
+
+    /** 현재 활성 파일을 바꾸지 않고 i번 슬롯 메타만 읽기 (허브 UI용) */
+    function peekMetaAtFileIndex(i) {
+        migrateLegacyMetaToFileSlots();
+        if (i < 0 || i >= SAVE_SLOT_COUNT) return defaultMeta();
+        try {
+            const raw = localStorage.getItem(slotFileKey(i));
+            if (!raw) return defaultMeta();
+            const o = JSON.parse(raw);
+            if (!o || typeof o !== 'object') return defaultMeta();
+            if (!Array.isArray(o.slots)) o.slots = [];
+            if (o.savedGold == null) o.savedGold = 0;
+            o.slots.forEach(ensureSlotV703);
+            return o;
+        } catch (e) {
+            return defaultMeta();
+        }
     }
 
     /** 구 v6 영구 강화 → 첫 슬롯으로 1회 이관 */
@@ -293,9 +356,9 @@
         slot.questFlags = {};
         slot.rebirthStatBonus = slot.rebirthStatBonus || { hp: 0, atk: 0, def: 0, acc: 0 };
         slot.rebirthPctBonus = slot.rebirthPctBonus || { atkPct: 0, defPct: 0, critMultPct: 0 };
-        slot.rebirthPctBonus.atkPct += 20;
-        slot.rebirthPctBonus.defPct += 20;
-        slot.rebirthPctBonus.critMultPct += 20;
+        slot.rebirthPctBonus.atkPct += 10;
+        slot.rebirthPctBonus.defPct += 10;
+        slot.rebirthPctBonus.critMultPct += 10;
         recalcTechBonus(slot);
         saveMeta(m);
         return { ok: true, cost };
@@ -304,9 +367,6 @@
     function createCharacter(name, jobKey) {
         const m = loadMeta();
         if (m.slots.length >= MAX_SLOTS) return { ok: false, msg: '슬롯 가득 (최대 ' + MAX_SLOTS + ')' };
-        if (m.slots.some((s) => s.jobKey === jobKey)) {
-            return { ok: false, msg: '직업당 1명만 보유할 수 있습니다. 동일 직업을 다시 키우려면 허브에서 환생을 이용하세요.' };
-        }
         const slot = {
             id: uid(),
             name: name || '무명',
@@ -491,6 +551,14 @@
 
     const MetaRPG = {
         STORAGE_KEY,
+        SAVE_SLOT_COUNT,
+        LEGACY_META_KEY,
+        slotFileKey,
+        getActiveFileIndex,
+        setActiveSaveFileIndex,
+        clearSaveFile,
+        getSaveFileSlotCount,
+        peekMetaAtFileIndex,
         MAX_SLOTS,
         BASE_CAMP_FLOORS,
         TECH_NODES,

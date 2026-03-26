@@ -1,10 +1,15 @@
 /** 시즌 1 (베타) — 최초 1회 전체 진행 데이터 초기화 */
 (function applySeason1BetaWipeOnce() {
     const SK = 'dungeon_season_id';
-    const SEASON = '1-beta';
+    const SEASON = '1-beta-wipe-s1full';
     if (localStorage.getItem(SK) === SEASON) return;
     const wipe = [
         'dungeon_meta_v7',
+        'dungeon_meta_v7_f0',
+        'dungeon_meta_v7_f1',
+        'dungeon_meta_v7_f2',
+        'dungeon_meta_v7_active_file',
+        'dungeon_meta_v7_file_migrated_v2',
         'perma_stats',
         'perma_buy_count',
         'saved_gold',
@@ -77,18 +82,18 @@ let shopVisitCount = 0;
 let attackGcdUntil = 0;
 const ATTACK_GCD_MS = 500;
 /** 패치 노트/UI와 맞춰 두기 — 캐시 적용 여부 확인용 */
-const GAME_BUILD = '7.0.5';
+const GAME_BUILD = '7.0.6';
 /** 베이스캠프 오버레이 스크롤 유지 */
 window.__baseCampScrollTop = 0;
 /** 필드 용병 기본 피해 계수(전역 보정) */
 const MERC_DMG_GLOBAL_SCALE = 1.56;
 /** 층수에 따른 용병 딜/HP 성장 상한(과도한 폭주 방지) */
 const MERC_FLOOR_SCALE_CAP = 1.65;
-/** 치명 확률 상한 70% — 초과분은 배율로 전환 (1%당 치명 배율 +0.10) */
-const CRIT_SOFT_CAP = 70;
+/** 치명 확률 상한 65% — 1% 초과분은 배율로 전환 (1%당 치명 배율 +0.05) */
+const CRIT_SOFT_CAP = 65;
 const LIFESTEAL_SOFT_CAP = 0.85;
 const BASE_HIT_ACCURACY = 75;
-const CRIT_OVERFLOW_TO_MULT = 0.005;
+const CRIT_OVERFLOW_TO_MULT = 0.05;
 
 function clearSummonRunStorage() {
     localStorage.removeItem('summon_altar_done');
@@ -269,7 +274,7 @@ function triggerBossWarning(on) {
 
 function getCritOverflowForMult() {
     if (!player) return 0;
-    let raw = safeNum(player.crit, 5);
+    let raw = safeNum(player.crit, 1);
     if (player.relics && player.relics.includes('berserk_crit') && player.maxHp && player.curHp <= player.maxHp * 0.3) raw = 100;
     return Math.max(0, raw - CRIT_SOFT_CAP);
 }
@@ -296,7 +301,7 @@ function applyRebirthPctBonusToPlayer(slot) {
     if (cmPct > 0) player.critMult = Math.ceil(player.critMult * (1 + cmPct / 100));
 }
 function getCritInfo() {
-    const rawCrit = safeNum(player && player.crit, 5);
+    const rawCrit = safeNum(player && player.crit, 1);
     let valueForCap = rawCrit;
     let isBerserkCrit = false;
     if (player && player.relics && player.relics.includes('berserk_crit') && player.maxHp && player.curHp <= player.maxHp * 0.3) {
@@ -317,12 +322,49 @@ function getLifestealOverflowAtk() {
     if (r <= LIFESTEAL_SOFT_CAP) return 0;
     return Math.floor((r - LIFESTEAL_SOFT_CAP) * 100);
 }
+function isPriestJob() {
+    return player && player.name === '성직자';
+}
+/** 신성력 UI 표기: 소수 없음 — 소수부 0.1~0.4는 내림, 0.5~0.9는 올림 */
+function formatDivinePowerForDisplay(v) {
+    const x = safeNum(v, 0);
+    const i = Math.floor(x);
+    const frac = x - i;
+    if (frac >= 0.1 && frac <= 0.4) return i;
+    if (frac >= 0.5 && frac <= 0.9) return i + 1;
+    if (frac > 0.4 && frac < 0.5) return Math.round(x);
+    return i;
+}
+function getDivineAtkBonus() {
+    if (!isPriestJob()) return 0;
+    return safeNum(player.divinePower, 0) * 0.5;
+}
+function getDivineDefBonus() {
+    if (!isPriestJob()) return 0;
+    return safeNum(player.divinePower, 0) * 0.2;
+}
+function recalcPlayerDivineGainMult() {
+    if (!player || !isPriestJob()) {
+        if (player) player.divineGainMult = 1;
+        return;
+    }
+    let m = 1;
+    for (const it of player.items || []) {
+        if (it && it.divinityGainBonus != null) m += safeNum(it.divinityGainBonus, 0);
+    }
+    player.divineGainMult = m;
+}
 function getEffectiveAttackPower() {
     if (!player) return 0;
     let base = safeNum(player.atk, 0) + safeNum(player.extraAtk, 0) + getLifestealOverflowAtk();
     if (player._syn && player._syn.atk) base += safeNum(player._syn.atk, 0);
     if (player._mercBattleAtkDebuff) base = Math.max(1, Math.floor(base * (1 + player._mercBattleAtkDebuff)));
+    base += getDivineAtkBonus();
     return base;
+}
+function getTotalPlayerDefenseForHit() {
+    if (!player) return 0;
+    return safeNum(player.def, 0) + safeNum(player.extraDef, 0) + safeNum(player._syn && player._syn.def, 0) + getDivineDefBonus();
 }
 
 function isMercenaryCaptainJob() {
@@ -358,7 +400,7 @@ function getMercEquipmentJobKeys() {
     if (!kind) return [];
     if (kind === '워리어') return ['워리어', '나이트', '버서커'];
     if (kind === '헌터') return ['헌터', '궁수', '암살자'];
-    if (kind === '마법사') return ['마법사', '위저드', '소환사'];
+    if (kind === '마법사') return ['마법사', '위저드', '소환사', '성직자'];
     return [];
 }
 
@@ -415,9 +457,9 @@ function getMercBonusAcc() {
 
 function getMercEffectiveCritForMercAttack() {
     const fm = player.fieldMerc;
-    if (!fm) return Math.min(CRIT_SOFT_CAP, Math.max(0, safeNum(player.crit, 5)));
+    if (!fm) return Math.min(CRIT_SOFT_CAP, Math.max(0, safeNum(player.crit, 1)));
     const bonus = safeNum(fm.mercBonusCrit, 0);
-    return Math.min(CRIT_SOFT_CAP, Math.max(0, safeNum(player.crit, 5) + bonus));
+    return Math.min(CRIT_SOFT_CAP, Math.max(0, safeNum(player.crit, 1) + bonus));
 }
 
 function getMercEffectiveCritMultForMercAttack() {
@@ -878,15 +920,28 @@ function showPreGameScreen() {
                     </div>`;
                   })
                   .join('');
+    let saveFileBar = '';
+    if (typeof MetaRPG !== 'undefined' && MetaRPG.peekMetaAtFileIndex) {
+        const cur = typeof MetaRPG.getActiveFileIndex === 'function' ? MetaRPG.getActiveFileIndex() : 0;
+        const n = MetaRPG.getSaveFileSlotCount ? MetaRPG.getSaveFileSlotCount() : 3;
+        const parts = [];
+        for (let fi = 0; fi < n; fi++) {
+            const pm = MetaRPG.peekMetaAtFileIndex(fi);
+            const cnt = pm.slots ? pm.slots.length : 0;
+            const g = Math.max(0, safeNum(pm.savedGold, 0));
+            const active = fi === cur ? ' (현재)' : '';
+            parts.push(
+                `<button type="button" onclick="switchActiveSaveFile(${fi})" style="background:${fi === cur ? '#2a2a1a' : '#111'};border:1px solid ${fi === cur ? '#f1c40f' : '#444'};color:${fi === cur ? '#f1c40f' : '#888'};padding:8px 10px;border-radius:8px;cursor:pointer;font-size:0.78em;font-weight:700;">파일 ${fi + 1}${active}<br><span style="font-weight:400;color:#888;">캐릭 ${cnt} · ${g}G</span></button>`
+            );
+        }
+        saveFileBar = `<div style="margin-bottom:14px;padding:12px;background:#0d0d12;border:1px solid #333;border-radius:10px;"><div style="color:#f1c40f;font-weight:700;margin-bottom:8px;font-size:0.9em;">💾 저장 파일 (최대 3)</div><div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">${parts.join('')}</div><p style="color:#666;font-size:0.72em;margin:8px 0 0;line-height:1.45;">다른 파일을 불러오려면 위 버튼을 누르세요. 모든 파일이 가득 차면 새 캐릭터 생성 시 <b>비울 파일</b>을 묻습니다.</p></div>`;
+    }
     const newCharGrid = ['Warrior', 'Hunter', 'Wizard', 'MercenaryCaptain']
         .map((job) => {
-            const taken = m.slots.some((x) => x.jobKey === job);
-            const dim = taken ? 'opacity:0.42;pointer-events:none;' : 'cursor:pointer;';
-            const sub = taken ? '<div style="color:#888;font-size:0.65em;margin-top:4px;">직업당 1명 (환생으로 재도전)</div>' : '<div style="color:#666;font-size:0.72em;margin-top:4px;">새 캐릭터</div>';
             return `
-        <div onclick="${taken ? 'void(0)' : `openTechLinePicker('${job}')`}" style="background:#1a1a1a;border:2px solid ${jobBase[job].color};border-radius:10px;padding:12px;text-align:center;${dim}">
+        <div onclick="openTechLinePicker('${job}')" style="background:#1a1a1a;border:2px solid ${jobBase[job].color};border-radius:10px;padding:12px;text-align:center;cursor:pointer;">
             <div style="color:${jobBase[job].color};font-weight:700;">${jobBase[job].name}</div>
-            ${sub}
+            <div style="color:#666;font-size:0.72em;margin-top:4px;">새 캐릭터</div>
         </div>`;
         })
         .join('');
@@ -898,6 +953,7 @@ function showPreGameScreen() {
         <div style="text-align:center; margin-bottom:16px;">
             <h2 style="color:#f1c40f; margin-bottom:5px;">⚔️ 로그라이트 허브</h2>
             <p style="color:#9b59b6;font-size:0.88em;margin:0 0 8px;font-weight:700;">시즌1(베타)</p>
+            ${saveFileBar}
             <p style="color:#888; font-size:0.85em;">무한 층 · 베이스캠프에서만 영구 성장</p>
             ${globalUnlocked.length > 0 ? `<p style="color:#f1c40f;font-size:0.8em;">🔓 공용 해금: ${globalUnlocked.join(', ')}층</p>` : ''}
             ${warriorUnlocked.length > 0 ? `<p style="color:#ff4757;font-size:0.8em;">🔓 워리어: ${warriorUnlocked.join(', ')}층</p>` : ''}
@@ -938,6 +994,13 @@ window.resumeMetaSlot = (slotId) => {
     else initRunFromMetaSlot();
 };
 
+/** 허브: 저장 파일 1~3 전환 */
+window.switchActiveSaveFile = function switchActiveSaveFile(idx) {
+    if (typeof MetaRPG === 'undefined' || typeof MetaRPG.setActiveSaveFileIndex !== 'function') return;
+    if (!MetaRPG.setActiveSaveFileIndex(idx)) return;
+    showPreGameScreen();
+};
+
 window.reincarnateFromHub = function reincarnateFromHub(slotId) {
     if (typeof MetaRPG === 'undefined') return;
     const slot = MetaRPG.getSlotById(slotId);
@@ -947,7 +1010,7 @@ window.reincarnateFromHub = function reincarnateFromHub(slotId) {
     const bestFloor = Math.max(1, slot.bestFloor || 1);
     if ((slot.reincarnationCount || 0) >= 3) return alert('환생은 최대 3회입니다.');
     if (bestFloor < needFloor) return alert(`환생 조건 미달: 최고 ${bestFloor}층 (필요 ${needFloor}층)`);
-    if (!confirm(`환생: ${cost}G를 지불하고 이 캐릭터의 베이스캠프 영구강화·퀘스트 보너스를 초기화합니다.\n조건: 최고 ${needFloor}층 이상. 환생 시 공격/방어/치명 배율 +20% 누적.`)) return;
+    if (!confirm(`환생: ${cost}G를 지불하고 이 캐릭터의 베이스캠프 영구강화·퀘스트 보너스를 초기화합니다.\n조건: 최고 ${needFloor}층 이상. 환생 시 공격/방어/치명 배율 +10% 누적.`)) return;
     MetaRPG.setActiveSlot(slotId);
     const r = MetaRPG.applyReincarnation(slotId, { payGold: true });
     if (!r.ok) return alert(r.msg);
@@ -963,15 +1026,40 @@ window.reincarnateFromHub = function reincarnateFromHub(slotId) {
 
 window.openTechLinePicker = (jobKey) => {
     if (typeof MetaRPG === 'undefined') return;
-    if (MetaRPG.hasJobSlot(jobKey)) {
-        alert('이 직업은 이미 1명 보유 중입니다. 동일 직업을 다시 키우려면 허브에서 환생을 이용하세요.');
-        return;
-    }
+    const tryCreate = () => confirmNewCharacter(jobKey);
     if (MetaRPG.loadMeta().slots.length >= MetaRPG.MAX_SLOTS) {
-        alert('슬롯이 가득 찼습니다.');
+        const n = MetaRPG.getSaveFileSlotCount ? MetaRPG.getSaveFileSlotCount() : 3;
+        for (let fi = 0; fi < n; fi++) {
+            const pm = MetaRPG.peekMetaAtFileIndex(fi);
+            if (pm && pm.slots && pm.slots.length < MetaRPG.MAX_SLOTS) {
+                if (
+                    confirm(
+                        `이 저장 파일의 캐릭터 슬롯이 가득 찼습니다.\n저장 파일 ${fi + 1}번에는 빈 슬롯이 있습니다.\n해당 파일로 전환할까요?`
+                    )
+                ) {
+                    MetaRPG.setActiveSaveFileIndex(fi);
+                    showPreGameScreen();
+                }
+                return;
+            }
+        }
+        const ans = prompt(
+            `모든 저장 파일에서 캐릭터 슬롯이 가득 찼습니다.\n비우고 새로 만들 저장 파일 번호를 입력하세요 (1~${n}).\n※ 해당 파일의 메타·캐릭터 데이터가 삭제됩니다. 취소하려면 취소를 누르세요.`
+        );
+        if (ans == null) return;
+        const num = parseInt(String(ans).trim(), 10);
+        if (!Number.isFinite(num) || num < 1 || num > n) {
+            alert('1~' + n + ' 사이 숫자를 입력해 주세요.');
+            return;
+        }
+        const idx = num - 1;
+        if (!confirm(`저장 파일 ${num}번을 완전히 비우고 새 캐릭터를 만듭니다. 계속할까요?`)) return;
+        MetaRPG.clearSaveFile(idx);
+        MetaRPG.setActiveSaveFileIndex(idx);
+        tryCreate();
         return;
     }
-    confirmNewCharacter(jobKey);
+    tryCreate();
 };
 
 window.deleteRunSnapshotForSlot = function deleteRunSnapshotForSlot(slotId) {
@@ -1057,8 +1145,10 @@ function initRunFromMetaSlot() {
         atk: baseAtk,
         def: baseDef,
         acc: baseAcc,
-        crit: 5 + (tb.crit || 0),
+        crit: 1 + (tb.crit || 0),
         critMult: 1.8 + (tb.critMult || 0),
+        divinePower: 0,
+        divineGainMult: 1,
         metaSlotId: slot.id,
         runLevel: lv,
         runExp: slot.exp || 0,
@@ -1095,6 +1185,7 @@ function initRunFromMetaSlot() {
         shopRarityBoost: 0,
     };
     applyRebirthPctBonusToPlayer(slot);
+    recalcPlayerDivineGainMult();
     floor = 1;
     gold = 0;
     totalGoldEarned = 0;
@@ -1238,6 +1329,10 @@ window.evolve = (idx) => {
         }
     }
     document.body.removeChild(window._evolOverlay);
+    if (evol.name === '성직자') {
+        player.divinePower = safeNum(player.divinePower, 0);
+        recalcPlayerDivineGainMult();
+    }
     writeLog(`⚡ [전직] ${oldName} → <b style='color:#f1c40f'>${evol.name}</b>! 궁극기 [${evol.ult}] 획득!`);
     updateUi(); renderActions();
 };
@@ -1471,7 +1566,7 @@ window.resolveForge = (idx) => {
             if (item.type==='acc') player.acc -= item.value;
             if (item.def) player.extraDef = Math.max(0, player.extraDef-item.def);
             if (item.lifesteal) player.lifesteal = Math.max(0, player.lifesteal-item.lifesteal);
-            if (item.critBonus) player.crit = Math.max(5, player.crit-item.critBonus);
+            if (item.critBonus) player.crit = Math.max(1, player.crit-item.critBonus);
             if (item.critMult) player.critMult = Math.max(1.8, player.critMult-item.critMult);
             player.items = player.items.filter(i => i !== item);
         });
@@ -1701,8 +1796,17 @@ function renderActions() {
     if(['워리어','나이트','버서커'].includes(jn)){defBtn.innerText='🛡️ 방어 (70%)';defBtn.onclick=()=>useAction('방패방어');}
     else if(player.baseJob === '용병단장'){defBtn.innerText='💨 회피 (75%)';defBtn.onclick=()=>useAction('회피');}
     else if(['헌터','궁수','암살자'].includes(jn)){defBtn.innerText='💨 회피 (75%)';defBtn.onclick=()=>useAction('회피');}
-    else if(['마법사','위저드','소환사'].includes(jn)){defBtn.innerText='✨ 방어막 (60%)';defBtn.onclick=()=>useAction('방어막');}
+    else if(['마법사','위저드','소환사','성직자'].includes(jn)){defBtn.innerText='✨ 방어막 (60%)';defBtn.onclick=()=>useAction('방어막');}
     div.appendChild(defBtn);
+
+    if (player.name === '성직자') {
+        const prayBtn = document.createElement('button');
+        prayBtn.style.background = '#9b59b6';
+        prayBtn.style.color = '#fff';
+        prayBtn.innerText = '🙏 기도 (+신성력)';
+        prayBtn.onclick = () => useAction('기도');
+        div.appendChild(prayBtn);
+    }
 
     if (isMercenaryCaptainJob() && player.mercCooldownTurns > 0 && (!player.fieldMerc || player.fieldMerc.mercHp <= 0)) {
         const cost = getMercGoldSkipCost();
@@ -1833,6 +1937,10 @@ window.useAction = (type) => {
             enemy.curHp-=finalDmg;
             showDmgFloat(finalDmg,isCrit,false); triggerShakeEffect();
             writeLog(`[명중] ${effectMsg}적에게 ${finalDmg} 피해!`);
+            if (player.name === '성직자') {
+                const dg = 0.1 * safeNum(player.divineGainMult, 1);
+                player.divinePower = safeNum(player.divinePower, 0) + dg;
+            }
             if(mercCritMode&&player.fieldMerc&&safeNum(player.fieldMerc.mercBonusLifesteal,0)>0){
                 const mls=Math.min(LIFESTEAL_SOFT_CAP,safeNum(player.fieldMerc.mercBonusLifesteal,0));
                 const mh=Math.floor(finalDmg*mls);
@@ -1902,6 +2010,12 @@ window.useAction = (type) => {
         const shieldRate = 60 + (player._guardBonus||0);
         if(Math.random()*100<shieldRate){shieldedTurns=2;writeLog(`[성공] ✨ 2턴간 피해 50% 감소!`);}
         else writeLog(`[실패] 방어막 전개 실패!`);
+    } else if (type === '기도') {
+        if (player.name !== '성직자') return writeLog('[기도] 성직자만 사용할 수 있습니다.');
+        const gain = 1 * safeNum(player.divineGainMult, 1);
+        player.divinePower = safeNum(player.divinePower, 0) + gain;
+        writeLog(`[신성력] 🙏 기도 — 신성력 <b>+${gain}</b> (합계 표기 ${formatDivinePowerForDisplay(player.divinePower)})`);
+        updateUi(); renderActions(); enemyTurn(); return;
     }
     enemyTurn();
 };
@@ -1965,7 +2079,7 @@ function enemyTurn() {
         }
         if(hitLanded){
             if(Math.random()*100<80){
-                let dmg=Math.max(1,currentEnemyAtk-(player.def+player.extraDef+safeNum(player._syn&&player._syn.def,0)));
+                let dmg=Math.max(1,currentEnemyAtk-getTotalPlayerDefenseForHit());
                 if(shieldedTurns>0){dmg=Math.floor(dmg*0.5);shieldedTurns--;writeLog(`[방어막] ✨ 피해 50% 감소! (${dmg} 입음)`);if(player.relics&&player.relics.includes('barrier_reflect')){const rd=Math.floor(dmg*0.3);enemy.curHp-=rd;writeLog(`[유물] 🔮 마력 반사! ${rd}`);if(enemy.curHp<=0){setTimeout(()=>winBattle(),100);}}}
                 else if(defendingTurns>0){dmg=Math.floor(dmg*0.4);defendingTurns--;writeLog(`[철벽 방어] 🛡️ 피해 60% 감소! (${dmg} 입음)`);}
                 else writeLog(`[피격] 적의 공격! ${dmg} 데미지.`);
@@ -2238,6 +2352,9 @@ function loadRunFromMetaSnapshot(d) {
     regenTurns = d.regenTurns || 0;
     regenAmount = d.regenAmount || 0;
     player = d.player;
+    if (player && player.divinePower == null) player.divinePower = 0;
+    if (player && player.divineGainMult == null) player.divineGainMult = 1;
+    if (player && player.name === '성직자') recalcPlayerDivineGainMult();
     if (player && player.metaSlotId && typeof MetaRPG !== 'undefined' && MetaRPG.updateBestFloor) MetaRPG.updateBestFloor(player.metaSlotId, d.floor || 1);
     if (player && player.shopRarityBoost == null) player.shopRarityBoost = 0;
     enemy = d.enemy;
@@ -2327,6 +2444,11 @@ function returnToHubFromRun(savedExit) {
 window.exportFullSave = function exportFullSave() {
     const keys = [
         'dungeon_meta_v7',
+        'dungeon_meta_v7_f0',
+        'dungeon_meta_v7_f1',
+        'dungeon_meta_v7_f2',
+        'dungeon_meta_v7_active_file',
+        'dungeon_meta_v7_file_migrated_v2',
         'perma_stats',
         'perma_buy_count',
         'saved_gold',
@@ -2598,6 +2720,7 @@ function applyShopRarityTuning(baseItem) {
     tuned.critMult = safeNum(tuned.critMult, 0) + b.critMult;
     tuned.price = Math.max(b.minPrice, safeNum(tuned.price, 0));
     tuned.desc = formatShopItemDesc(tuned.desc);
+    if (baseItem.divinityGainBonus != null) tuned.divinityGainBonus = baseItem.divinityGainBonus;
     return tuned;
 }
 
@@ -2789,9 +2912,10 @@ window.buyItem = (event, idx) => {
             if(it.acc)player.acc+=it.acc;
             if(it.lifesteal)player.lifesteal=(player.lifesteal||0)+it.lifesteal;
             if(it.regenPotion)player.hasRegenPotion=true;
-            if(it.critBonus)player.crit=(player.crit||5)+it.critBonus;
+            if(it.critBonus)player.crit=(player.crit||1)+it.critBonus;
             if(it.critMult)player.critMult=(player.critMult||1.8)+it.critMult;
             if(it.penalty&&it.penalty[player.name]){player.acc-=it.penalty[player.name];writeLog(`[패널티] 명중률 -${it.penalty[player.name]}% 적용`);}
+            recalcPlayerDivineGainMult();
             writeLog(`[상점] ${it.name} 장착 완료!`);
         } else { writeLog(`이미 보유한 장비입니다!`); gold+=it.price; }
     }
@@ -2859,6 +2983,11 @@ function codexItemMatchesTab(it, tab) {
         if (!it.onlyFor || !Array.isArray(it.onlyFor) || it.onlyFor.length === 0) return true;
         return it.onlyFor.some((j) => keys.has(j));
     }
+    if (tab === '성직자') {
+        if (it.type === 'merc') return false;
+        const of = it.onlyFor;
+        return Array.isArray(of) && of.includes('성직자');
+    }
     if (it.type === 'merc') return false;
     const of = it.onlyFor;
     if (tab === '공용') return !of || (Array.isArray(of) && of.length === 0);
@@ -2883,7 +3012,7 @@ window.toggleCollection = (show) => {
         const mercMode = player && player.baseJob === '용병단장';
         if (mercMode && window._codexTab === '공용') window._codexTab = '용병';
         const tab = window._codexTab;
-        const tabs = mercMode ? ['용병', '워리어', '헌터', '마법사'] : ['공용', '워리어', '헌터', '마법사', '용병'];
+        const tabs = mercMode ? ['용병', '워리어', '헌터', '마법사'] : ['공용', '워리어', '헌터', '마법사', '성직자'];
         const collection = JSON.parse(localStorage.getItem('item_collection_v5') || '[]');
         const allItems = [
             ...equipmentPool,
@@ -2919,6 +3048,9 @@ window.toggleCollection = (show) => {
         html += `<p style="color:#888;font-size:0.85em;margin-bottom:15px;">탭: <b style="color:#f1c40f;">${tab}</b> · 해금: <b style="color:#f1c40f;">${collection.length}</b> / ${uniqueItems.length}</p>`;
         if (tab === '용병') {
             html += `<p style="color:#b87333;font-size:0.78em;margin:-8px 0 12px;line-height:1.45;">📜 <b>동료 장비 풀</b> — 전투 <b>💰 용병 지원</b>·상점 <b>직거래/자금 지원</b>으로 얻는 장비입니다. (이름 중복 없이 랜덤)</p>`;
+        }
+        if (tab === '성직자') {
+            html += `<p style="color:#9b59b6;font-size:0.78em;margin:-8px 0 12px;line-height:1.45;">📜 <b>성직자 전용 장비</b> — 일부 장비에 <b>신성력 획득량 증가</b> 옵션이 붙어 있습니다.</p>`;
         }
         if (relicItems.length > 0) {
             html += `<div style="margin-bottom:16px;border-bottom:1px solid #333;padding-bottom:12px;"><div style="background:#2a2a0a;color:#f1c40f;font-size:0.7em;font-weight:700;padding:3px 8px;border-radius:4px;display:inline-block;margin-bottom:8px;letter-spacing:1px;">✨ RELIC (유물)</div>`;
@@ -3028,10 +3160,14 @@ function updateUi() {
             if (isMercenaryCaptainJob()) {
                 summLine.innerHTML = `<span style="color:#e67e22;">🎖️ 지휘관 ${player.name}</span> <span style="color:#888;">| HP ${pCur}/${pMax}${lvTxt} · 전열 없음${player.mercCooldownTurns > 0 ? ` · 재가동 ${player.mercCooldownTurns}T` : ''}${synHint}</span>`;
             } else if (player.summon && player.summon.name) summLine.innerHTML = `<span style="color:#a55eea;">소환:</span> ${player.summon.name}`;
-            else summLine.innerHTML = `<span style="color:#888;font-size:0.85em;"><b>${player.name}</b>${lvTxt}${synHint}</span>`;
+            else if (player.name === '성직자') {
+                const dp = formatDivinePowerForDisplay(safeNum(player.divinePower, 0));
+                const gm = safeNum(player.divineGainMult, 1);
+                summLine.innerHTML = `<span style="color:#888;font-size:0.85em;"><b>${player.name}</b>${lvTxt} · <span style="color:#f1c40f;">✨ 신성력 ${dp}</span> · 획득×${gm.toFixed(2)}${synHint}</span>`;
+            } else summLine.innerHTML = `<span style="color:#888;font-size:0.85em;"><b>${player.name}</b>${lvTxt}${synHint}</span>`;
         }
         document.getElementById('p-atk-val').textContent = String(getEffectiveAttackPower());
-        document.getElementById('p-def-val').textContent = String(safeNum(player.def, 0) + safeNum(player.extraDef, 0) + safeNum(player._syn.def, 0));
+        document.getElementById('p-def-val').textContent = String(getTotalPlayerDefenseForHit());
         document.getElementById('p-acc-val').textContent = `${Math.min(95, BASE_HIT_ACCURACY + safeNum(player.acc, 0) + safeNum(player._syn.acc, 0))}%`;
         const critInfo = getCritInfo();
         document.getElementById('p-crit-val').textContent = `${Math.round(safeNum(critInfo.effectiveCrit, 0))}%`;
