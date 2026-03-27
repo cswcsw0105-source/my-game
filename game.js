@@ -2973,6 +2973,8 @@ window.saveAndExitToMain = function saveAndExitToMain() {
         const payload = serializeRunState();
         MetaRPG.setRunSnapshot(player.metaSlotId, payload);
         MetaRPG.markRunCheckpoint(player.metaSlotId);
+        // 랭킹 반영 기준: 사망/클리어 시점이 아닌 "저장한 층"
+        saveRank();
         writeLog('[저장] 런을 저장했습니다. 허브에서 이어하기로 복구할 수 있습니다.');
         returnToHubFromRun(true);
     } catch (e) {
@@ -4165,7 +4167,7 @@ function writeLog(msg) {
 }
 
 function dungeonClear() {
-    saveRank(); triggerBossWarning(false);
+    triggerBossWarning(false);
     const sg=Math.floor(totalGoldEarned*0.1), ps=getSavedGold();
     localStorage.setItem('saved_gold',ps+sg); exitBattleLayout();
     document.getElementById('battle-area').style.display='none';
@@ -4180,7 +4182,7 @@ window.startInfiniteMode=()=>{
 };
 
 function gameOver() {
-    saveRank(); triggerBossWarning(false);
+    triggerBossWarning(false);
     window.__deathApplied = false;
     const sg = Math.floor(totalGoldEarned * 0.1);
     const slotId = player && player.metaSlotId;
