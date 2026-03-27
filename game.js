@@ -1059,6 +1059,7 @@ function showPreGameScreen() {
                         </div>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
                         <button type="button" onclick="resumeMetaSlot('${s.id}')" style="background:#2ed573;color:#111;padding:8px 16px;font-weight:700;border:none;border-radius:8px;cursor:pointer;">이어하기</button>
+                        <button type="button" onclick="requestDeleteSaveFile(${typeof MetaRPG !== 'undefined' && typeof MetaRPG.getActiveFileIndex === 'function' ? MetaRPG.getActiveFileIndex() : 0})" style="background:#2a1111;color:#ff8080;padding:8px 12px;font-weight:800;border:1px solid #7f2b2b;border-radius:8px;cursor:pointer;font-size:0.82em;">파일 삭제</button>
                         ${MetaRPG.getRunSnapshot(s.id) ? `<button type="button" onclick="event.stopPropagation();deleteRunSnapshotForSlot('${s.id}')" style="background:#34495e;color:#ecf0f1;padding:8px 12px;font-weight:700;border:none;border-radius:8px;cursor:pointer;font-size:0.82em;">🗑 저장 삭제</button>` : ''}
                         ${rebBtn}
                         </div>
@@ -1076,10 +1077,7 @@ function showPreGameScreen() {
             const g = Math.max(0, safeNum(pm.savedGold, 0));
             const active = fi === cur ? ' (현재)' : '';
             parts.push(
-                `<div style="display:flex;gap:4px;align-items:stretch;">
-                    <button type="button" onclick="switchActiveSaveFile(${fi})" style="background:${fi === cur ? '#2a2a1a' : '#111'};border:1px solid ${fi === cur ? '#f1c40f' : '#444'};color:${fi === cur ? '#f1c40f' : '#888'};padding:8px 10px;border-radius:8px;cursor:pointer;font-size:0.78em;font-weight:700;">파일 ${fi + 1}${active}<br><span style="font-weight:400;color:#888;">캐릭 ${cnt} · ${g}G</span></button>
-                    <button type="button" onclick="requestDeleteSaveFile(${fi})" style="background:#2a1111;border:1px solid #7f2b2b;color:#ff8080;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:0.75em;font-weight:800;">삭제</button>
-                </div>`
+                `<button type="button" onclick="switchActiveSaveFile(${fi})" style="background:${fi === cur ? '#2a2a1a' : '#111'};border:1px solid ${fi === cur ? '#f1c40f' : '#444'};color:${fi === cur ? '#f1c40f' : '#888'};padding:8px 10px;border-radius:8px;cursor:pointer;font-size:0.78em;font-weight:700;">파일 ${fi + 1}${active}<br><span style="font-weight:400;color:#888;">캐릭 ${cnt} · ${g}G</span></button>`
             );
         }
         saveFileBar = `<div style="margin-bottom:14px;padding:12px;background:#0d0d12;border:1px solid #333;border-radius:10px;"><div style="color:#f1c40f;font-weight:700;margin-bottom:8px;font-size:0.9em;">💾 저장 파일 (최대 3)</div><div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">${parts.join('')}</div><p style="color:#666;font-size:0.72em;margin:8px 0 0;line-height:1.45;">다른 파일을 불러오려면 위 버튼을 누르세요. 모든 파일이 가득 차면 새 캐릭터 생성 시 <b>비울 파일</b>을 묻습니다.</p></div>`;
