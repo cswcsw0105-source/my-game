@@ -1365,6 +1365,7 @@ function initRunFromMetaSlot() {
         farmingStay: false,
         shopRarityBoost: 0,
     };
+    markPlayedJob(job.name);
     applyRebirthPctBonusToPlayer(slot);
     recalcPlayerDivineGainMult();
     floor = 1;
@@ -1477,6 +1478,7 @@ function showEvolutionChoice(evols) {
 
 // ===================== 전직도(마인드맵) + 전직 이름 해금 =====================
 const EVO_SEEN_KEY = 'evolution_seen_v1';
+const PLAYED_JOBS_KEY = 'played_jobs_v1';
 function loadSeenEvolutions() {
     try {
         const raw = localStorage.getItem(EVO_SEEN_KEY);
@@ -1542,11 +1544,130 @@ function buildEvolutionMindmapHtml() {
 </div>`;
 }
 
+function loadPlayedJobs() {
+    try {
+        const raw = localStorage.getItem(PLAYED_JOBS_KEY);
+        const arr = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(arr)) return [];
+        return arr.filter((x) => typeof x === 'string' && x.length > 0);
+    } catch (e) {
+        return [];
+    }
+}
+function savePlayedJobs(arr) {
+    try {
+        localStorage.setItem(PLAYED_JOBS_KEY, JSON.stringify(Array.isArray(arr) ? arr : []));
+    } catch (e) {
+        /* ignore */
+    }
+}
+function markPlayedJob(name) {
+    const n = String(name || '').trim();
+    if (!n) return;
+    const cur = loadPlayedJobs();
+    if (!cur.includes(n)) {
+        cur.push(n);
+        savePlayedJobs(cur);
+    }
+}
+function collectPlayedBaseJobsFromMeta() {
+    const out = [];
+    try {
+        if (typeof MetaRPG === 'undefined') return out;
+        const m = MetaRPG.loadMeta();
+        const slots = m && Array.isArray(m.slots) ? m.slots : [];
+        slots.forEach((s) => {
+            const jb = jobBase[s && s.jobKey];
+            if (jb && jb.name) out.push(jb.name);
+        });
+    } catch (e) {
+        /* ignore */
+    }
+    return out;
+}
+function getPlayedJobsForEvolutionMap() {
+    return new Set([...loadPlayedJobs(), ...collectPlayedBaseJobsFromMeta(), ...loadSeenEvolutions()]);
+}
+function getJobSpecForTooltip(jobName) {
+    const n = String(jobName || '');
+    for (const k of Object.keys(jobBase || {})) {
+        const j = jobBase[k];
+        if (j && j.name === n) {
+            return { atk: safeNum(j.atk, 0), def: safeNum(j.def, 0), crit: 1, critMult: 1.8, lifesteal: 0 };
+        }
+    }
+    for (const baseName of Object.keys(jobEvolutions || {})) {
+        const list = jobEvolutions[baseName] || [];
+        const hit = list.find((x) => x && x.name === n);
+        if (hit) {
+            return {
+                atk: safeNum(hit.bonusAtk, 0),
+                def: safeNum(hit.bonusDef, 0),
+                crit: 1,
+                critMult: 1.8,
+                lifesteal: 0,
+            };
+        }
+    }
+    return { atk: 0, def: 0, crit: 1, critMult: 1.8, lifesteal: 0 };
+}
+function getJobPassiveText(jobName) {
+    const map = {
+        워리어: '강인함: 기본 생존력이 높음',
+        헌터: '정밀 사격: 명중/딜 균형',
+        마법사: '주문 증폭: 높은 기본 공격력',
+        나이트: '철벽 수호: 방어/체력 특화',
+        버서커: '광전: 공격 특화',
+        궁수: '저격 자세: 명중 강화',
+        암살자: '암습: 고화력 일격',
+        위저드: '마도 폭주: 마법 화력 특화',
+        소환사: '소환 지휘: 소환수 중심 운영',
+        성직자: '신성력: 기도/가호/선택받은 성직자',
+    };
+    return map[jobName] || '고유 패시브';
+}
+function buildPlayedEvolutionMapHtml() {
+    const played = getPlayedJobsForEvolutionMap();
+    const rows = [
+        { base: '워리어', color: '#ff4757', list: ['나이트', '버서커'] },
+        { base: '헌터', color: '#2ed573', list: ['궁수', '암살자'] },
+        { base: '마법사', color: '#1e90ff', list: ['위저드', '소환사', '성직자'] },
+    ];
+    const makeCard = (name, color) => {
+        const spec = getJobSpecForTooltip(name);
+        const tip = `${name}\n패시브: ${getJobPassiveText(name)}\n공격력: ${spec.atk}\n방어력: ${spec.def}\n치명타 확률: ${spec.crit}%\n치명타 배율: ${spec.critMult.toFixed(2)}x\n흡혈: ${Math.round(spec.lifesteal * 100)}%`;
+        return `<span title="${tip}" style="display:inline-block;padding:6px 10px;border-radius:999px;border:1px solid ${color};background:#10141a;color:${color};font-weight:800;font-size:0.8em;margin:3px;cursor:help;">${name}</span>`;
+    };
+    const body = rows
+        .map((r) => {
+            const names = [r.base, ...r.list].filter((n) => played.has(n));
+            if (!names.length) return '';
+            const baseShown = names.includes(r.base) ? makeCard(r.base, r.color) : '';
+            const evols = r.list.filter((n) => names.includes(n)).map((n) => makeCard(n, '#f1c40f')).join('');
+            return `<div style="padding:10px;border:1px solid #2a2a2a;border-radius:10px;background:#0f0f14;"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">${baseShown || '<span style="color:#555;font-size:0.8em;">(기본 직업 미플레이)</span>'}${evols ? '<span style="color:#666;">→</span>' + evols : ''}</div></div>`;
+        })
+        .filter(Boolean)
+        .join('');
+    if (!body) {
+        return `<div style="padding:14px;border:1px solid #333;border-radius:10px;background:#0d0d12;color:#888;line-height:1.6;">아직 플레이한 직업 기록이 없습니다.<br>캐릭터를 시작하거나 전직하면 이 전직도에 자동으로 표시됩니다.</div>`;
+    }
+    return `<div style="margin-bottom:10px;color:#888;font-size:0.82em;line-height:1.55;">직업 칩에 마우스를 올리면 패시브와 기본 스탯 정보를 볼 수 있습니다.</div><div style="display:flex;flex-direction:column;gap:8px;">${body}</div>`;
+}
+window.toggleEvolutionMap = (show) => {
+    if (show) {
+        const el = document.getElementById('evolution-list');
+        if (el) el.innerHTML = buildPlayedEvolutionMapHtml();
+    }
+    const modal = document.getElementById('evolution-modal');
+    if (modal) modal.style.display = show ? 'flex' : 'none';
+};
+
 window.evolve = (idx) => {
     const evol = window._evolOptions[idx];
     const oldName = player.name;
     const baseKey = player.baseJob==='워리어'?'Warrior':player.baseJob==='헌터'?'Hunter':'Wizard';
     player.name = evol.name; player.evolved = true;
+    markPlayedJob(evol.name);
     markEvolutionSeen(evol.name);
     player.atk = evol.bonusAtk||jobBase[baseKey].atk;
     player.def = evol.bonusDef||jobBase[baseKey].def;
@@ -3558,7 +3679,7 @@ window.toggleCollection = (show) => {
                     `<button type="button" onclick="setCodexStatFilter('${x.id}')" style="margin:2px;padding:6px 10px;font-size:0.72em;font-weight:700;border-radius:6px;border:1px solid ${x.id === statFilter ? '#2ed573' : '#444'};background:${x.id === statFilter ? '#122a1a' : '#111'};color:${x.id === statFilter ? '#2ed573' : '#888'};cursor:pointer;">${x.label}</button>`
             )
             .join('');
-        let html = buildEvolutionMindmapHtml();
+        let html = '';
         html += `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px;align-items:center;">${tabBar}</div>`;
         html += `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px;align-items:center;">${statBar}</div>`;
         html += `<p style="color:#888;font-size:0.85em;margin-bottom:15px;">탭: <b style="color:#f1c40f;">${tab}</b> · 해금: <b style="color:#f1c40f;">${collection.length}</b> / ${uniqueItems.length}</p>`;
@@ -3609,6 +3730,7 @@ window.onclick=function(event){
     if(event.target===document.getElementById('rank-modal'))toggleRank(false);
     if(event.target===document.getElementById('inv-modal'))toggleInv(false);
     if(event.target===document.getElementById('collection-modal'))toggleCollection(false);
+    if(event.target===document.getElementById('evolution-modal'))toggleEvolutionMap(false);
 };
 
 function updateUi() {

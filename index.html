@@ -78,6 +78,7 @@
                 <hr style="border-top:1px solid #333; width: 100%;">
                 <h4 style="color: #fff;">📊 도감</h4>
                 <div style="display:flex;flex-direction:column;gap:8px;">
+                    <button type="button" class="sidebar-action-btn sidebar-btn-collection" onclick="toggleEvolutionMap(true)">🧭 전직도</button>
                     <button type="button" class="sidebar-action-btn sidebar-btn-collection" onclick="toggleCollection(true)">📖 장비 도감</button>
                     <button type="button" class="sidebar-action-btn sidebar-btn-rank" onclick="toggleRank(true)">🏆 명예의 전당 보기</button>
                     <button type="button" class="sidebar-action-btn sidebar-btn-patch" onclick="togglePatchNotes(true)">📜 패치 노트 보기</button>
@@ -121,6 +122,15 @@
             <button class="close-btn" onclick="toggleCollection(false)">✖</button>
             <h2>📖 장비 도감</h2>
             <div id="collection-list" style="font-size:0.9em; margin-top:15px;"></div>
+        </div>
+    </div>
+
+    <!-- 전직도 모달 -->
+    <div id="evolution-modal" class="modal-overlay">
+        <div class="modal-content">
+            <button class="close-btn" onclick="toggleEvolutionMap(false)">✖</button>
+            <h2>🧭 전직도</h2>
+            <div id="evolution-list" style="font-size:0.9em; margin-top:15px;"></div>
         </div>
     </div>
 
@@ -325,27 +335,6 @@
     </td></tr>
 </tbody>
             </table>
-            <div style="margin-top:20px;padding-top:16px;border-top:1px solid #444;">
-                <h3 style="color:#f1c40f;margin:0 0 10px;font-size:1em;">🛡️ 플레이어 전직 도표</h3>
-                <p style="color:#888;font-size:0.82em;margin:0 0 10px;">10층 보스 클리어 시 전직 선택 · 궁극기는 전직 후 해금</p>
-                <table class="patch-table" style="font-size:0.85em;">
-                    <thead><tr><th>기본 직업</th><th>전직 A</th><th>전직 B</th><th>전직 C</th></tr></thead>
-                    <tbody>
-                        <tr><td><b style="color:#ff4757;">워리어</b></td><td>나이트 (방어·체력)</td><td>버서커 (공격 특화)</td><td>—</td></tr>
-                        <tr><td><b style="color:#2ed573;">헌터</b></td><td>궁수 (원거리·명중)</td><td>암살자 (고딜)</td><td>—</td></tr>
-                        <tr><td><b style="color:#1e90ff;">마법사</b></td><td>위저드 (마법 화력)</td><td>소환사 (생존·소환)</td><td>성직자 (신성력)</td></tr>
-                    </tbody>
-                </table>
-                <h3 style="color:#aaa;margin:16px 0 8px;font-size:0.95em;">🛡️ 용병 동료 전직 (20~30층 1회)</h3>
-                <table class="patch-table" style="font-size:0.85em;">
-                    <thead><tr><th>동료 기반</th><th>경로 A</th><th>경로 B</th></tr></thead>
-                    <tbody>
-                        <tr><td>워리어 동료</td><td>철기사대 (나이트)</td><td>광전 부대 (버서커)</td></tr>
-                        <tr><td>헌터 동료</td><td>저격 지원 (궁수)</td><td>암살 계약 (암살자)</td></tr>
-                        <tr><td>마법사 동료</td><td>전투 마도 (위저드)</td><td>보조 소환 (소환사)</td></tr>
-                    </tbody>
-                </table>
-            </div>
         </div>
     </div>
 
