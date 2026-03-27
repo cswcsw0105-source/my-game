@@ -97,6 +97,25 @@ function formatTopPercent(rank, total) {
     const p = Math.max(0.1, (r / t) * 100);
     return `상위 ${p.toFixed(1)}%`;
 }
+function getCurrentUserKey() {
+    if (!currentUser) return '';
+    return String(currentUser.uid || currentUser.email || '').trim();
+}
+function getCurrentUserNick() {
+    if (!currentUser) return '';
+    const em = String(currentUser.email || '');
+    return em ? em.split('@')[0] : 'unknown';
+}
+function sortRankRows(rows) {
+    return rows.sort((a, b) => {
+        const fa = safeNum(a.floor, 0);
+        const fb = safeNum(b.floor, 0);
+        if (fb !== fa) return fb - fa;
+        const ta = safeNum(a.updatedAtMs, 0);
+        const tb = safeNum(b.updatedAtMs, 0);
+        return tb - ta;
+    });
+}
 function renderUserRankInfo() {
     const el = document.getElementById('user-rank-info');
     if (!el) return;
@@ -104,12 +123,13 @@ function renderUserRankInfo() {
         el.innerHTML = '';
         return;
     }
-    const ue = currentUser.email.split('@')[0];
+    const meId = getCurrentUserKey();
+    const meNick = getCurrentUserNick();
     const chips = [];
     for (const job of RANK_BASE_JOBS) {
         const rows = rankRealtimeCache[job] || [];
         if (!rows.length) continue;
-        const idx = rows.findIndex((r) => r && r.email === ue);
+        const idx = rows.findIndex((r) => r && (String(r.userId || '') === meId || String(r.email || '') === meNick));
         if (idx < 0) continue;
         const rank = idx + 1;
         const tone = getRankTone(rank);
@@ -142,8 +162,9 @@ function renderRankBoard() {
                 const tone = getRankTone(rank);
                 const medal = rank <= 3 ? tone.label : `<span style="color:#888;">#${rank}</span>`;
                 const jd = r.job !== r.baseJob ? `${r.baseJob}→${r.job}` : r.job;
+                const name = r.displayName || r.email || 'unknown';
                 html += `<div style="margin-bottom:6px;font-size:0.85em;padding:6px 8px;border:1px solid ${tone.border};border-radius:8px;background:${tone.bg};">
-${medal} <b style="color:${tone.color};">${r.floor}층</b> <span style="color:#888;">(${jd})</span> <span style="color:#aaa;">👤${r.email}</span><br>
+${medal} <b style="color:${tone.color};">${r.floor}층</b> <span style="color:#888;">(${jd})</span> <span style="color:#aaa;">👤${name}</span><br>
 <span style="color:#ff4757;font-size:0.8em;margin-left:18px;">💀 ${r.killer || '알 수 없음'}</span>
 </div>`;
             });
@@ -158,33 +179,40 @@ ${medal} <b style="color:${tone.color};">${r.floor}층</b> <span style="color:#8
 function subscribeRankRealtime() {
     clearRankRealtimeSubs();
     rankRealtimeCache = {};
-    for (const job of RANK_BASE_JOBS) {
-        const q = db.collection('global_ranks').where('baseJob', '==', job).orderBy('floor', 'desc');
-        const unsub = q.onSnapshot(
-            (snap) => {
-                const rows = [];
-                snap.forEach((doc) => {
-                    const d = doc.data() || {};
-                    rows.push({
-                        email: d.email || 'unknown',
-                        job: d.job || d.baseJob || job,
-                        baseJob: d.baseJob || job,
-                        floor: safeNum(d.floor, 0),
-                        killer: d.killer || '알 수 없음',
-                    });
+    const q = db.collection('global_ranks');
+    const unsub = q.onSnapshot(
+        (snap) => {
+            const grouped = {};
+            RANK_BASE_JOBS.forEach((j) => { grouped[j] = []; });
+            snap.forEach((doc) => {
+                const d = doc.data() || {};
+                const bj = d.baseJob || '';
+                if (!RANK_BASE_JOBS.includes(bj)) return;
+                const ts = d.timestamp && typeof d.timestamp.toMillis === 'function' ? d.timestamp.toMillis() : 0;
+                grouped[bj].push({
+                    userId: d.userId || '',
+                    email: d.email || 'unknown',
+                    displayName: d.displayName || d.email || 'unknown',
+                    job: d.job || bj,
+                    baseJob: bj,
+                    floor: safeNum(d.floor, 0),
+                    killer: d.killer || '알 수 없음',
+                    updatedAtMs: ts,
                 });
-                rankRealtimeCache[job] = rows;
-                renderRankBoard();
-                renderUserRankInfo();
-            },
-            () => {
-                rankRealtimeCache[job] = [];
-                renderRankBoard();
-                renderUserRankInfo();
+            });
+            for (const job of RANK_BASE_JOBS) {
+                rankRealtimeCache[job] = sortRankRows(grouped[job] || []);
             }
-        );
-        rankRealtimeUnsubs.push(unsub);
-    }
+            renderRankBoard();
+            renderUserRankInfo();
+        },
+        () => {
+            rankRealtimeCache = {};
+            renderRankBoard();
+            renderUserRankInfo();
+        }
+    );
+    rankRealtimeUnsubs.push(unsub);
 }
 let pendingShop = false;
 let potionUsedThisTurn = false;
@@ -3748,12 +3776,26 @@ window.buyItem = (event, idx) => {
 async function saveRank() {
     if(!currentUser) return;
     try {
-        const bj=player.baseJob||player.name, ue=currentUser.email.split('@')[0];
-        const ex=await db.collection("global_ranks").where("email","==",ue).where("baseJob","==",bj).get();
-        let ss=true; ex.forEach(doc=>{if(doc.data().floor>=floor)ss=false;});
-        if(!ss) return;
-        const batch=db.batch(); ex.forEach(doc=>batch.delete(doc.ref)); await batch.commit();
-        await db.collection("global_ranks").add({email:ue,job:player.name,baseJob:bj,floor:floor,killer:enemy?enemy.name:"알 수 없음",date:new Date().toLocaleDateString(),timestamp:firebase.firestore.FieldValue.serverTimestamp()});
+        const bj = player.baseJob || player.name;
+        const uid = getCurrentUserKey();
+        const nick = getCurrentUserNick();
+        if (!uid || !bj) return;
+        const docId = `${uid}__${bj}`;
+        const ref = db.collection("global_ranks").doc(docId);
+        const old = await ref.get();
+        const oldFloor = old.exists ? safeNum(old.data().floor, 0) : 0;
+        if (old.exists && oldFloor >= floor) return;
+        await ref.set({
+            userId: uid,
+            email: nick,
+            displayName: nick,
+            job: player.name,
+            baseJob: bj,
+            floor: floor,
+            killer: enemy ? enemy.name : "알 수 없음",
+            date: new Date().toLocaleDateString(),
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
     } catch(e){console.error("랭킹 저장 에러:",e);}
 }
 
