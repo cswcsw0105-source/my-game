@@ -288,6 +288,8 @@ function formatShopItemName(name) {
 function formatShopItemDesc(desc) {
     let s = String(desc || '');
     s = s.replace(/(?:워리어|헌터|마법사)\s*계열\.\s*/g, '');
+    s = s.replace(/(?:[가-힣A-Za-z]+)\s*전용\.\s*/g, '');
+    s = s.replace(/(?:[가-힣A-Za-z]+)\s*전용/g, '');
     return s.trim();
 }
 function applyRebirthPctBonusToPlayer(slot) {
@@ -355,14 +357,20 @@ function getDivineDefBonus() {
 }
 function recalcPlayerDivineGainMult() {
     if (!player || !isPriestJob()) {
-        if (player) player.divineGainMult = 1;
+        if (player) {
+            player.divineGainMult = 1;
+            player.prayerBonusFlat = 0;
+        }
         return;
     }
     let m = 1;
+    let p = 0;
     for (const it of player.items || []) {
         if (it && it.divinityGainBonus != null) m += safeNum(it.divinityGainBonus, 0);
+        if (it && it.prayerBonus != null) p += safeNum(it.prayerBonus, 0);
     }
     player.divineGainMult = m;
+    player.prayerBonusFlat = Math.max(0, p);
 }
 function addDivinePower(amount) {
     if (!isPriestJob()) return 0;
@@ -1306,10 +1314,12 @@ function initRunFromMetaSlot() {
         critMult: 1.8 + (tb.critMult || 0),
         divinePower: 0,
         divineGainMult: 1,
+        prayerBonusFlat: 0,
         priestBlessed: false,
         chosenPriest: false,
         priestNextCrit: false,
         prayerVulnerableHits: 0,
+        prayerCountThisTurn: 0,
         metaSlotId: slot.id,
         runLevel: lv,
         runExp: slot.exp || 0,
@@ -2184,10 +2194,6 @@ window.useAction = (type) => {
             enemy.curHp-=finalDmg;
             showDmgFloat(finalDmg,isCrit,false); triggerShakeEffect();
             writeLog(`[명중] ${effectMsg}적에게 ${finalDmg} 피해!`);
-            if (player.name === '성직자') {
-                const dg = 0.1 * safeNum(player.divineGainMult, 1);
-                addDivinePower(dg);
-            }
             if(mercCritMode&&player.fieldMerc&&safeNum(player.fieldMerc.mercBonusLifesteal,0)>0){
                 const mls=Math.min(LIFESTEAL_SOFT_CAP,safeNum(player.fieldMerc.mercBonusLifesteal,0));
                 const mh=Math.floor(finalDmg*mls);
@@ -2261,12 +2267,19 @@ window.useAction = (type) => {
     } else if (type === '기도') {
         if (player.name !== '성직자') return writeLog('[기도] 성직자만 사용할 수 있습니다.');
         if (player.chosenPriest) return writeLog('[기도] 선택받은 성직자는 더 이상 기도할 수 없습니다.');
-        const gain = 1 * safeNum(player.divineGainMult, 1);
+        player.prayerCountThisTurn = safeNum(player.prayerCountThisTurn, 0);
+        if (player.prayerCountThisTurn >= 2) return writeLog('[기도] 이번 턴에는 최대 2번만 기도할 수 있습니다.');
+        const gain = (1 + safeNum(player.prayerBonusFlat, 0)) * safeNum(player.divineGainMult, 1);
         addDivinePower(gain);
         player.prayerVulnerableHits = 1;
+        player.prayerCountThisTurn += 1;
         writeLog(`[신성력] 🙏 기도 — 신성력 <b>+${gain}</b> (합계 ${formatDivinePowerForDisplay(player.divinePower)} / 최대 200) · 다음 피격 2배`);
-        // 기도는 턴을 소모하지 않음
-        updateUi(); renderActions(); return;
+        updateUi(); renderActions();
+        // 1회차 기도는 무턴, 2회차 기도는 턴 소모
+        if (player.prayerCountThisTurn >= 2) {
+            enemyTurn();
+        }
+        return;
     }
     enemyTurn();
 };
@@ -2298,6 +2311,9 @@ window.usePotion = () => {
 let autoRegenCounter = 0;
 function enemyTurn() {
     setTimeout(() => {
+        if (player && player.name === '성직자') {
+            player.prayerCountThisTurn = 0;
+        }
         if (isMercenaryCaptainJob()) {
             player.mercBattleTurnCount = safeNum(player.mercBattleTurnCount, 0) + 1;
         }
@@ -2611,10 +2627,12 @@ function loadRunFromMetaSnapshot(d) {
     player = d.player;
     if (player && player.divinePower == null) player.divinePower = 0;
     if (player && player.divineGainMult == null) player.divineGainMult = 1;
+    if (player && player.prayerBonusFlat == null) player.prayerBonusFlat = 0;
     if (player && player.priestBlessed == null) player.priestBlessed = false;
     if (player && player.chosenPriest == null) player.chosenPriest = false;
     if (player && player.priestNextCrit == null) player.priestNextCrit = false;
     if (player && player.prayerVulnerableHits == null) player.prayerVulnerableHits = 0;
+    if (player && player.prayerCountThisTurn == null) player.prayerCountThisTurn = 0;
     if (player && player.name === '성직자') recalcPlayerDivineGainMult();
     if (player && player.metaSlotId && typeof MetaRPG !== 'undefined' && MetaRPG.updateBestFloor) MetaRPG.updateBestFloor(player.metaSlotId, d.floor || 1);
     if (player && player.shopRarityBoost == null) player.shopRarityBoost = 0;
@@ -2840,25 +2858,39 @@ function milestoneCenturyFloor() {
     if (typeof MetaRPG !== 'undefined') MetaRPG.addSavedGold(sg);
     exitBattleLayout();
     document.getElementById('battle-area').style.display = 'none';
-    const slot = player && player.metaSlotId && typeof MetaRPG !== 'undefined' ? MetaRPG.getSlotById(player.metaSlotId) : null;
-    document.querySelector('.screen').innerHTML = `<div style="text-align:center;padding:40px 20px;">
-      <h2 style="color:#f1c40f;">🏆 ${cf}층 이정표</h2>
-      <p style="color:#ccc;">무한 던전은 계속됩니다.</p>
-      <p style="color:#2ed573;">보존 +${sg}G</p>
+    const old = document.getElementById('century-milestone-overlay');
+    if (old) old.remove();
+    const ov = document.createElement('div');
+    ov.id = 'century-milestone-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:10090;display:flex;align-items:center;justify-content:center;padding:16px;';
+    ov.innerHTML = `<div style="max-width:460px;width:100%;background:#1a1a2e;border:2px solid #f1c40f;border-radius:12px;padding:24px;text-align:center;">
+      <h2 style="color:#f1c40f;margin:0 0 8px;">🏆 ${cf}층 이정표</h2>
+      <p style="color:#ccc;margin:0 0 6px;">무한 던전은 계속됩니다.</p>
+      <p style="color:#2ed573;margin:0 0 14px;">보존 +${sg}G</p>
       <button type="button" onclick="continuePastCentury()" style="background:#9b59b6;color:#fff;padding:12px 20px;margin:8px;border:none;border-radius:8px;cursor:pointer;font-weight:700;">♾️ 계속 (${cf + 1}층)</button>
-      <button type="button" onclick="location.reload()" style="background:#f1c40f;color:#111;padding:12px 20px;margin:8px;border:none;border-radius:8px;cursor:pointer;font-weight:700;">🏠 허브</button>
+      <button type="button" onclick="returnToHubFromCenturyMilestone()" style="background:#f1c40f;color:#111;padding:12px 20px;margin:8px;border:none;border-radius:8px;cursor:pointer;font-weight:700;">🏠 허브로</button>
     </div>`;
+    document.body.appendChild(ov);
 }
 
 window.continuePastCentury = () => {
     const cf = window.__centuryMilestoneFloor || 100;
     floor = cf + 1;
-    document.querySelector('.screen').innerHTML = '';
+    const ov = document.getElementById('century-milestone-overlay');
+    if (ov) ov.remove();
     document.getElementById('battle-area').style.display = 'block';
     enterBattleLayout();
     writeLog(`♾️ ${floor}층부터 진행`);
     spawnEnemy();
     updateUi();
+};
+window.returnToHubFromCenturyMilestone = () => {
+    const ov = document.getElementById('century-milestone-overlay');
+    if (ov) ov.remove();
+    player = null;
+    enemy = null;
+    document.getElementById('battle-area').style.display = 'none';
+    showPreGameScreen();
 };
 
 window.reincarnateFromCenturyMilestone = function reincarnateFromCenturyMilestone() {
@@ -2969,6 +3001,7 @@ function applyShopRarityTuning(baseItem) {
     tuned.price = Math.max(b.minPrice, safeNum(tuned.price, 0));
     tuned.desc = formatShopItemDesc(tuned.desc);
     if (baseItem.divinityGainBonus != null) tuned.divinityGainBonus = baseItem.divinityGainBonus;
+    if (baseItem.prayerBonus != null) tuned.prayerBonus = baseItem.prayerBonus;
     return tuned;
 }
 
@@ -3297,13 +3330,28 @@ window.setCodexTab = (t) => {
     window._codexTab = t;
     toggleCollection(true);
 };
+window.setCodexStatFilter = (f) => {
+    window._codexStatFilter = f || 'all';
+    toggleCollection(true);
+};
+function getCodexStatMetric(it, filter) {
+    if (!it) return 0;
+    if (filter === 'atk') return safeNum(it.type === 'atk' ? it.value : 0, 0);
+    if (filter === 'def') return safeNum(it.def, 0);
+    if (filter === 'crit') return safeNum(it.critBonus, 0);
+    if (filter === 'critMult') return safeNum(it.critMult, 0);
+    if (filter === 'acc') return safeNum(it.type === 'acc' ? it.value : it.acc, 0);
+    return 0;
+}
 
 window.toggleCollection = (show) => {
     if (show) {
         if (!window._codexTab) window._codexTab = '공용';
+        if (!window._codexStatFilter) window._codexStatFilter = 'all';
         const mercMode = player && player.baseJob === '용병단장';
         if (mercMode && window._codexTab === '공용') window._codexTab = '용병';
         const tab = window._codexTab;
+        const statFilter = window._codexStatFilter;
         const tabs = mercMode ? ['용병', '워리어', '헌터', '마법사'] : ['공용', '워리어', '헌터', '마법사', '성직자'];
         const collection = JSON.parse(localStorage.getItem('item_collection_v5') || '[]');
         const allItems = [
@@ -3319,7 +3367,12 @@ window.toggleCollection = (show) => {
             seen.add(i.name);
             return true;
         });
-        const tabItems = uniqueItems.filter((i) => codexItemMatchesTab(i, tab));
+        let tabItems = uniqueItems.filter((i) => codexItemMatchesTab(i, tab));
+        if (statFilter !== 'all') {
+            tabItems = tabItems
+                .filter((i) => getCodexStatMetric(i, statFilter) > 0)
+                .sort((a, b) => getCodexStatMetric(b, statFilter) - getCodexStatMetric(a, statFilter));
+        }
         const rarityLabels = {
             relic: { label: 'RELIC', color: '#f39c12', bg: '#2a1a0a' },
             legendary: { label: 'LEGENDARY', color: '#e74c3c', bg: '#2d1a1a' },
@@ -3336,8 +3389,23 @@ window.toggleCollection = (show) => {
                     `<button type="button" onclick="setCodexTab('${t}')" style="margin:2px;padding:6px 10px;font-size:0.75em;font-weight:700;border-radius:6px;border:1px solid ${t === tab ? '#f1c40f' : '#444'};background:${t === tab ? '#2a2a1a' : '#111'};color:${t === tab ? '#f1c40f' : '#888'};cursor:pointer;">${t}</button>`
             )
             .join('');
+        const statFilters = [
+            { id: 'all', label: '전체' },
+            { id: 'atk', label: '공격력 높은 순' },
+            { id: 'def', label: '방어력 높은 순' },
+            { id: 'crit', label: '치명 확률 높은 순' },
+            { id: 'critMult', label: '치명 배율 높은 순' },
+            { id: 'acc', label: '명중률 높은 순' },
+        ];
+        const statBar = statFilters
+            .map(
+                (x) =>
+                    `<button type="button" onclick="setCodexStatFilter('${x.id}')" style="margin:2px;padding:6px 10px;font-size:0.72em;font-weight:700;border-radius:6px;border:1px solid ${x.id === statFilter ? '#2ed573' : '#444'};background:${x.id === statFilter ? '#122a1a' : '#111'};color:${x.id === statFilter ? '#2ed573' : '#888'};cursor:pointer;">${x.label}</button>`
+            )
+            .join('');
         let html = buildEvolutionMindmapHtml();
         html += `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px;align-items:center;">${tabBar}</div>`;
+        html += `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px;align-items:center;">${statBar}</div>`;
         html += `<p style="color:#888;font-size:0.85em;margin-bottom:15px;">탭: <b style="color:#f1c40f;">${tab}</b> · 해금: <b style="color:#f1c40f;">${collection.length}</b> / ${uniqueItems.length}</p>`;
         if (tab === '용병') {
             html += `<p style="color:#b87333;font-size:0.78em;margin:-8px 0 12px;line-height:1.45;">📜 <b>동료 장비 풀</b> — 전투 <b>💰 용병 지원</b>·상점 <b>직거래/자금 지원</b>으로 얻는 장비입니다. (이름 중복 없이 랜덤)</p>`;
@@ -3350,7 +3418,7 @@ window.toggleCollection = (show) => {
             relicItems.forEach((it) => {
                 if (collection.includes(it.name)) {
                     const pref = isPreferredItem(it.name);
-                    html += `<div style="padding:8px 10px;background:#111;border-radius:6px;margin-bottom:4px;border-left:3px solid #f1c40f;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div><div style="color:#f1c40f;font-weight:700;font-size:0.9em;">✅ ✨ ${it.name}${pref ? ' <span style="color:#f1c40f;">★</span>' : ''}</div><div style="color:#666;font-size:0.78em;margin-top:3px;">${it.desc}</div></div><button type="button" onclick="togglePreferredItem('${escapeJsSingleQuoteString(it.name)}')" style="background:${pref ? '#f1c40f' : '#111'};color:${pref ? '#111' : '#f1c40f'};border:1px solid #f1c40f;border-radius:8px;padding:6px 10px;font-weight:900;cursor:pointer;font-size:0.78em;">★</button></div>`;
+                    html += `<div style="padding:8px 10px;background:#111;border-radius:6px;margin-bottom:4px;border-left:3px solid #f1c40f;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div><div style="color:#f1c40f;font-weight:700;font-size:0.9em;">✅ ✨ ${it.name}${pref ? ' <span style="color:#f1c40f;">★</span>' : ''}</div><div style="color:#666;font-size:0.78em;margin-top:3px;">${formatShopItemDesc(it.desc)}</div></div><button type="button" onclick="togglePreferredItem('${escapeJsSingleQuoteString(it.name)}')" style="background:${pref ? '#f1c40f' : '#111'};color:${pref ? '#111' : '#f1c40f'};border:1px solid #f1c40f;border-radius:8px;padding:6px 10px;font-weight:900;cursor:pointer;font-size:0.78em;">★</button></div>`;
                 }
                 else html += `<div style="padding:8px 10px;background:#0a0a0a;border-radius:6px;margin-bottom:4px;border-left:3px solid #333;"><div style="color:#444;font-weight:700;font-size:0.9em;">🔒 ???</div></div>`;
             });
@@ -3370,7 +3438,7 @@ window.toggleCollection = (show) => {
             items.forEach((it) => {
                 if (it.owned) {
                     const pref = isPreferredItem(it.name);
-                    html += `<div style="padding:8px 10px;background:#111;border-radius:6px;margin-bottom:4px;border-left:3px solid ${color};display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div><div style="color:${color};font-weight:700;font-size:0.9em;">✅ ${it.name}${pref ? ' <span style="color:#f1c40f;">★</span>' : ''}</div><div style="color:#666;font-size:0.78em;margin-top:3px;">${it.desc}</div></div><button type="button" onclick="togglePreferredItem('${escapeJsSingleQuoteString(it.name)}')" style="background:${pref ? '#f1c40f' : '#111'};color:${pref ? '#111' : '#f1c40f'};border:1px solid #f1c40f;border-radius:8px;padding:6px 10px;font-weight:900;cursor:pointer;font-size:0.78em;">★</button></div>`;
+                    html += `<div style="padding:8px 10px;background:#111;border-radius:6px;margin-bottom:4px;border-left:3px solid ${color};display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div><div style="color:${color};font-weight:700;font-size:0.9em;">✅ ${it.name}${pref ? ' <span style="color:#f1c40f;">★</span>' : ''}</div><div style="color:#666;font-size:0.78em;margin-top:3px;">${formatShopItemDesc(it.desc)}</div></div><button type="button" onclick="togglePreferredItem('${escapeJsSingleQuoteString(it.name)}')" style="background:${pref ? '#f1c40f' : '#111'};color:${pref ? '#111' : '#f1c40f'};border:1px solid #f1c40f;border-radius:8px;padding:6px 10px;font-weight:900;cursor:pointer;font-size:0.78em;">★</button></div>`;
                 }
                 else html += `<div style="padding:8px 10px;background:#0a0a0a;border-radius:6px;margin-bottom:4px;border-left:3px solid #333;"><div style="color:#444;font-weight:700;font-size:0.9em;">🔒 ???</div></div>`;
             });

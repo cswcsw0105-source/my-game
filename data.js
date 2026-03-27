@@ -386,24 +386,41 @@ const equipmentPoolPriest = (function genPriestPool() {
         const nm = `성역 유물 ${String(i + 1).padStart(2, '0')}`;
         const base = 4 + (i % 20);
         const price = 20 + i * 2 + (r === 'legendary' ? 90 : r === 'epic' ? 45 : 0);
+        const prayerBonus = r === 'epic' || r === 'legendary' ? 2 : 1;
         const o = {
             name: nm,
             type: typ,
             rarity: r,
             onlyFor: ['성직자'],
             price,
-            desc: '성직자 전용.',
+            prayerBonus,
+            desc: '',
         };
-        if (typ === 'atk') {
-            o.value = base + 2;
-            if (i % 4 === 0) o.critBonus = 2 + (i % 4);
-        } else if (typ === 'hp') {
-            o.value = base * 3 + 8;
-            if (i % 5 === 1) o.def = 3 + (i % 6);
+        if (typ === 'atk') o.value = base + 2;
+        else if (typ === 'hp') o.value = base * 3 + 8;
+        else o.value = 5 + (i % 16);
+
+        // 기도 보너스 + 희귀도별 보조 스탯 1개
+        const mod = i % 4;
+        if (mod === 0) {
+            o.value = (o.value || 0) + (r === 'legendary' ? 14 : r === 'epic' ? 10 : r === 'rare' ? 7 : 4);
+        } else if (mod === 1) {
+            o.def = (o.def || 0) + (r === 'legendary' ? 26 : r === 'epic' ? 18 : r === 'rare' ? 12 : 7);
+        } else if (mod === 2) {
+            o.critBonus = (o.critBonus || 0) + (r === 'legendary' ? 9 : r === 'epic' ? 6 : r === 'rare' ? 4 : 2);
         } else {
-            o.value = 5 + (i % 16);
+            o.critMult = (o.critMult || 0) + (r === 'legendary' ? 0.22 : r === 'epic' ? 0.14 : r === 'rare' ? 0.09 : 0.05);
         }
-        if (i % 7 === 0) o.divinityGainBonus = 0.05 + (i % 8) * 0.015;
+        if (i % 6 === 0) o.divinityGainBonus = 0.04 + (r === 'legendary' ? 0.08 : r === 'epic' ? 0.05 : r === 'rare' ? 0.03 : 0.01);
+        const addTxt =
+            mod === 0
+                ? `공격(+${o.value})`
+                : mod === 1
+                  ? `방어(+${o.def})`
+                  : mod === 2
+                    ? `치명(+${o.critBonus}%)`
+                    : `치명배율(+${Math.round((o.critMult || 0) * 100)}%)`;
+        o.desc = `기도 보너스(+${prayerBonus}), ${addTxt}.`;
         out.push(o);
     }
     return out;
