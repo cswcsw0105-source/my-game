@@ -505,14 +505,14 @@ const synergyRules = [
 ];
 
 const relicPool = [
-    { id: 'relic_warrior_berserk', name: "분노의 심장",    desc: "체력이 30% 이하일 때 치명타가 극대화(표시 70%·초과분은 배율로 전환).", onlyFor: ["워리어","나이트","버서커"], rarity: "legendary", effect: "berserk_crit",    price: 180 },
-    { id: 'relic_warrior_shield',  name: "철벽의 의지",    desc: "방어 성공 시 다음 공격 데미지 +50%.",    onlyFor: ["워리어","나이트","버서커"], rarity: "epic",      effect: "shield_empower",  price: 120 },
-    { id: 'relic_hunter_dodge',    name: "그림자 반격",    desc: "회피 성공 시 공격력의 60% 고정 피해 + 체력 10 흡혈.", onlyFor: ["헌터","궁수","암살자"], rarity: "legendary", effect: "dodge_counter", price: 180 },
-    { id: 'relic_hunter_execute',  name: "처형자의 표식",  desc: "적 체력이 20% 이하일 때 공격력 2배.",    onlyFor: ["헌터","궁수","암살자"], rarity: "epic",      effect: "execute",         price: 120 },
-    { id: 'relic_wizard_chain',    name: "연쇄 마법진",    desc: "치명타 발동 시 즉시 한 번 더 공격.",     onlyFor: ["마법사","위저드","소환사","성직자"], rarity: "legendary", effect: "chain_cast",     price: 180 },
-    { id: 'relic_wizard_barrier',  name: "마력 방벽",      desc: "방어막 성공 시 받은 피해의 30% 반사.",   onlyFor: ["마법사","위저드","소환사","성직자"], rarity: "epic",      effect: "barrier_reflect", price: 120 },
-    { id: 'relic_common_vampire',  name: "뱀파이어의 반지", desc: "킬 시 최대 체력의 15% 즉시 회복.",      onlyFor: null, rarity: "epic",      effect: "kill_heal",       price: 130 },
-    { id: 'relic_common_gambler',  name: "도박사의 주사위", desc: "매 전투 시작 시 50% 확률로 공격력 +30%, 50% 확률로 -10%.", onlyFor: null, rarity: "rare", effect: "gambler", price: 80 },
+    { id: 'relic_warrior_berserk', name: "분노의 심장",    desc: "체력 35% 이하일 때 피해 +45%.", onlyFor: ["워리어","나이트","버서커"], rarity: "legendary", effect: "berserk_crit",    price: 210 },
+    { id: 'relic_warrior_shield',  name: "철벽의 의지",    desc: "방어 성공 시 체력 8% 회복 + 다음 공격 피해 25% 증가.", onlyFor: ["워리어","나이트","버서커"], rarity: "epic",      effect: "shield_empower",  price: 155 },
+    { id: 'relic_hunter_dodge',    name: "그림자 반격",    desc: "회피 성공 시 적 방어 일부 무시 반격(강화된 반격 피해).", onlyFor: ["헌터","궁수","암살자"], rarity: "legendary", effect: "dodge_counter", price: 210 },
+    { id: 'relic_hunter_execute',  name: "처형자의 표식",  desc: "적 체력 35% 이하일 때 피해 80% 증가.", onlyFor: ["헌터","궁수","암살자"], rarity: "epic",      effect: "execute",         price: 150 },
+    { id: 'relic_wizard_chain',    name: "연쇄 마법진",    desc: "치명타 시 연쇄 충전: 다음 공격 피해 35% 증가.", onlyFor: ["마법사","위저드","소환사","성직자"], rarity: "legendary", effect: "chain_cast",     price: 210 },
+    { id: 'relic_wizard_barrier',  name: "마력 방벽",      desc: "방어막으로 피해 감소 시 반사 45% + 체력 5% 회복.", onlyFor: ["마법사","위저드","소환사","성직자"], rarity: "epic",      effect: "barrier_reflect", price: 150 },
+    { id: 'relic_common_vampire',  name: "뱀파이어의 반지", desc: "적 처치 시 체력 10% 회복 + 치명타 배율 영구 +3%.", onlyFor: null, rarity: "epic",      effect: "kill_heal",       price: 160 },
+    { id: 'relic_common_gambler',  name: "도박사의 주사위", desc: "전투 시작 시 무작위 강화: 공격 +22% 또는 치명타 확률 +18%.", onlyFor: null, rarity: "rare", effect: "gambler", price: 110 },
 ];
 
 // 대장간 합성 레시피
@@ -527,54 +527,51 @@ const forgeRecipes = [
     { name: "파멸의 각인",   type: "atk", value: 50, price: 0, rarity: "legendary", desc: "대장간 합성. 공격력(+50). 흡혈(25%), 치명타 배율(+40%).", materials: 2, materialRarity: "epic", successRate: 0.50, lifesteal: 0.25, critMult: 0.4 },
 ];
 
-/** 장비 밸런스 — 이전 계수 대비 스탯 약 +20%, 가격 +20%, 너프 후에도 원본의 최소 10% 유지 */
+/** 장비 밸런스 — 전체 상향 + 희귀도 역전 방지 + 옵션 하한 보정 */
 (function applyItemBalanceS1Beta() {
-    const M = 0.672;
-    const PRICE_MULT = 1.2;
-    function minFrac(orig, scaled, isInt) {
-        if (orig == null || orig === 0) return scaled;
-        const floor10 = typeof orig === 'number' && orig < 1 ? orig * 0.1 : Math.max(1, Math.ceil(Number(orig) * 0.1));
-        if (isInt) return Math.max(floor10, scaled);
-        return Math.max(orig * 0.1, scaled);
+    const M = 1.22;
+    const PRICE_MULT = 1.18;
+    const rarityFloor = {
+        common: { value: 12, def: 1, acc: 8, critBonus: 1, critMult: 0.01, lifesteal: 0.01 },
+        rare: { value: 28, def: 5, acc: 16, critBonus: 4, critMult: 0.08, lifesteal: 0.04 },
+        epic: { value: 52, def: 11, acc: 26, critBonus: 8, critMult: 0.18, lifesteal: 0.08 },
+        legendary: { value: 84, def: 20, acc: 36, critBonus: 14, critMult: 0.32, lifesteal: 0.12 },
+    };
+    function floorOf(rarity, key) {
+        const rf = rarityFloor[rarity] || rarityFloor.common;
+        return rf[key];
     }
-    function nerf(it) {
+    function up(it) {
         if (!it || it._balS1b) return;
-        const ov = it.value,
-            od = it.def,
-            oa = it.acc,
-            oc = it.critBonus,
-            om = it.critMult;
+        const rk = it.rarity || 'common';
         if (typeof it.value === 'number') {
-            const r = Math.max(1, Math.round(it.value * M));
-            it.value = minFrac(ov, r, true);
+            it.value = Math.max(floorOf(rk, 'value'), Math.round(it.value * M));
         }
         if (typeof it.def === 'number') {
-            const r = Math.max(0, Math.round(it.def * M));
-            it.def = od ? minFrac(od, r, true) : r;
+            it.def = Math.max(floorOf(rk, 'def'), Math.round(it.def * M));
         }
         if (typeof it.acc === 'number') {
-            const r = Math.max(0, Math.round(it.acc * M));
-            it.acc = oa ? minFrac(oa, r, true) : r;
+            it.acc = Math.max(floorOf(rk, 'acc'), Math.round(it.acc * M));
         }
         if (typeof it.critBonus === 'number') {
-            const r = Math.max(1, Math.round(it.critBonus * M));
-            it.critBonus = oc ? minFrac(oc, r, true) : r;
+            it.critBonus = Math.max(floorOf(rk, 'critBonus'), Math.round(it.critBonus * M));
         }
         if (typeof it.critMult === 'number') {
-            const r = Math.round(it.critMult * M * 100) / 100;
-            it.critMult = om ? minFrac(om, r, false) : r;
+            it.critMult = Math.max(floorOf(rk, 'critMult'), Math.round(it.critMult * M * 100) / 100);
         }
-        if (typeof it.lifesteal === 'number') it.lifesteal = Math.round(it.lifesteal * M * 100) / 100;
+        if (typeof it.lifesteal === 'number') {
+            it.lifesteal = Math.max(floorOf(rk, 'lifesteal'), Math.round(it.lifesteal * M * 100) / 100);
+        }
         if (typeof it.price === 'number') it.price = Math.max(1, Math.ceil(it.price * PRICE_MULT));
         it._balS1b = true;
     }
-    if (typeof equipmentPool !== 'undefined' && Array.isArray(equipmentPool)) equipmentPool.forEach(nerf);
-    function nerfUnlock(obj) {
+    if (typeof equipmentPool !== 'undefined' && Array.isArray(equipmentPool)) equipmentPool.forEach(up);
+    function upUnlock(obj) {
         if (!obj) return;
-        Object.keys(obj).forEach((k) => nerf(obj[k]));
+        Object.keys(obj).forEach((k) => up(obj[k]));
     }
-    nerfUnlock(typeof floorUnlocks !== 'undefined' ? floorUnlocks : null);
-    nerfUnlock(typeof floorUnlocksHunter !== 'undefined' ? floorUnlocksHunter : null);
-    nerfUnlock(typeof floorUnlocksWizard !== 'undefined' ? floorUnlocksWizard : null);
-    if (typeof forgeRecipes !== 'undefined' && Array.isArray(forgeRecipes)) forgeRecipes.forEach(nerf);
+    upUnlock(typeof floorUnlocks !== 'undefined' ? floorUnlocks : null);
+    upUnlock(typeof floorUnlocksHunter !== 'undefined' ? floorUnlocksHunter : null);
+    upUnlock(typeof floorUnlocksWizard !== 'undefined' ? floorUnlocksWizard : null);
+    if (typeof forgeRecipes !== 'undefined' && Array.isArray(forgeRecipes)) forgeRecipes.forEach(up);
 })();

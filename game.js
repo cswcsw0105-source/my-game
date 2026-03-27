@@ -274,8 +274,7 @@ function triggerBossWarning(on) {
 
 function getCritOverflowForMult() {
     if (!player) return 0;
-    let raw = safeNum(player.crit, 1);
-    if (player.relics && player.relics.includes('berserk_crit') && player.maxHp && player.curHp <= player.maxHp * 0.3) raw = 100;
+    let raw = safeNum(player.crit, 1) + safeNum(player._relicTempCrit, 0);
     return Math.max(0, raw - CRIT_SOFT_CAP);
 }
 function getEffectiveCritMult() {
@@ -313,13 +312,9 @@ function applyRebirthPctBonusToPlayer(slot) {
     if (cmPct > 0) player.critMult = Math.ceil(player.critMult * (1 + cmPct / 100));
 }
 function getCritInfo() {
-    const rawCrit = safeNum(player && player.crit, 1);
-    let valueForCap = rawCrit;
-    let isBerserkCrit = false;
-    if (player && player.relics && player.relics.includes('berserk_crit') && player.maxHp && player.curHp <= player.maxHp * 0.3) {
-        valueForCap = 100;
-        isBerserkCrit = true;
-    }
+    const rawCrit = safeNum(player && player.crit, 1) + safeNum(player && player._relicTempCrit, 0);
+    const valueForCap = rawCrit;
+    const isBerserkCrit = false;
     let synC = 0;
     if (player && player._syn && player._syn.crit) synC = safeNum(player._syn.crit, 0);
     const effectiveCrit = Math.min(CRIT_SOFT_CAP, Math.max(0, valueForCap + synC));
@@ -2088,10 +2083,18 @@ function spawnEnemy() {
     }
     if (player) player.mercNextBattleDebuff = null;
 
+    if (player) {
+        player._relicTempCrit = 0;
+    }
     if (player.relics&&player.relics.includes('gambler')) {
         const pa = safeNum(player.atk, 0);
-        if (Math.random()<0.5) { player.extraAtk=Math.floor(pa*0.3); writeLog(`[유물] 🎲 도박사: 행운! 공격력 +30%`); }
-        else { player.extraAtk=-Math.floor(pa*0.1); writeLog(`[유물] 🎲 도박사: 불운... 공격력 -10%`); }
+        if (Math.random()<0.5) {
+            player.extraAtk=Math.floor(pa*0.22);
+            writeLog(`[유물] 🎲 도박사의 주사위: 공격력 +22%`);
+        } else {
+            player._relicTempCrit = 18;
+            writeLog(`[유물] 🎲 도박사의 주사위: 치명타 확률 +18%`);
+        }
     }
 
     if (floor%10===0) {
@@ -2298,8 +2301,14 @@ window.useAction = (type) => {
             const mercCritMode=isMercenaryCaptainJob()&&player.fieldMerc&&player.fieldMerc.mercHp>0;
             if(mercCritMode){effectiveCrit=getMercEffectiveCritForMercAttack();}
             let relicAtkMult=1;
-            if(player.relics&&player.relics.includes('execute')&&enemy.curHp<=enemy.hp*0.2){relicAtkMult=2;effectMsg+="<b style='color:#e74c3c'>💀 처형!</b> ";}
-            if(player.shieldEmpowered){relicAtkMult*=1.5;player.shieldEmpowered=false;effectMsg+="<b style='color:#3498db'>🛡️ 강화!</b> ";}
+            if(player.relics&&player.relics.includes('execute')&&enemy.curHp<=enemy.hp*0.35){relicAtkMult*=1.8;effectMsg+="<b style='color:#e74c3c'>💀 집행!</b> ";}
+            if(player.relics&&player.relics.includes('berserk_crit')&&player.maxHp&&player.curHp<=player.maxHp*0.35){relicAtkMult*=1.45;effectMsg+="<b style='color:#ff4757'>🔥 격노 심장!</b> ";}
+            if(player.shieldEmpowered){relicAtkMult*=1.25;player.shieldEmpowered=false;effectMsg+="<b style='color:#3498db'>🛡️ 수호 증폭!</b> ";}
+            if (player && player._arcaneCharge) {
+                relicAtkMult *= 1.35;
+                player._arcaneCharge = false;
+                effectMsg += "<b style='color:#9b59b6'>🔮 연쇄 충전!</b> ";
+            }
             let isCrit = false;
             let usedWeak = false;
             if (enemy.weakPoint && player.name === '암살자') {
@@ -2351,9 +2360,15 @@ window.useAction = (type) => {
                 if(isCrit&&player.bonusSkills.includes('bonus_explode')){const ed=Math.floor(getEffectiveAttackPower()*0.5);enemy.curHp-=ed;writeLog(`[스킬] 폭발 일격! ${ed} 추가 피해!`);showDmgFloat(ed,false,false);}
             }
             if(isCrit&&player.relics&&player.relics.includes('chain_cast')&&enemy.curHp>0){
-                setTimeout(()=>{if(!enemy||enemy.curHp<=0)return;const cd=Math.max(1,Math.floor(getEffectiveAttackPower()*0.55)-enemy.def);enemy.curHp-=cd;writeLog(`[유물] ⚡ 연쇄 마법! ${cd} 추가 피해!`);showDmgFloat(cd,false,false);if(enemy.curHp<=0)winBattle();else updateUi();},250);
+                player._arcaneCharge = true;
+                writeLog(`[유물] ⚡ 연쇄 마법진: 다음 공격 피해 증폭 준비!`);
             }
-            if(enemy.curHp<=0&&player.relics&&player.relics.includes('kill_heal')){const kh=Math.floor(player.maxHp*0.15);player.curHp=Math.min(player.maxHp,player.curHp+kh);writeLog(`[유물] 💚 킬 회복 ${kh}!`);}
+            if(enemy.curHp<=0&&player.relics&&player.relics.includes('kill_heal')){
+                const kh=Math.floor(player.maxHp*0.10);
+                player.curHp=Math.min(player.maxHp,player.curHp+kh);
+                player.critMult = safeNum(player.critMult, 1.8) + 0.03;
+                writeLog(`[유물] 💚 혈반지 흡수! 회복 ${kh}, 치명 배율 +3%`);
+            }
         } else writeLog(`[빗나감] 공격 실패!`);
         updateUi(); renderActions();
         if(enemy.curHp<=0) return winBattle();
@@ -2387,7 +2402,7 @@ window.useAction = (type) => {
 
     } else if (type==='방패방어') {
         const guardRate = 70 + (player._guardBonus||0);
-        if(Math.random()*100<guardRate){defendingTurns=2;writeLog(`[성공] 🛡️ 2턴간 피해 60% 감소!`);if(player.relics&&player.relics.includes('shield_empower')){player.shieldEmpowered=true;writeLog(`[유물] ⚡ 철벽의 의지 발동!`);}}
+        if(Math.random()*100<guardRate){defendingTurns=2;writeLog(`[성공] 🛡️ 2턴간 피해 60% 감소!`);if(player.relics&&player.relics.includes('shield_empower')){player.shieldEmpowered=true;const rh=Math.floor(player.maxHp*0.08);player.curHp=Math.min(player.maxHp,player.curHp+rh);writeLog(`[유물] ⚡ 철벽의 의지 발동! 회복 +${rh}, 다음 공격 강화`);}}
         else writeLog(`[실패] 방패 방어 실패!`);
     } else if (type==='회피') {
         dodgingTurns=2; writeLog(`[회피기] 💨 2번의 공격을 75% 확률로 회피합니다!`);
@@ -2472,13 +2487,13 @@ function enemyTurn() {
             dodgingTurns--;
             if(Math.random()*100<75){
                 writeLog(`[회피 성공] 💨 적의 공격을 피했습니다!`); hitLanded=false;
-                if(player.relics&&player.relics.includes('dodge_counter')){const cd=Math.max(1,Math.floor(player.atk*0.6)-enemy.def);enemy.curHp-=cd;player.curHp=Math.min(player.maxHp,player.curHp+10);writeLog(`[유물] 🗡️ 그림자 반격! ${cd} 피해!`);showDmgFloat(cd,false,false);if(enemy.curHp<=0){setTimeout(()=>winBattle(),100);return;}}
+                if(player.relics&&player.relics.includes('dodge_counter')){const cd=Math.max(1,Math.floor(player.atk*0.9)-Math.floor(enemy.def*0.6));enemy.curHp-=cd;writeLog(`[유물] 🗡️ 그림자 반격! ${cd} 피해!`);showDmgFloat(cd,false,false);if(enemy.curHp<=0){setTimeout(()=>winBattle(),100);return;}}
             } else writeLog(`[회피 실패] 피하지 못했습니다!`);
         }
         if(hitLanded){
             if(Math.random()*100<80){
                 let dmg=Math.max(1,currentEnemyAtk-getTotalPlayerDefenseForHit());
-                if(shieldedTurns>0){dmg=Math.floor(dmg*0.5);shieldedTurns--;writeLog(`[방어막] ✨ 피해 50% 감소! (${dmg} 입음)`);if(player.relics&&player.relics.includes('barrier_reflect')){const rd=Math.floor(dmg*0.3);enemy.curHp-=rd;writeLog(`[유물] 🔮 마력 반사! ${rd}`);if(enemy.curHp<=0){setTimeout(()=>winBattle(),100);}}}
+                if(shieldedTurns>0){dmg=Math.floor(dmg*0.5);shieldedTurns--;writeLog(`[방어막] ✨ 피해 50% 감소! (${dmg} 입음)`);if(player.relics&&player.relics.includes('barrier_reflect')){const rd=Math.floor(dmg*0.45);enemy.curHp-=rd;const heal=Math.floor(player.maxHp*0.05);player.curHp=Math.min(player.maxHp,player.curHp+heal);writeLog(`[유물] 🔮 마력 방벽: 반사 ${rd}, 회복 ${heal}`);if(enemy.curHp<=0){setTimeout(()=>winBattle(),100);}}}
                 else if(defendingTurns>0){dmg=Math.floor(dmg*0.4);defendingTurns--;writeLog(`[철벽 방어] 🛡️ 피해 60% 감소! (${dmg} 입음)`);}
                 else writeLog(`[피격] 적의 공격! ${dmg} 데미지.`);
                 if (player.summon && player.summon.id === 'golem') {
@@ -3116,10 +3131,10 @@ function applyShopRarityTuning(baseItem) {
     const tuned = { ...baseItem };
     const rk = tuned.rarity || 'common';
     const bonusByRarity = {
-        common: { atk: 10, hp: 10, def: 10, acc: 6, critBonus: 5, critMult: 0.2, minPrice: 35 },
-        rare: { atk: 20, hp: 20, def: 20, acc: 12, critBonus: 10, critMult: 0.3, minPrice: 75 },
-        epic: { atk: 30, hp: 30, def: 30, acc: 18, critBonus: 15, critMult: 0.5, minPrice: 140 },
-        legendary: { atk: 50, hp: 50, def: 50, acc: 26, critBonus: 22, critMult: 0.8, minPrice: 220 },
+        common: { atk: 18, hp: 24, def: 12, acc: 10, critBonus: 8, critMult: 0.25, minPrice: 55 },
+        rare: { atk: 34, hp: 48, def: 24, acc: 18, critBonus: 14, critMult: 0.45, minPrice: 95 },
+        epic: { atk: 56, hp: 78, def: 38, acc: 28, critBonus: 22, critMult: 0.72, minPrice: 165 },
+        legendary: { atk: 86, hp: 122, def: 58, acc: 40, critBonus: 32, critMult: 1.05, minPrice: 255 },
     };
     const b = bonusByRarity[rk] || bonusByRarity.common;
     tuned.name = formatShopItemName(tuned.name);
@@ -3131,10 +3146,10 @@ function applyShopRarityTuning(baseItem) {
     tuned.critMult = safeNum(tuned.critMult, 0) + b.critMult;
     // 희귀도 역전 방지: 같은 카테고리에서 상/하위 등급이 뒤집히지 않게 안전 구간으로 보정
     const range = {
-        common: { atk: [8, 40], hp: [20, 110], def: [0, 22], acc: [6, 32], crit: [0, 12], cm: [0, 0.45] },
-        rare: { atk: [20, 70], hp: [55, 170], def: [4, 34], acc: [12, 48], crit: [2, 20], cm: [0.08, 0.75] },
-        epic: { atk: [34, 105], hp: [95, 250], def: [8, 48], acc: [18, 62], crit: [4, 30], cm: [0.15, 1.05] },
-        legendary: { atk: [52, 160], hp: [130, 340], def: [12, 72], acc: [24, 85], crit: [6, 45], cm: [0.22, 1.6] },
+        common: { atk: [22, 58], hp: [56, 145], def: [6, 26], acc: [12, 34], crit: [1, 12], cm: [0.10, 0.55], ls: [0.01, 0.10] },
+        rare: { atk: [60, 108], hp: [150, 248], def: [27, 50], acc: [35, 58], crit: [13, 22], cm: [0.56, 0.95], ls: [0.11, 0.18] },
+        epic: { atk: [110, 178], hp: [250, 380], def: [51, 78], acc: [59, 84], crit: [23, 34], cm: [0.96, 1.35], ls: [0.19, 0.28] },
+        legendary: { atk: [180, 270], hp: [385, 560], def: [79, 118], acc: [85, 120], crit: [35, 50], cm: [1.36, 2.10], ls: [0.29, 0.40] },
     };
     const rr = range[rk] || range.common;
     const clamp = (x, mn, mx) => Math.min(mx, Math.max(mn, x));
@@ -3144,6 +3159,12 @@ function applyShopRarityTuning(baseItem) {
     tuned.def = clamp(safeNum(tuned.def, 0), rr.def[0], rr.def[1]);
     tuned.critBonus = clamp(safeNum(tuned.critBonus, 0), rr.crit[0], rr.crit[1]);
     tuned.critMult = clamp(safeNum(tuned.critMult, 0), rr.cm[0], rr.cm[1]);
+    if (tuned.lifesteal != null) tuned.lifesteal = clamp(safeNum(tuned.lifesteal, 0), rr.ls[0], rr.ls[1]);
+    if (tuned.type === 'atk') tuned.value = Math.max(1, safeNum(tuned.value, 0));
+    if (tuned.def != null) tuned.def = Math.max(1, safeNum(tuned.def, 0));
+    if (tuned.critBonus != null) tuned.critBonus = Math.max(1, safeNum(tuned.critBonus, 0));
+    if (tuned.critMult != null) tuned.critMult = Math.max(0.01, safeNum(tuned.critMult, 0));
+    if (tuned.lifesteal != null) tuned.lifesteal = Math.max(0.01, safeNum(tuned.lifesteal, 0));
     tuned.price = Math.max(b.minPrice, safeNum(tuned.price, 0));
     tuned.desc = formatShopItemDesc(tuned.desc);
     if (baseItem.divinityGainBonus != null) tuned.divinityGainBonus = baseItem.divinityGainBonus;
@@ -3247,7 +3268,8 @@ function renderShopItems(keepCurrentStock) {
     grid.style.cssText='display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:12px;';
     currentShopItems.forEach((it,idx)=>{
         const isRelic=it.type==='relic', d=document.createElement('div');
-        const owned = !isRelic && it.type !== 'potion' && it.type !== 'merc_shop_direct' && it.type !== 'merc_shop_fund' && player.items.some((x)=>x.name===it.name);
+        const ownedRelic = isRelic && player.relics && player.relics.includes(it.effect);
+        const owned = ownedRelic || (!isRelic && it.type !== 'potion' && it.type !== 'merc_shop_direct' && it.type !== 'merc_shop_fund' && player.items.some((x)=>x.name===it.name));
         const full = !isRelic && getEquipSlotKind(it) && !canEquipMoreOfItem(it);
         const slotLine = getEquipSlotLineHtml(it);
         const synHtml = buildShopSynergyHintsHtml(it);
@@ -3564,6 +3586,12 @@ window.buyItem = (event, idx) => {
         return;
     }
     if(it.type==='relic'){
+        if (player.relics && player.relics.includes(it.effect)) {
+            gold += it.price;
+            writeLog(`[상점] 이미 보유한 유물입니다: ${it.name}`);
+            renderShopItems(true);
+            return;
+        }
         player.relics.push(it.effect); saveCollection(it.name);
         writeLog(`[유물 획득] ✨ <b style='color:#f1c40f'>${it.name}</b> 장착!`);
         showUnlockPopup(`✨ 유물 획득!`,`<b style="color:#f1c40f;">${it.name}</b><br>${it.desc}`,'#f1c40f');
