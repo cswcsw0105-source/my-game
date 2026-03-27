@@ -428,20 +428,59 @@
         saveMeta(m);
     }
 
-    /** 장착 아이템 태그 기반 시너지 — data.js synergyRules + 아이템 tags */
+    /** 장착 아이템 시너지 — data.js synergyRules(등급 조합) + 아이템 tags */
     function computeSynergyBonuses(player) {
-        const out = { atk: 0, hp: 0, def: 0, acc: 0, crit: 0, desc: [] };
+        const out = { atk: 0, hp: 0, def: 0, acc: 0, crit: 0, critMult: 0, desc: [], progress: [] };
         if (!player || !player.items) return out;
         const tags = new Set();
+        const tagCounts = {};
         for (const it of player.items) {
             if (!it) continue;
             const tg = it.tags || it.tagList;
-            if (Array.isArray(tg)) tg.forEach((t) => tags.add(t));
+            if (Array.isArray(tg)) {
+                tg.forEach((t) => {
+                    tags.add(t);
+                    tagCounts[t] = (tagCounts[t] || 0) + 1;
+                });
+            }
+            // 기본 태그 자동 부여(등급/타입 기반)
+            if (it.rarity) {
+                const rt = 'rarity_' + String(it.rarity);
+                tags.add(rt);
+                tagCounts[rt] = (tagCounts[rt] || 0) + 1;
+            }
+            if (it.type) {
+                const tt = 'type_' + String(it.type);
+                tags.add(tt);
+                tagCounts[tt] = (tagCounts[tt] || 0) + 1;
+            }
         }
         const rules = typeof synergyRules !== 'undefined' ? synergyRules : [];
         for (const rule of rules) {
-            if (!rule || !rule.needTags) continue;
-            const ok = rule.needTags.every((t) => tags.has(t));
+            if (!rule) continue;
+            let cur = 0,
+                need = 0,
+                ok = false;
+            if (rule.fromTag && rule.needCount) {
+                cur = tagCounts[rule.fromTag] || 0;
+                need = rule.needCount;
+                ok = cur >= need;
+            } else if (rule.needTags) {
+                const req = Array.isArray(rule.needTags) ? rule.needTags : [];
+                need = req.length;
+                cur = req.filter((t) => tags.has(t)).length;
+                ok = need > 0 && cur >= need;
+            } else {
+                continue;
+            }
+            out.progress.push({
+                id: rule.id || '',
+                name: rule.name || '시너지',
+                cur,
+                need,
+                active: ok,
+                effectDesc: rule.effectDesc || '',
+            });
             if (!ok) continue;
             const b = rule.bonus || {};
             out.atk += b.atk || 0;
@@ -449,6 +488,7 @@
             out.def += b.def || 0;
             out.acc += b.acc || 0;
             out.crit += b.crit || 0;
+            out.critMult += b.critMult || 0;
             if (rule.name) out.desc.push(rule.name);
         }
         return out;

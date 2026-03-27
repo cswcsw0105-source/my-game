@@ -280,10 +280,20 @@ function getCritOverflowForMult() {
 }
 function getEffectiveCritMult() {
     const base = safeNum(player && player.critMult, 1.8);
-    return (base > 0 ? base : 1.8) + getCritOverflowForMult() * CRIT_OVERFLOW_TO_MULT;
+    const syn = safeNum(player && player._syn && player._syn.critMult, 0);
+    return (base > 0 ? base : 1.8) + syn + getCritOverflowForMult() * CRIT_OVERFLOW_TO_MULT;
 }
 function formatShopItemName(name) {
-    return String(name || '').replace(/\s*·\s*[워헌마]\d{2}\s*$/u, '');
+    const raw = String(name || '').replace(/\s*·\s*[워헌마]\d{2}\s*$/u, '').trim();
+    const hasDigit = /\d/.test(raw);
+    const hasJobWord = /(워리어|헌터|마법사|나이트|버서커|궁수|암살자|위저드|소환사|성직자|용병단장)/.test(raw);
+    if (!hasDigit && !hasJobWord) return raw;
+    // 창의적 표시명(원본 키는 유지) — 같은 원본명은 항상 같은 표시명
+    const A = ['새벽', '심연', '유성', '황혼', '성운', '영겁', '폭풍', '흑요'];
+    const B = ['서약', '추적', '각인', '잔향', '의식', '성배', '장막', '파편'];
+    let h = 0;
+    for (let i = 0; i < raw.length; i++) h = (h * 33 + raw.charCodeAt(i)) >>> 0;
+    return `${A[h % A.length]}의 ${B[(h >> 3) % B.length]}`;
 }
 function formatShopItemDesc(desc) {
     let s = String(desc || '');
@@ -2998,6 +3008,21 @@ function applyShopRarityTuning(baseItem) {
     tuned.def = safeNum(tuned.def, 0) + b.def;
     tuned.critBonus = safeNum(tuned.critBonus, 0) + b.critBonus;
     tuned.critMult = safeNum(tuned.critMult, 0) + b.critMult;
+    // 희귀도 역전 방지: 같은 카테고리에서 상/하위 등급이 뒤집히지 않게 안전 구간으로 보정
+    const range = {
+        common: { atk: [8, 40], hp: [20, 110], def: [0, 22], acc: [6, 32], crit: [0, 12], cm: [0, 0.45] },
+        rare: { atk: [20, 70], hp: [55, 170], def: [4, 34], acc: [12, 48], crit: [2, 20], cm: [0.08, 0.75] },
+        epic: { atk: [34, 105], hp: [95, 250], def: [8, 48], acc: [18, 62], crit: [4, 30], cm: [0.15, 1.05] },
+        legendary: { atk: [52, 160], hp: [130, 340], def: [12, 72], acc: [24, 85], crit: [6, 45], cm: [0.22, 1.6] },
+    };
+    const rr = range[rk] || range.common;
+    const clamp = (x, mn, mx) => Math.min(mx, Math.max(mn, x));
+    if (tuned.type === 'atk') tuned.value = clamp(safeNum(tuned.value, 0), rr.atk[0], rr.atk[1]);
+    if (tuned.type === 'hp') tuned.value = clamp(safeNum(tuned.value, 0), rr.hp[0], rr.hp[1]);
+    if (tuned.type === 'acc') tuned.value = clamp(safeNum(tuned.value, 0), rr.acc[0], rr.acc[1]);
+    tuned.def = clamp(safeNum(tuned.def, 0), rr.def[0], rr.def[1]);
+    tuned.critBonus = clamp(safeNum(tuned.critBonus, 0), rr.crit[0], rr.crit[1]);
+    tuned.critMult = clamp(safeNum(tuned.critMult, 0), rr.cm[0], rr.cm[1]);
     tuned.price = Math.max(b.minPrice, safeNum(tuned.price, 0));
     tuned.desc = formatShopItemDesc(tuned.desc);
     if (baseItem.divinityGainBonus != null) tuned.divinityGainBonus = baseItem.divinityGainBonus;
@@ -3101,6 +3126,8 @@ function renderShopItems(keepCurrentStock) {
     grid.style.cssText='display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:12px;';
     currentShopItems.forEach((it,idx)=>{
         const isRelic=it.type==='relic', d=document.createElement('div');
+        const owned = !isRelic && it.type !== 'potion' && it.type !== 'merc_shop_direct' && it.type !== 'merc_shop_fund' && player.items.some((x)=>x.name===it.name);
+        const full = !owned && !isRelic && getEquipSlotKind(it) && !canEquipMoreOfItem(it);
         let bc='#444',bac='#888',bb='#2a2a2a',bt='COMMON';
         if(isRelic){bc='#f1c40f';bac='#f1c40f';bb='#2a2a0a';bt='RELIC';}
         else if(it.rarity==='relic'){bc='#d35400';bac='#f39c12';bb='#2a1a0a';bt='RELIC(용병)';}
@@ -3114,7 +3141,7 @@ function renderShopItems(keepCurrentStock) {
         const pref = isPreferredItem(it.name);
         d.style.cssText=`background:#1a1a1a;border:1px solid ${bc};border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px;transition:transform 0.15s;cursor:default;${pref ? 'box-shadow:0 0 0 2px #f1c40f, 0 0 18px rgba(241,196,15,0.35);' : ''}`;
         d.onmouseenter=()=>d.style.transform='translateY(-2px)'; d.onmouseleave=()=>d.style.transform='translateY(0)';
-        d.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;"><span style="background:${bb};color:${bac};border:1px solid ${bc};border-radius:4px;font-size:0.7em;font-weight:700;padding:2px 7px;letter-spacing:1px;">${iu?'🔓 ':''}${bt}${pref ? ' ★' : ''}</span><span style="font-size:1.3em;">${ti}</span></div><div style="color:${nc};font-weight:700;font-size:1em;line-height:1.3;">${formatShopItemName(it.name)}${pref ? ' <span style="color:#f1c40f;font-size:0.85em;">(선호)</span>' : ''}</div><div style="color:#888;font-size:0.78em;line-height:1.5;flex:1;">${formatShopItemDesc(it.desc)}</div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;"><span style="color:#f1c40f;font-weight:700;font-size:1em;">💰 ${it.price}G</span><button onclick="buyItem(event,${idx})" style="background:#f1c40f;color:#111;padding:6px 14px;font-size:0.85em;font-weight:700;margin:0;border-radius:6px;">구매</button></div>`;
+        d.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;"><span style="background:${bb};color:${bac};border:1px solid ${bc};border-radius:4px;font-size:0.7em;font-weight:700;padding:2px 7px;letter-spacing:1px;">${iu?'🔓 ':''}${bt}${pref ? ' ★' : ''}</span><span style="font-size:1.3em;">${ti}</span></div><div style="color:${nc};font-weight:700;font-size:1em;line-height:1.3;">${formatShopItemName(it.name)}${pref ? ' <span style="color:#f1c40f;font-size:0.85em;">(선호)</span>' : ''}</div><div style="color:#888;font-size:0.78em;line-height:1.5;flex:1;">${formatShopItemDesc(it.desc)}</div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;"><span style="color:#f1c40f;font-weight:700;font-size:1em;">💰 ${it.price}G</span><button onclick="buyItem(event,${idx})" ${owned ? 'disabled' : ''} style="background:${owned ? '#555' : full ? '#7f2b2b' : '#f1c40f'};color:${owned ? '#bbb' : full ? '#ffd7d7' : '#111'};padding:6px 14px;font-size:0.85em;font-weight:700;margin:0;border-radius:6px;${owned ? 'cursor:not-allowed;' : ''}">${owned ? '보유' : full ? '칸 꽉참' : '구매'}</button></div>`;
         grid.appendChild(d);
     });
     list.appendChild(grid);
@@ -3196,6 +3223,83 @@ window.togglePreferredItem = function togglePreferredItem(name) {
     try { renderShopItems(); } catch (e) { /* ignore */ }
 };
 
+function getEquipSlotKind(it) {
+    if (!it) return null;
+    if (it.type === 'atk') return 'weapon';
+    if (it.type === 'hp') return 'armor';
+    if (it.type === 'acc') return 'ring';
+    return null;
+}
+function getEquipSlotLimit(kind) {
+    if (kind === 'weapon') return 2;
+    if (kind === 'armor') return 2;
+    if (kind === 'ring') return 3;
+    return Infinity;
+}
+function getEquipSlotLabel(kind) {
+    if (kind === 'weapon') return '무기';
+    if (kind === 'armor') return '갑옷';
+    if (kind === 'ring') return '반지';
+    return '장비';
+}
+function buildSynergyStatusHtml() {
+    if (!player || !player._syn || !Array.isArray(player._syn.progress) || !player._syn.progress.length) return '';
+    const chips = player._syn.progress
+        .map((p) => {
+            const on = !!p.active;
+            const title = escapeJsSingleQuoteString(p.effectDesc || '시너지 효과');
+            return `<span title="${title}" style="display:inline-block;margin:2px;padding:2px 7px;border-radius:999px;border:1px solid ${
+                on ? '#2ed573' : '#444'
+            };background:${on ? '#123020' : '#111'};color:${on ? '#2ed573' : '#999'};font-size:0.72em;font-weight:700;cursor:help;">${p.name} ${p.cur}/${p.need}</span>`;
+        })
+        .join('');
+    return `<div style="margin-top:3px;">${chips}</div>`;
+}
+function getEquippedCountByKind(kind) {
+    return (player.items || []).filter((x) => getEquipSlotKind(x) === kind).length;
+}
+function canEquipMoreOfItem(it) {
+    const k = getEquipSlotKind(it);
+    if (!k) return true;
+    return getEquippedCountByKind(k) < getEquipSlotLimit(k);
+}
+function ensureOwnedItemUid(it) {
+    if (!it) return;
+    if (!it._uid) it._uid = 'it_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+function removeOwnedItemEffects(it) {
+    if (!it || !player) return;
+    if (it.type === 'atk') player.atk = Math.max(1, safeNum(player.atk, 1) - safeNum(it.value, 0));
+    if (it.type === 'hp') {
+        player.maxHp = Math.max(1, safeNum(player.maxHp, 1) - safeNum(it.value, 0));
+        player.curHp = Math.min(player.maxHp, safeNum(player.curHp, 0));
+    }
+    if (it.type === 'acc') player.acc = Math.max(0, safeNum(player.acc, 0) - safeNum(it.value, 0));
+    if (it.def) player.extraDef = Math.max(0, safeNum(player.extraDef, 0) - safeNum(it.def, 0));
+    if (it.acc) player.acc = Math.max(0, safeNum(player.acc, 0) - safeNum(it.acc, 0));
+    if (it.lifesteal) player.lifesteal = Math.max(0, safeNum(player.lifesteal, 0) - safeNum(it.lifesteal, 0));
+    if (it.critBonus) player.crit = Math.max(1, safeNum(player.crit, 1) - safeNum(it.critBonus, 0));
+    if (it.critMult) player.critMult = Math.max(1.8, safeNum(player.critMult, 1.8) - safeNum(it.critMult, 0));
+    if (it.penalty && it.penalty[player.name]) player.acc += safeNum(it.penalty[player.name], 0);
+    const hasRegen = (player.items || []).some((x) => x !== it && x && x.regenPotion);
+    player.hasRegenPotion = !!hasRegen;
+    recalcPlayerDivineGainMult();
+}
+window.sellItemByUid = function sellItemByUid(uid) {
+    if (!player || !player.items || !uid) return;
+    const idx = player.items.findIndex((x) => x && x._uid === uid);
+    if (idx < 0) return;
+    const it = player.items[idx];
+    const buyPrice = Math.max(0, safeNum(it._buyPrice != null ? it._buyPrice : it.price, 0));
+    const refund = Math.floor(buyPrice * 0.5);
+    removeOwnedItemEffects(it);
+    player.items.splice(idx, 1);
+    gold = safeNum(gold, 0) + refund;
+    writeLog(`[판매] ${it.name} 판매 (+${refund}G / 구매가 ${buyPrice}G)`);
+    updateUi();
+    renderActions();
+};
+
 window.buyItem = (event, idx) => {
     const it=currentShopItems[idx];
     if(gold<it.price) return writeLog("골드 부족!");
@@ -3228,7 +3332,19 @@ window.buyItem = (event, idx) => {
     } else if(it.type==='potion'){
         player.potions++; writeLog(`[상점] 포션 구매 완료.`);
     } else {
+        const slotKind = getEquipSlotKind(it);
+        if (slotKind) {
+            const lim = getEquipSlotLimit(slotKind);
+            const cur = getEquippedCountByKind(slotKind);
+            if (cur >= lim) {
+                gold += it.price;
+                alert(`[장착 제한] ${getEquipSlotLabel(slotKind)} 칸이 꽉 찼습니다. (최대 ${lim}개)`);
+                return writeLog(`[장착 제한] ${getEquipSlotLabel(slotKind)}는 최대 ${lim}개까지 장착할 수 있습니다.`);
+            }
+        }
         if(!player.items.some(i=>i.name===it.name)){
+            ensureOwnedItemUid(it);
+            it._buyPrice = safeNum(it.price, 0);
             player.items.push(it); saveCollection(it.name);
             if(it.type==='atk')player.atk+=it.value;
             if(it.type==='hp'){player.maxHp+=it.value;player.curHp+=it.value;}
@@ -3242,6 +3358,7 @@ window.buyItem = (event, idx) => {
             if(it.penalty&&it.penalty[player.name]){player.acc-=it.penalty[player.name];writeLog(`[패널티] 명중률 -${it.penalty[player.name]}% 적용`);}
             recalcPlayerDivineGainMult();
             writeLog(`[상점] ${it.name} 장착 완료!`);
+            renderShopItems(true); // 실시간 버튼 상태: 구매 -> 보유
         } else { writeLog(`이미 보유한 장비입니다!`); gold+=it.price; }
     }
     updateUi(); renderActions();
@@ -3418,7 +3535,7 @@ window.toggleCollection = (show) => {
             relicItems.forEach((it) => {
                 if (collection.includes(it.name)) {
                     const pref = isPreferredItem(it.name);
-                    html += `<div style="padding:8px 10px;background:#111;border-radius:6px;margin-bottom:4px;border-left:3px solid #f1c40f;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div><div style="color:#f1c40f;font-weight:700;font-size:0.9em;">✅ ✨ ${it.name}${pref ? ' <span style="color:#f1c40f;">★</span>' : ''}</div><div style="color:#666;font-size:0.78em;margin-top:3px;">${formatShopItemDesc(it.desc)}</div></div><button type="button" onclick="togglePreferredItem('${escapeJsSingleQuoteString(it.name)}')" style="background:${pref ? '#f1c40f' : '#111'};color:${pref ? '#111' : '#f1c40f'};border:1px solid #f1c40f;border-radius:8px;padding:6px 10px;font-weight:900;cursor:pointer;font-size:0.78em;">★</button></div>`;
+                    html += `<div style="padding:8px 10px;background:#111;border-radius:6px;margin-bottom:4px;border-left:3px solid #f1c40f;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div><div style="color:#f1c40f;font-weight:700;font-size:0.9em;">✅ ✨ ${formatShopItemName(it.name)}${pref ? ' <span style="color:#f1c40f;">★</span>' : ''}</div><div style="color:#666;font-size:0.78em;margin-top:3px;">${formatShopItemDesc(it.desc)}</div></div><button type="button" onclick="togglePreferredItem('${escapeJsSingleQuoteString(it.name)}')" style="background:${pref ? '#f1c40f' : '#111'};color:${pref ? '#111' : '#f1c40f'};border:1px solid #f1c40f;border-radius:8px;padding:6px 10px;font-weight:900;cursor:pointer;font-size:0.78em;">★</button></div>`;
                 }
                 else html += `<div style="padding:8px 10px;background:#0a0a0a;border-radius:6px;margin-bottom:4px;border-left:3px solid #333;"><div style="color:#444;font-weight:700;font-size:0.9em;">🔒 ???</div></div>`;
             });
@@ -3438,7 +3555,7 @@ window.toggleCollection = (show) => {
             items.forEach((it) => {
                 if (it.owned) {
                     const pref = isPreferredItem(it.name);
-                    html += `<div style="padding:8px 10px;background:#111;border-radius:6px;margin-bottom:4px;border-left:3px solid ${color};display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div><div style="color:${color};font-weight:700;font-size:0.9em;">✅ ${it.name}${pref ? ' <span style="color:#f1c40f;">★</span>' : ''}</div><div style="color:#666;font-size:0.78em;margin-top:3px;">${formatShopItemDesc(it.desc)}</div></div><button type="button" onclick="togglePreferredItem('${escapeJsSingleQuoteString(it.name)}')" style="background:${pref ? '#f1c40f' : '#111'};color:${pref ? '#111' : '#f1c40f'};border:1px solid #f1c40f;border-radius:8px;padding:6px 10px;font-weight:900;cursor:pointer;font-size:0.78em;">★</button></div>`;
+                    html += `<div style="padding:8px 10px;background:#111;border-radius:6px;margin-bottom:4px;border-left:3px solid ${color};display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div><div style="color:${color};font-weight:700;font-size:0.9em;">✅ ${formatShopItemName(it.name)}${pref ? ' <span style="color:#f1c40f;">★</span>' : ''}</div><div style="color:#666;font-size:0.78em;margin-top:3px;">${formatShopItemDesc(it.desc)}</div></div><button type="button" onclick="togglePreferredItem('${escapeJsSingleQuoteString(it.name)}')" style="background:${pref ? '#f1c40f' : '#111'};color:${pref ? '#111' : '#f1c40f'};border:1px solid #f1c40f;border-radius:8px;padding:6px 10px;font-weight:900;cursor:pointer;font-size:0.78em;">★</button></div>`;
                 }
                 else html += `<div style="padding:8px 10px;background:#0a0a0a;border-radius:6px;margin-bottom:4px;border-left:3px solid #333;"><div style="color:#444;font-weight:700;font-size:0.9em;">🔒 ???</div></div>`;
             });
@@ -3521,22 +3638,23 @@ function updateUi() {
         document.getElementById('p-hp-t').innerText = `${pCur} / ${pMax}`;
         if (summLine) {
             const synHint = player._syn && player._syn.desc && player._syn.desc.length ? ` · <span style="color:#f1c40f;">시너지: ${player._syn.desc.join(', ')}</span>` : '';
+            const synStatus = buildSynergyStatusHtml();
             const lvTxt = player.runLevel ? ` · Lv.${player.runLevel}` : '';
             if (isMercenaryCaptainJob()) {
-                summLine.innerHTML = `<span style="color:#e67e22;">🎖️ 지휘관 ${player.name}</span> <span style="color:#888;">| HP ${pCur}/${pMax}${lvTxt} · 전열 없음${player.mercCooldownTurns > 0 ? ` · 재가동 ${player.mercCooldownTurns}T` : ''}${synHint}</span>`;
+                summLine.innerHTML = `<span style="color:#e67e22;">🎖️ 지휘관 ${player.name}</span> <span style="color:#888;">| HP ${pCur}/${pMax}${lvTxt} · 전열 없음${player.mercCooldownTurns > 0 ? ` · 재가동 ${player.mercCooldownTurns}T` : ''}${synHint}</span>${synStatus}`;
             } else if (player.summon && player.summon.name) {
                 if (player.name === '소환사' && floor < 100) {
-                    summLine.innerHTML = `<span style="color:#a55eea;">소환:</span> ${player.summon.name} <span style="color:#ff4757;font-weight:800;">(잠김: 100층)</span>`;
+                    summLine.innerHTML = `<span style="color:#a55eea;">소환:</span> ${player.summon.name} <span style="color:#ff4757;font-weight:800;">(잠김: 100층)</span>${synHint}${synStatus}`;
                 } else {
-                    summLine.innerHTML = `<span style="color:#a55eea;">소환:</span> ${player.summon.name}`;
+                    summLine.innerHTML = `<span style="color:#a55eea;">소환:</span> ${player.summon.name}${synHint}${synStatus}`;
                 }
             }
             else if (player.name === '성직자') {
                 const dp = formatDivinePowerForDisplay(safeNum(player.divinePower, 0));
                 const gm = safeNum(player.divineGainMult, 1);
                 const st = player.chosenPriest ? '👑 선택받은 성직자' : player.priestBlessed ? '✨ 신의 가호' : '·';
-                summLine.innerHTML = `<span style="color:#888;font-size:0.85em;"><b>${player.name}</b>${lvTxt} · <span style="color:#f1c40f;">✨ 신성력 ${dp}/200</span> · 획득×${gm.toFixed(2)} · ${st}${synHint}</span>`;
-            } else summLine.innerHTML = `<span style="color:#888;font-size:0.85em;"><b>${player.name}</b>${lvTxt}${synHint}</span>`;
+                summLine.innerHTML = `<span style="color:#888;font-size:0.85em;"><b>${player.name}</b>${lvTxt} · <span style="color:#f1c40f;">✨ 신성력 ${dp}/200</span> · 획득×${gm.toFixed(2)} · ${st}${synHint}</span>${synStatus}`;
+            } else summLine.innerHTML = `<span style="color:#888;font-size:0.85em;"><b>${player.name}</b>${lvTxt}${synHint}</span>${synStatus}`;
         }
         document.getElementById('p-atk-val').textContent = String(getEffectiveAttackPower());
         document.getElementById('p-def-val').textContent = String(getTotalPlayerDefenseForHit());
@@ -3599,7 +3717,10 @@ function updateUi() {
                 const{label,color,bg}=rl[rarity];
                 html+=`<div style="margin-bottom:10px;"><div style="background:${bg};color:${color};font-size:0.7em;font-weight:700;padding:3px 8px;border-radius:4px;display:inline-block;margin-bottom:6px;">${label}</div>`;
                 items.forEach(it=>{
-                    html+=`<div style="padding:8px 10px;background:#111;border-radius:6px;margin-bottom:4px;border-left:3px solid ${color};"><div style="color:${color};font-weight:700;font-size:0.9em;">${it.name}</div><div style="color:#666;font-size:0.78em;margin-top:3px;line-height:1.4;">${it.desc}</div></div>`;
+                    ensureOwnedItemUid(it);
+                    const bp = Math.max(0, safeNum(it._buyPrice != null ? it._buyPrice : it.price, 0));
+                    const rf = Math.floor(bp * 0.5);
+                    html+=`<div style="padding:8px 10px;background:#111;border-radius:6px;margin-bottom:4px;border-left:3px solid ${color};"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div><div style="color:${color};font-weight:700;font-size:0.9em;">${formatShopItemName(it.name)}</div><div style="color:#666;font-size:0.78em;margin-top:3px;line-height:1.4;">${formatShopItemDesc(it.desc)}</div><div style="color:#888;font-size:0.72em;margin-top:4px;">판매가: <b style="color:#f1c40f;">${rf}G</b></div></div><button type="button" onclick="sellItemByUid('${escapeJsSingleQuoteString(it._uid)}')" style="background:#553322;color:#ffd7a8;border:1px solid #996633;border-radius:8px;padding:6px 10px;font-size:0.75em;font-weight:800;cursor:pointer;">판매</button></div></div>`;
                 });
                 html+=`</div>`;
             });

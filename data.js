@@ -380,10 +380,12 @@ const equipmentPoolS1Extra = (function generateEquipmentPoolS1Extra() {
 const equipmentPoolPriest = (function genPriestPool() {
     const out = [];
     const rc = ['common', 'common', 'rare', 'epic', 'legendary'];
+    const roots = ['공명의', '서약의', '찬가의', '축성의', '은총의', '심판의', '계시의', '영광의'];
+    const marks = ['인장', '성배', '잔향', '빛결', '유성', '서광', '성운', '찬란'];
     for (let i = 0; i < 60; i++) {
         const r = rc[i % 5];
         const typ = i % 3 === 0 ? 'atk' : i % 3 === 1 ? 'hp' : 'acc';
-        const nm = `성역 유물 ${String(i + 1).padStart(2, '0')}`;
+        const nm = `${roots[Math.floor(i / 8)]} ${marks[i % 8]}`;
         const base = 4 + (i % 20);
         const price = 20 + i * 2 + (r === 'legendary' ? 90 : r === 'epic' ? 45 : 0);
         const prayerBonus = r === 'epic' || r === 'legendary' ? 2 : 1;
@@ -420,6 +422,7 @@ const equipmentPoolPriest = (function genPriestPool() {
                   : mod === 2
                     ? `치명(+${o.critBonus}%)`
                     : `치명배율(+${Math.round((o.critMult || 0) * 100)}%)`;
+        o.tags = [`rarity_${r}`, `type_${typ}`, `synergy_priest`];
         o.desc = `기도 보너스(+${prayerBonus}), ${addTxt}.`;
         out.push(o);
     }
@@ -491,13 +494,14 @@ const equipmentPool = [
 ];
 
 /**
- * v7 시너지: 장착 아이템 tags 조합 — 확장 시 tags·needTags만 추가하면 됨
- * @type {{id:string,name:string,needTags:string[],bonus:{atk?:number,hp?:number,def?:number,acc?:number,crit?:number}}[]}
+ * v7 시너지(리워크): 등급별 아이템 조합 시 추가 효과
+ * @type {{id:string,name:string,fromTag:string,needCount:number,bonus:{atk?:number,hp?:number,def?:number,acc?:number,crit?:number,critMult?:number},effectDesc:string}[]}
  */
 const synergyRules = [
-    { id: 'syn_blade_blood', name: '⚔️ 피의 검귀', needTags: ['blade', 'blood'], bonus: { atk: 4, crit: 2 } },
-    { id: 'syn_heavy_wall', name: '🛡️ 중장갑', needTags: ['heavy', 'blood'], bonus: { hp: 22, def: 2 } },
-    { id: 'syn_precision_arcane', name: '🎯 마법 조준', needTags: ['precision', 'arcane'], bonus: { atk: 3, acc: 3 } },
+    { id: 'syn_common_echo', name: '잔향 공명', fromTag: 'rarity_common', needCount: 3, bonus: { def: 8, hp: 30 }, effectDesc: '일반 3개: 방어+8, 체력+30' },
+    { id: 'syn_rare_oath', name: '서약 공명', fromTag: 'rarity_rare', needCount: 2, bonus: { atk: 14, acc: 6 }, effectDesc: '희귀 2개: 공격+14, 명중+6%' },
+    { id: 'syn_epic_hymn', name: '찬가 공명', fromTag: 'rarity_epic', needCount: 2, bonus: { crit: 8, critMult: 0.18 }, effectDesc: '영웅 2개: 치명+8%, 치명배율+18%' },
+    { id: 'syn_legend_glory', name: '영광 공명', fromTag: 'rarity_legendary', needCount: 2, bonus: { atk: 26, hp: 70, def: 12 }, effectDesc: '전설 2개: 공격+26, 체력+70, 방어+12' },
 ];
 
 const relicPool = [
