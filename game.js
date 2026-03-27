@@ -93,7 +93,7 @@ const MERC_FLOOR_SCALE_CAP = 1.65;
 const CRIT_SOFT_CAP = 65;
 const LIFESTEAL_SOFT_CAP = 0.85;
 const BASE_HIT_ACCURACY = 75;
-const CRIT_OVERFLOW_TO_MULT = 0.05;
+const CRIT_OVERFLOW_TO_MULT = 0.01;
 
 function clearSummonRunStorage() {
     localStorage.removeItem('summon_altar_done');
@@ -315,7 +315,8 @@ function getCritInfo() {
 }
 function getLifestealEffective() {
     const r = safeNum(player && player.lifesteal, 0);
-    return Math.min(LIFESTEAL_SOFT_CAP, Math.max(0, r));
+    const priestBonus = player && player.priestBlessed ? 0.1 : 0;
+    return Math.min(LIFESTEAL_SOFT_CAP, Math.max(0, r + priestBonus));
 }
 function getLifestealOverflowAtk() {
     const r = safeNum(player && player.lifesteal, 0);
@@ -324,6 +325,12 @@ function getLifestealOverflowAtk() {
 }
 function isPriestJob() {
     return player && player.name === '성직자';
+}
+function isPriestBlessed() {
+    return !!(player && player.priestBlessed);
+}
+function isChosenPriest() {
+    return !!(player && player.chosenPriest);
 }
 /** 신성력 UI 표기: 소수 없음 — 소수부 0.1~0.4는 내림, 0.5~0.9는 올림 */
 function formatDivinePowerForDisplay(v) {
@@ -337,11 +344,14 @@ function formatDivinePowerForDisplay(v) {
 }
 function getDivineAtkBonus() {
     if (!isPriestJob()) return 0;
-    return safeNum(player.divinePower, 0) * 0.5;
+    if (isChosenPriest()) return 200;
+    if (isPriestBlessed()) return -50;
+    return 0;
 }
 function getDivineDefBonus() {
     if (!isPriestJob()) return 0;
-    return safeNum(player.divinePower, 0) * 0.2;
+    if (isPriestBlessed() || isChosenPriest()) return 100;
+    return 0;
 }
 function recalcPlayerDivineGainMult() {
     if (!player || !isPriestJob()) {
@@ -353,6 +363,23 @@ function recalcPlayerDivineGainMult() {
         if (it && it.divinityGainBonus != null) m += safeNum(it.divinityGainBonus, 0);
     }
     player.divineGainMult = m;
+}
+function addDivinePower(amount) {
+    if (!isPriestJob()) return 0;
+    const before = safeNum(player.divinePower, 0);
+    const after = Math.max(0, Math.min(200, before + safeNum(amount, 0)));
+    player.divinePower = after;
+    if (!player.priestBlessed && after >= 30) {
+        player.priestBlessed = true;
+        player.priestNextCrit = true;
+        writeLog('[신성] ✨ 30스택 달성! <b>신의 가호</b> (흡혈+10%, 방어+100, 다음 공격 확정 치명, 공격-50)');
+    }
+    if (!player.chosenPriest && after >= 200) {
+        player.chosenPriest = true;
+        player.priestNextCrit = true;
+        writeLog('[신성] 👑 200스택 달성! <b>선택받은 성직자</b> (공격+200, 방어무시 20%, 기도 불가)');
+    }
+    return after - before;
 }
 function getEffectiveAttackPower() {
     if (!player) return 0;
@@ -1049,7 +1076,10 @@ function showPreGameScreen() {
             const g = Math.max(0, safeNum(pm.savedGold, 0));
             const active = fi === cur ? ' (현재)' : '';
             parts.push(
-                `<button type="button" onclick="switchActiveSaveFile(${fi})" style="background:${fi === cur ? '#2a2a1a' : '#111'};border:1px solid ${fi === cur ? '#f1c40f' : '#444'};color:${fi === cur ? '#f1c40f' : '#888'};padding:8px 10px;border-radius:8px;cursor:pointer;font-size:0.78em;font-weight:700;">파일 ${fi + 1}${active}<br><span style="font-weight:400;color:#888;">캐릭 ${cnt} · ${g}G</span></button>`
+                `<div style="display:flex;gap:4px;align-items:stretch;">
+                    <button type="button" onclick="switchActiveSaveFile(${fi})" style="background:${fi === cur ? '#2a2a1a' : '#111'};border:1px solid ${fi === cur ? '#f1c40f' : '#444'};color:${fi === cur ? '#f1c40f' : '#888'};padding:8px 10px;border-radius:8px;cursor:pointer;font-size:0.78em;font-weight:700;">파일 ${fi + 1}${active}<br><span style="font-weight:400;color:#888;">캐릭 ${cnt} · ${g}G</span></button>
+                    <button type="button" onclick="requestDeleteSaveFile(${fi})" style="background:#2a1111;border:1px solid #7f2b2b;color:#ff8080;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:0.75em;font-weight:800;">삭제</button>
+                </div>`
             );
         }
         saveFileBar = `<div style="margin-bottom:14px;padding:12px;background:#0d0d12;border:1px solid #333;border-radius:10px;"><div style="color:#f1c40f;font-weight:700;margin-bottom:8px;font-size:0.9em;">💾 저장 파일 (최대 3)</div><div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">${parts.join('')}</div><p style="color:#666;font-size:0.72em;margin:8px 0 0;line-height:1.45;">다른 파일을 불러오려면 위 버튼을 누르세요. 모든 파일이 가득 차면 새 캐릭터 생성 시 <b>비울 파일</b>을 묻습니다.</p></div>`;
@@ -1116,6 +1146,17 @@ window.resumeMetaSlot = (slotId) => {
 window.switchActiveSaveFile = function switchActiveSaveFile(idx) {
     if (typeof MetaRPG === 'undefined' || typeof MetaRPG.setActiveSaveFileIndex !== 'function') return;
     if (!MetaRPG.setActiveSaveFileIndex(idx)) return;
+    showPreGameScreen();
+};
+window.requestDeleteSaveFile = function requestDeleteSaveFile(idx) {
+    if (typeof MetaRPG === 'undefined') return;
+    const fileNo = idx + 1;
+    const ok = confirm(`저장 파일 ${fileNo}번을 삭제할까요?\n삭제하면 해당 파일의 캐릭터/보존 골드가 모두 사라집니다.`);
+    if (!ok) return;
+    const ok2 = confirm(`정말로 저장 파일 ${fileNo}번을 삭제하시겠습니까?\n(복구 불가)`);
+    if (!ok2) return;
+    MetaRPG.clearSaveFile(idx);
+    if (typeof MetaRPG.setActiveSaveFileIndex === 'function') MetaRPG.setActiveSaveFileIndex(idx);
     showPreGameScreen();
 };
 
@@ -1267,6 +1308,10 @@ function initRunFromMetaSlot() {
         critMult: 1.8 + (tb.critMult || 0),
         divinePower: 0,
         divineGainMult: 1,
+        priestBlessed: false,
+        chosenPriest: false,
+        priestNextCrit: false,
+        prayerVulnerableHits: 0,
         metaSlotId: slot.id,
         runLevel: lv,
         runExp: slot.exp || 0,
@@ -1990,7 +2035,12 @@ function renderActions() {
         const prayBtn = document.createElement('button');
         prayBtn.style.background = '#9b59b6';
         prayBtn.style.color = '#fff';
-        prayBtn.innerText = '🙏 기도 (+신성력)';
+        prayBtn.innerText = player.chosenPriest ? '🔒 기도 봉인' : '🙏 기도 (+신성력)';
+        prayBtn.disabled = !!player.chosenPriest;
+        if (player.chosenPriest) {
+            prayBtn.style.opacity = '0.5';
+            prayBtn.style.cursor = 'not-allowed';
+        }
         prayBtn.onclick = () => useAction('기도');
         div.appendChild(prayBtn);
     }
@@ -2121,17 +2171,24 @@ window.useAction = (type) => {
                 effectMsg += "<b style='color:#9b59b6'>【약점 노출】</b> <b style='color:#f1c40f'>💥 암살!</b> ";
                 triggerCritEffect();
             } else {
-                isCrit = Math.random()*100<effectiveCrit;
+                if (player && player.priestNextCrit) {
+                    isCrit = true;
+                    player.priestNextCrit = false;
+                    effectMsg += "<b style='color:#f1c40f'>✨ 신의 가호 치명!</b> ";
+                } else {
+                    isCrit = Math.random()*100<effectiveCrit;
+                }
                 if(isCrit){baseDmg=Math.floor(baseDmg*(mercCritMode?getMercEffectiveCritMultForMercAttack():getEffectiveCritMult()));effectMsg+="<b style='color:#f1c40f'>💥 치명타!</b> ";triggerCritEffect();}
             }
-            const effDef = (usedWeak ? 0 : enemy.def);
+            const effDefRaw = (usedWeak ? 0 : enemy.def);
+            const effDef = player && player.chosenPriest ? Math.floor(effDefRaw * 0.8) : effDefRaw;
             let finalDmg=Math.max(1,Math.floor(baseDmg*multiplier*relicAtkMult)-effDef);
             enemy.curHp-=finalDmg;
             showDmgFloat(finalDmg,isCrit,false); triggerShakeEffect();
             writeLog(`[명중] ${effectMsg}적에게 ${finalDmg} 피해!`);
             if (player.name === '성직자') {
                 const dg = 0.1 * safeNum(player.divineGainMult, 1);
-                player.divinePower = safeNum(player.divinePower, 0) + dg;
+                addDivinePower(dg);
             }
             if(mercCritMode&&player.fieldMerc&&safeNum(player.fieldMerc.mercBonusLifesteal,0)>0){
                 const mls=Math.min(LIFESTEAL_SOFT_CAP,safeNum(player.fieldMerc.mercBonusLifesteal,0));
@@ -2205,10 +2262,13 @@ window.useAction = (type) => {
         else writeLog(`[실패] 방어막 전개 실패!`);
     } else if (type === '기도') {
         if (player.name !== '성직자') return writeLog('[기도] 성직자만 사용할 수 있습니다.');
+        if (player.chosenPriest) return writeLog('[기도] 선택받은 성직자는 더 이상 기도할 수 없습니다.');
         const gain = 1 * safeNum(player.divineGainMult, 1);
-        player.divinePower = safeNum(player.divinePower, 0) + gain;
-        writeLog(`[신성력] 🙏 기도 — 신성력 <b>+${gain}</b> (합계 표기 ${formatDivinePowerForDisplay(player.divinePower)})`);
-        updateUi(); renderActions(); enemyTurn(); return;
+        addDivinePower(gain);
+        player.prayerVulnerableHits = 1;
+        writeLog(`[신성력] 🙏 기도 — 신성력 <b>+${gain}</b> (합계 ${formatDivinePowerForDisplay(player.divinePower)} / 최대 200) · 다음 피격 2배`);
+        // 기도는 턴을 소모하지 않음
+        updateUi(); renderActions(); return;
     }
     enemyTurn();
 };
@@ -2280,6 +2340,11 @@ function enemyTurn() {
                     // 너프: 골렘 피해 감소 완화
                     dmg = Math.max(1, Math.floor(dmg * 0.90));
                     writeLog(`[소환] 🪨 골렘이 피해를 줄였습니다! (${dmg})`);
+                }
+                if (player.prayerVulnerableHits && player.prayerVulnerableHits > 0) {
+                    dmg = Math.max(1, Math.floor(dmg * 2));
+                    player.prayerVulnerableHits = 0;
+                    writeLog('[기도 반동] ⚠️ 기도의 반동으로 이번 피격 피해가 2배가 되었습니다.');
                 }
                 if (isMercenaryCaptainJob() && player.fieldMerc && player.fieldMerc.mercHp > 0) {
                     player.fieldMerc.mercHp -= dmg;
@@ -2548,6 +2613,10 @@ function loadRunFromMetaSnapshot(d) {
     player = d.player;
     if (player && player.divinePower == null) player.divinePower = 0;
     if (player && player.divineGainMult == null) player.divineGainMult = 1;
+    if (player && player.priestBlessed == null) player.priestBlessed = false;
+    if (player && player.chosenPriest == null) player.chosenPriest = false;
+    if (player && player.priestNextCrit == null) player.priestNextCrit = false;
+    if (player && player.prayerVulnerableHits == null) player.prayerVulnerableHits = 0;
     if (player && player.name === '성직자') recalcPlayerDivineGainMult();
     if (player && player.metaSlotId && typeof MetaRPG !== 'undefined' && MetaRPG.updateBestFloor) MetaRPG.updateBestFloor(player.metaSlotId, d.floor || 1);
     if (player && player.shopRarityBoost == null) player.shopRarityBoost = 0;
@@ -2774,16 +2843,10 @@ function milestoneCenturyFloor() {
     exitBattleLayout();
     document.getElementById('battle-area').style.display = 'none';
     const slot = player && player.metaSlotId && typeof MetaRPG !== 'undefined' ? MetaRPG.getSlotById(player.metaSlotId) : null;
-    const rc = slot ? slot.reincarnationCount || 0 : 3;
-    const canRebirth = rc < 3;
-    const rebtn = canRebirth
-        ? `<button type="button" onclick="reincarnateFromCenturyMilestone(false)" style="background:#e74c3c;color:#fff;padding:12px 20px;margin:8px;border:none;border-radius:8px;cursor:pointer;font-weight:700;">🔁 환생 (1층·런·영구강화 초기화 · ${rc + 1}/3)</button>`
-        : `<p style="color:#888;font-size:0.9em;">환생 횟수 소진 (3/3)</p>`;
     document.querySelector('.screen').innerHTML = `<div style="text-align:center;padding:40px 20px;">
       <h2 style="color:#f1c40f;">🏆 ${cf}층 이정표</h2>
       <p style="color:#ccc;">무한 던전은 계속됩니다.</p>
       <p style="color:#2ed573;">보존 +${sg}G</p>
-      ${rebtn}
       <button type="button" onclick="continuePastCentury()" style="background:#9b59b6;color:#fff;padding:12px 20px;margin:8px;border:none;border-radius:8px;cursor:pointer;font-weight:700;">♾️ 계속 (${cf + 1}층)</button>
       <button type="button" onclick="location.reload()" style="background:#f1c40f;color:#111;padding:12px 20px;margin:8px;border:none;border-radius:8px;cursor:pointer;font-weight:700;">🏠 허브</button>
     </div>`;
@@ -2800,15 +2863,8 @@ window.continuePastCentury = () => {
     updateUi();
 };
 
-window.reincarnateFromCenturyMilestone = function reincarnateFromCenturyMilestone(payGold) {
-    if (!player || !player.metaSlotId || typeof MetaRPG === 'undefined') return;
-    if (!confirm('환생: 런 아이템·유물·베이스캠프 영구강화(이 캐릭터)가 초기화되고 1층부터 다시 시작합니다. 테크 트리는 유지됩니다. 진행할까요?')) return;
-    const r = MetaRPG.applyReincarnation(player.metaSlotId, { payGold: !!payGold });
-    if (!r.ok) return alert(r.msg);
-    document.querySelector('.screen').innerHTML = '';
-    document.getElementById('battle-area').style.display = 'block';
-    enterBattleLayout();
-    initRunFromMetaSlot();
+window.reincarnateFromCenturyMilestone = function reincarnateFromCenturyMilestone() {
+    alert('환생은 허브에서만 가능하며, 최고 500층 도달 후 진행할 수 있습니다.');
 };
 
 function openShop() {
@@ -2923,7 +2979,7 @@ function getShopRarityBoostPrice() {
     return 120 + lv * 90;
 }
 
-function renderShopItems() {
+function renderShopItems(keepCurrentStock) {
     const list=document.getElementById('shop-list');
     list.innerHTML='';
     const c = getShopRarityChances();
@@ -2949,11 +3005,13 @@ function renderShopItems() {
         campRow.innerHTML = `<button type="button" onclick="openBaseCampTech()" style="width:100%;padding:12px;background:#9b59b6;color:#fff;border:1px solid #8e44ad;border-radius:8px;font-weight:700;cursor:pointer;">🏕️ 베이스캠프 (연구·영구 강화)</button>`;
         list.appendChild(campRow);
     }
-    currentPotionOffer = { name: "치유 포션", type: "potion", value: 80, price: 40, rarity: "common", desc: "최대 체력의 35%를 즉시 회복합니다." };
-    currentShopItems = [];
+    if (!keepCurrentStock) {
+        currentPotionOffer = { name: "치유 포션", type: "potion", value: 80, price: 40, rarity: "common", desc: "최대 체력의 35%를 즉시 회복합니다." };
+        currentShopItems = [];
+    }
     const unlockedItems=getUnlockedPoolItems(), picked=[];
     let tries=0;
-    if (isMercenaryCaptainJob()) {
+    if (!keepCurrentStock && isMercenaryCaptainJob()) {
         const pd = 95 + floor * 12;
         const pf = 48 + floor * 6;
         currentShopItems.push(
@@ -2972,7 +3030,7 @@ function renderShopItems() {
                 desc: '직거래보다 저렴. 사기 50%. 성공 시 고등급 확률↑ (이름 중복 없음).',
             }
         );
-    } else {
+    } else if (!keepCurrentStock) {
         if (floor >= 20 && Math.random() < 0.25 && player.relics) {
             const ar = relicPool.filter((r) => {
                 if (player.relics.includes(r.effect)) return false;
@@ -3057,7 +3115,8 @@ window.buyShopRarityBoost = () => {
     player.shopRarityBoost = lv + 1;
     writeLog(`[상점] ✨ 고등급 확률 강화 Lv.${lv + 1}!`);
     updateUi();
-    renderShopItems();
+    // 버그 수정: 상점 강화 구매 시 현재 진열은 유지(자동 리롤 금지)
+    renderShopItems(true);
 };
 
 function saveCollection(itemName) {
@@ -3409,7 +3468,8 @@ function updateUi() {
             else if (player.name === '성직자') {
                 const dp = formatDivinePowerForDisplay(safeNum(player.divinePower, 0));
                 const gm = safeNum(player.divineGainMult, 1);
-                summLine.innerHTML = `<span style="color:#888;font-size:0.85em;"><b>${player.name}</b>${lvTxt} · <span style="color:#f1c40f;">✨ 신성력 ${dp}</span> · 획득×${gm.toFixed(2)}${synHint}</span>`;
+                const st = player.chosenPriest ? '👑 선택받은 성직자' : player.priestBlessed ? '✨ 신의 가호' : '·';
+                summLine.innerHTML = `<span style="color:#888;font-size:0.85em;"><b>${player.name}</b>${lvTxt} · <span style="color:#f1c40f;">✨ 신성력 ${dp}/200</span> · 획득×${gm.toFixed(2)} · ${st}${synHint}</span>`;
             } else summLine.innerHTML = `<span style="color:#888;font-size:0.85em;"><b>${player.name}</b>${lvTxt}${synHint}</span>`;
         }
         document.getElementById('p-atk-val').textContent = String(getEffectiveAttackPower());
