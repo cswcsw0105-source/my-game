@@ -3127,7 +3127,8 @@ function renderShopItems(keepCurrentStock) {
     currentShopItems.forEach((it,idx)=>{
         const isRelic=it.type==='relic', d=document.createElement('div');
         const owned = !isRelic && it.type !== 'potion' && it.type !== 'merc_shop_direct' && it.type !== 'merc_shop_fund' && player.items.some((x)=>x.name===it.name);
-        const full = !owned && !isRelic && getEquipSlotKind(it) && !canEquipMoreOfItem(it);
+        const full = !isRelic && getEquipSlotKind(it) && !canEquipMoreOfItem(it);
+        const synHints = getItemSynergyHints(it);
         let bc='#444',bac='#888',bb='#2a2a2a',bt='COMMON';
         if(isRelic){bc='#f1c40f';bac='#f1c40f';bb='#2a2a0a';bt='RELIC';}
         else if(it.rarity==='relic'){bc='#d35400';bac='#f39c12';bb='#2a1a0a';bt='RELIC(용병)';}
@@ -3141,7 +3142,7 @@ function renderShopItems(keepCurrentStock) {
         const pref = isPreferredItem(it.name);
         d.style.cssText=`background:#1a1a1a;border:1px solid ${bc};border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px;transition:transform 0.15s;cursor:default;${pref ? 'box-shadow:0 0 0 2px #f1c40f, 0 0 18px rgba(241,196,15,0.35);' : ''}`;
         d.onmouseenter=()=>d.style.transform='translateY(-2px)'; d.onmouseleave=()=>d.style.transform='translateY(0)';
-        d.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;"><span style="background:${bb};color:${bac};border:1px solid ${bc};border-radius:4px;font-size:0.7em;font-weight:700;padding:2px 7px;letter-spacing:1px;">${iu?'🔓 ':''}${bt}${pref ? ' ★' : ''}</span><span style="font-size:1.3em;">${ti}</span></div><div style="color:${nc};font-weight:700;font-size:1em;line-height:1.3;">${formatShopItemName(it.name)}${pref ? ' <span style="color:#f1c40f;font-size:0.85em;">(선호)</span>' : ''}</div><div style="color:#888;font-size:0.78em;line-height:1.5;flex:1;">${formatShopItemDesc(it.desc)}</div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;"><span style="color:#f1c40f;font-weight:700;font-size:1em;">💰 ${it.price}G</span><button onclick="buyItem(event,${idx})" ${owned ? 'disabled' : ''} style="background:${owned ? '#555' : full ? '#7f2b2b' : '#f1c40f'};color:${owned ? '#bbb' : full ? '#ffd7d7' : '#111'};padding:6px 14px;font-size:0.85em;font-weight:700;margin:0;border-radius:6px;${owned ? 'cursor:not-allowed;' : ''}">${owned ? '보유' : full ? '칸 꽉참' : '구매'}</button></div>`;
+        d.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;"><span style="background:${bb};color:${bac};border:1px solid ${bc};border-radius:4px;font-size:0.7em;font-weight:700;padding:2px 7px;letter-spacing:1px;">${iu?'🔓 ':''}${bt}${pref ? ' ★' : ''}</span><span style="font-size:1.3em;">${ti}</span></div><div style="color:${nc};font-weight:700;font-size:1em;line-height:1.3;">${formatShopItemName(it.name)}${pref ? ' <span style="color:#f1c40f;font-size:0.85em;">(선호)</span>' : ''}</div><div style="color:#888;font-size:0.78em;line-height:1.5;flex:1;">${formatShopItemDesc(it.desc)}${synHints.length ? `<div style="margin-top:5px;color:#2ed573;">시너지: ${synHints.join(' · ')}</div>` : ''}</div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;"><span style="color:#f1c40f;font-weight:700;font-size:1em;">💰 ${it.price}G</span><button onclick="buyItem(event,${idx})" ${(owned || full) ? 'disabled' : ''} style="background:${full ? '#7f2b2b' : owned ? '#555' : '#f1c40f'};color:${full ? '#ffd7d7' : owned ? '#bbb' : '#111'};padding:6px 14px;font-size:0.85em;font-weight:700;margin:0;border-radius:6px;${(owned || full) ? 'cursor:not-allowed;' : ''}">${full ? '공간 없음' : owned ? '보유' : '구매'}</button></div>`;
         grid.appendChild(d);
     });
     list.appendChild(grid);
@@ -3263,6 +3264,41 @@ function canEquipMoreOfItem(it) {
     if (!k) return true;
     return getEquippedCountByKind(k) < getEquipSlotLimit(k);
 }
+function getItemSynergyHints(it) {
+    if (!it || typeof synergyRules === 'undefined' || !Array.isArray(synergyRules)) return [];
+    const tags = new Set();
+    const tg = it.tags || it.tagList;
+    if (Array.isArray(tg)) tg.forEach((t) => tags.add(String(t)));
+    if (it.rarity) tags.add('rarity_' + String(it.rarity));
+    if (it.type) tags.add('type_' + String(it.type));
+    const curTagCounts = {};
+    for (const x of player.items || []) {
+        if (!x) continue;
+        const xt = x.tags || x.tagList;
+        if (Array.isArray(xt)) xt.forEach((t) => { const k = String(t); curTagCounts[k] = (curTagCounts[k] || 0) + 1; });
+        if (x.rarity) {
+            const k = 'rarity_' + String(x.rarity);
+            curTagCounts[k] = (curTagCounts[k] || 0) + 1;
+        }
+        if (x.type) {
+            const k = 'type_' + String(x.type);
+            curTagCounts[k] = (curTagCounts[k] || 0) + 1;
+        }
+    }
+    const alreadyOwned = (player.items || []).some((x) => x && x.name === it.name);
+    const hints = [];
+    for (const rule of synergyRules) {
+        if (!rule) continue;
+        if (rule.fromTag && tags.has(String(rule.fromTag)) && rule.needCount) {
+            const cur = curTagCounts[rule.fromTag] || 0;
+            const next = cur + (alreadyOwned ? 0 : 1);
+            hints.push(`${rule.name} ${Math.min(next, rule.needCount)}/${rule.needCount}`);
+        } else if (Array.isArray(rule.needTags) && rule.needTags.some((t) => tags.has(String(t)))) {
+            hints.push(rule.name || '시너지');
+        }
+    }
+    return hints;
+}
 function ensureOwnedItemUid(it) {
     if (!it) return;
     if (!it._uid) it._uid = 'it_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -3298,6 +3334,8 @@ window.sellItemByUid = function sellItemByUid(uid) {
     writeLog(`[판매] ${it.name} 판매 (+${refund}G / 구매가 ${buyPrice}G)`);
     updateUi();
     renderActions();
+    const sh = document.getElementById('shop-area');
+    if (sh && sh.style.display === 'block') renderShopItems(true);
 };
 
 window.buyItem = (event, idx) => {
@@ -3709,20 +3747,30 @@ function updateUi() {
                 html+=`</div>`;
             }
             const ro={'legendary':0,'epic':1,'rare':2,'common':3};
-            const sorted=[...player.items].sort((a,b)=>(ro[a.rarity]||3)-(ro[b.rarity]||3));
-            const rg={legendary:[],epic:[],rare:[],common:[]};
-            sorted.forEach(it=>{(rg[it.rarity]||rg.common).push(it);});
-            Object.entries(rg).forEach(([rarity,items])=>{
-                if(!items.length)return;
-                const{label,color,bg}=rl[rarity];
-                html+=`<div style="margin-bottom:10px;"><div style="background:${bg};color:${color};font-size:0.7em;font-weight:700;padding:3px 8px;border-radius:4px;display:inline-block;margin-bottom:6px;">${label}</div>`;
-                items.forEach(it=>{
-                    ensureOwnedItemUid(it);
-                    const bp = Math.max(0, safeNum(it._buyPrice != null ? it._buyPrice : it.price, 0));
-                    const rf = Math.floor(bp * 0.5);
-                    html+=`<div style="padding:8px 10px;background:#111;border-radius:6px;margin-bottom:4px;border-left:3px solid ${color};"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div><div style="color:${color};font-weight:700;font-size:0.9em;">${formatShopItemName(it.name)}</div><div style="color:#666;font-size:0.78em;margin-top:3px;line-height:1.4;">${formatShopItemDesc(it.desc)}</div><div style="color:#888;font-size:0.72em;margin-top:4px;">판매가: <b style="color:#f1c40f;">${rf}G</b></div></div><button type="button" onclick="sellItemByUid('${escapeJsSingleQuoteString(it._uid)}')" style="background:#553322;color:#ffd7a8;border:1px solid #996633;border-radius:8px;padding:6px 10px;font-size:0.75em;font-weight:800;cursor:pointer;">판매</button></div></div>`;
+            const slots = [
+                { kind: 'weapon', label: '⚔️ 무기', color: '#ffb347' },
+                { kind: 'armor', label: '🛡️ 갑옷', color: '#74b9ff' },
+                { kind: 'ring', label: '💍 반지', color: '#9b59b6' },
+            ];
+            slots.forEach((sdef) => {
+                const slotItems = (player.items || []).filter((it) => getEquipSlotKind(it) === sdef.kind);
+                if (!slotItems.length) return;
+                html += `<div style="margin-bottom:12px;"><div style="background:#111;color:${sdef.color};font-size:0.76em;font-weight:900;padding:3px 8px;border-radius:4px;display:inline-block;margin-bottom:6px;">${sdef.label} (${slotItems.length}/${getEquipSlotLimit(sdef.kind)})</div>`;
+                const rg={legendary:[],epic:[],rare:[],common:[]};
+                slotItems.sort((a,b)=>(ro[a.rarity]||3)-(ro[b.rarity]||3)).forEach(it=>{(rg[it.rarity]||rg.common).push(it);});
+                Object.entries(rg).forEach(([rarity,items])=>{
+                    if(!items.length)return;
+                    const{label,color,bg}=rl[rarity];
+                    html+=`<div style="margin:6px 0 8px;"><div style="background:${bg};color:${color};font-size:0.7em;font-weight:700;padding:3px 8px;border-radius:4px;display:inline-block;margin-bottom:6px;">${label}</div>`;
+                    items.forEach(it=>{
+                        ensureOwnedItemUid(it);
+                        const bp = Math.max(0, safeNum(it._buyPrice != null ? it._buyPrice : it.price, 0));
+                        const rf = Math.floor(bp * 0.5);
+                        html+=`<div style="padding:8px 10px;background:#111;border-radius:6px;margin-bottom:4px;border-left:3px solid ${color};"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div><div style="color:${color};font-weight:700;font-size:0.9em;">${formatShopItemName(it.name)}</div><div style="color:#666;font-size:0.78em;margin-top:3px;line-height:1.4;">${formatShopItemDesc(it.desc)}</div><div style="color:#888;font-size:0.72em;margin-top:4px;">판매가: <b style="color:#f1c40f;">${rf}G</b></div></div><button type="button" onclick="sellItemByUid('${escapeJsSingleQuoteString(it._uid)}')" style="background:#553322;color:#ffd7a8;border:1px solid #996633;border-radius:8px;padding:6px 10px;font-size:0.75em;font-weight:800;cursor:pointer;">판매</button></div></div>`;
+                    });
+                    html+=`</div>`;
                 });
-                html+=`</div>`;
+                html += `</div>`;
             });
             invList.innerHTML=html;
         }
