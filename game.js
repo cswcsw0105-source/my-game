@@ -74,6 +74,118 @@ let currentPotionOffer = null;
 let lastEnemyJob = "";
 let rerollCost = 10;
 let currentUser = null;
+const RANK_BASE_JOBS = ['워리어', '헌터', '마법사', '용병단장'];
+let rankRealtimeUnsubs = [];
+let rankRealtimeCache = {};
+function clearRankRealtimeSubs() {
+    if (Array.isArray(rankRealtimeUnsubs)) {
+        rankRealtimeUnsubs.forEach((u) => {
+            try { if (typeof u === 'function') u(); } catch (e) { /* ignore */ }
+        });
+    }
+    rankRealtimeUnsubs = [];
+}
+function getRankTone(rank) {
+    if (rank === 1) return { border: '#f1c40f', color: '#f1c40f', bg: '#2b2410', label: '🥇' };
+    if (rank === 2) return { border: '#c0c0c0', color: '#d8d8d8', bg: '#232323', label: '🥈' };
+    if (rank === 3) return { border: '#cd7f32', color: '#d99a5a', bg: '#2a2018', label: '🥉' };
+    return { border: '#111', color: '#bbb', bg: '#171717', label: `#${rank}` };
+}
+function formatTopPercent(rank, total) {
+    const t = Math.max(1, safeNum(total, 1));
+    const r = Math.max(1, safeNum(rank, 1));
+    const p = Math.max(0.1, (r / t) * 100);
+    return `상위 ${p.toFixed(1)}%`;
+}
+function renderUserRankInfo() {
+    const el = document.getElementById('user-rank-info');
+    if (!el) return;
+    if (!currentUser) {
+        el.innerHTML = '';
+        return;
+    }
+    const ue = currentUser.email.split('@')[0];
+    const chips = [];
+    for (const job of RANK_BASE_JOBS) {
+        const rows = rankRealtimeCache[job] || [];
+        if (!rows.length) continue;
+        const idx = rows.findIndex((r) => r && r.email === ue);
+        if (idx < 0) continue;
+        const rank = idx + 1;
+        const tone = getRankTone(rank);
+        const text = rank > 100 ? `${job} ${formatTopPercent(rank, rows.length)}` : `${job} 서버 ${rank}등`;
+        chips.push(`<span style="display:inline-block;margin:2px;padding:4px 8px;border-radius:999px;border:1px solid ${tone.border};background:${tone.bg};color:${tone.color};font-size:0.74em;font-weight:800;">${text}</span>`);
+    }
+    if (!chips.length) {
+        el.innerHTML = `<div style="color:#666;font-size:0.75em;line-height:1.4;">아직 기록이 없습니다.</div>`;
+    } else {
+        el.innerHTML = chips.join('');
+    }
+}
+function renderRankBoard() {
+    const listEl = document.getElementById('rank-list');
+    if (!listEl) return;
+    if (!currentUser) {
+        listEl.innerHTML = '<span style="color:#555;">로그인 후 확인 가능합니다.</span>';
+        return;
+    }
+    let html = '';
+    for (const job of RANK_BASE_JOBS) {
+        const rows = rankRealtimeCache[job] || [];
+        const jc = job === '헌터' ? '#2ed573' : job === '마법사' ? '#1e90ff' : job === '용병단장' ? '#e67e22' : '#ff4757';
+        html += `<div style="margin-bottom:16px;"><b style="color:${jc};font-size:0.95em;border-bottom:1px solid #333;display:block;padding-bottom:4px;margin-bottom:8px;">⚔️ ${job} 전직별 실시간 랭킹</b>`;
+        if (!rows.length) {
+            html += `<div style="color:#555;font-size:0.85em;">기록 없음</div>`;
+        } else {
+            rows.slice(0, 50).forEach((r, i) => {
+                const rank = i + 1;
+                const tone = getRankTone(rank);
+                const medal = rank <= 3 ? tone.label : `<span style="color:#888;">#${rank}</span>`;
+                const jd = r.job !== r.baseJob ? `${r.baseJob}→${r.job}` : r.job;
+                html += `<div style="margin-bottom:6px;font-size:0.85em;padding:6px 8px;border:1px solid ${tone.border};border-radius:8px;background:${tone.bg};">
+${medal} <b style="color:${tone.color};">${r.floor}층</b> <span style="color:#888;">(${jd})</span> <span style="color:#aaa;">👤${r.email}</span><br>
+<span style="color:#ff4757;font-size:0.8em;margin-left:18px;">💀 ${r.killer || '알 수 없음'}</span>
+</div>`;
+            });
+            if (rows.length > 50) {
+                html += `<div style="color:#666;font-size:0.75em;margin-top:4px;">표시는 50위까지, 실시간 집계는 전체 인원 기준입니다.</div>`;
+            }
+        }
+        html += `</div>`;
+    }
+    listEl.innerHTML = html;
+}
+function subscribeRankRealtime() {
+    clearRankRealtimeSubs();
+    rankRealtimeCache = {};
+    for (const job of RANK_BASE_JOBS) {
+        const q = db.collection('global_ranks').where('baseJob', '==', job).orderBy('floor', 'desc');
+        const unsub = q.onSnapshot(
+            (snap) => {
+                const rows = [];
+                snap.forEach((doc) => {
+                    const d = doc.data() || {};
+                    rows.push({
+                        email: d.email || 'unknown',
+                        job: d.job || d.baseJob || job,
+                        baseJob: d.baseJob || job,
+                        floor: safeNum(d.floor, 0),
+                        killer: d.killer || '알 수 없음',
+                    });
+                });
+                rankRealtimeCache[job] = rows;
+                renderRankBoard();
+                renderUserRankInfo();
+            },
+            () => {
+                rankRealtimeCache[job] = [];
+                renderRankBoard();
+                renderUserRankInfo();
+            }
+        );
+        rankRealtimeUnsubs.push(unsub);
+    }
+}
 let pendingShop = false;
 let potionUsedThisTurn = false;
 let totalGoldEarned = 0;
@@ -923,9 +1035,12 @@ auth.onAuthStateChanged((user) => {
         document.getElementById('user-info').innerText = user.email.split('@')[0] + " 님";
         document.getElementById('logout-btn').style.display = 'inline-block';
         document.getElementById('login-area').style.display = 'none';
-        exitBattleLayout(); showPreGameScreen(); loadRank();
+        exitBattleLayout(); showPreGameScreen(); subscribeRankRealtime();
     } else {
+        clearRankRealtimeSubs();
         currentUser = null;
+        rankRealtimeCache = {};
+        renderUserRankInfo();
         document.getElementById('login-area').style.display = 'block';
         document.getElementById('start-area').style.display = 'none';
         exitBattleLayout();
@@ -3643,23 +3758,17 @@ async function saveRank() {
 }
 
 async function loadRank() {
-    try {
-        if(!currentUser){document.getElementById('rank-list').innerHTML='<span style="color:#555;">로그인 후 확인 가능합니다.</span>';return;}
-        const jobs=['워리어','헌터','마법사','용병단장']; let html='';
-        for(const job of jobs){
-            const snap=await db.collection("global_ranks").where("baseJob","==",job).orderBy("floor","desc").limit(3).get();
-            const jc=job==='헌터'?'#2ed573':job==='마법사'?'#1e90ff':job==='용병단장'?'#e67e22':'#ff4757';
-            html+=`<div style="margin-bottom:16px;"><b style="color:${jc};font-size:0.95em;border-bottom:1px solid #333;display:block;padding-bottom:4px;margin-bottom:8px;">⚔️ ${job} 랭킹</b>`;
-            if(snap.empty){html+=`<div style="color:#555;font-size:0.85em;">기록 없음</div>`;}
-            else{let rank=1;snap.forEach(doc=>{const r=doc.data(),medal=rank===1?'🥇':rank===2?'🥈':'🥉',jd=r.job!==r.baseJob?`${r.baseJob}→${r.job}`:r.job;html+=`<div style="margin-bottom:6px;font-size:0.85em;">${medal} <b style="color:#e0e0e0;">${r.floor}층</b> <span style="color:#888;">(${jd})</span> <span style="color:#aaa;">👤${r.email}</span><br><span style="color:#ff4757;font-size:0.8em;margin-left:18px;">💀 ${r.killer}</span></div>`;rank++;});}
-            html+=`</div>`;
-        }
-        document.getElementById('rank-list').innerHTML=html;
-    } catch(e){document.getElementById('rank-list').innerHTML='랭킹 서버 연결 실패';}
+    try { renderRankBoard(); } catch(e){document.getElementById('rank-list').innerHTML='랭킹 서버 연결 실패';}
 }
 
 window.togglePatchNotes=(show)=>{document.getElementById('patch-modal').style.display=show?'flex':'none';};
-window.toggleRank=(show)=>{document.getElementById('rank-modal').style.display=show?'flex':'none';if(show)loadRank();};
+window.toggleRank=(show)=>{
+    document.getElementById('rank-modal').style.display=show?'flex':'none';
+    if(show){
+        if (currentUser && (!rankRealtimeUnsubs || !rankRealtimeUnsubs.length)) subscribeRankRealtime();
+        loadRank();
+    }
+};
 window.toggleInv=(show)=>{document.getElementById('inv-modal').style.display=show?'flex':'none';};
 
 window.mercGoldSkipCooldown = () => {
