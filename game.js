@@ -3274,20 +3274,10 @@ function applyShopRarityTuning(baseItem) {
         return { ...baseItem };
     }
     const tuned = { ...baseItem };
-    const rk = String(tuned.rarity || 'common').toLowerCase();
-    const rarityWeight = { common: 1, rare: 2, epic: 3, legendary: 4, legend: 4 };
-    const legendMax = { atk: 50, def: 100, hp: 200, crit: 20, critMultPct: 10, lifestealPct: 20 };
-    const w = rarityWeight[rk] || 1;
-    const roundInt = (x) => Math.max(1, Math.round(Number(x) || 0));
-    const round1 = (x) => Math.max(1, Math.round((Number(x) || 0) * 10) / 10);
-    const calc = (legendRef) => (legendRef / 4) * w;
     tuned.name = formatShopItemName(tuned.name);
-    if (tuned.type === 'atk' && typeof tuned.value === 'number') tuned.value = roundInt(calc(legendMax.atk));
-    if (tuned.type === 'hp' && typeof tuned.value === 'number') tuned.value = roundInt(calc(legendMax.hp));
-    if (typeof tuned.def === 'number') tuned.def = roundInt(calc(legendMax.def));
-    if (typeof tuned.critBonus === 'number') tuned.critBonus = round1(calc(legendMax.crit));
-    if (typeof tuned.critMult === 'number') tuned.critMult = round1(calc(legendMax.critMultPct)) / 100;
-    if (typeof tuned.lifesteal === 'number') tuned.lifesteal = round1(calc(legendMax.lifestealPct)) / 100;
+    if (typeof window.applyOfficialStatsToEquipmentItem === 'function') {
+        window.applyOfficialStatsToEquipmentItem(tuned, { rebuildDesc: true });
+    }
     tuned.price = Math.max(1, safeNum(tuned.price, 0));
     tuned.desc = formatShopItemDesc(tuned.desc);
     if (baseItem.divinityGainBonus != null) tuned.divinityGainBonus = baseItem.divinityGainBonus;
