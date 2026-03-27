@@ -3249,7 +3249,8 @@ function renderShopItems(keepCurrentStock) {
         const isRelic=it.type==='relic', d=document.createElement('div');
         const owned = !isRelic && it.type !== 'potion' && it.type !== 'merc_shop_direct' && it.type !== 'merc_shop_fund' && player.items.some((x)=>x.name===it.name);
         const full = !isRelic && getEquipSlotKind(it) && !canEquipMoreOfItem(it);
-        const synHints = getItemSynergyHints(it);
+        const slotLine = getEquipSlotLineHtml(it);
+        const synHtml = buildShopSynergyHintsHtml(it);
         let bc='#444',bac='#888',bb='#2a2a2a',bt='COMMON';
         if(isRelic){bc='#f1c40f';bac='#f1c40f';bb='#2a2a0a';bt='RELIC';}
         else if(it.rarity==='relic'){bc='#d35400';bac='#f39c12';bb='#2a1a0a';bt='RELIC(용병)';}
@@ -3263,7 +3264,7 @@ function renderShopItems(keepCurrentStock) {
         const pref = isPreferredItem(it.name);
         d.style.cssText=`background:#1a1a1a;border:1px solid ${bc};border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px;transition:transform 0.15s;cursor:default;${pref ? 'box-shadow:0 0 0 2px #f1c40f, 0 0 18px rgba(241,196,15,0.35);' : ''}`;
         d.onmouseenter=()=>d.style.transform='translateY(-2px)'; d.onmouseleave=()=>d.style.transform='translateY(0)';
-        d.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;"><span style="background:${bb};color:${bac};border:1px solid ${bc};border-radius:4px;font-size:0.7em;font-weight:700;padding:2px 7px;letter-spacing:1px;">${iu?'🔓 ':''}${bt}${pref ? ' ★' : ''}</span><span style="font-size:1.3em;">${ti}</span></div><div style="color:${nc};font-weight:700;font-size:1em;line-height:1.3;">${formatShopItemName(it.name)}${pref ? ' <span style="color:#f1c40f;font-size:0.85em;">(선호)</span>' : ''}</div><div style="color:#888;font-size:0.78em;line-height:1.5;flex:1;">${formatShopItemDesc(it.desc)}${synHints.length ? `<div style="margin-top:5px;color:#2ed573;">시너지: ${synHints.join(' · ')}</div>` : ''}</div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;"><span style="color:#f1c40f;font-weight:700;font-size:1em;">💰 ${it.price}G</span><button onclick="buyItem(event,${idx})" ${(owned || full) ? 'disabled' : ''} style="background:${full ? '#7f2b2b' : owned ? '#555' : '#f1c40f'};color:${full ? '#ffd7d7' : owned ? '#bbb' : '#111'};padding:6px 14px;font-size:0.85em;font-weight:700;margin:0;border-radius:6px;${(owned || full) ? 'cursor:not-allowed;' : ''}">${full ? '공간 없음' : owned ? '보유' : '구매'}</button></div>`;
+        d.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;"><span style="background:${bb};color:${bac};border:1px solid ${bc};border-radius:4px;font-size:0.7em;font-weight:700;padding:2px 7px;letter-spacing:1px;">${iu?'🔓 ':''}${bt}${pref ? ' ★' : ''}</span><span style="font-size:1.3em;">${ti}</span></div><div style="color:${nc};font-weight:700;font-size:1em;line-height:1.3;">${formatShopItemName(it.name)}${pref ? ' <span style="color:#f1c40f;font-size:0.85em;">(선호)</span>' : ''}</div>${slotLine}<div style="color:#888;font-size:0.78em;line-height:1.5;flex:1;">${formatShopItemDesc(it.desc)}${synHtml}</div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;"><span style="color:#f1c40f;font-weight:700;font-size:1em;">💰 ${it.price}G</span><button onclick="buyItem(event,${idx})" ${(owned || full) ? 'disabled' : ''} style="background:${full ? '#7f2b2b' : owned ? '#555' : '#f1c40f'};color:${full ? '#ffd7d7' : owned ? '#bbb' : '#111'};padding:6px 14px;font-size:0.85em;font-weight:700;margin:0;border-radius:6px;${(owned || full) ? 'cursor:not-allowed;' : ''}">${full ? '공간 없음' : owned ? '보유' : '구매'}</button></div>`;
         grid.appendChild(d);
     });
     list.appendChild(grid);
@@ -3333,6 +3334,26 @@ function escapeJsSingleQuoteString(s) {
     // onclick="fn('<here>')" 형태용 이스케이프
     return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
+/** HTML attribute (title 등)용 */
+function escapeHtmlAttr(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\r?\n/g, ' ');
+}
+function formatSynergyBonusHuman(b) {
+    if (!b) return '';
+    const parts = [];
+    if (b.atk) parts.push(`공격+${b.atk}`);
+    if (b.hp) parts.push(`체력+${b.hp}`);
+    if (b.def) parts.push(`방어+${b.def}`);
+    if (b.acc) parts.push(`명중+${b.acc}%`);
+    if (b.crit) parts.push(`치명+${b.crit}%`);
+    if (b.critMult) parts.push(`치명 배율+${Math.round(b.critMult * 100)}%`);
+    return parts.join(', ');
+}
 window.togglePreferredItem = function togglePreferredItem(name) {
     const n = String(name || '');
     if (!n) return;
@@ -3364,12 +3385,24 @@ function getEquipSlotLabel(kind) {
     if (kind === 'ring') return '반지';
     return '장비';
 }
+function getEquipSlotLineHtml(it) {
+    const k = getEquipSlotKind(it);
+    if (!k) return '';
+    const lim = getEquipSlotLimit(k);
+    const label = getEquipSlotLabel(k);
+    const icon = k === 'weapon' ? '⚔️' : k === 'armor' ? '🛡️' : '💍';
+    return `<div style="color:#9fb0ff;font-size:0.76em;margin-top:4px;line-height:1.35;">${icon} <b>장착 칸</b>: ${label} (동시 최대 ${lim}개)</div>`;
+}
 function buildSynergyStatusHtml() {
     if (!player || !player._syn || !Array.isArray(player._syn.progress) || !player._syn.progress.length) return '';
     const chips = player._syn.progress
         .map((p) => {
             const on = !!p.active;
-            const title = escapeJsSingleQuoteString(p.effectDesc || '시너지 효과');
+            const bonusTxt = formatSynergyBonusHuman(p.bonus || {});
+            const tip = on
+                ? `발동 · ${p.effectDesc || ''}${bonusTxt ? ` (${bonusTxt})` : ''}`
+                : `진행 ${p.cur}/${p.need} · 발동 시: ${p.effectDesc || bonusTxt || '시너지 효과'}`;
+            const title = escapeHtmlAttr(tip);
             return `<span title="${title}" style="display:inline-block;margin:2px;padding:2px 7px;border-radius:999px;border:1px solid ${
                 on ? '#2ed573' : '#444'
             };background:${on ? '#123020' : '#111'};color:${on ? '#2ed573' : '#999'};font-size:0.72em;font-weight:700;cursor:help;">${p.name} ${p.cur}/${p.need}</span>`;
@@ -3419,6 +3452,52 @@ function getItemSynergyHints(it) {
         }
     }
     return hints;
+}
+/** 상점 카드: 시너지 진행 문구에 마우스 올리면 조건·효과 표시 */
+function buildShopSynergyHintsHtml(it) {
+    if (!it || typeof synergyRules === 'undefined' || !Array.isArray(synergyRules)) return '';
+    const tags = new Set();
+    const tg = it.tags || it.tagList;
+    if (Array.isArray(tg)) tg.forEach((t) => tags.add(String(t)));
+    if (it.rarity) tags.add('rarity_' + String(it.rarity));
+    if (it.type) tags.add('type_' + String(it.type));
+    const curTagCounts = {};
+    for (const x of player.items || []) {
+        if (!x) continue;
+        const xt = x.tags || x.tagList;
+        if (Array.isArray(xt)) xt.forEach((t) => { const k = String(t); curTagCounts[k] = (curTagCounts[k] || 0) + 1; });
+        if (x.rarity) {
+            const k = 'rarity_' + String(x.rarity);
+            curTagCounts[k] = (curTagCounts[k] || 0) + 1;
+        }
+        if (x.type) {
+            const k = 'type_' + String(x.type);
+            curTagCounts[k] = (curTagCounts[k] || 0) + 1;
+        }
+    }
+    const alreadyOwned = (player.items || []).some((x) => x && x.name === it.name);
+    const parts = [];
+    for (const rule of synergyRules) {
+        if (!rule) continue;
+        if (rule.fromTag && tags.has(String(rule.fromTag)) && rule.needCount) {
+            const cur = curTagCounts[rule.fromTag] || 0;
+            const next = cur + (alreadyOwned ? 0 : 1);
+            const label = `${rule.name} ${Math.min(next, rule.needCount)}/${rule.needCount}`;
+            const bonusTxt = formatSynergyBonusHuman(rule.bonus || {});
+            const willActive = next >= rule.needCount;
+            const tip = willActive
+                ? `이 구매 시 발동: ${rule.effectDesc || ''}${bonusTxt ? ` (${bonusTxt})` : ''}`
+                : `진행 ${Math.min(next, rule.needCount)}/${rule.needCount} · 발동 시: ${rule.effectDesc || bonusTxt || ''}`;
+            parts.push(
+                `<span title="${escapeHtmlAttr(tip)}" style="cursor:help;border-bottom:1px dotted #2ed573;">${label}</span>`
+            );
+        } else if (Array.isArray(rule.needTags) && rule.needTags.some((t) => tags.has(String(t)))) {
+            const tip = `${rule.effectDesc || rule.name || '시너지'}${formatSynergyBonusHuman(rule.bonus || {}) ? ` (${formatSynergyBonusHuman(rule.bonus || {})})` : ''}`;
+            parts.push(`<span title="${escapeHtmlAttr(tip)}" style="cursor:help;border-bottom:1px dotted #2ed573;">${rule.name || '시너지'}</span>`);
+        }
+    }
+    if (!parts.length) return '';
+    return `<div style="margin-top:5px;color:#2ed573;">시너지: ${parts.join(' · ')}</div>`;
 }
 function ensureOwnedItemUid(it) {
     if (!it) return;
@@ -3714,7 +3793,7 @@ window.toggleCollection = (show) => {
             items.forEach((it) => {
                 if (it.owned) {
                     const pref = isPreferredItem(it.name);
-                    html += `<div style="padding:8px 10px;background:#111;border-radius:6px;margin-bottom:4px;border-left:3px solid ${color};display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div><div style="color:${color};font-weight:700;font-size:0.9em;">✅ ${formatShopItemName(it.name)}${pref ? ' <span style="color:#f1c40f;">★</span>' : ''}</div><div style="color:#666;font-size:0.78em;margin-top:3px;">${formatShopItemDesc(it.desc)}</div></div><button type="button" onclick="togglePreferredItem('${escapeJsSingleQuoteString(it.name)}')" style="background:${pref ? '#f1c40f' : '#111'};color:${pref ? '#111' : '#f1c40f'};border:1px solid #f1c40f;border-radius:8px;padding:6px 10px;font-weight:900;cursor:pointer;font-size:0.78em;">★</button></div>`;
+                    html += `<div style="padding:8px 10px;background:#111;border-radius:6px;margin-bottom:4px;border-left:3px solid ${color};display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div><div style="color:${color};font-weight:700;font-size:0.9em;">✅ ${formatShopItemName(it.name)}${pref ? ' <span style="color:#f1c40f;">★</span>' : ''}</div>${getEquipSlotLineHtml(it)}<div style="color:#666;font-size:0.78em;margin-top:3px;">${formatShopItemDesc(it.desc)}</div></div><button type="button" onclick="togglePreferredItem('${escapeJsSingleQuoteString(it.name)}')" style="background:${pref ? '#f1c40f' : '#111'};color:${pref ? '#111' : '#f1c40f'};border:1px solid #f1c40f;border-radius:8px;padding:6px 10px;font-weight:900;cursor:pointer;font-size:0.78em;">★</button></div>`;
                 }
                 else html += `<div style="padding:8px 10px;background:#0a0a0a;border-radius:6px;margin-bottom:4px;border-left:3px solid #333;"><div style="color:#444;font-weight:700;font-size:0.9em;">🔒 ???</div></div>`;
             });
@@ -3888,7 +3967,7 @@ function updateUi() {
                         ensureOwnedItemUid(it);
                         const bp = Math.max(0, safeNum(it._buyPrice != null ? it._buyPrice : it.price, 0));
                         const rf = Math.floor(bp * 0.5);
-                        html+=`<div style="padding:8px 10px;background:#111;border-radius:6px;margin-bottom:4px;border-left:3px solid ${color};"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div><div style="color:${color};font-weight:700;font-size:0.9em;">${formatShopItemName(it.name)}</div><div style="color:#666;font-size:0.78em;margin-top:3px;line-height:1.4;">${formatShopItemDesc(it.desc)}</div><div style="color:#888;font-size:0.72em;margin-top:4px;">판매가: <b style="color:#f1c40f;">${rf}G</b></div></div><button type="button" onclick="sellItemByUid('${escapeJsSingleQuoteString(it._uid)}')" style="background:#553322;color:#ffd7a8;border:1px solid #996633;border-radius:8px;padding:6px 10px;font-size:0.75em;font-weight:800;cursor:pointer;">판매</button></div></div>`;
+                        html+=`<div style="padding:8px 10px;background:#111;border-radius:6px;margin-bottom:4px;border-left:3px solid ${color};"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div><div style="color:${color};font-weight:700;font-size:0.9em;">${formatShopItemName(it.name)}</div>${getEquipSlotLineHtml(it)}<div style="color:#666;font-size:0.78em;margin-top:3px;line-height:1.4;">${formatShopItemDesc(it.desc)}</div><div style="color:#888;font-size:0.72em;margin-top:4px;">판매가: <b style="color:#f1c40f;">${rf}G</b></div></div><button type="button" onclick="sellItemByUid('${escapeJsSingleQuoteString(it._uid)}')" style="background:#553322;color:#ffd7a8;border:1px solid #996633;border-radius:8px;padding:6px 10px;font-size:0.75em;font-weight:800;cursor:pointer;">판매</button></div></div>`;
                     });
                     html+=`</div>`;
                 });

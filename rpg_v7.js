@@ -480,6 +480,7 @@
                 need,
                 active: ok,
                 effectDesc: rule.effectDesc || '',
+                bonus: rule.bonus || {},
             });
             if (!ok) continue;
             const b = rule.bonus || {};
