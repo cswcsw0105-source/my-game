@@ -232,7 +232,10 @@ const MERC_FLOOR_SCALE_CAP = 1.65;
 /** 치명 확률 상한 65% — 1% 초과분은 배율로 전환 (1%당 치명 배율 +0.05) */
 const CRIT_SOFT_CAP = 65;
 const LIFESTEAL_SOFT_CAP = 0.85;
-const BASE_HIT_ACCURACY = 75;
+/** 실제 판정에 쓰는 기본 명중(%) — 장비 명중 옵션 제거 후 직업·시너지·버프만 가산 */
+const BASE_HIT_ACCURACY = 90;
+/** 전투 패널에 표시하는 체감 명중(%) — UI 전용 */
+const FELT_HIT_ACCURACY_DISPLAY = 80;
 const CRIT_OVERFLOW_TO_MULT = 0.01;
 
 function clearSummonRunStorage() {
@@ -588,16 +591,14 @@ function recalcMercGearTotals(fm) {
     if (!fm) return;
     let atk = 0,
         hp = 0,
-        acc = 0,
         def = 0,
         crit = 0,
         critMult = 0,
         ls = 0;
     for (const it of fm.mercItems || []) {
         if (!it) continue;
-        if (it.type === 'atk') atk += safeNum(it.value, 0);
+        if (it.type === 'atk' || it.type === 'ring') atk += safeNum(it.value, 0);
         if (it.type === 'hp') hp += safeNum(it.value, 0);
-        if (it.type === 'acc') acc += safeNum(it.value, 0);
         if (it.def) def += safeNum(it.def, 0);
         if (it.critBonus) crit += safeNum(it.critBonus, 0);
         if (it.critMult) critMult += safeNum(it.critMult, 0);
@@ -605,7 +606,7 @@ function recalcMercGearTotals(fm) {
     }
     fm.mercBonusAtk = atk;
     fm.mercBonusHp = hp;
-    fm.mercBonusAcc = acc;
+    fm.mercBonusAcc = 0;
     fm.mercBonusDef = def;
     fm.mercBonusCrit = crit;
     fm.mercBonusCritMult = critMult;
@@ -1812,7 +1813,7 @@ window.evolve = (idx) => {
     if (evol.bonusHp) { player.maxHp=evol.bonusHp; player.curHp=Math.min(player.curHp,player.maxHp); }
     if (evol.bonusAcc) player.acc = evol.bonusAcc;
     player.extraAtk=0; player.extraDef=0;
-    player.items.forEach(it => { if (it.type === 'merc') return; if (it.type==='atk') player.atk+=it.value; if (it.type==='acc') player.acc+=it.value; if (it.def) player.extraDef+=it.def; });
+    player.items.forEach(it => { if (it.type === 'merc') return; if (it.type==='atk' || it.type==='ring') player.atk+=it.value; if (it.def) player.extraDef+=it.def; });
     // 궁극기 세팅
     player.unlockedSkill = evol.ult;
     const ultSpec = ultSkills[evol.ult];
@@ -2072,7 +2073,6 @@ window.resolveForge = (idx) => {
             // 스탯 원상복구
             if (item.type==='atk') player.atk = Math.max(1, player.atk - item.value);
             if (item.type==='hp') { player.maxHp = Math.max(50, player.maxHp-item.value); player.curHp = Math.min(player.curHp, player.maxHp); }
-            if (item.type==='acc') player.acc -= item.value;
             if (item.def) player.extraDef = Math.max(0, player.extraDef-item.def);
             if (item.lifesteal) player.lifesteal = Math.max(0, player.lifesteal-item.lifesteal);
             if (item.critBonus) player.crit = Math.max(1, player.crit-item.critBonus);
@@ -2086,7 +2086,6 @@ window.resolveForge = (idx) => {
             saveCollection(newItem.name);
             if (newItem.type==='atk') player.atk += newItem.value;
             if (newItem.type==='hp') { player.maxHp += newItem.value; player.curHp += newItem.value; }
-            if (newItem.type==='acc') player.acc += newItem.value;
             if (newItem.def) player.extraDef += newItem.def;
             if (newItem.lifesteal) player.lifesteal += newItem.lifesteal;
             if (newItem.critBonus) player.crit += newItem.critBonus;
@@ -2270,6 +2269,7 @@ function spawnEnemy() {
         );
         player.mercReviveAt90Percent = false;
     }
+    if (player) player._playerMissStreak = 0;
     tryActivateFloorQuest();
     player._awaitPlayerTurn = true;
     updateUi(); renderActions();
@@ -2414,10 +2414,22 @@ window.useAction = (type) => {
             if(relations[relKey].strong===enemy.job){multiplier=1.5;effectMsg="<b style='color:#2ed573'>(상성 우위!)</b> ";}
             else if(relations[relKey].weak===enemy.job){multiplier=0.8;effectMsg="<b style='color:#ff4757'>(상성 열세..)</b> ";}
         }
-        const accRate=isMercenaryCaptainJob()&&player.fieldMerc&&player.fieldMerc.mercHp>0
-            ?Math.min(95,BASE_HIT_ACCURACY+player.acc+getMercBonusAcc())
-            :Math.min(95,BASE_HIT_ACCURACY+player.acc);
-        if(Math.random()*100<accRate){
+        const synAcc = safeNum(player._syn && player._syn.acc, 0);
+        const mercAcc = isMercenaryCaptainJob() && player.fieldMerc && player.fieldMerc.mercHp > 0 ? getMercBonusAcc() : 0;
+        const accRateBase =
+            Math.min(95, BASE_HIT_ACCURACY + safeNum(player.acc, 0) + synAcc + mercAcc);
+        let hitLanded = false;
+        const prevStreak = safeNum(player._playerMissStreak, 0);
+        if (prevStreak >= 3) {
+            hitLanded = true;
+            player._playerMissStreak = 0;
+        } else if (Math.random() * 100 < accRateBase) {
+            hitLanded = true;
+            player._playerMissStreak = 0;
+        } else {
+            player._playerMissStreak = prevStreak + 1;
+        }
+        if(hitLanded){
             let berserkMult = (player.name==='버서커' && player.curHp <= player.maxHp * 0.5) ? 1.35 : 1;
             if (berserkMult > 1) effectMsg += "<b style='color:#e74c3c'>【광폭화】</b> ";
             let baseDmg;
@@ -3394,7 +3406,7 @@ function renderShopItems(keepCurrentStock) {
         else if(it.rarity==='rare'){bc='#1e90ff';bac='#1e90ff';bb='#1a1e2d';bt='RARE';}
         let nc=isRelic?'#f1c40f':it.rarity==='legendary'?'#e74c3c':it.rarity==='epic'?'#a55eea':it.rarity==='rare'?'#1e90ff':'#e0e0e0';
         let ti=isRelic?'✨':'🎒';
-        if(!isRelic){if(it.type==='atk')ti='⚔️';else if(it.type==='hp')ti='🛡️';else if(it.type==='acc')ti='🎯';else if(it.type==='potion')ti='🧪';else if(it.type==='merc')ti='⚔️';else if(it.type==='merc_shop_direct')ti='💼';else if(it.type==='merc_shop_fund')ti='🤝';if(it.lifesteal)ti='🩸';if(it.regenPotion)ti='💚';}
+        if(!isRelic){if(it.type==='atk')ti='⚔️';else if(it.type==='hp')ti='🛡️';else if(it.type==='ring')ti='💍';else if(it.type==='potion')ti='🧪';else if(it.type==='merc')ti='⚔️';else if(it.type==='merc_shop_direct')ti='💼';else if(it.type==='merc_shop_fund')ti='🤝';if(it.lifesteal)ti='🩸';if(it.regenPotion)ti='💚';}
         const iu=getUnlockedPoolItems().some(u=>u.name===it.name);
         const pref = isPreferredItem(it.name);
         d.style.cssText=`background:#1a1a1a;border:1px solid ${bc};border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px;transition:transform 0.15s;cursor:default;${pref ? 'box-shadow:0 0 0 2px #f1c40f, 0 0 18px rgba(241,196,15,0.35);' : ''}`;
@@ -3484,7 +3496,6 @@ function formatSynergyBonusHuman(b) {
     if (b.atk) parts.push(`공격+${b.atk}`);
     if (b.hp) parts.push(`체력+${b.hp}`);
     if (b.def) parts.push(`방어+${b.def}`);
-    if (b.acc) parts.push(`명중+${b.acc}%`);
     if (b.crit) parts.push(`치명+${b.crit}%`);
     if (b.critMult) parts.push(`치명 배율+${Math.round(b.critMult * 100)}%`);
     return parts.join(', ');
@@ -3505,7 +3516,7 @@ function getEquipSlotKind(it) {
     if (!it) return null;
     if (it.type === 'atk') return 'weapon';
     if (it.type === 'hp') return 'armor';
-    if (it.type === 'acc') return 'ring';
+    if (it.type === 'ring') return 'ring';
     return null;
 }
 function getEquipSlotLimit(kind) {
@@ -3640,14 +3651,12 @@ function ensureOwnedItemUid(it) {
 }
 function removeOwnedItemEffects(it) {
     if (!it || !player) return;
-    if (it.type === 'atk') player.atk = Math.max(1, safeNum(player.atk, 1) - safeNum(it.value, 0));
+    if (it.type === 'atk' || it.type === 'ring') player.atk = Math.max(1, safeNum(player.atk, 1) - safeNum(it.value, 0));
     if (it.type === 'hp') {
         player.maxHp = Math.max(1, safeNum(player.maxHp, 1) - safeNum(it.value, 0));
         player.curHp = Math.min(player.maxHp, safeNum(player.curHp, 0));
     }
-    if (it.type === 'acc') player.acc = Math.max(0, safeNum(player.acc, 0) - safeNum(it.value, 0));
     if (it.def) player.extraDef = Math.max(0, safeNum(player.extraDef, 0) - safeNum(it.def, 0));
-    if (it.acc) player.acc = Math.max(0, safeNum(player.acc, 0) - safeNum(it.acc, 0));
     if (it.lifesteal) player.lifesteal = Math.max(0, safeNum(player.lifesteal, 0) - safeNum(it.lifesteal, 0));
     if (it.critBonus) player.crit = Math.max(1, safeNum(player.crit, 1) - safeNum(it.critBonus, 0));
     if (it.critMult) player.critMult = Math.max(1.8, safeNum(player.critMult, 1.8) - safeNum(it.critMult, 0));
@@ -3725,11 +3734,9 @@ window.buyItem = (event, idx) => {
             ensureOwnedItemUid(it);
             it._buyPrice = safeNum(it.price, 0);
             player.items.push(it); saveCollection(it.name);
-            if(it.type==='atk')player.atk+=it.value;
+            if(it.type==='atk'||it.type==='ring')player.atk+=it.value;
             if(it.type==='hp'){player.maxHp+=it.value;player.curHp+=it.value;}
-            if(it.type==='acc')player.acc+=it.value;
             if(it.def)player.extraDef+=it.def;
-            if(it.acc)player.acc+=it.acc;
             if(it.lifesteal)player.lifesteal=(player.lifesteal||0)+it.lifesteal;
             if(it.regenPotion)player.hasRegenPotion=true;
             if(it.critBonus)player.crit=(player.crit||1)+it.critBonus;
@@ -3844,7 +3851,7 @@ function getCodexStatMetric(it, filter) {
     if (filter === 'def') return safeNum(it.def, 0);
     if (filter === 'crit') return safeNum(it.critBonus, 0);
     if (filter === 'critMult') return safeNum(it.critMult, 0);
-    if (filter === 'acc') return safeNum(it.type === 'acc' ? it.value : it.acc, 0);
+    if (filter === 'ring') return safeNum(it.type === 'ring' ? it.value : 0, 0);
     return 0;
 }
 
@@ -3899,7 +3906,7 @@ window.toggleCollection = (show) => {
             { id: 'def', label: '방어력 높은 순' },
             { id: 'crit', label: '치명 확률 높은 순' },
             { id: 'critMult', label: '치명 배율 높은 순' },
-            { id: 'acc', label: '명중률 높은 순' },
+            { id: 'ring', label: '반지 공격 높은 순' },
         ];
         const statBar = statFilters
             .map(
@@ -4012,7 +4019,11 @@ function updateUi() {
         }
         document.getElementById('p-atk-val').textContent = String(getMercEffectiveAttackPower());
         document.getElementById('p-def-val').textContent = String(safeNum(fm.mercBonusDef, 0));
-        document.getElementById('p-acc-val').textContent = `${Math.min(95, BASE_HIT_ACCURACY + safeNum(player.acc, 0) + getMercBonusAcc())}%`;
+        const accEl = document.getElementById('p-acc-val');
+        if (accEl) {
+            accEl.textContent = `${FELT_HIT_ACCURACY_DISPLAY}%`;
+            accEl.title = `기본 명중 ${BASE_HIT_ACCURACY}% (표시는 체감 ${FELT_HIT_ACCURACY_DISPLAY}%)`;
+        }
         document.getElementById('p-crit-val').textContent = `${Math.round(getMercEffectiveCritForMercAttack())}%`;
         const ecmM = getMercEffectiveCritMultForMercAttack();
         if (critMultEl) critMultEl.textContent = `${Math.ceil(Number.isFinite(ecmM) ? ecmM : 1.8)}x`;
@@ -4046,7 +4057,11 @@ function updateUi() {
         }
         document.getElementById('p-atk-val').textContent = String(getEffectiveAttackPower());
         document.getElementById('p-def-val').textContent = String(getTotalPlayerDefenseForHit());
-        document.getElementById('p-acc-val').textContent = `${Math.min(95, BASE_HIT_ACCURACY + safeNum(player.acc, 0) + safeNum(player._syn.acc, 0))}%`;
+        const accEl2 = document.getElementById('p-acc-val');
+        if (accEl2) {
+            accEl2.textContent = `${FELT_HIT_ACCURACY_DISPLAY}%`;
+            accEl2.title = `기본 명중 ${BASE_HIT_ACCURACY}% (표시는 체감 ${FELT_HIT_ACCURACY_DISPLAY}%)`;
+        }
         const critInfo = getCritInfo();
         document.getElementById('p-crit-val').textContent = `${Math.round(safeNum(critInfo.effectiveCrit, 0))}%`;
         const ecm = getEffectiveCritMult();

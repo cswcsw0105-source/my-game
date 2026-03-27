@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
-    <title>던전 · 시즌 1.1</title>
+    <title>던전 · 시즌 1.2</title>
     <link rel="stylesheet" href="style.css?v=s1beta">
     <style>
         .auth-box { background: #2a2a2a; padding: 20px; border-radius: 8px; border: 1px solid #444; max-width: 300px; margin: 0 auto; }
@@ -14,7 +14,7 @@
 <body>
     <div class="container">
         <h1 style="color: #fff; letter-spacing: 1px;">⚔️ 던전 · 로그라이트</h1>
-        <p style="color:#9b59b6;font-size:0.9em;margin:2px 0 8px;letter-spacing:0.5px;">시즌 1.1</p>
+        <p style="color:#9b59b6;font-size:0.9em;margin:2px 0 8px;letter-spacing:0.5px;">시즌 1.2</p>
         
         <div class="game-layout" id="main-layout">
             <div class="screen" id="main-screen">
@@ -44,7 +44,7 @@
                             <div class="stat-tag" style="cursor:default; font-size:0.82em;">
                                 ATK: <span id="p-atk-val" style="color:#f1c40f;">0</span> /
                                 DEF: <span id="p-def-val" style="color:#1e90ff;">0</span> /
-                                ACC: <span id="p-acc-val" style="color:#2ed573;">85%</span> /
+                                체감명중: <span id="p-acc-val" style="color:#2ed573;" title="기본 명중 90%">80%</span> /
                                 CRIT: <span id="p-crit-val" style="color:#f39c12;">5%</span>
                                 <span style="color:#f39c12; font-size:0.9em;">(배율: <span id="p-crit-mult-val" style="font-weight:700;">1.80x</span>)</span> /
                                 흡혈: <span id="p-lifesteal-val" style="color:#e74c3c;">0%</span>
@@ -153,6 +153,11 @@
             <table class="patch-table">
                 <thead><tr><th>버전</th><th>항목</th><th>상세 내용</th></tr></thead>
                 <tbody>
+                    <tr><td class="v-tag">시즌 1.2</td><td>명중·장비 정리</td><td>
+    • <b>명중 기본값:</b> 전 직업 공통으로 실제 판정 기본 명중률을 <b>90%</b>로 통일했습니다. 전투 패널에는 <b>체감 명중 80%</b>로 표시됩니다(기본 90%는 툴팁으로 확인 가능).<br>
+    • <b>장비 명중 옵션 제거:</b> 모든 장비에서 명중률 수치(주·부 옵션)를 삭제했습니다. 기존 <b>반지(명중) 슬롯</b> 장비는 <b>반지</b> 유형으로 두고 공격력 등 다른 스탯으로 재배분됩니다.<br>
+    • <b>시너지:</b> 희귀 2개 조합 보너스의 명중 보상을 <b>방어</b> 보상으로 조정했습니다.
+</td></tr>
                     <tr><td class="v-tag">시즌 1.1</td><td>UI·도감·밸런스·랭킹 대규모 개선</td><td>
     • <b>전직도 분리:</b> 패치노트 하단 전직도 제거, 메인 도감에 <b>전직도</b> 메뉴 신설(플레이한 직업만 표시, 마우스 오버 시 패시브/공·방·치명·배율·흡혈 표시).<br>
     • <b>장비 정보 가시성:</b> 상점/인벤/도감에서 장비별 <b>장착 칸(무기·갑옷·반지)</b>과 칸 제한을 명확히 표기.<br>

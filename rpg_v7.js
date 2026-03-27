@@ -510,8 +510,8 @@
             title: '보스 토벌',
             desc: '<b>20층 보스</b>를 처치하면 보상. 층 이탈 시 실패.',
             needBoss: 1,
-            reward: { perma: { def: 4, acc: 4 } },
-            failPenalty: { def: 3, acc: 3, goldLoss: 0.2 },
+            reward: { perma: { def: 4, atk: 4 } },
+            failPenalty: { def: 3, atk: 3, goldLoss: 0.2 },
         },
     };
 
