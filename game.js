@@ -3274,43 +3274,21 @@ function applyShopRarityTuning(baseItem) {
         return { ...baseItem };
     }
     const tuned = { ...baseItem };
-    const rk = tuned.rarity || 'common';
-    const bonusByRarity = {
-        common: { atk: 18, hp: 24, def: 12, acc: 10, critBonus: 8, critMult: 0.25, minPrice: 55 },
-        rare: { atk: 34, hp: 48, def: 24, acc: 18, critBonus: 14, critMult: 0.45, minPrice: 95 },
-        epic: { atk: 56, hp: 78, def: 38, acc: 28, critBonus: 22, critMult: 0.72, minPrice: 165 },
-        legendary: { atk: 86, hp: 122, def: 58, acc: 40, critBonus: 32, critMult: 1.05, minPrice: 255 },
-    };
-    const b = bonusByRarity[rk] || bonusByRarity.common;
+    const rk = String(tuned.rarity || 'common').toLowerCase();
+    const rarityWeight = { common: 1, rare: 2, epic: 3, legendary: 4, legend: 4 };
+    const legendMax = { atk: 50, def: 100, hp: 200, crit: 20, critMultPct: 10, lifestealPct: 20 };
+    const w = rarityWeight[rk] || 1;
+    const roundInt = (x) => Math.max(1, Math.round(Number(x) || 0));
+    const round1 = (x) => Math.max(1, Math.round((Number(x) || 0) * 10) / 10);
+    const calc = (legendRef) => (legendRef / 4) * w;
     tuned.name = formatShopItemName(tuned.name);
-    if (tuned.type === 'atk') tuned.value = safeNum(tuned.value, 0) + b.atk;
-    if (tuned.type === 'hp') tuned.value = safeNum(tuned.value, 0) + b.hp;
-    if (tuned.type === 'acc') tuned.value = safeNum(tuned.value, 0) + b.acc;
-    tuned.def = safeNum(tuned.def, 0) + b.def;
-    tuned.critBonus = safeNum(tuned.critBonus, 0) + b.critBonus;
-    tuned.critMult = safeNum(tuned.critMult, 0) + b.critMult;
-    // 희귀도 역전 방지: 같은 카테고리에서 상/하위 등급이 뒤집히지 않게 안전 구간으로 보정
-    const range = {
-        common: { atk: [22, 58], hp: [56, 145], def: [6, 26], acc: [12, 34], crit: [1, 12], cm: [0.10, 0.55], ls: [0.01, 0.10] },
-        rare: { atk: [60, 108], hp: [150, 248], def: [27, 50], acc: [35, 58], crit: [13, 22], cm: [0.56, 0.95], ls: [0.11, 0.18] },
-        epic: { atk: [110, 178], hp: [250, 380], def: [51, 78], acc: [59, 84], crit: [23, 34], cm: [0.96, 1.35], ls: [0.19, 0.28] },
-        legendary: { atk: [180, 270], hp: [385, 560], def: [79, 118], acc: [85, 120], crit: [35, 50], cm: [1.36, 2.10], ls: [0.29, 0.40] },
-    };
-    const rr = range[rk] || range.common;
-    const clamp = (x, mn, mx) => Math.min(mx, Math.max(mn, x));
-    if (tuned.type === 'atk') tuned.value = clamp(safeNum(tuned.value, 0), rr.atk[0], rr.atk[1]);
-    if (tuned.type === 'hp') tuned.value = clamp(safeNum(tuned.value, 0), rr.hp[0], rr.hp[1]);
-    if (tuned.type === 'acc') tuned.value = clamp(safeNum(tuned.value, 0), rr.acc[0], rr.acc[1]);
-    tuned.def = clamp(safeNum(tuned.def, 0), rr.def[0], rr.def[1]);
-    tuned.critBonus = clamp(safeNum(tuned.critBonus, 0), rr.crit[0], rr.crit[1]);
-    tuned.critMult = clamp(safeNum(tuned.critMult, 0), rr.cm[0], rr.cm[1]);
-    if (tuned.lifesteal != null) tuned.lifesteal = clamp(safeNum(tuned.lifesteal, 0), rr.ls[0], rr.ls[1]);
-    if (tuned.type === 'atk') tuned.value = Math.max(1, safeNum(tuned.value, 0));
-    if (tuned.def != null) tuned.def = Math.max(1, safeNum(tuned.def, 0));
-    if (tuned.critBonus != null) tuned.critBonus = Math.max(1, safeNum(tuned.critBonus, 0));
-    if (tuned.critMult != null) tuned.critMult = Math.max(0.01, safeNum(tuned.critMult, 0));
-    if (tuned.lifesteal != null) tuned.lifesteal = Math.max(0.01, safeNum(tuned.lifesteal, 0));
-    tuned.price = Math.max(b.minPrice, safeNum(tuned.price, 0));
+    if (tuned.type === 'atk' && typeof tuned.value === 'number') tuned.value = roundInt(calc(legendMax.atk));
+    if (tuned.type === 'hp' && typeof tuned.value === 'number') tuned.value = roundInt(calc(legendMax.hp));
+    if (typeof tuned.def === 'number') tuned.def = roundInt(calc(legendMax.def));
+    if (typeof tuned.critBonus === 'number') tuned.critBonus = round1(calc(legendMax.crit));
+    if (typeof tuned.critMult === 'number') tuned.critMult = round1(calc(legendMax.critMultPct)) / 100;
+    if (typeof tuned.lifesteal === 'number') tuned.lifesteal = round1(calc(legendMax.lifestealPct)) / 100;
+    tuned.price = Math.max(1, safeNum(tuned.price, 0));
     tuned.desc = formatShopItemDesc(tuned.desc);
     if (baseItem.divinityGainBonus != null) tuned.divinityGainBonus = baseItem.divinityGainBonus;
     if (baseItem.prayerBonus != null) tuned.prayerBonus = baseItem.prayerBonus;

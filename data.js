@@ -527,51 +527,59 @@ const forgeRecipes = [
     { name: "파멸의 각인",   type: "atk", value: 50, price: 0, rarity: "legendary", desc: "대장간 합성. 공격력(+50). 흡혈(25%), 치명타 배율(+40%).", materials: 2, materialRarity: "epic", successRate: 0.50, lifesteal: 0.25, critMult: 0.4 },
 ];
 
-/** 장비 밸런스 — 전체 상향 + 희귀도 역전 방지 + 옵션 하한 보정 */
-(function applyItemBalanceS1Beta() {
-    const M = 1.22;
-    const PRICE_MULT = 1.18;
-    const rarityFloor = {
-        common: { value: 12, def: 1, acc: 8, critBonus: 1, critMult: 0.01, lifesteal: 0.01 },
-        rare: { value: 28, def: 5, acc: 16, critBonus: 4, critMult: 0.08, lifesteal: 0.04 },
-        epic: { value: 52, def: 11, acc: 26, critBonus: 8, critMult: 0.18, lifesteal: 0.08 },
-        legendary: { value: 84, def: 20, acc: 36, critBonus: 14, critMult: 0.32, lifesteal: 0.12 },
+/** 공식 기반 스탯 테이블 적용 (비유물 전용) */
+(function applyOfficialStatTable() {
+    const rarityWeight = {
+        common: 1,
+        rare: 2,
+        epic: 3,
+        legendary: 4,
+        legend: 4,
     };
-    function floorOf(rarity, key) {
-        const rf = rarityFloor[rarity] || rarityFloor.common;
-        return rf[key];
+    const legendMax = {
+        atk: 50,
+        def: 100,
+        hp: 200,
+        crit: 20,
+        critMultPct: 10,
+        lifestealPct: 20,
+    };
+    const roundInt = (x) => Math.max(1, Math.round(Number(x) || 0));
+    const round1 = (x) => Math.max(1, Math.round((Number(x) || 0) * 10) / 10);
+    const calcBase = (legendRef, w) => (legendRef / 4) * w;
+    function applyToItem(it) {
+        if (!it) return;
+        const rk = String(it.rarity || 'common').toLowerCase();
+        const w = rarityWeight[rk] || 1;
+        if (it.type === 'atk' && typeof it.value === 'number') it.value = roundInt(calcBase(legendMax.atk, w));
+        if (it.type === 'hp' && typeof it.value === 'number') it.value = roundInt(calcBase(legendMax.hp, w));
+        if (typeof it.def === 'number') it.def = roundInt(calcBase(legendMax.def, w));
+        if (typeof it.critBonus === 'number') it.critBonus = round1(calcBase(legendMax.crit, w));
+        if (typeof it.critMult === 'number') it.critMult = round1(calcBase(legendMax.critMultPct, w)) / 100;
+        if (typeof it.lifesteal === 'number') it.lifesteal = round1(calcBase(legendMax.lifestealPct, w)) / 100;
+        it._officialStatApplied = true;
     }
-    function up(it) {
-        if (!it || it._balS1b) return;
-        const rk = it.rarity || 'common';
-        if (typeof it.value === 'number') {
-            it.value = Math.max(floorOf(rk, 'value'), Math.round(it.value * M));
-        }
-        if (typeof it.def === 'number') {
-            it.def = Math.max(floorOf(rk, 'def'), Math.round(it.def * M));
-        }
-        if (typeof it.acc === 'number') {
-            it.acc = Math.max(floorOf(rk, 'acc'), Math.round(it.acc * M));
-        }
-        if (typeof it.critBonus === 'number') {
-            it.critBonus = Math.max(floorOf(rk, 'critBonus'), Math.round(it.critBonus * M));
-        }
-        if (typeof it.critMult === 'number') {
-            it.critMult = Math.max(floorOf(rk, 'critMult'), Math.round(it.critMult * M * 100) / 100);
-        }
-        if (typeof it.lifesteal === 'number') {
-            it.lifesteal = Math.max(floorOf(rk, 'lifesteal'), Math.round(it.lifesteal * M * 100) / 100);
-        }
-        if (typeof it.price === 'number') it.price = Math.max(1, Math.ceil(it.price * PRICE_MULT));
-        it._balS1b = true;
+    if (typeof equipmentPool !== 'undefined' && Array.isArray(equipmentPool)) {
+        equipmentPool.forEach((it) => {
+            if (!it || it.type === 'relic') return;
+            applyToItem(it);
+        });
     }
-    if (typeof equipmentPool !== 'undefined' && Array.isArray(equipmentPool)) equipmentPool.forEach(up);
-    function upUnlock(obj) {
+    function applyObj(obj) {
         if (!obj) return;
-        Object.keys(obj).forEach((k) => up(obj[k]));
+        Object.keys(obj).forEach((k) => {
+            const it = obj[k];
+            if (!it || it.type === 'relic') return;
+            applyToItem(it);
+        });
     }
-    upUnlock(typeof floorUnlocks !== 'undefined' ? floorUnlocks : null);
-    upUnlock(typeof floorUnlocksHunter !== 'undefined' ? floorUnlocksHunter : null);
-    upUnlock(typeof floorUnlocksWizard !== 'undefined' ? floorUnlocksWizard : null);
-    if (typeof forgeRecipes !== 'undefined' && Array.isArray(forgeRecipes)) forgeRecipes.forEach(up);
+    applyObj(typeof floorUnlocks !== 'undefined' ? floorUnlocks : null);
+    applyObj(typeof floorUnlocksHunter !== 'undefined' ? floorUnlocksHunter : null);
+    applyObj(typeof floorUnlocksWizard !== 'undefined' ? floorUnlocksWizard : null);
+    if (typeof forgeRecipes !== 'undefined' && Array.isArray(forgeRecipes)) {
+        forgeRecipes.forEach((it) => {
+            if (!it || it.type === 'relic') return;
+            applyToItem(it);
+        });
+    }
 })();
