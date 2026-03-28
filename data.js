@@ -76,12 +76,12 @@ const ultSkills = {
 
 const floorUnlocks = {
     10:  { name: "용기의 목걸이",     type: "hp",  value: 40, def: 5,  price: 60,  rarity: "rare",      desc: "10층 달성 해금. 체력(+40), 방어(+5)." },
-    20:  { name: "전사의 팔찌",       type: "atk", value: 18, price: 75,  rarity: "rare",      desc: "20층 달성 해금. 공격력(+18)." },
+    20:  { name: "전사의 팔찌",       type: "ring", value: 18, price: 75,  rarity: "rare",      desc: "20층 달성 해금. 공격(+18)." },
     30:  { name: "불사조의 깃털",     type: "hp",  value: 60, price: 90,  rarity: "epic",      regenPotion: true, desc: "30층 달성 해금. 체력(+60). 포션 효과 강화." },
     40:  { name: "심연의 보석",       type: "atk", value: 25, price: 110, rarity: "epic",      lifesteal: 0.2, desc: "40층 달성 해금. 공격력(+25). 흡혈 20%." },
     50:  { name: "천공의 갑옷",       type: "hp",  value: 100, def: 20, price: 150, rarity: "epic",     desc: "50층 달성 해금. 체력(+100), 방어(+20)." },
     60:  { name: "파멸의 검",         type: "atk", value: 40, price: 160, rarity: "legendary", lifesteal: 0.3, desc: "60층 달성 해금. 공격력(+40). 흡혈 30%." },
-    70:  { name: "불멸의 반지",       type: "hp",  value: 120, def: 25, price: 180, rarity: "legendary", desc: "70층 달성 해금. 체력(+120), 방어(+25)." },
+    70:  { name: "불멸의 흉갑",       type: "hp",  value: 120, def: 25, price: 180, rarity: "legendary", desc: "70층 달성 해금. 체력(+120), 방어(+25)." },
     80:  { name: "신의 축복",         type: "atk", value: 55, price: 200, rarity: "legendary", desc: "80층 달성 해금. 공격력(+55), 명중률(+15%)." },
     90:  { name: "용왕의 비늘",       type: "hp",  value: 150, def: 30, price: 220, rarity: "legendary", desc: "90층 달성 해금. 체력(+150), 방어(+30)." },
     100: { name: "전설의 유산",       type: "atk", value: 80, price: 250, rarity: "legendary", lifesteal: 0.4, desc: "100층 달성! 전설의 유산. 공격력(+80), 명중률(+20%), 흡혈 40%." },
@@ -145,9 +145,9 @@ const equipmentPoolV651 = [
     // 워리어 — rare x5
     { name: "기사단 양날검", type: "atk", value: 16, critBonus: 3, price: 62, rarity: "rare", onlyFor: ["워리어","나이트","버서커"], desc: "공격(+16), 치명(+3%)." },
     { name: "가시 갑옷", type: "hp", value: 45, def: 10, price: 68, rarity: "rare", onlyFor: ["워리어","나이트","버서커"], desc: "체력(+45), 방어(+10)." },
-    { name: "광전사의 팔찌", type: "atk", value: 14, lifesteal: 0.06, price: 72, rarity: "rare", onlyFor: ["워리어","나이트","버서커"], tags: ["blood", "heavy"], desc: "공격(+14), 흡혈(6%)." },
+    { name: "광전사의 팔찌", type: "ring", value: 14, lifesteal: 0.06, price: 72, rarity: "rare", onlyFor: ["워리어","나이트","버서커"], tags: ["blood", "heavy"], desc: "공격(+14), 흡혈(6%)." },
     { name: "수호 기사의 인장", type: "hp", value: 35, def: 14, price: 65, rarity: "rare", onlyFor: ["워리어","나이트","버서커"], desc: "체력(+35), 방어(+14)." },
-    { name: "철의 반지", type: "atk", value: 12, def: 5, price: 60, rarity: "rare", onlyFor: ["워리어","나이트","버서커"], desc: "공격(+12), 방어(+5)." },
+    { name: "철의 반지", type: "ring", value: 12, def: 5, price: 60, rarity: "rare", onlyFor: ["워리어","나이트","버서커"], desc: "공격(+12), 방어(+5)." },
     // 워리어 — epic x5 (fix: use hp+def instead of invalid type def)
     { name: "룬문자 대검", type: "atk", value: 24, critBonus: 5, price: 118, rarity: "epic", onlyFor: ["워리어","나이트","버서커"], desc: "공격(+24), 치명(+5%)." },
     { name: "깊은 광산 판금", type: "hp", value: 70, def: 14, price: 115, rarity: "epic", onlyFor: ["워리어","나이트","버서커"], desc: "체력(+70), 방어(+14)." },
@@ -162,7 +162,7 @@ const equipmentPoolV651 = [
     { name: "전쟁신의 유산", type: "atk", value: 35, def: 12, price: 210, rarity: "legendary", onlyFor: ["워리어","나이트","버서커"], desc: "공격(+35), 방어(+12)." },
     // 헌터 계열 — common x5
     { name: "나무 활", type: "atk", value: 8, price: 29, rarity: "common", onlyFor: ["헌터","궁수","암살자"], desc: "공격(+8)." },
-    { name: "가죽 장갑", type: "ring", value: 10, price: 31, rarity: "common", onlyFor: ["헌터","궁수","암살자"], desc: "명중(+10%)." },
+    { name: "가죽 장갑", type: "hp", value: 36, def: 4, price: 31, rarity: "common", onlyFor: ["헌터","궁수","암살자"], desc: "체력(+36), 방어(+4)." },
     { name: "작은 단검", type: "atk", value: 10, critBonus: 2, price: 33, rarity: "common", onlyFor: ["헌터","궁수","암살자"], desc: "공격(+10), 치명(+2%)." },
     { name: "숲길 장화", type: "hp", value: 32, price: 27, rarity: "common", onlyFor: ["헌터","궁수","암살자"], desc: "체력(+32)." },
     { name: "독침 화살", type: "atk", value: 9, lifesteal: 0.04, price: 35, rarity: "common", onlyFor: ["헌터","궁수","암살자"], desc: "공격(+9), 흡혈(4%)." },
@@ -198,7 +198,7 @@ const equipmentPoolV651 = [
     { name: "심연의 페이지", type: "atk", value: 17, critMult: 0.14, price: 74, rarity: "rare", onlyFor: ["마법사","위저드","소환사"], desc: "공격(+17), 치명 배율(+14%)." },
     // 마법사 — epic x5
     { name: "성역 마도서", type: "atk", value: 32, critMult: 0.32, price: 128, rarity: "epic", onlyFor: ["위저드"], desc: "위저드. 공격(+32), 치명 배율(+32%)." },
-    { name: "소환진 팔찌", type: "hp", value: 75, def: 11, lifesteal: 0.1, price: 124, rarity: "epic", onlyFor: ["소환사"], desc: "소환사. 체력(+75), 방어(+11), 흡혈(10%)." },
+    { name: "소환진 외피", type: "hp", value: 75, def: 11, lifesteal: 0.1, price: 124, rarity: "epic", onlyFor: ["소환사"], desc: "소환사. 체력(+75), 방어(+11), 흡혈(10%)." },
     { name: "혼돈 보주", type: "atk", value: 27, critBonus: 7, price: 121, rarity: "epic", onlyFor: ["마법사","위저드","소환사"], desc: "공격(+27), 치명(+7%)." },
     { name: "별무리 로브", type: "hp", value: 62, def: 9, price: 119, rarity: "epic", onlyFor: ["마법사","위저드","소환사"], desc: "체력(+62), 방어(+9)." },
     { name: "마력 폭풍 지팡이", type: "atk", value: 30, critMult: 0.25, price: 126, rarity: "epic", onlyFor: ["마법사","위저드","소환사"], desc: "공격(+30), 치명 배율(+25%)." },
@@ -214,7 +214,7 @@ const equipmentPoolV651 = [
 const equipmentPoolExtra703 = [
     { name: "낡은 끈", type: "hp", value: 6, price: 10, rarity: "common", desc: "공용. 체력(+6)." },
     { name: "조각난 화살촉", type: "atk", value: 3, price: 11, rarity: "common", desc: "공용. 공격(+3)." },
-    { name: "구리 반지", type: "atk", value: 2, price: 12, rarity: "common", onlyFor: ["워리어", "나이트", "버서커"], desc: "워계. 공격(+2)." },
+    { name: "구리 반지", type: "ring", value: 2, price: 12, rarity: "common", onlyFor: ["워리어", "나이트", "버서커"], desc: "워계. 공격(+2)." },
     { name: "이끼 낀 돌", type: "hp", value: 9, def: 1, price: 13, rarity: "common", desc: "공용. 체력(+9), 방어(+1)." },
     { name: "가죽 끈", type: "ring", value: 4, price: 14, rarity: "common", desc: "공용. 명중(+4%)." },
     { name: "작은 철못", type: "atk", value: 4, price: 15, rarity: "common", onlyFor: ["헌터", "궁수", "암살자"], desc: "헌계. 공격(+4)." },
@@ -231,7 +231,7 @@ const equipmentPoolExtra703 = [
     { name: "깃털 화살", type: "atk", value: 5, price: 20, rarity: "common", onlyFor: ["헌터", "궁수", "암살자"], tags: ["precision"], desc: "헌계. 공격(+5), 명중(+3%)." },
     { name: "연습용 구슬", type: "atk", value: 5, critMult: 0.04, price: 21, rarity: "common", onlyFor: ["마법사", "위저드", "소환사"], desc: "마계. 공격(+5), 치명 배율(+4%)." },
     { name: "청동 팔찌", type: "atk", value: 6, def: 1, price: 22, rarity: "rare", desc: "공용. 공격(+6), 방어(+1)." },
-    { name: "은박 반지", type: "hp", value: 14, price: 24, rarity: "rare", desc: "공용. 체력(+14)." },
+    { name: "은박 반지", type: "ring", value: 14, price: 24, rarity: "rare", desc: "공용. 공격(+14)." },
     { name: "가는 철검", type: "atk", value: 7, critBonus: 2, price: 26, rarity: "rare", onlyFor: ["워리어", "나이트", "버서커"], desc: "워계. 공격(+7), 치명(+2%)." },
     { name: "사냥꾼 주머니", type: "atk", value: 6, lifesteal: 0.03, price: 27, rarity: "rare", onlyFor: ["헌터", "궁수", "암살자"], desc: "헌계. 공격(+6), 흡혈(3%)." },
     { name: "마력 잔물결", type: "atk", value: 6, price: 25, rarity: "rare", onlyFor: ["마법사", "위저드", "소환사"], desc: "마계. 공격(+6)." },
@@ -268,30 +268,39 @@ const equipmentPoolExtra703 = [
     { name: "불꽃 심지", type: "atk", value: 10, critBonus: 2, price: 49, rarity: "epic", desc: "공용. 공격(+10), 치명(+2%)." },
 ];
 
-/** 직업 전용 장비 추가 (워·헌·마 각 50종, 이름 중복 없음) */
+/** 직업 전용 장비 추가 (워·헌·마 각 50종, 이름 중복 없음) — 접미사를 무기/갑옷/반지로 분리해 슬롯과 이름 일치 */
 const equipmentPoolS1Extra = (function generateEquipmentPoolS1Extra() {
     const W = ['워리어', '나이트', '버서커'];
     const H = ['헌터', '궁수', '암살자'];
     const Z = ['마법사', '위저드', '소환사'];
     const wP = ['철벽','강철','용병','성역','전장','파쇄','불굴','수호','심연','맹세','야수','검은','붉은','푸른','금빛','은빛','전설','파멸','천벌','신성','맹렬','철기','용맹','빛의','어둠','불꽃','얼음','폭풍','번개','대지','하늘','재앙','구원','철의','강철심','불굴','수호','심연','야수','맹렬','성기사','광전','성역','검은철','붉은장','푸른빛','은빛','금빛','낡은','전장','맹세'];
-    const wS = ['대검','방패','흉갑','각반','투구','철퇴','링','인장','요새','유산','손갑','벨트','부츠','망토','휘장','방울','도끼','창','너클','갑옷'];
+    const wWeapon = ['대검','도끼','창','너클','철퇴','양날검','장검','모닝스타','리치','그레이트소드','전장검','언월도'];
+    const wArmor = ['흉갑','각반','투구','손갑','망토','부츠','갑옷','방패','벨트','요새','유산'];
+    const wRing = ['링','인장','휘장','방울','반지'];
     const hP = ['바람','그림자','맹금','독','야생','달빛','별빛','숲','늪','절벽','저격','추적','은신','암살','날렵','민첩','독수리','뱀','여우','늑대','새벽','황혼','서리','폭풍','번개','유령','맹독','은빛','금빛','진홍','밤','안개','이슬','빙결','화염','천둥','유성','유령','침묵','속삭임','날쌤','예리','냉기','불꽃','질풍','신속','급습','매복'];
-    const hS = ['활','단검','화살','시위','망토','장갑','부츠','깃털','눈','화살통','목걸이','반지','주머니','표식','가죽','망원경','표창','띠','침','함정','석궁','쇠뇌','비수','단검집','투시경','투척칼','갈고리','독침','망토','휘장'];
+    const hWeapon = ['활','단검','화살','시위','석궁','쇠뇌','표창','비수','투척칼','독침','함정'];
+    const hArmor = ['망토','장갑','부츠','화살통','목걸이','가죽','띠','깃털'];
+    const hRing = ['반지','주머니','표식','망원경','눈','휘장','링'];
     const zP = ['고대','마나','별','심연','시간','공허','불꽃','얼음','번개','혼돈','성스러운','금지된','잊힌','비밀','대마도','소환','차원','천공','심장','눈동자','지팡이','보주','룬','인장','페이지','서적','모래','수정','수호','파동','잔향','심연','성역','마력','주문','봉인','파괴','정화','저주','축복','각성','각인','결계','마도','영혼','불사','불멸','환영','심연'];
-    const zS = ['문자 봉인석','보주','로브','링','지팡이','페이지','서적','모래시계','수정','수호진','인장','결계','주문서','마도서','결정','파편','불꽃','빙결','번개','혼돈','성유물','파동','파수','장막','심장','보주','구슬','마력','각인','인장','목걸이','장식핀','주술목','수정','보주','지팡이','마력봉','지팡이','서적'];
+    const zWeapon = ['지팡이','보주','페이지','마력봉','각인','결정','파편','구슬','주문봉'];
+    const zArmor = ['로브','모래시계','수정','수호진','결계','주문서','마도서','장막','목걸이','심장','문자 봉인석'];
+    const zRing = ['링','인장','구슬','장식핀','주술목'];
     const out = [];
-    function nameFor(job, i, pArr, sArr) {
+    function nameForSlot(i, pArr, weaponS, armorS, ringS, slotKind) {
         const a = pArr[(i * 7) % pArr.length];
-        const b = sArr[(i * 11) % sArr.length];
-        return `${a} ${b}`;
+        const pick = (arr) => arr[(i * 11) % arr.length];
+        if (slotKind === 'weapon') return `${a} ${pick(weaponS)}`;
+        if (slotKind === 'armor') return `${a} ${pick(armorS)}`;
+        return `${a} ${pick(ringS)}`;
     }
-    function addLine(jobArr, tag, jobKey, i, pArr, sArr) {
+    function addLine(jobArr, tag, jobKey, i, pArr, weaponS, armorS, ringS) {
         const rar = i % 25 === 0 ? 'legendary' : i % 6 === 0 ? 'epic' : i % 2 === 0 ? 'rare' : 'common';
         const v = 6 + (i * 7) % 28;
         const p = 22 + i * 2 + (rar === 'legendary' ? 100 : rar === 'epic' ? 40 : 0);
         const k = i % 6;
         const tg = tag ? [tag] : undefined;
-        const nm = nameFor(jobKey, i, pArr, sArr);
+        const slotNm = k === 1 ? 'armor' : k === 3 ? 'ring' : 'weapon';
+        const nm = nameForSlot(i, pArr, weaponS, armorS, ringS, slotNm);
         if (k === 0) {
             const d = Math.floor(v / 10);
             out.push({
@@ -371,9 +380,9 @@ const equipmentPoolS1Extra = (function generateEquipmentPoolS1Extra() {
             });
         }
     }
-    for (let i = 1; i <= 50; i++) addLine(W, 'heavy', 'w', i, wP, wS);
-    for (let i = 1; i <= 50; i++) addLine(H, 'precision', 'h', i, hP, hS);
-    for (let i = 1; i <= 50; i++) addLine(Z, 'arcane', 'm', i, zP, zS);
+    for (let i = 1; i <= 50; i++) addLine(W, 'heavy', 'w', i, wP, wWeapon, wArmor, wRing);
+    for (let i = 1; i <= 50; i++) addLine(H, 'precision', 'h', i, hP, hWeapon, hArmor, hRing);
+    for (let i = 1; i <= 50; i++) addLine(Z, 'arcane', 'm', i, zP, zWeapon, zArmor, zRing);
     return out;
 })();
 
@@ -436,9 +445,9 @@ const equipmentPool = [
     { name: "찬빛 합금 흉갑",        type: "hp",  value: 80, def: 16, price: 90,  rarity: "epic",   onlyFor: ["워리어","나이트","버서커"], desc: "워리어 계열. 체력(+80), 방어(+16)." },
     { name: "용사의 방패",        type: "hp",  value: 50, def: 14, price: 60,  rarity: "rare",   onlyFor: ["워리어","나이트","버서커"], desc: "워리어 계열. 체력(+50), 방어(+14)." },
     { name: "전쟁의 도끼",        type: "atk", value: 18, price: 70,  rarity: "rare",   onlyFor: ["워리어","나이트","버서커"], critBonus: 4,  desc: "워리어 계열. 공격력(+18). 치명타 확률(+4%)." },
-    { name: "분노의 투구",        type: "atk", value: 12, price: 50,  rarity: "common", onlyFor: ["워리어","나이트","버서커"], desc: "워리어 계열. 공격력(+12)." },
+    { name: "분노의 투구",        type: "hp",  value: 55, def: 8, price: 50,  rarity: "common", onlyFor: ["워리어","나이트","버서커"], desc: "워리어 계열. 체력(+55), 방어(+8)." },
     { name: "철벽의 각반",        type: "hp",  value: 30, def: 10, price: 45,  rarity: "common", onlyFor: ["워리어","나이트","버서커"], desc: "워리어 계열. 체력(+30), 방어(+10)." },
-    { name: "강철 팔찌",          type: "atk", value: 8,  def: 6,  price: 40,  rarity: "common", onlyFor: ["워리어","나이트","버서커"], desc: "워리어 계열. 공격력(+8), 방어(+6)." },
+    { name: "강철 팔찌",          type: "ring", value: 8,  def: 6,  price: 40,  rarity: "common", onlyFor: ["워리어","나이트","버서커"], desc: "워리어 계열. 공격(+8), 방어(+6)." },
     { name: "파괴자의 도끼",      type: "atk", value: 35, price: 130, rarity: "epic",   onlyFor: ["버서커"], critBonus: 10, desc: "버서커 전용. 공격력(+35). 치명타 확률(+10%)." },
     { name: "성기사의 검",        type: "atk", value: 28, def: 8, price: 120, rarity: "epic",   onlyFor: ["나이트"], desc: "나이트 전용. 공격력(+28), 방어(+8)." },
 
@@ -447,8 +456,8 @@ const equipmentPool = [
     { name: "은신 단검",      type: "atk", value: 18, price: 70,  rarity: "rare",   onlyFor: ["헌터","궁수","암살자"], critMult: 0.25, desc: "헌터 계열. 공격력(+18). 치명타 배율(+25%)." },
     { name: "독화살 통",          type: "atk", value: 14, price: 55,  rarity: "rare",   onlyFor: ["헌터","궁수","암살자"], desc: "헌터 계열. 공격력(+14)." },
     { name: "그림자 망토",        type: "hp",  value: 40, def: 4, price: 45,  rarity: "common", onlyFor: ["헌터","궁수","암살자"], desc: "헌터 계열. 체력(+40), 방어(+4)." },
-    { name: "사냥꾼의 장갑",      type: "ring", value: 18, price: 50,  rarity: "common", onlyFor: ["헌터","궁수","암살자"], desc: "헌터 계열. 명중률(+18%)." },
-    { name: "바람의 신발",        type: "ring", value: 12, price: 35,  rarity: "common", onlyFor: ["헌터","궁수","암살자"], desc: "헌터 계열. 명중률(+12%)." },
+    { name: "사냥꾼의 장갑",      type: "hp",  value: 52, def: 5, price: 50,  rarity: "common", onlyFor: ["헌터","궁수","암살자"], desc: "헌터 계열. 체력(+52), 방어(+5)." },
+    { name: "바람의 신발",        type: "hp",  value: 38, def: 4, price: 35,  rarity: "common", onlyFor: ["헌터","궁수","암살자"], desc: "헌터 계열. 체력(+38), 방어(+4)." },
     { name: "독이 묻은 화살촉",   type: "atk", value: 10, price: 40,  rarity: "common", onlyFor: ["헌터","궁수","암살자"], lifesteal: 0.08, desc: "헌터 계열. 공격력(+10). 흡혈(8%)." },
     { name: "폭풍의 활",          type: "atk", value: 32, price: 120, rarity: "epic",   onlyFor: ["궁수"], critBonus: 6, desc: "궁수 전용. 공격력(+32). 치명타(+6%), 명중(+10%)." },
     { name: "그림자 쌍검",        type: "atk", value: 28, price: 110, rarity: "epic",   onlyFor: ["암살자"], critMult: 0.4, lifesteal: 0.12, desc: "암살자 전용. 공격력(+28). 치명타 배율(+40%), 흡혈(12%)." },
@@ -467,25 +476,25 @@ const equipmentPool = [
     // ===== 공용 =====
     { name: "드래곤의 심장",      type: "hp",  value: 130, def: 14, price: 180, rarity: "legendary", desc: "전설. 체력(+130), 방어(+14)." },
     { name: "빛의 잔광검",         type: "atk", value: 45, price: 200, rarity: "legendary", critBonus: 10, critMult: 0.3, desc: "전설. 공격력(+45), 명중(+10%), 치명타 확률(+10%), 배율(+30%)." },
-    { name: "흡혈 반지",          type: "atk", value: 8,  price: 60,  rarity: "rare",   lifesteal: 0.15, desc: "공용. 공격력(+8). 흡혈(15%)." },
+    { name: "흡혈 반지",          type: "ring", value: 8,  price: 60,  rarity: "rare",   lifesteal: 0.15, desc: "공용. 공격(+8). 흡혈(15%)." },
     { name: "흡혈 망토",          type: "hp",  value: 35, price: 75,  rarity: "rare",   lifesteal: 0.25, desc: "공용. 체력(+35). 흡혈(25%)." },
     { name: "저주받은 검",        type: "atk", value: 38, price: 100, rarity: "epic",   penalty: { '워리어': 15, '헌터': 20, '마법사': 25 }, critBonus: 12, desc: "공용. 공격력(+38). 치명타(+12%). 명중률 대폭 하락." },
-    { name: "바람의 부츠",        type: "ring", value: 20, price: 55,  rarity: "rare",   desc: "공용. 명중률(+20%)." },
+    { name: "바람의 부츠",        type: "hp",  value: 48, def: 6, price: 55,  rarity: "rare",   desc: "공용. 체력(+48), 방어(+6)." },
     { name: "중갑옷",             type: "hp",  value: 75, def: 12, price: 65,  rarity: "rare",   penalty: { '마법사': 20, '헌터': 15 }, desc: "공용. 체력(+75), 방어(+12). 마법사·헌터는 명중률 감소." },
     { name: "낡은 가죽 갑옷",     type: "hp",  value: 35, def: 4,  price: 25,  rarity: "common", desc: "공용. 체력(+35), 방어(+4)." },
     { name: "회복의 목걸이",      type: "hp",  value: 20, price: 40,  rarity: "common", regenPotion: true, desc: "공용. 체력(+20). 포션 사용 시 2턴간 서서히 회복." },
-    { name: "대지의 반지",        type: "hp",  value: 45, def: 5,  price: 50,  rarity: "common", desc: "공용. 체력(+45), 방어(+5)." },
+    { name: "대지의 반지",        type: "ring", value: 45, def: 5,  price: 50,  rarity: "common", desc: "공용. 공격(+45), 방어(+5)." },
     { name: "수련자의 검",        type: "atk", value: 6,  price: 20,  rarity: "common", desc: "공용. 공격력(+6)." },
     { name: "견습 갑옷",          type: "hp",  value: 25, def: 3,  price: 20,  rarity: "common", desc: "공용. 체력(+25), 방어(+3)." },
     { name: "행운의 동전",        type: "ring", value: 8,  price: 25,  rarity: "common", critBonus: 2, desc: "공용. 명중률(+8%), 치명타 확률(+2%)." },
-    { name: "불꽃 반지",          type: "atk", value: 12, price: 45,  rarity: "common", critBonus: 3, desc: "공용. 공격력(+12), 치명타 확률(+3%)." },
+    { name: "불꽃 반지",          type: "ring", value: 12, price: 45,  rarity: "common", critBonus: 3, desc: "공용. 공격(+12), 치명(+3%)." },
     { name: "생명의 돌",          type: "hp",  value: 55, price: 45,  rarity: "rare",   desc: "공용. 체력(+55)." },
-    { name: "전투 반지",          type: "atk", value: 14, def: 4, price: 55,  rarity: "rare",   desc: "공용. 공격력(+14), 방어(+4)." },
+    { name: "전투 반지",          type: "ring", value: 14, def: 4, price: 55,  rarity: "rare",   desc: "공용. 공격(+14), 방어(+4)." },
     { name: "용의 비늘 조각",     type: "hp",  value: 60, def: 8,  price: 70,  rarity: "rare",   desc: "공용. 체력(+60), 방어(+8)." },
     { name: "고대 유물 파편",     type: "atk", value: 18, price: 65,  rarity: "rare",   desc: "공용. 공격력(+18), 명중률(+5%)." },
     { name: "피의 에센스",        type: "atk", value: 20, price: 80,  rarity: "epic",   lifesteal: 0.18, critBonus: 5, desc: "공용. 공격력(+20). 흡혈(18%), 치명타(+5%)." },
     { name: "불사의 갑옷",        type: "hp",  value: 90, def: 15, price: 140, rarity: "epic",   desc: "공용. 체력(+90), 방어(+15)." },
-    { name: "번개의 반지",        type: "atk", value: 25, price: 110, rarity: "epic",   critBonus: 8, critMult: 0.2, desc: "공용. 공격력(+25). 치명타 확률(+8%), 배율(+20%)." },
+    { name: "번개의 반지",        type: "ring", value: 25, price: 110, rarity: "epic",   critBonus: 8, critMult: 0.2, desc: "공용. 공격(+25). 치명(+8%), 배율(+20%)." },
     { name: "폭군의 갑옷",        type: "hp",  value: 110, def: 20, price: 170, rarity: "legendary", critBonus: 5, desc: "전설. 체력(+110), 방어(+20), 치명타(+5%)." },
     { name: "세계수의 가지",      type: "hp",  value: 80, price: 150, rarity: "legendary", regenPotion: true, lifesteal: 0.2, desc: "전설. 체력(+80). 포션 강화, 흡혈(20%)." },
     ...equipmentPoolV651,
@@ -568,14 +577,27 @@ function rebuildEquipmentDesc(it, opts) {
     it.desc = s ? `${s}.` : (it.desc || '');
 }
 
-/** 등급별 총 예산(pt). Legend·Legendary 동일. */
+/** 등급별 총 예산(pt). Legend·Legendary 동일. (상한 강화에 맞춰 소폭 하향) */
 const BUDGET_BY_RARITY = {
-    common: 50,
-    rare: 100,
-    epic: 150,
-    legendary: 200,
-    legend: 200,
+    common: 44,
+    rare: 88,
+    epic: 132,
+    legendary: 172,
+    legend: 172,
 };
+
+/** 등급별 스탯 상한 — 과도한 수치 방지(상점/배분 공통) */
+function _statMaxForRarity(rk) {
+    const R = {
+        common: { atk: 26, hp: 95, def: 22, crit: 22, cm: 18, ls: 22 },
+        rare: { atk: 38, hp: 155, def: 34, crit: 32, cm: 24, ls: 28 },
+        epic: { atk: 52, hp: 220, def: 48, crit: 42, cm: 30, ls: 34 },
+        legendary: { atk: 65, hp: 290, def: 62, crit: 52, cm: 36, ls: 40 },
+        legend: { atk: 65, hp: 290, def: 62, crit: 52, cm: 36, ls: 40 },
+    };
+    const k = String(rk || 'common').toLowerCase();
+    return R[k] || R.common;
+}
 
 /**
  * 1pt = 0.01 예산 스케일 단위. 원본 비용: 공격1, 방0.5, 체0.2, 치명1%3, 배율1%10
@@ -671,7 +693,7 @@ function _baseWeightsFromChannels(ch) {
 /**
  * 예산 Bx(= 원 pt ×100)를 채널에 맞춰 100% 소비. 반환: 원 단위 스탯 정수·비율
  */
-function _allocateBudgetToStats(Bx, ch, rnd) {
+function _allocateBudgetToStats(Bx, ch, rnd, rarityKey) {
     const w0 = _baseWeightsFromChannels(ch);
     const keys = ['atk', 'hp', 'def', 'crit', 'cm', 'ls'];
     const mask = {
@@ -712,14 +734,7 @@ function _allocateBudgetToStats(Bx, ch, rnd) {
     if (Brem < 0) Brem = 0;
 
     const parts = [];
-    const STAT_MAX = {
-        atk: 8000,
-        hp: 50000,
-        def: 8000,
-        crit: 600,
-        cm: 400,
-        ls: 400,
-    };
+    const STAT_MAX = _statMaxForRarity(rarityKey);
     if (ch.atk) {
         const pool = Brem * w.atk;
         const u = pool / C.atk;
@@ -834,7 +849,7 @@ function applyOfficialStatsToEquipmentItem(it, opts) {
     const rnd = _budgetMulberry32(_budgetHashSeed(seedStr));
 
     const ch = _snapshotStatChannels(it);
-    const a = _allocateBudgetToStats(Bx, ch, rnd);
+    const a = _allocateBudgetToStats(Bx, ch, rnd, rk);
 
     const round1 = (x) => Math.max(0, Math.round((Number(x) || 0) * 10) / 10);
 
@@ -857,7 +872,26 @@ function applyOfficialStatsToEquipmentItem(it, opts) {
     return it;
 }
 
-if (typeof window !== 'undefined') window.applyOfficialStatsToEquipmentItem = applyOfficialStatsToEquipmentItem;
+/** 저장 데이터·구버전 보정: 등급 상한으로 장비 수치 클램프 후 설명 갱신 */
+function clampEquipmentItemStatsToRarityCaps(it) {
+    if (!it || it.type === 'relic' || it.type === 'merc') return it;
+    const rk = String(it.rarity || 'common').toLowerCase();
+    const M = _statMaxForRarity(rk);
+    if (typeof it.value === 'number') {
+        if (it.type === 'hp') it.value = Math.max(1, Math.min(M.hp, it.value));
+        else if (it.type === 'atk' || it.type === 'ring') it.value = Math.max(1, Math.min(M.atk, it.value));
+    }
+    if (typeof it.def === 'number') it.def = Math.min(M.def, Math.max(0, it.def));
+    if (typeof it.critBonus === 'number') it.critBonus = Math.min(M.crit, Math.max(0, it.critBonus));
+    if (typeof it.critMult === 'number') it.critMult = Math.min(M.cm / 100, Math.max(0, it.critMult));
+    if (typeof it.lifesteal === 'number') it.lifesteal = Math.min(M.ls / 100, Math.max(0, it.lifesteal));
+    return it;
+}
+
+if (typeof window !== 'undefined') {
+    window.applyOfficialStatsToEquipmentItem = applyOfficialStatsToEquipmentItem;
+    window.clampEquipmentItemStatsToRarityCaps = clampEquipmentItemStatsToRarityCaps;
+}
 
 /** 공식 기반 스탯 테이블 적용 (비유물 전용) */
 (function applyOfficialStatTable() {
