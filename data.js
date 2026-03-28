@@ -397,14 +397,13 @@ const equipmentPoolPriest = (function genPriestPool() {
         const typ = i % 3 === 0 ? 'atk' : i % 3 === 1 ? 'hp' : 'ring';
         const nm = `${roots[Math.floor(i / 8)]} ${marks[i % 8]}`;
         const base = 4 + (i % 20);
-        const price = 20 + i * 2 + (r === 'legendary' ? 90 : r === 'epic' ? 45 : 0);
         const prayerBonus = r === 'epic' || r === 'legendary' ? 2 : 1;
         const o = {
             name: nm,
             type: typ,
             rarity: r,
             onlyFor: ['성직자'],
-            price,
+            price: 0,
             prayerBonus,
             desc: '',
         };
@@ -412,7 +411,6 @@ const equipmentPoolPriest = (function genPriestPool() {
         else if (typ === 'hp') o.value = base * 3 + 8;
         else o.value = 5 + (i % 16);
 
-        // 기도 보너스 + 희귀도별 보조 스탯 1개
         const mod = i % 4;
         if (mod === 0) {
             o.value = (o.value || 0) + (r === 'legendary' ? 14 : r === 'epic' ? 10 : r === 'rare' ? 7 : 4);
@@ -424,16 +422,19 @@ const equipmentPoolPriest = (function genPriestPool() {
             o.critMult = (o.critMult || 0) + (r === 'legendary' ? 0.22 : r === 'epic' ? 0.14 : r === 'rare' ? 0.09 : 0.05);
         }
         if (i % 6 === 0) o.divinityGainBonus = 0.04 + (r === 'legendary' ? 0.08 : r === 'epic' ? 0.05 : r === 'rare' ? 0.03 : 0.01);
-        const addTxt =
-            mod === 0
-                ? `공격(+${o.value})`
-                : mod === 1
-                  ? `방어(+${o.def})`
-                  : mod === 2
-                    ? `치명(+${o.critBonus}%)`
-                    : `치명배율(+${Math.round((o.critMult || 0) * 100)}%)`;
+        if (i % 11 === 0) {
+            o.lifesteal = (o.lifesteal || 0) + (r === 'legendary' ? 0.1 : r === 'epic' ? 0.07 : r === 'rare' ? 0.05 : 0.03);
+        }
+        if (i % 13 === 0) {
+            o.critMult = (o.critMult || 0) + (r === 'legendary' ? 0.1 : r === 'epic' ? 0.08 : r === 'rare' ? 0.05 : 0.03);
+        }
+        if (i % 7 === 0 && typ === 'hp') {
+            o.def = (o.def || 0) + (r === 'legendary' ? 6 : r === 'epic' ? 5 : 4);
+        }
+        if (i % 9 === 0 && (typ === 'atk' || typ === 'ring')) {
+            o.critBonus = (o.critBonus || 0) + (r === 'legendary' ? 5 : r === 'epic' ? 4 : r === 'rare' ? 3 : 2);
+        }
         o.tags = [`rarity_${r}`, `type_${typ}`, `synergy_priest`];
-        o.desc = `기도 보너스(+${prayerBonus}), ${addTxt}.`;
         out.push(o);
     }
     return out;
@@ -522,7 +523,7 @@ const relicPool = [
     { id: 'relic_wizard_chain',    name: "연쇄 마법진",    desc: "치명타 시 연쇄 충전: 다음 공격 피해 35% 증가.", onlyFor: ["마법사","위저드","소환사","성직자"], rarity: "legendary", effect: "chain_cast",     price: 210 },
     { id: 'relic_wizard_barrier',  name: "마력 방벽",      desc: "방어막으로 피해 감소 시 반사 45% + 체력 5% 회복.", onlyFor: ["마법사","위저드","소환사","성직자"], rarity: "epic",      effect: "barrier_reflect", price: 150 },
     { id: 'relic_common_vampire',  name: "뱀파이어의 반지", desc: "적 처치 시 체력 10% 회복 + 치명타 배율 영구 +3%.", onlyFor: null, rarity: "epic",      effect: "kill_heal",       price: 160 },
-    { id: 'relic_common_gambler',  name: "도박사의 주사위", desc: "전투 시작 시 무작위 강화: 공격 +22% 또는 치명타 확률 +18%.", onlyFor: null, rarity: "rare", effect: "gambler", price: 110 },
+    { id: 'relic_common_gambler',  name: "도박사의 주사위", desc: "전투 시작 시만 무작위(⅓씩): 공격 +22% · 치명 +18% · 또는 공격·방어·치명 일부 감소(이번 전투만).", onlyFor: null, rarity: "rare", effect: "gambler", price: 110 },
 ];
 
 // 대장간 합성 레시피
@@ -658,6 +659,82 @@ function _snapshotStatChannels(it) {
         if (g === 'blade') ch.crit = true;
     }
     return ch;
+}
+
+/**
+ * 아이템 이름(한글 키워드) + 등급으로 스탯 채널 가중 — 공격/체력 주채널은 타입이 유지되고 부가로 방어·치명·배율·흡혈을 섞음.
+ */
+function _mergeNamePersonalityChannels(it, ch) {
+    const name = String(it.name || '');
+    const t = it.type;
+    const out = { atk: !!ch.atk, hp: !!ch.hp, def: !!ch.def, crit: !!ch.crit, cm: !!ch.cm, ls: !!ch.ls };
+    const mark = (key) => {
+        if (key === 'atk' && t !== 'atk' && t !== 'ring') return;
+        if (key === 'hp' && t !== 'hp') return;
+        out[key] = true;
+    };
+    if (/피|흡혈|포식|뱀파이어|생명|핏물|혈|진홍|붉은|핏방울|피의|심장|에센스/.test(name)) mark('ls');
+    if (/갑옷|흉갑|방패|철벽|요새|각반|부츠|망토|로브|갑주|방어|수호|성역|판금|흉장|케이프|비늘|갑피|방어구|장갑|요새|벽|붕대|심장|거북|철판|고대 철/.test(name)) mark('def');
+    if (/검|도끼|창|활|화살|단검|너클|철퇴|지팡이|보주|석궁|쇠뇌|무기|타격|파쇄|파멸|양날|대검|리치|모닝|그레이트|장검|언월|비수|표창|함정|독침|시위|화살통|끈|못|동전|촉|화살/.test(name)) {
+        if (t === 'atk' || t === 'ring') mark('atk');
+        mark('crit');
+    }
+    if (/치명|급소|암살|약점|명중|독수리|별빛|심연|예리|날카|급습|매복|저격|추적|은신|그림자|맹금|독니|처형|표식|조준|시위|눈|망원경/.test(name)) mark('crit');
+    if (/룬|마도|폭풍|심판|각성|천공|영광|성스|신성|금빛|별무리|차원|혼돈|보주|페이지|서적|마력|마나|수정|주문|봉인|결계|불꽃|얼음|번개|천둥|유성|운석|잔류|가루|모래|결정|핵|폭군|제국|왕관|심장/.test(name)) {
+        mark('cm');
+        mark('crit');
+    }
+    if (/마나|마력|정령|고대|학도|보조|소환|잔향|수호진|암흑|혼령|시간|별|초급|주문서/.test(name)) {
+        mark('cm');
+    }
+    if (/독|맹독|화염|얼음|번개|천둥|폭풍|유리|수정 렌즈|렌즈/.test(name)) mark('crit');
+
+    const sec = ['def', 'crit', 'cm', 'ls'];
+    const seed = _budgetHashSeed(name + '|' + String(t) + '|sec');
+    const rnd = _budgetMulberry32(seed);
+    let secCount = sec.filter((k) => out[k]).length;
+    let guard = 0;
+    while (secCount < 2 && guard++ < 16) {
+        out[sec[Math.floor(rnd() * 4)]] = true;
+        secCount = sec.filter((k) => out[k]).length;
+    }
+    const rk = String(it.rarity || '').toLowerCase();
+    if ((rk === 'epic' || rk === 'legendary' || rk === 'legend') && secCount < 3) {
+        for (const pick of sec) {
+            if (!out[pick]) {
+                out[pick] = true;
+                break;
+            }
+        }
+    }
+    return out;
+}
+
+function _safeNumForPrice(v, fb) {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : fb;
+}
+
+/**
+ * 스탯 총합(STAT_COST_X100) + 희귀도 계수로 골드 가격 산출 — 상점·해금·드랍 공통.
+ */
+function computeEquipmentGoldPrice(it) {
+    if (!it || it.type === 'relic') return _safeNumForPrice(it && it.price, 0);
+    const C = STAT_COST_X100;
+    let pt = 0;
+    if (it.type === 'hp') pt += C.hp * Math.max(0, _safeNumForPrice(it.value, 0));
+    else if (it.type === 'atk' || it.type === 'ring') pt += C.atk * Math.max(0, _safeNumForPrice(it.value, 0));
+    pt += C.def * Math.max(0, _safeNumForPrice(it.def, 0));
+    pt += C.crit * Math.max(0, _safeNumForPrice(it.critBonus, 0));
+    pt += C.cm * Math.max(0, _safeNumForPrice(it.critMult, 0) * 100);
+    pt += C.ls * Math.max(0, _safeNumForPrice(it.lifesteal, 0) * 100);
+    const rk = String(it.rarity || 'common').toLowerCase();
+    const tier = { common: 1, rare: 1.1, epic: 1.26, legendary: 1.42, legend: 1.42 }[rk] || 1;
+    const prayer = _safeNumForPrice(it.prayerBonus, 0) * 400;
+    const div = _safeNumForPrice(it.divinityGainBonus, 0) * 5200;
+    const regen = it.regenPotion ? 1600 : 0;
+    const base = 14 + (pt / 100) * 0.34 * tier + prayer + div + regen;
+    return Math.max(8, Math.floor(base));
 }
 
 function _jitterWeights(base, rnd) {
@@ -841,14 +918,23 @@ function applyOfficialStatsToEquipmentItem(it, opts) {
     const o = opts || {};
     if (it.type === 'relic' || String(it.rarity || '').toLowerCase() === 'relic') return it;
 
+    if (it.tags && it.tags.includes('synergy_priest')) {
+        clampEquipmentItemStatsToRarityCaps(it);
+        it.price = computeEquipmentGoldPrice(it);
+        if (o.rebuildDesc !== false) rebuildEquipmentDesc(it, o);
+        return it;
+    }
+
     const rk = String(it.rarity || 'common').toLowerCase();
     const B = BUDGET_BY_RARITY[rk] ?? BUDGET_BY_RARITY.common;
-    const Bx = Math.round(B * 100);
+    let Bx = Math.round(B * 100);
     const tagsKey = Array.isArray(it.tags) ? [...it.tags].sort().join(',') : '';
     const seedStr = `${it.name}|${rk}|${it.type}|${tagsKey}`;
     const rnd = _budgetMulberry32(_budgetHashSeed(seedStr));
 
-    const ch = _snapshotStatChannels(it);
+    const ch = _mergeNamePersonalityChannels(it, _snapshotStatChannels(it));
+    const nCh = ['atk', 'hp', 'def', 'crit', 'cm', 'ls'].filter((k) => ch[k]).length;
+    Bx = Math.round(Bx * Math.min(1.16, 1 + 0.032 * Math.max(0, nCh - 3)));
     const a = _allocateBudgetToStats(Bx, ch, rnd, rk);
 
     const round1 = (x) => Math.max(0, Math.round((Number(x) || 0) * 10) / 10);
@@ -868,6 +954,12 @@ function applyOfficialStatsToEquipmentItem(it, opts) {
     if (a.ls > 0) it.lifesteal = a.ls / 100;
 
     it._officialStatApplied = true;
+    clampEquipmentItemStatsToRarityCaps(it);
+    if (o.forgeRecipe) {
+        it.price = 0;
+    } else {
+        it.price = computeEquipmentGoldPrice(it);
+    }
     if (o.rebuildDesc !== false) rebuildEquipmentDesc(it, o);
     return it;
 }
@@ -891,6 +983,7 @@ function clampEquipmentItemStatsToRarityCaps(it) {
 if (typeof window !== 'undefined') {
     window.applyOfficialStatsToEquipmentItem = applyOfficialStatsToEquipmentItem;
     window.clampEquipmentItemStatsToRarityCaps = clampEquipmentItemStatsToRarityCaps;
+    window.computeEquipmentGoldPrice = computeEquipmentGoldPrice;
 }
 
 /** 공식 기반 스탯 테이블 적용 (비유물 전용) */

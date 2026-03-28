@@ -500,7 +500,6 @@ function fullResyncPlayerCombatStatsFromMetaAndInventory() {
     if (!player || typeof MetaRPG === 'undefined' || !player.metaSlotId) return;
     const slot = MetaRPG.getSlotById(player.metaSlotId);
     if (!slot) return;
-    const savedExtraAtk = safeNum(player.extraAtk, 0);
     MetaRPG.recalcTechBonus(slot);
     const tb = slot.techBonus || { hp: 0, atk: 0, def: 0, acc: 0, crit: 0, critMult: 0 };
     const lb = MetaRPG.getLevelRuntimeBonus(slot.level || 1);
@@ -543,7 +542,8 @@ function fullResyncPlayerCombatStatsFromMetaAndInventory() {
     player.critMult = 1.8 + safeNum(tb.critMult, 0);
     player.lifesteal = 0;
     player.extraDef = 0;
-    player.extraAtk = savedExtraAtk;
+    /** extraAtk는 도박사 유물 전투 한정 — 인벤 재동기화 시 영구 누적 방지 */
+    player.extraAtk = 0;
 
     applyRebirthPctBonusToPlayer(slot);
 
@@ -643,11 +643,17 @@ function getEffectiveAttackPower() {
     if (player._syn && player._syn.atk) base += safeNum(player._syn.atk, 0);
     if (player._mercBattleAtkDebuff) base = Math.max(1, Math.floor(base * (1 + player._mercBattleAtkDebuff)));
     base += getDivineAtkBonus();
-    return base;
+    return Math.max(1, base);
 }
 function getTotalPlayerDefenseForHit() {
     if (!player) return 0;
-    return safeNum(player.def, 0) + safeNum(player.extraDef, 0) + safeNum(player._syn && player._syn.def, 0) + getDivineDefBonus();
+    let d =
+        safeNum(player.def, 0) +
+        safeNum(player.extraDef, 0) +
+        safeNum(player._syn && player._syn.def, 0) +
+        getDivineDefBonus();
+    d -= safeNum(player._relicGamblerDefSub, 0);
+    return Math.max(0, d);
 }
 
 function isMercenaryCaptainJob() {
@@ -1575,6 +1581,7 @@ function initRunFromMetaSlot() {
         items: [],
         relics: [],
         extraAtk: 0,
+        _relicGamblerDefSub: 0,
         potions: 3,
         extraDef: 0,
         unlockedSkill: null,
@@ -2308,15 +2315,26 @@ function spawnEnemy() {
 
     if (player) {
         player._relicTempCrit = 0;
+        player.extraAtk = 0;
+        player._relicGamblerDefSub = 0;
     }
-    if (player.relics&&player.relics.includes('gambler')) {
+    if (player && player.relics && player.relics.includes('gambler')) {
         const pa = safeNum(player.atk, 0);
-        if (Math.random()<0.5) {
-            player.extraAtk=Math.floor(pa*0.22);
-            writeLog(`[유물] 🎲 도박사의 주사위: 공격력 +22%`);
-        } else {
+        const totalDefBase = safeNum(player.def, 0) + safeNum(player.extraDef, 0);
+        const r = Math.random();
+        if (r < 1 / 3) {
+            player.extraAtk = Math.floor(pa * 0.22);
+            writeLog(`[유물] 🎲 도박사의 주사위: 공격력 +22% (이번 전투)`);
+        } else if (r < 2 / 3) {
             player._relicTempCrit = 18;
-            writeLog(`[유물] 🎲 도박사의 주사위: 치명타 확률 +18%`);
+            writeLog(`[유물] 🎲 도박사의 주사위: 치명타 확률 +18% (이번 전투)`);
+        } else {
+            player.extraAtk = -Math.max(1, Math.floor(pa * 0.12));
+            player._relicGamblerDefSub = Math.max(4, Math.floor(totalDefBase * 0.1));
+            player._relicTempCrit = -12;
+            writeLog(
+                `[유물] 🎲 도박사의 주사위: 불길한 눈! 공격·방어·치명 약화 (이번 전투만, 공격 약 -12%·방어 -${player._relicGamblerDefSub}·치명 -12%)`
+            );
         }
     }
 
@@ -2966,6 +2984,12 @@ function serializeRunState() {
         enemySnap = JSON.parse(JSON.stringify(enemy));
     }
     const slot = typeof MetaRPG !== 'undefined' && player && player.metaSlotId ? MetaRPG.getSlotById(player.metaSlotId) : null;
+    const playerSnap = player ? JSON.parse(JSON.stringify(player)) : null;
+    if (playerSnap) {
+        playerSnap.extraAtk = 0;
+        playerSnap._relicTempCrit = 0;
+        playerSnap._relicGamblerDefSub = 0;
+    }
     return {
         floor,
         gold,
@@ -2981,7 +3005,7 @@ function serializeRunState() {
         shieldedTurns,
         regenTurns,
         regenAmount,
-        player: JSON.parse(JSON.stringify(player)),
+        player: playerSnap,
         enemy: enemySnap,
         slotLevel: slot ? slot.level : 1,
         slotExp: slot ? slot.exp : 0,
@@ -3016,6 +3040,11 @@ function loadRunFromMetaSnapshot(d) {
     regenTurns = d.regenTurns || 0;
     regenAmount = d.regenAmount || 0;
     player = d.player;
+    if (player) {
+        player.extraAtk = 0;
+        player._relicTempCrit = 0;
+        player._relicGamblerDefSub = 0;
+    }
     if (player && player.divinePower == null) player.divinePower = 0;
     if (player && player.divineGainMult == null) player.divineGainMult = 1;
     if (player && player.prayerBonusFlat == null) player.prayerBonusFlat = 0;
