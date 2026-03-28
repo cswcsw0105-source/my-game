@@ -661,10 +661,118 @@ function _snapshotStatChannels(it) {
     return ch;
 }
 
+/** 데이터에 `itemConcept: 'berserker' | 'assassin' | 'vampire' | 'tank' | 'hybrid'` 로 재정의 가능 */
+const ITEM_CONCEPT_LABEL_KO = {
+    berserker: '극딜/광전사',
+    assassin: '치명/암살',
+    vampire: '흡혈/생존',
+    tank: '탱커/수호',
+    hybrid: '유틸/하이브리드',
+};
+
+function _detectItemConcept(it) {
+    if (it && it.itemConcept && ITEM_CONCEPT_LABEL_KO[it.itemConcept]) return it.itemConcept;
+    const n = String((it && it.name) || '');
+    const t = it && it.type;
+    if (/파멸|광기|파쇄|맹렬|전쟁신의 유산|광전사의|광기의|극딜/.test(n)) return 'berserker';
+    if ((t === 'atk' || t === 'ring') && /분노/.test(n)) return 'berserker';
+    if (/저주/.test(n) && /검|도끼|철퇴|너클/.test(n)) return 'berserker';
+    if (/암살|그림자 단검|급소|처형|심연의 낫|독니|맹금|암흑 각오|폭풍 시위|정찰병의 망원경/.test(n)) return 'assassin';
+    if (/피의|흡혈|맹세|계약서|포식|뱀파이어|심해 비늘|용해액|그림자 단검|맹독 가죽|피의 계약|생명의 돌|세계수의 가지/.test(n)) return 'vampire';
+    if (/방패|요새|흉갑|갑옷|암석|성기사의 성배|불멸의 요새|용왕|수호|성역의 방패|깊은 광산 판금|고대 철판|세계수의 잎새|암석 심장|천공의 갑옷|불멸의 흉갑/.test(n)) return 'tank';
+    if (/신의 축복|전설의 유산|마도 제국의 왕관|시간의 모래시계|별무리|천상의 파편|혼령 실|태양 가루|은빛 고리|대지의 알/.test(n)) return 'hybrid';
+    if (it && it.type === 'hp' && /방패|갑옷|흉갑|요새|비늘|망토|로브|심장|판금|방어|붕대|알|천/.test(n)) return 'tank';
+    if (it && (it.type === 'atk' || it.type === 'ring') && /룬|별|천공|마도|보주|지팡이|활|화살|석궁|심연|혼돈|마력 폭풍|성역 마도서/.test(n)) return 'assassin';
+    return 'hybrid';
+}
+
+function _narrowChannelsForConcept(it, ch, concept) {
+    const c = { ...ch };
+    const n = String((it && it.name) || '');
+    const t = it && it.type;
+    if (concept === 'berserker' && (t === 'atk' || t === 'ring')) {
+        c.def = false;
+        if (!/맹세|흡혈|피의|계약|피/.test(n)) c.ls = false;
+    }
+    if (concept === 'assassin') {
+        c.def = false;
+        if (!/피|흡혈|독|맹독|그림자 단검/.test(n)) c.ls = false;
+    }
+    if (concept === 'tank' && t === 'hp') {
+        c.crit = false;
+        c.cm = false;
+        if (!/비늘|심해|피|흡혈|생명|소환진/.test(n)) c.ls = false;
+    }
+    if (concept === 'vampire') {
+        if (!/심연|암살|급소|혼돈|보주/.test(n)) c.crit = false;
+        if (!/심연|차원|마도|별/.test(n)) c.cm = false;
+    }
+    if (/저주/.test(n) && (t === 'atk' || t === 'ring')) c.def = false;
+    return c;
+}
+
+function _conceptStatWeights(concept, ch, it, rnd) {
+    const j = () => 0.92 + rnd() * 0.16;
+    const w = { atk: 0, hp: 0, def: 0, crit: 0, cm: 0, ls: 0 };
+    const name = String((it && it.name) || '');
+    const h = (_budgetHashSeed(name + '|' + concept) % 1000) / 8000;
+
+    if (concept === 'berserker') {
+        if (ch.atk) w.atk = (6.4 + h) * j();
+        if (ch.crit) w.crit = (0.85 + h * 2) * j();
+        if (ch.cm) w.cm = (0.5 + h) * j();
+        if (ch.ls) w.ls = 0.32 * j();
+        if (ch.hp) w.hp = 1.4 * j();
+        if (ch.def) w.def = 0.12 * j();
+    } else if (concept === 'assassin') {
+        if (ch.atk) w.atk = (2.1 + h * 3) * j();
+        if (ch.crit) w.crit = (4.6 + h * 2) * j();
+        if (ch.cm) w.cm = (3.9 + h * 2) * j();
+        if (ch.ls) w.ls = 0.45 * j();
+        if (ch.def) w.def = 0.18 * j();
+        if (ch.hp) w.hp = 1.1 * j();
+    } else if (concept === 'vampire') {
+        if (ch.ls) w.ls = (5.6 + h) * j();
+        if (ch.hp) w.hp = (3.9 + h * 2) * j();
+        if (ch.atk) w.atk = (2.1 + h) * j();
+        if (ch.def) w.def = 1.15 * j();
+        if (ch.crit) w.crit = 0.75 * j();
+        if (ch.cm) w.cm = 0.65 * j();
+    } else if (concept === 'tank') {
+        if (ch.hp) w.hp = (5.1 + h * 2) * j();
+        if (ch.def) w.def = (5.3 + h * 2) * j();
+        if (ch.atk) w.atk = 0.32 * j();
+        if (ch.ls) w.ls = 0.38 * j();
+        if (ch.crit) w.crit = 0.14 * j();
+        if (ch.cm) w.cm = 0.11 * j();
+    } else {
+        if (ch.atk) w.atk = (2 + h) * j();
+        if (ch.hp) w.hp = (2 + h) * j();
+        if (ch.def) w.def = (1.55 + h) * j();
+        if (ch.crit) w.crit = (1.35 + h) * j();
+        if (ch.cm) w.cm = (1.35 + h) * j();
+        if (ch.ls) w.ls = (1.15 + h) * j();
+    }
+    for (const k of Object.keys(w)) if (!ch[k]) w[k] = 0;
+    return w;
+}
+
+function _uniquifyStatWeights(w, name) {
+    const h = _budgetHashSeed(String(name || 'item'));
+    const keys = ['atk', 'hp', 'def', 'crit', 'cm', 'ls'];
+    const o = {};
+    keys.forEach((k, i) => {
+        const bump = 1 + (((h >> (i * 4)) & 0x1f) / 240);
+        o[k] = (w[k] || 0) * bump;
+    });
+    return o;
+}
+
 /**
  * 아이템 이름(한글 키워드) + 등급으로 스탯 채널 가중 — 공격/체력 주채널은 타입이 유지되고 부가로 방어·치명·배율·흡혈을 섞음.
+ * @param {boolean} [strictFill=true] 일반·희귀: 부가 스탯 최소 개수 보장. 에픽/전설은 false로 붕어빵 완화.
  */
-function _mergeNamePersonalityChannels(it, ch) {
+function _mergeNamePersonalityChannels(it, ch, strictFill) {
     const name = String(it.name || '');
     const t = it.type;
     const out = { atk: !!ch.atk, hp: !!ch.hp, def: !!ch.def, crit: !!ch.crit, cm: !!ch.cm, ls: !!ch.ls };
@@ -689,21 +797,23 @@ function _mergeNamePersonalityChannels(it, ch) {
     }
     if (/독|맹독|화염|얼음|번개|천둥|폭풍|유리|수정 렌즈|렌즈/.test(name)) mark('crit');
 
-    const sec = ['def', 'crit', 'cm', 'ls'];
-    const seed = _budgetHashSeed(name + '|' + String(t) + '|sec');
-    const rnd = _budgetMulberry32(seed);
-    let secCount = sec.filter((k) => out[k]).length;
-    let guard = 0;
-    while (secCount < 2 && guard++ < 16) {
-        out[sec[Math.floor(rnd() * 4)]] = true;
-        secCount = sec.filter((k) => out[k]).length;
-    }
-    const rk = String(it.rarity || '').toLowerCase();
-    if ((rk === 'epic' || rk === 'legendary' || rk === 'legend') && secCount < 3) {
-        for (const pick of sec) {
-            if (!out[pick]) {
-                out[pick] = true;
-                break;
+    if (strictFill !== false) {
+        const sec = ['def', 'crit', 'cm', 'ls'];
+        const seed = _budgetHashSeed(name + '|' + String(t) + '|sec');
+        const rnd = _budgetMulberry32(seed);
+        let secCount = sec.filter((k) => out[k]).length;
+        let guard = 0;
+        while (secCount < 2 && guard++ < 16) {
+            out[sec[Math.floor(rnd() * 4)]] = true;
+            secCount = sec.filter((k) => out[k]).length;
+        }
+        const rk = String(it.rarity || '').toLowerCase();
+        if ((rk === 'epic' || rk === 'legendary' || rk === 'legend') && secCount < 3) {
+            for (const pick of sec) {
+                if (!out[pick]) {
+                    out[pick] = true;
+                    break;
+                }
             }
         }
     }
@@ -769,9 +879,20 @@ function _baseWeightsFromChannels(ch) {
 
 /**
  * 예산 Bx(= 원 pt ×100)를 채널에 맞춰 100% 소비. 반환: 원 단위 스탯 정수·비율
+ * @param {object} [it] 있으면 컨셉 가중·이름 기반 미세 차별 적용
  */
-function _allocateBudgetToStats(Bx, ch, rnd, rarityKey) {
-    const w0 = _baseWeightsFromChannels(ch);
+function _allocateBudgetToStats(Bx, ch, rnd, rarityKey, it) {
+    const concept = it && (it.itemConceptKey || _detectItemConcept(it));
+    let w0 =
+        it && concept
+            ? _conceptStatWeights(concept, ch, it, rnd)
+            : _baseWeightsFromChannels(ch);
+    if (it && concept) {
+        w0 = _uniquifyStatWeights(
+            w0,
+            `${String(it.name || '')}|${String(it.rarity || '')}|${String(it.type || '')}|${concept}`,
+        );
+    }
     const keys = ['atk', 'hp', 'def', 'crit', 'cm', 'ls'];
     const mask = {
         atk: ch.atk,
@@ -788,6 +909,7 @@ function _allocateBudgetToStats(Bx, ch, rnd, rarityKey) {
     if (baseSum <= 0) {
         if (ch.atk) mask.atk = true;
         else if (ch.hp) mask.hp = true;
+        w0 = _baseWeightsFromChannels(ch);
         for (const k of keys) {
             if (!mask[k]) w0[k] = 0;
             else if (!(k in w0) || w0[k] === 0) w0[k] = 1;
@@ -932,10 +1054,16 @@ function applyOfficialStatsToEquipmentItem(it, opts) {
     const seedStr = `${it.name}|${rk}|${it.type}|${tagsKey}`;
     const rnd = _budgetMulberry32(_budgetHashSeed(seedStr));
 
-    const ch = _mergeNamePersonalityChannels(it, _snapshotStatChannels(it));
+    const strictFill = !(rk === 'epic' || rk === 'legendary' || rk === 'legend');
+    const concept = _detectItemConcept(it);
+    it.itemConceptKey = concept;
+    it._itemConceptLabelKo = ITEM_CONCEPT_LABEL_KO[concept] || '유틸/하이브리드';
+
+    let ch = _mergeNamePersonalityChannels(it, _snapshotStatChannels(it), strictFill);
+    ch = _narrowChannelsForConcept(it, ch, concept);
     const nCh = ['atk', 'hp', 'def', 'crit', 'cm', 'ls'].filter((k) => ch[k]).length;
     Bx = Math.round(Bx * Math.min(1.16, 1 + 0.032 * Math.max(0, nCh - 3)));
-    const a = _allocateBudgetToStats(Bx, ch, rnd, rk);
+    const a = _allocateBudgetToStats(Bx, ch, rnd, rk, it);
 
     const round1 = (x) => Math.max(0, Math.round((Number(x) || 0) * 10) / 10);
 
