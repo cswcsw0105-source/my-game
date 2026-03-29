@@ -480,6 +480,7 @@
                 need,
                 active: ok,
                 effectDesc: rule.effectDesc || '',
+                detailDesc: rule.detailDesc || '',
                 bonus: rule.bonus || {},
             });
             if (!ok) continue;

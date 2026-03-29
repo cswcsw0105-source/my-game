@@ -2,15 +2,48 @@
 
 body { background-color: #121212; color: #e0e0e0; text-align: center; font-family: 'Pretendard', 'Apple SD Gothic Neo', sans-serif; padding: 20px; line-height: 1.6; }
 .container { max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
-.game-layout { display: flex; gap: 20px; justify-content: center; align-items: flex-start; }
+/* 3단: 좌·우 고정 폭 + 가운데 유동 (창 축소 시 좌우 쪼그라들지 않음) */
+.game-layout {
+    display: flex;
+    gap: 16px;
+    justify-content: flex-start;
+    align-items: flex-start;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
 
-.screen { background: #1e1e1e; padding: 25px; border-radius: 12px; border: 1px solid #333; flex: 2; min-width: 350px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); }
+.screen,
+.game-layout > .screen#main-screen {
+    background: #1e1e1e;
+    padding: 25px;
+    border-radius: 12px;
+    border: 1px solid #333;
+    flex: 1 1 auto;
+    min-width: 0;
+    width: auto;
+    max-width: none;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.5);
+    overflow: visible;
+}
 
-.sidebar { 
-    background: #1e1e1e; padding: 20px; border-radius: 12px; border: 1px solid #333; 
-    flex: 1; min-width: 220px; max-width: 280px;
-    text-align: left; box-shadow: 0 8px 16px rgba(0,0,0,0.5);
-    display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+.sidebar {
+    background: #1e1e1e;
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid #333;
+    flex: 0 0 280px;
+    width: 280px;
+    min-width: 280px;
+    max-width: 280px;
+    text-align: left;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    box-sizing: border-box;
 }
 
 #sidebar-inventory {
@@ -18,14 +51,16 @@ body { background-color: #121212; color: #e0e0e0; text-align: center; font-famil
     padding: 12px 14px;
     border-radius: 12px;
     border: 1px solid #2a2a2a;
-    flex: 1;
-    min-width: 200px;
-    max-width: 270px;
+    flex: 0 0 280px;
+    width: 280px;
+    min-width: 280px;
+    max-width: 280px;
     text-align: left;
     box-shadow: 0 8px 16px rgba(0,0,0,0.5);
     display: flex;
     flex-direction: column;
     align-items: stretch;
+    box-sizing: border-box;
 }
 #sidebar-inventory h4 {
     font-size: 0.95em;
@@ -33,10 +68,157 @@ body { background-color: #121212; color: #e0e0e0; text-align: center; font-famil
 }
 
 #sidebar-battle {
-    background: #0f0f0f; padding: 15px; border-radius: 12px; border: 1px solid #222;
-    flex: 1; min-width: 220px; max-width: 280px;
-    text-align: left; box-shadow: 0 8px 16px rgba(0,0,0,0.5);
-    display: flex; flex-direction: column;
+    background: #0f0f0f;
+    padding: 15px;
+    border-radius: 12px;
+    border: 1px solid #222;
+    flex: 0 0 280px;
+    width: 280px;
+    min-width: 280px;
+    max-width: 280px;
+    text-align: left;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+}
+
+/* 상점 그리드: 카드가 찌그러지지 않고 다음 줄로 */
+#shop-list .shop-item-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px;
+    margin-top: 12px;
+    align-items: stretch;
+    width: 100%;
+    min-width: 0;
+}
+#shop-list {
+    overflow: visible;
+    min-width: 0;
+}
+#shop-list .shop-item-card {
+    overflow: visible;
+    min-width: 0;
+    position: relative;
+    isolation: isolate;
+}
+
+/* 상점 카드: 시너지 행 우측 정렬 */
+.shop-card-synergy {
+    width: 100%;
+    margin-top: 8px;
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-start;
+    text-align: right;
+    flex-shrink: 0;
+}
+.shop-card-synergy-inner {
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 4px 6px;
+    max-width: 100%;
+    color: #2ed573;
+    font-size: 0.78em;
+    line-height: 1.45;
+}
+.shop-card-synergy-label {
+    font-weight: 800;
+    color: #2ed573;
+    flex-shrink: 0;
+}
+.shop-synergy-sep {
+    color: #3d5a4a;
+    margin: 0 6px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+/* 시너지 커스텀 툴팁 — 브라우저 기본 title 미사용, 즉시 표시, 최상단 z-index */
+.synergy-tip-wrap {
+    position: relative;
+    display: inline-block;
+    vertical-align: baseline;
+    z-index: 1;
+}
+.synergy-tip-wrap:hover {
+    z-index: 999900;
+}
+.synergy-tip-trigger {
+    cursor: pointer;
+    border-bottom: 1px dotted #2ed573;
+}
+.synergy-tip-trigger--shop {
+    cursor: pointer;
+}
+.synergy-tip-trigger--chip {
+    border-bottom: none;
+    cursor: pointer;
+}
+.synergy-tip-wrap--shop .synergy-tip-popup {
+    left: auto;
+    right: 0;
+}
+.synergy-tip-popup {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + 8px);
+    min-width: 248px;
+    max-width: min(380px, 94vw);
+    padding: 10px 12px;
+    background: #1a1f2e;
+    border: 1px solid #3d4f6a;
+    border-radius: 8px;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.72);
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: #dce4f0;
+    text-align: left;
+    line-height: 1.45;
+    z-index: 999999;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(3px);
+    transition: opacity 0.07s ease-out, transform 0.07s ease-out;
+    pointer-events: none;
+    box-sizing: border-box;
+}
+.synergy-tip-wrap:hover .synergy-tip-popup {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+.syn-tip-detail {
+    white-space: pre-wrap;
+    word-break: keep-all;
+}
+.syn-tip-title {
+    display: block;
+    font-weight: 800;
+    color: #f1c40f;
+    margin-bottom: 6px;
+    font-size: 0.88em;
+}
+.syn-tip-line {
+    margin-top: 4px;
+    color: #c5d0e0;
+    font-size: 0.92em;
+}
+.syn-tip-bonus {
+    color: #9ed0ff;
+}
+.syn-tip-active .syn-tip-on,
+.syn-tip-on {
+    color: #2ed573;
+    font-weight: 700;
+}
+.syn-tip-muted {
+    color: #8899aa;
+    font-size: 0.9em;
 }
 
 #log-battle {
@@ -126,8 +308,19 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 .num-old { text-decoration: line-through; color: #ff4757; margin-right: 5px; }
 
 @media (max-width: 768px) {
-    .game-layout { flex-direction: column; }
-    .sidebar, #sidebar-battle, #sidebar-inventory { max-width: 100%; min-width: unset; }
+    .game-layout { flex-direction: column; align-items: stretch; }
+    .sidebar,
+    #sidebar-battle,
+    #sidebar-inventory,
+    .game-layout > .sidebar#sidebar-normal {
+        flex: 1 1 auto;
+        width: 100%;
+        min-width: unset;
+        max-width: 100%;
+    }
+    .game-layout > .screen#main-screen {
+        min-width: 0;
+    }
 }
 
 @keyframes slideIn {

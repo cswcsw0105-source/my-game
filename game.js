@@ -3527,7 +3527,7 @@ function renderShopItems(keepCurrentStock) {
         list.appendChild(pb);
     }
     const grid=document.createElement('div');
-    grid.style.cssText='display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:12px;';
+    grid.className = 'shop-item-grid';
     currentShopItems.forEach((it,idx)=>{
         const isRelic=it.type==='relic', d=document.createElement('div');
         const ownedRelic = isRelic && player.relics && player.relics.includes(it.effect);
@@ -3547,9 +3547,10 @@ function renderShopItems(keepCurrentStock) {
         if(!isRelic){if(it.type==='atk')ti='⚔️';else if(it.type==='hp')ti='🛡️';else if(it.type==='ring')ti='💍';else if(it.type==='potion')ti='🧪';else if(it.type==='merc')ti='⚔️';else if(it.type==='merc_shop_direct')ti='💼';else if(it.type==='merc_shop_fund')ti='🤝';if(it.lifesteal)ti='🩸';if(it.regenPotion)ti='💚';}
         const iu=getUnlockedPoolItems().some(u=>u.name===it.name);
         const pref = isPreferredItem(it.name);
+        d.className = 'shop-item-card';
         d.style.cssText=`background:#1a1a1a;border:1px solid ${bc};border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px;transition:transform 0.15s;cursor:default;${pref ? 'box-shadow:0 0 0 2px #f1c40f, 0 0 18px rgba(241,196,15,0.35);' : ''}`;
         d.onmouseenter=()=>d.style.transform='translateY(-2px)'; d.onmouseleave=()=>d.style.transform='translateY(0)';
-        d.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;"><span style="background:${bb};color:${bac};border:1px solid ${bc};border-radius:4px;font-size:0.7em;font-weight:700;padding:2px 7px;letter-spacing:1px;">${iu?'🔓 ':''}${bt}${pref ? ' ★' : ''}</span><span style="font-size:1.3em;">${ti}</span></div><div style="color:${nc};font-weight:700;font-size:1em;line-height:1.3;">${formatShopItemName(it.name)}${pref ? ' <span style="color:#f1c40f;font-size:0.85em;">(선호)</span>' : ''}</div>${slotLine}${combatStats}<div style="color:#888;font-size:0.78em;line-height:1.5;flex:1;">${formatShopItemDesc(it.desc)}${synHtml}</div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;"><span style="color:#f1c40f;font-weight:700;font-size:1em;">💰 ${it.price}G</span><button onclick="buyItem(event,${idx})" ${(owned || full) ? 'disabled' : ''} style="background:${full ? '#7f2b2b' : owned ? '#555' : '#f1c40f'};color:${full ? '#ffd7d7' : owned ? '#bbb' : '#111'};padding:6px 14px;font-size:0.85em;font-weight:700;margin:0;border-radius:6px;${(owned || full) ? 'cursor:not-allowed;' : ''}">${full ? '공간 없음' : owned ? '보유' : '구매'}</button></div>`;
+        d.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;"><span style="background:${bb};color:${bac};border:1px solid ${bc};border-radius:4px;font-size:0.7em;font-weight:700;padding:2px 7px;letter-spacing:1px;">${iu?'🔓 ':''}${bt}${pref ? ' ★' : ''}</span><span style="font-size:1.3em;">${ti}</span></div><div style="color:${nc};font-weight:700;font-size:1em;line-height:1.3;">${formatShopItemName(it.name)}${pref ? ' <span style="color:#f1c40f;font-size:0.85em;">(선호)</span>' : ''}</div>${slotLine}${combatStats}<div style="color:#888;font-size:0.78em;line-height:1.5;flex:1;">${formatShopItemDesc(it.desc)}</div>${synHtml ? `<div class="shop-card-synergy">${synHtml}</div>` : ''}<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;"><span style="color:#f1c40f;font-weight:700;font-size:1em;">💰 ${it.price}G</span><button onclick="buyItem(event,${idx})" ${(owned || full) ? 'disabled' : ''} style="background:${full ? '#7f2b2b' : owned ? '#555' : '#f1c40f'};color:${full ? '#ffd7d7' : owned ? '#bbb' : '#111'};padding:6px 14px;font-size:0.85em;font-weight:700;margin:0;border-radius:6px;${(owned || full) ? 'cursor:not-allowed;' : ''}">${full ? '공간 없음' : owned ? '보유' : '구매'}</button></div>`;
         grid.appendChild(d);
     });
     list.appendChild(grid);
@@ -3628,6 +3629,52 @@ function escapeHtmlAttr(s) {
         .replace(/>/g, '&gt;')
         .replace(/\r?\n/g, ' ');
 }
+/** 툴팁·일반 텍스트 노드용 */
+function escapeHtml(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+/** synergyRules.detailDesc 우선, 없으면 effectDesc (상점·툴팁 공통) */
+function resolveSynergyDetailText(rule) {
+    if (!rule) return '';
+    const d = String(rule.detailDesc != null ? rule.detailDesc : '').trim();
+    if (d) return d;
+    return String(rule.effectDesc != null ? rule.effectDesc : '').trim();
+}
+
+function buildSynergyTooltipPopupHtml(rule, opts) {
+    const o = opts || {};
+    const title = escapeHtml(rule.name || '시너지');
+    const mainBody = resolveSynergyDetailText(rule);
+    const mainHtml = mainBody
+        ? `<div class="syn-tip-line syn-tip-detail">${escapeHtml(mainBody)}</div>`
+        : `<div class="syn-tip-line syn-tip-muted">조건을 달성하면 세트 효과가 적용됩니다.</div>`;
+    const bonusTxt = formatSynergyBonusHuman(rule.bonus || {});
+    const bonusHtml = bonusTxt ? `<div class="syn-tip-line syn-tip-bonus">보정 수치: ${escapeHtml(bonusTxt)}</div>` : '';
+    let stateHtml = '';
+    if (o.mode === 'shop_fromTag') {
+        const need = o.need;
+        const next = o.next;
+        const willActive = !!o.willActive;
+        const display = Math.min(next, need);
+        stateHtml = willActive
+            ? `<div class="syn-tip-line syn-tip-active"><b>미리보기:</b> 이 아이템까지 포함하면 <span class="syn-tip-on">${display}/${need}</span> → <b>발동</b></div>`
+            : `<div class="syn-tip-line"><b>미리보기:</b> 진행 <span class="syn-tip-on">${display}/${need}</span> (현재 장착·인벤 기준)</div>`;
+    } else if (o.mode === 'shop_needTags') {
+        stateHtml = `<div class="syn-tip-line syn-tip-muted">태그 조합 시너지 — 조건을 채우면 아래 보정이 적용됩니다.</div>`;
+    } else if (o.mode === 'status') {
+        const p = o.p;
+        if (p.active) {
+            stateHtml = `<div class="syn-tip-line syn-tip-active"><b>상태:</b> <span class="syn-tip-on">발동 중</span> (전투 스탯에 반영)</div>`;
+        } else {
+            stateHtml = `<div class="syn-tip-line"><b>상태:</b> 진행 ${p.cur}/${p.need} · <b>미발동</b></div>`;
+        }
+    }
+    return `<span class="synergy-tip-popup" role="tooltip"><span class="syn-tip-title">${title}</span>${mainHtml}${bonusHtml}${stateHtml}</span>`;
+}
 function formatSynergyBonusHuman(b) {
     if (!b) return '';
     const parts = [];
@@ -3688,20 +3735,30 @@ function buildShopItemCombatStatsHtml(it) {
 }
 function buildSynergyStatusHtml() {
     if (!player || !player._syn || !Array.isArray(player._syn.progress) || !player._syn.progress.length) return '';
+    const rulesById = {};
+    if (typeof synergyRules !== 'undefined' && Array.isArray(synergyRules)) {
+        for (const r of synergyRules) {
+            if (r && r.id) rulesById[r.id] = r;
+        }
+    }
     const chips = player._syn.progress
         .map((p) => {
             const on = !!p.active;
-            const bonusTxt = formatSynergyBonusHuman(p.bonus || {});
-            const tip = on
-                ? `발동 · ${p.effectDesc || ''}${bonusTxt ? ` (${bonusTxt})` : ''}`
-                : `진행 ${p.cur}/${p.need} · 발동 시: ${p.effectDesc || bonusTxt || '시너지 효과'}`;
-            const title = escapeHtmlAttr(tip);
-            return `<span title="${title}" style="display:inline-block;margin:2px;padding:2px 7px;border-radius:999px;border:1px solid ${
+            const rule = rulesById[p.id] || {
+                name: p.name,
+                effectDesc: p.effectDesc || '',
+                detailDesc: p.detailDesc || '',
+                bonus: p.bonus || {},
+            };
+            const popup = buildSynergyTooltipPopupHtml(rule, { mode: 'status', p });
+            const label = `${escapeHtml(p.name)} ${p.cur}/${p.need}`;
+            const chipInner = `<span style="display:inline-block;margin:2px;padding:2px 7px;border-radius:999px;border:1px solid ${
                 on ? '#2ed573' : '#444'
-            };background:${on ? '#123020' : '#111'};color:${on ? '#2ed573' : '#999'};font-size:0.72em;font-weight:700;cursor:help;">${p.name} ${p.cur}/${p.need}</span>`;
+            };background:${on ? '#123020' : '#111'};color:${on ? '#2ed573' : '#999'};font-size:0.72em;font-weight:700;">${label}</span>`;
+            return `<span class="synergy-tip-wrap" style="display:inline-block;vertical-align:middle;"><span class="synergy-tip-trigger synergy-tip-trigger--chip" style="display:inline-block;">${chipInner}</span>${popup}</span>`;
         })
         .join('');
-    return `<div style="margin-top:3px;">${chips}</div>`;
+    return `<div style="margin-top:3px;display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center;">${chips}</div>`;
 }
 function getEquippedCountByKind(kind) {
     return (player.items || []).filter((x) => getEquipSlotKind(x) === kind).length;
@@ -3746,7 +3803,7 @@ function getItemSynergyHints(it) {
     }
     return hints;
 }
-/** 상점 카드: 시너지 진행 문구에 마우스 올리면 조건·효과 표시 */
+/** 상점 카드: 시너지 진행 문구 — 호버 시 떠 있는 툴팁(전체 효과·미리보기) */
 function buildShopSynergyHintsHtml(it) {
     if (!it || typeof synergyRules === 'undefined' || !Array.isArray(synergyRules)) return '';
     const tags = new Set();
@@ -3775,22 +3832,23 @@ function buildShopSynergyHintsHtml(it) {
         if (rule.fromTag && tags.has(String(rule.fromTag)) && rule.needCount) {
             const cur = curTagCounts[rule.fromTag] || 0;
             const next = cur + (alreadyOwned ? 0 : 1);
-            const label = `${rule.name} ${Math.min(next, rule.needCount)}/${rule.needCount}`;
-            const bonusTxt = formatSynergyBonusHuman(rule.bonus || {});
-            const willActive = next >= rule.needCount;
-            const tip = willActive
-                ? `이 구매 시 발동: ${rule.effectDesc || ''}${bonusTxt ? ` (${bonusTxt})` : ''}`
-                : `진행 ${Math.min(next, rule.needCount)}/${rule.needCount} · 발동 시: ${rule.effectDesc || bonusTxt || ''}`;
+            const need = rule.needCount;
+            const label = `${rule.name} ${Math.min(next, need)}/${need}`;
+            const willActive = next >= need;
+            const popup = buildSynergyTooltipPopupHtml(rule, { mode: 'shop_fromTag', next, need, willActive });
             parts.push(
-                `<span title="${escapeHtmlAttr(tip)}" style="cursor:help;border-bottom:1px dotted #2ed573;">${label}</span>`
+                `<span class="synergy-tip-wrap synergy-tip-wrap--shop"><span class="synergy-tip-trigger synergy-tip-trigger--shop">${escapeHtml(label)}</span>${popup}</span>`
             );
         } else if (Array.isArray(rule.needTags) && rule.needTags.some((t) => tags.has(String(t)))) {
-            const tip = `${rule.effectDesc || rule.name || '시너지'}${formatSynergyBonusHuman(rule.bonus || {}) ? ` (${formatSynergyBonusHuman(rule.bonus || {})})` : ''}`;
-            parts.push(`<span title="${escapeHtmlAttr(tip)}" style="cursor:help;border-bottom:1px dotted #2ed573;">${rule.name || '시너지'}</span>`);
+            const popup = buildSynergyTooltipPopupHtml(rule, { mode: 'shop_needTags' });
+            parts.push(
+                `<span class="synergy-tip-wrap synergy-tip-wrap--shop"><span class="synergy-tip-trigger synergy-tip-trigger--shop">${escapeHtml(rule.name || '시너지')}</span>${popup}</span>`
+            );
         }
     }
     if (!parts.length) return '';
-    return `<div style="margin-top:5px;color:#2ed573;">시너지: ${parts.join(' · ')}</div>`;
+    const sep = '<span class="shop-synergy-sep">·</span>';
+    return `<div class="shop-card-synergy-inner"><span class="shop-card-synergy-label">시너지:</span>${parts.join(sep)}</div>`;
 }
 function ensureOwnedItemUid(it) {
     if (!it) return;

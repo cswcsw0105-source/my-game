@@ -509,10 +509,46 @@ const equipmentPool = [
  * @type {{id:string,name:string,fromTag:string,needCount:number,bonus:{atk?:number,hp?:number,def?:number,acc?:number,crit?:number,critMult?:number},effectDesc:string}[]}
  */
 const synergyRules = [
-    { id: 'syn_common_echo', name: '잔향 공명', fromTag: 'rarity_common', needCount: 3, bonus: { def: 8, hp: 30 }, effectDesc: '일반 3개: 방어+8, 체력+30' },
-    { id: 'syn_rare_oath', name: '서약 공명', fromTag: 'rarity_rare', needCount: 2, bonus: { atk: 14, def: 6 }, effectDesc: '희귀 2개: 공격+14, 방어+6' },
-    { id: 'syn_epic_hymn', name: '찬가 공명', fromTag: 'rarity_epic', needCount: 2, bonus: { crit: 8, critMult: 0.18 }, effectDesc: '영웅 2개: 치명+8%, 치명배율+18%' },
-    { id: 'syn_legend_glory', name: '영광 공명', fromTag: 'rarity_legendary', needCount: 2, bonus: { atk: 26, hp: 70, def: 12 }, effectDesc: '전설 2개: 공격+26, 체력+70, 방어+12' },
+    {
+        id: 'syn_common_echo',
+        name: '잔향 공명',
+        fromTag: 'rarity_common',
+        needCount: 3,
+        bonus: { def: 8, hp: 30 },
+        effectDesc: '일반 3개: 방어+8, 체력+30',
+        detailDesc:
+            '인벤토리에 일반(common) 등급 장비가 동시에 3개 이상 장착되면 발동합니다. 방어력과 체력이 추가로 오릅니다.',
+    },
+    {
+        id: 'syn_rare_oath',
+        name: '서약 공명',
+        fromTag: 'rarity_rare',
+        needCount: 2,
+        bonus: { atk: 14, def: 6 },
+        effectDesc: '희귀 2개: 공격+14, 방어+6',
+        detailDesc:
+            '인벤토리에 희귀(rare) 등급 장비가 동시에 2개 이상 장착되면 발동합니다. 공격력과 방어력이 추가로 오릅니다.',
+    },
+    {
+        id: 'syn_epic_hymn',
+        name: '찬가 공명',
+        fromTag: 'rarity_epic',
+        needCount: 2,
+        bonus: { crit: 8, critMult: 0.18 },
+        effectDesc: '영웅 2개: 치명+8%, 치명배율+18%',
+        detailDesc:
+            '인벤토리에 에픽(epic) 등급 장비가 동시에 2개 이상 장착되면 발동합니다. 치명타 확률과 치명타 배율이 추가로 오릅니다.',
+    },
+    {
+        id: 'syn_legend_glory',
+        name: '영광 공명',
+        fromTag: 'rarity_legendary',
+        needCount: 2,
+        bonus: { atk: 26, hp: 70, def: 12 },
+        effectDesc: '전설 2개: 공격+26, 체력+70, 방어+12',
+        detailDesc:
+            '인벤토리에 전설(legendary) 등급 장비가 동시에 2개 이상 장착되면 발동합니다. 공격·체력·방어가 크게 추가됩니다.',
+    },
 ];
 
 const relicPool = [
