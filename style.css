@@ -5,6 +5,7 @@ body { background-color: #121212; color: #e0e0e0; text-align: center; font-famil
 /* 3단: 좌·우 고정 폭 + 가운데 유동 (창 축소 시 좌우 쪼그라들지 않음) */
 .game-layout {
     display: flex;
+    flex-wrap: nowrap;
     gap: 16px;
     justify-content: flex-start;
     align-items: flex-start;
@@ -13,11 +14,11 @@ body { background-color: #121212; color: #e0e0e0; text-align: center; font-famil
     min-width: 0;
     box-sizing: border-box;
 }
-/* 양옆 패널은 줄어들지 않음 — 가운데 메인만 유동 */
+/* 양옆 패널: 좁은 창에서 먼저 줄어듦 — 가운데 메인은 min-width:0으로 유동 */
 .game-layout > .sidebar,
 .game-layout > #sidebar-inventory,
 .game-layout > #sidebar-battle {
-    flex-shrink: 0;
+    flex-shrink: 1;
 }
 
 .screen,
@@ -40,9 +41,9 @@ body { background-color: #121212; color: #e0e0e0; text-align: center; font-famil
     padding: 20px;
     border-radius: 12px;
     border: 1px solid #333;
-    flex: 0 0 280px;
-    width: 280px;
-    min-width: 280px;
+    flex: 0 1 200px;
+    width: auto;
+    min-width: 160px;
     max-width: 280px;
     text-align: left;
     box-shadow: 0 8px 16px rgba(0,0,0,0.5);
@@ -58,9 +59,9 @@ body { background-color: #121212; color: #e0e0e0; text-align: center; font-famil
     padding: 12px 14px;
     border-radius: 12px;
     border: 1px solid #2a2a2a;
-    flex: 0 0 280px;
-    width: 280px;
-    min-width: 280px;
+    flex: 0 1 200px;
+    width: auto;
+    min-width: 160px;
     max-width: 280px;
     text-align: left;
     box-shadow: 0 8px 16px rgba(0,0,0,0.5);
@@ -79,9 +80,9 @@ body { background-color: #121212; color: #e0e0e0; text-align: center; font-famil
     padding: 15px;
     border-radius: 12px;
     border: 1px solid #222;
-    flex: 0 0 280px;
-    width: 280px;
-    min-width: 280px;
+    flex: 0 1 200px;
+    width: auto;
+    min-width: 160px;
     max-width: 280px;
     text-align: left;
     box-shadow: 0 8px 16px rgba(0,0,0,0.5);
@@ -109,6 +110,8 @@ body { background-color: #121212; color: #e0e0e0; text-align: center; font-famil
     min-width: 0;
     position: relative;
     isolation: isolate;
+    padding: 14px;
+    box-sizing: border-box;
 }
 /* 상점 카드: 전투 스텟 + 가격/구매 버튼을 한 행에 (모바일에서 세로 압축) */
 #shop-list .shop-item-card .shop-card-stats-buy {
@@ -365,30 +368,6 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 .num-change { background: #2a2a2a; padding: 4px 8px; border-radius: 4px; display: inline-block; margin-top: 4px; font-family: monospace; color: #2ed573; border: 1px solid #444; }
 .num-old { text-decoration: line-through; color: #ff4757; margin-right: 5px; }
 
-/* 좁은 데스크톱·태블릿 가로: 3단 강제 대신 줄바꿈으로 찌그러짐 방지 */
-@media (max-width: 1200px) and (min-width: 769px) {
-    .game-layout {
-        flex-wrap: wrap;
-        align-content: flex-start;
-        align-items: stretch;
-        gap: 12px;
-    }
-    .game-layout > .screen#main-screen,
-    .game-layout > .screen {
-        flex: 1 1 min(100%, 520px);
-        min-width: min(100%, 300px);
-        max-width: 100%;
-    }
-    .game-layout > .sidebar,
-    .game-layout > #sidebar-inventory,
-    .game-layout > #sidebar-battle {
-        flex: 1 1 250px;
-        min-width: 250px;
-        width: auto;
-        max-width: 280px;
-    }
-}
-
 @media (max-width: 768px) {
     body { padding: 10px; font-size: 15px; }
     .container { gap: 10px; }
@@ -423,23 +402,24 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     /* 인벤·전투 로그: 박스 안에서만 스크롤 */
     #inv-list.inv-list-scroll,
     #inv-list {
-        max-height: 200px !important;
+        max-height: 250px !important;
         overflow-y: auto !important;
         -webkit-overflow-scrolling: touch;
-        font-size: 0.78em !important;
+        font-size: 12px !important;
     }
     #log-battle.log-battle-scroll,
     #log-battle {
-        max-height: 200px !important;
+        max-height: 250px !important;
         overflow-y: auto !important;
         -webkit-overflow-scrolling: touch;
-        font-size: 0.8em !important;
+        font-size: 13px !important;
     }
     /* 인벤 장비 카드 컴팩트 */
     .inv-equip-card {
-        padding: 5px 8px !important;
+        padding: 4px 6px !important;
         margin-bottom: 3px !important;
         border-radius: 5px !important;
+        font-size: 12px !important;
     }
     .inv-equip-card .inv-equip-inner {
         gap: 6px !important;
@@ -451,32 +431,36 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
         margin: 0 !important;
     }
     .inv-compact-block {
-        padding: 5px 8px !important;
+        padding: 4px 6px !important;
         margin-bottom: 3px !important;
-        font-size: 0.88em !important;
+        font-size: 12px !important;
     }
-    /* 상점: 컴팩트 카드 + 스텟·구매 한 줄 */
+    /* 상점: 컴팩트 카드 + 스텟·구매 한 줄(가로 압축) */
     #shop-list .shop-item-grid {
         grid-template-columns: 1fr;
-        gap: 8px;
+        gap: 6px;
     }
     #shop-list .shop-item-card {
-        padding: 8px 9px !important;
-        gap: 4px !important;
-        border-radius: 8px !important;
+        padding: 6px 8px !important;
+        gap: 3px !important;
+        border-radius: 6px !important;
+        font-size: 13px !important;
     }
     #shop-list .shop-item-card .shop-card-head span:first-child {
-        font-size: 0.62em !important;
-        padding: 1px 5px !important;
+        font-size: 10px !important;
+        padding: 1px 4px !important;
+    }
+    #shop-list .shop-item-card .shop-card-head span:last-child {
+        font-size: 1.1em !important;
     }
     #shop-list .shop-item-card .shop-card-title {
-        font-size: 0.88em !important;
-        line-height: 1.25 !important;
+        font-size: 14px !important;
+        line-height: 1.2 !important;
     }
     #shop-list .shop-item-card .shop-card-desc {
-        font-size: 0.72em !important;
-        line-height: 1.35 !important;
-        max-height: 3.2em;
+        font-size: 12px !important;
+        line-height: 1.3 !important;
+        max-height: 2.8em;
         overflow: hidden;
         display: -webkit-box;
         -webkit-line-clamp: 2;
@@ -485,25 +469,35 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     }
     #shop-list .shop-item-card .shop-card-stats-buy {
         margin-top: 2px !important;
-        gap: 6px !important;
+        gap: 4px !important;
+        flex-wrap: nowrap;
+        align-items: center;
     }
     #shop-list .shop-item-card .shop-card-combat {
-        font-size: 0.72em !important;
-        line-height: 1.3 !important;
+        font-size: 12px !important;
+        line-height: 1.25 !important;
+        min-width: 0;
+        flex: 1 1 auto;
     }
     #shop-list .shop-item-card .shop-card-price {
-        font-size: 0.88em !important;
+        font-size: 13px !important;
+    }
+    #shop-list .shop-item-card .shop-card-buy {
+        flex-direction: row;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
     }
     #shop-list .shop-item-card .shop-card-buy button {
-        padding: 5px 10px !important;
-        font-size: 0.78em !important;
+        padding: 4px 8px !important;
+        font-size: 12px !important;
     }
     .shop-item-card .shop-card-synergy {
         padding-top: 4px !important;
         margin-top: 4px !important;
     }
     .shop-card-synergy-inner {
-        font-size: 0.7em !important;
+        font-size: 12px !important;
     }
     #shop-area h2 {
         font-size: 1.1em !important;
