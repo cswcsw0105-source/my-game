@@ -3576,10 +3576,15 @@ function renderShopItems(keepCurrentStock) {
         if(!isRelic){if(it.type==='atk')ti='⚔️';else if(it.type==='hp')ti='🛡️';else if(it.type==='ring')ti='💍';else if(it.type==='potion')ti='🧪';else if(it.type==='merc')ti='⚔️';else if(it.type==='merc_shop_direct')ti='💼';else if(it.type==='merc_shop_fund')ti='🤝';if(it.lifesteal)ti='🩸';if(it.regenPotion)ti='💚';}
         const iu=getUnlockedPoolItems().some(u=>u.name===it.name);
         const pref = isPreferredItem(it.name);
-        d.className = 'shop-item-card';
-        d.style.cssText=`background:#1a1a1a;border:1px solid ${bc};border-radius:10px;display:flex;flex-direction:column;gap:8px;transition:transform 0.15s;cursor:default;${pref ? 'box-shadow:0 0 0 2px #f1c40f, 0 0 18px rgba(241,196,15,0.35);' : ''}`;
-        d.onmouseenter=()=>d.style.transform='translateY(-2px)'; d.onmouseleave=()=>d.style.transform='translateY(0)';
-        d.innerHTML=`<div class="shop-card-head" style="display:flex;justify-content:space-between;align-items:center;"><span style="background:${bb};color:${bac};border:1px solid ${bc};border-radius:4px;font-size:0.7em;font-weight:700;padding:2px 7px;letter-spacing:1px;">${iu?'🔓 ':''}${bt}${pref ? ' ★' : ''}</span><span style="font-size:1.3em;">${ti}</span></div><div class="shop-card-title" style="color:${nc};font-weight:700;font-size:1em;line-height:1.3;">${formatShopItemName(it.name)}${pref ? ' <span style="color:#f1c40f;font-size:0.85em;">(선호)</span>' : ''}</div>${slotLine}<div class="shop-card-desc" style="color:#888;font-size:0.78em;line-height:1.5;flex:1;min-height:0;">${formatShopItemDesc(it.desc)}</div>${synHtml ? `<div class="shop-card-synergy">${synHtml}</div>` : ''}<div class="shop-card-stats-buy"><div class="shop-card-combat">${combatStats}</div><div class="shop-card-buy"><span class="shop-card-price" style="color:#f1c40f;font-weight:700;font-size:1em;">💰 ${it.price}G</span><button onclick="buyItem(event,${idx})" ${(owned || full) ? 'disabled' : ''} style="background:${full ? '#7f2b2b' : owned ? '#555' : '#f1c40f'};color:${full ? '#ffd7d7' : owned ? '#bbb' : '#111'};padding:6px 14px;font-size:0.85em;font-weight:700;margin:0;border-radius:6px;${(owned || full) ? 'cursor:not-allowed;' : ''}">${full ? '공간 없음' : owned ? '보유' : '구매'}</button></div></div>`;
+        const btnClass = full ? 'shop-card-btn shop-card-btn--full' : owned ? 'shop-card-btn shop-card-btn--owned' : 'shop-card-btn shop-card-btn--buy';
+        const btnDisabled = owned || full ? ' disabled' : '';
+        d.className = `shop-item-card${pref ? ' shop-item-card--preferred' : ''}`;
+        d.style.cssText = `--shop-bc:${bc};--shop-bb:${bb};--shop-bac:${bac};--shop-name:${nc};`;
+        d.onmouseenter = () => { d.style.transform = 'translateY(-2px)'; };
+        d.onmouseleave = () => { d.style.transform = ''; };
+        d.innerHTML = `<div class="shop-card-head"><span class="shop-card-rarity-badge">${iu ? '🔓 ' : ''}${bt}${pref ? ' ★' : ''}</span><span class="shop-card-type-icon">${ti}</span></div><div class="shop-card-title">${formatShopItemName(it.name)}${
+            pref ? ' <span class="shop-card-pref">(선호)</span>' : ''
+        }</div>${slotLine}<div class="shop-card-desc">${formatShopItemDesc(it.desc)}</div>${synHtml ? `<div class="shop-card-synergy">${synHtml}</div>` : ''}<div class="shop-card-stats-buy"><div class="shop-card-combat">${combatStats}</div><div class="shop-card-buy"><span class="shop-card-price">💰 ${it.price}G</span><button type="button" class="${btnClass}" onclick="buyItem(event,${idx})"${btnDisabled}>${full ? '공간 없음' : owned ? '보유' : '구매'}</button></div></div>`;
         grid.appendChild(d);
     });
     list.appendChild(grid);
