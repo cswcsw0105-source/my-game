@@ -543,7 +543,9 @@ function buildEquipmentStatParts(it) {
     const parts = [];
     if ((it.type === 'atk' || it.type === 'ring') && typeof it.value === 'number') parts.push(`공격(+${it.value})`);
     if (it.type === 'hp' && typeof it.value === 'number') parts.push(`체력(+${it.value})`);
-    if (typeof it.def === 'number' && it.def > 0) parts.push(`방어(+${it.def})`);
+    if (typeof it.def === 'number' && it.def !== 0) {
+        parts.push(it.def > 0 ? `방어(+${it.def})` : `방어(${it.def})`);
+    }
     if (typeof it.critBonus === 'number') parts.push(`치명(+${it.critBonus}%)`);
     if (typeof it.critMult === 'number') parts.push(`치명 배율(+${Math.round(it.critMult * 100)}%)`);
     if (typeof it.lifesteal === 'number') parts.push(`흡혈(${Math.round(it.lifesteal * 100)}%)`);
@@ -644,7 +646,7 @@ function _snapshotStatChannels(it) {
         cm: false,
         ls: false,
     };
-    if (typeof it.def === 'number' && it.def > 0) ch.def = true;
+    if (typeof it.def === 'number' && it.def !== 0) ch.def = true;
     if (typeof it.critBonus === 'number' && it.critBonus > 0) ch.crit = true;
     if (typeof it.critMult === 'number' && it.critMult > 0) ch.cm = true;
     if (typeof it.lifesteal === 'number' && it.lifesteal > 0) ch.ls = true;
@@ -768,6 +770,164 @@ function _uniquifyStatWeights(w, name) {
     return o;
 }
 
+/** [파멸·피·저주] / [신·축복·불사·용왕] / [번개·별·시간] — 데이터 `keywordTheme: 'ruin'|'divine'|'arcane'` 로 덮어쓰기 가능 */
+function _detectKeywordTheme(it) {
+    if (it && it.keywordTheme && /^(ruin|divine|arcane)$/.test(it.keywordTheme)) return it.keywordTheme;
+    const n = String((it && it.name) || '');
+    if (/신|축복|불사|용왕/.test(n)) return 'divine';
+    if (/번개|별|시간/.test(n)) return 'arcane';
+    if (/파멸|저주|피의|핏물|진홍|뱀파이어의|계약서|포식/.test(n)) return 'ruin';
+    return null;
+}
+
+const KEYWORD_THEME_LABEL_KO = {
+    ruin: '[파멸·피·저주]',
+    divine: '[신·축복·불사·용왕]',
+    arcane: '[번개·별·시간]',
+};
+
+function _applyKeywordThemeToWeights(w, theme, ch) {
+    if (!theme) return w;
+    const o = { atk: w.atk || 0, hp: w.hp || 0, def: w.def || 0, crit: w.crit || 0, cm: w.cm || 0, ls: w.ls || 0 };
+    const pri = { ruin: ['atk', 'crit', 'ls'], divine: ['hp', 'def'], arcane: ['crit', 'cm'] };
+    const boost = 2.35;
+    const cut = 0.42;
+    const P = pri[theme];
+    if (!P) return w;
+    for (const k of P) {
+        if (ch[k]) o[k] *= boost;
+    }
+    for (const k of Object.keys(o)) {
+        if (!P.includes(k) && ch[k]) o[k] *= cut;
+    }
+    for (const k of Object.keys(o)) if (!ch[k]) o[k] = 0;
+    return o;
+}
+
+function _pickSecondaryChannel(it, ch, rnd) {
+    const n = String((it && it.name) || '');
+    const pools = [
+        [/파멸|저주|피의|피\b|뱀파이어/.test(n), ['crit', 'ls', 'cm', 'def']],
+        [/신|축복|불사|용왕/.test(n), ['def', 'crit', 'cm', 'ls']],
+        [/번개|별|시간/.test(n), ['cm', 'crit', 'ls', 'def']],
+    ];
+    let order = ['crit', 'def', 'cm', 'ls'];
+    for (const [ok, ord] of pools) {
+        if (ok) {
+            order = ord;
+            break;
+        }
+    }
+    const sec = ['def', 'crit', 'cm', 'ls'];
+    for (const k of order) {
+        if (sec.includes(k) && !ch[k]) return k;
+    }
+    return sec[Math.floor(rnd() * 4)];
+}
+
+function _dropSecondaryChannel(it, ch, secList, rnd) {
+    const n = String((it && it.name) || '');
+    const lowFirst = ['ls', 'def', 'crit', 'cm'];
+    if (/흡혈|피|맹세/.test(n)) lowFirst.splice(lowFirst.indexOf('ls'), 1);
+    for (const k of lowFirst) {
+        if (secList.includes(k)) return k;
+    }
+    return secList[secList.length - 1];
+}
+
+/**
+ * 에픽/전설: 스탯 라인 2~4개 (주스탯 1 + 부스탯 1~3)
+ */
+function _enforceEpicLegendChannelBounds(ch, it, rk, rnd) {
+    const rkLo = String(rk || '').toLowerCase();
+    if (!['epic', 'legendary', 'legend'].includes(rkLo)) return ch;
+    const out = { ...ch };
+    const secKeys = ['def', 'crit', 'cm', 'ls'];
+    let sec = secKeys.filter((k) => out[k]);
+    if (!(out.atk || out.hp)) return out;
+    while (sec.length < 1) {
+        const add = _pickSecondaryChannel(it, out, rnd);
+        out[add] = true;
+        sec = secKeys.filter((k) => out[k]);
+    }
+    while (sec.length > 3) {
+        const drop = _dropSecondaryChannel(it, out, sec, rnd);
+        out[drop] = false;
+        sec = secKeys.filter((k) => out[k]);
+    }
+    return out;
+}
+
+/** 할당 직후 각 스탯에 [0.85, 1.15] 무작위 배율 */
+function _applyVar15PctToAllocatedStats(a, rnd, it) {
+    const roll = () => 0.85 + rnd() * 0.3;
+    const round1 = (x) => Math.max(0, Math.round((Number(x) || 0) * 10) / 10);
+    if (a.atk > 0) a.atk = Math.max(1, Math.round(a.atk * roll()));
+    if (a.hp > 0) a.hp = Math.max(1, Math.round(a.hp * roll()));
+    if (a.def !== 0) a.def = Math.round(a.def * roll());
+    if (a.crit > 0) a.crit = round1(a.crit * roll());
+    if (a.cm > 0) a.cm = Math.max(1, Math.round(a.cm * roll()));
+    if (a.ls > 0) a.ls = Math.max(1, Math.round(a.ls * roll()));
+    return a;
+}
+
+function _countAllocatedStatLines(it, a) {
+    let n = 0;
+    if ((it.type === 'atk' || it.type === 'ring') && a.atk > 0) n++;
+    if (it.type === 'hp' && a.hp > 0) n++;
+    if (a.def !== 0 && a.def != null) n++;
+    if (a.crit > 0) n++;
+    if (a.cm > 0) n++;
+    if (a.ls > 0) n++;
+    return n;
+}
+
+function _ensureEpicLegendChannelMinimums(a, ch, rk, rnd) {
+    const rkLo = String(rk || '').toLowerCase();
+    if (!['epic', 'legendary', 'legend'].includes(rkLo)) return a;
+    if (ch.crit && a.crit < 0.4) a.crit = Math.round((0.6 + rnd() * 2.2) * 10) / 10;
+    if (ch.cm && a.cm < 4) a.cm = 4 + Math.floor(rnd() * 18);
+    if (ch.ls && a.ls < 3) a.ls = 3 + Math.floor(rnd() * 12);
+    if (ch.def && a.def === 0) a.def = 1 + Math.floor(rnd() * 5);
+    return a;
+}
+
+function _ensureMinStatLinesAfterRoll(it, a, ch, rk, rnd) {
+    const rkLo = String(rk || '').toLowerCase();
+    if (!['epic', 'legendary', 'legend'].includes(rkLo)) return a;
+    let guard = 0;
+    while (_countAllocatedStatLines(it, a) < 2 && guard++ < 12) {
+        if (ch.crit && a.crit <= 0) a.crit = Math.round((0.5 + rnd() * 2) * 10) / 10;
+        else if (ch.def && a.def === 0) a.def = 1 + Math.floor(rnd() * 3);
+        else if (ch.ls && a.ls <= 0) a.ls = 3 + Math.floor(rnd() * 8);
+        else if (ch.cm && a.cm <= 0) a.cm = 5 + Math.floor(rnd() * 15);
+        else if ((it.type === 'atk' || it.type === 'ring') && a.atk <= 1) a.atk += 1 + Math.floor(rnd() * 3);
+        else if (it.type === 'hp' && a.hp <= 1) a.hp += 2 + Math.floor(rnd() * 6);
+        else break;
+    }
+    return a;
+}
+
+function _applyRuinTradeoff(it, a, theme, rnd) {
+    if (theme !== 'ruin') return a;
+    const n = String((it && it.name) || '');
+    const t = it && it.type;
+    if (rnd() < 0.55 && (t === 'atk' || t === 'ring') && a.def >= 0) {
+        a.def = -Math.max(3, Math.min(14, Math.floor(4 + rnd() * 10)));
+    }
+    if (rnd() < 0.35 && t === 'hp' && a.hp > 5) {
+        a.hp = Math.max(1, Math.floor(a.hp * (0.88 + rnd() * 0.08)));
+    }
+    if (/저주/.test(n) && rnd() < 0.7) {
+        const pen = it.penalty;
+        if (!pen || typeof pen !== 'object' || Object.keys(pen).length === 0) {
+            const base = 4 + Math.floor(rnd() * 6);
+            it.penalty = { 워리어: base, 헌터: base + 4, 마법사: base + 8 };
+        }
+    }
+    return a;
+}
+
 /**
  * 아이템 이름(한글 키워드) + 등급으로 스탯 채널 가중 — 공격/체력 주채널은 타입이 유지되고 부가로 방어·치명·배율·흡혈을 섞음.
  * @param {boolean} [strictFill=true] 일반·희귀: 부가 스탯 최소 개수 보장. 에픽/전설은 false로 붕어빵 완화.
@@ -883,6 +1043,7 @@ function _baseWeightsFromChannels(ch) {
  */
 function _allocateBudgetToStats(Bx, ch, rnd, rarityKey, it) {
     const concept = it && (it.itemConceptKey || _detectItemConcept(it));
+    const theme = it && (it.keywordThemeKey || _detectKeywordTheme(it));
     let w0 =
         it && concept
             ? _conceptStatWeights(concept, ch, it, rnd)
@@ -892,6 +1053,7 @@ function _allocateBudgetToStats(Bx, ch, rnd, rarityKey, it) {
             w0,
             `${String(it.name || '')}|${String(it.rarity || '')}|${String(it.type || '')}|${concept}`,
         );
+        if (theme) w0 = _applyKeywordThemeToWeights(w0, theme, ch);
     }
     const keys = ['atk', 'hp', 'def', 'crit', 'cm', 'ls'];
     const mask = {
@@ -1059,11 +1221,20 @@ function applyOfficialStatsToEquipmentItem(it, opts) {
     it.itemConceptKey = concept;
     it._itemConceptLabelKo = ITEM_CONCEPT_LABEL_KO[concept] || '유틸/하이브리드';
 
+    const keywordTheme = _detectKeywordTheme(it);
+    it.keywordThemeKey = keywordTheme || '';
+    it._keywordThemeLabelKo = keywordTheme ? KEYWORD_THEME_LABEL_KO[keywordTheme] : '';
+
     let ch = _mergeNamePersonalityChannels(it, _snapshotStatChannels(it), strictFill);
     ch = _narrowChannelsForConcept(it, ch, concept);
+    ch = _enforceEpicLegendChannelBounds(ch, it, rk, rnd);
     const nCh = ['atk', 'hp', 'def', 'crit', 'cm', 'ls'].filter((k) => ch[k]).length;
     Bx = Math.round(Bx * Math.min(1.16, 1 + 0.032 * Math.max(0, nCh - 3)));
-    const a = _allocateBudgetToStats(Bx, ch, rnd, rk, it);
+    let a = _allocateBudgetToStats(Bx, ch, rnd, rk, it);
+    a = _ensureEpicLegendChannelMinimums(a, ch, rk, rnd);
+    a = _applyVar15PctToAllocatedStats(a, rnd, it);
+    a = _applyRuinTradeoff(it, a, keywordTheme, rnd);
+    a = _ensureMinStatLinesAfterRoll(it, a, ch, rk, rnd);
 
     const round1 = (x) => Math.max(0, Math.round((Number(x) || 0) * 10) / 10);
 
@@ -1076,7 +1247,7 @@ function applyOfficialStatsToEquipmentItem(it, opts) {
     if (it.type === 'atk' || it.type === 'ring') it.value = Math.max(1, a.atk);
     else if (it.type === 'hp') it.value = Math.max(1, a.hp);
 
-    if (a.def > 0) it.def = a.def;
+    if (a.def !== 0) it.def = a.def;
     if (a.crit > 0) it.critBonus = round1(a.crit);
     if (a.cm > 0) it.critMult = a.cm / 100;
     if (a.ls > 0) it.lifesteal = a.ls / 100;
@@ -1101,7 +1272,10 @@ function clampEquipmentItemStatsToRarityCaps(it) {
         if (it.type === 'hp') it.value = Math.max(1, Math.min(M.hp, it.value));
         else if (it.type === 'atk' || it.type === 'ring') it.value = Math.max(1, Math.min(M.atk, it.value));
     }
-    if (typeof it.def === 'number') it.def = Math.min(M.def, Math.max(0, it.def));
+    if (typeof it.def === 'number') {
+        const negCap = rk === 'legendary' || rk === 'legend' ? -22 : -16;
+        it.def = Math.min(M.def, Math.max(negCap, it.def));
+    }
     if (typeof it.critBonus === 'number') it.critBonus = Math.min(M.crit, Math.max(0, it.critBonus));
     if (typeof it.critMult === 'number') it.critMult = Math.min(M.cm / 100, Math.max(0, it.critMult));
     if (typeof it.lifesteal === 'number') it.lifesteal = Math.min(M.ls / 100, Math.max(0, it.lifesteal));

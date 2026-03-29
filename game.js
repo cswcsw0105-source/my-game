@@ -222,7 +222,7 @@ let shopVisitCount = 0;
 let attackGcdUntil = 0;
 const ATTACK_GCD_MS = 500;
 /** 패치 노트/UI와 맞춰 두기 — 캐시 적용 여부 확인용 */
-const GAME_BUILD = '1.3';
+const GAME_BUILD = 'S1';
 /** 베이스캠프 오버레이 스크롤 유지 */
 window.__baseCampScrollTop = 0;
 /** 필드 용병 기본 피해 계수(전역 보정) */
@@ -1361,7 +1361,7 @@ function showPreGameScreen() {
     document.getElementById('start-area').innerHTML = `
         <div style="text-align:center; margin-bottom:16px;">
             <h2 style="color:#f1c40f; margin-bottom:5px;">⚔️ 로그라이트 허브</h2>
-            <p style="color:#9b59b6;font-size:0.88em;margin:0 0 8px;font-weight:700;">시즌 1.1</p>
+            <p style="color:#9b59b6;font-size:0.88em;margin:0 0 8px;font-weight:700;">시즌 1</p>
             ${saveFileBar}
             <p style="color:#888; font-size:0.85em;">무한 층 · 베이스캠프에서만 영구 성장</p>
             ${globalUnlocked.length > 0 ? `<p style="color:#f1c40f;font-size:0.8em;">🔓 공용 해금: ${globalUnlocked.join(', ')}층</p>` : ''}
