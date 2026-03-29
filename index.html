@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <title>던전 · 시즌 1</title>
-    <link rel="stylesheet" href="style.css?v=s1r1">
+    <link rel="stylesheet" href="style.css?v=s1r2">
     <style>
         .auth-box { background: #2a2a2a; padding: 20px; border-radius: 8px; border: 1px solid #444; max-width: 300px; margin: 0 auto; }
         .auth-box input { width: 90%; padding: 10px; margin: 10px 0; border-radius: 4px; border: 1px solid #555; background: #111; color: white; }
@@ -21,7 +21,7 @@
             <!-- 던전·상점 중 왼쪽: 인벤 상시 (전투 로그는 오른쪽) -->
             <div class="sidebar" id="sidebar-inventory" style="display:none;">
                 <h4 style="color:#fff;margin:0 0 8px 0;">🎒 인벤토리</h4>
-                <div id="inv-list" style="font-size:0.82em; margin-top:4px; flex:1; overflow-y:auto; max-height:min(72vh, 560px); width:100%; text-align:left;">장비가 없습니다.</div>
+                <div id="inv-list" class="inv-list-scroll" style="font-size:0.82em; margin-top:4px; flex:1; overflow-y:auto; width:100%; text-align:left;">장비가 없습니다.</div>
             </div>
             <div class="screen" id="main-screen">
                 <div id="login-area" style="display:block;">
@@ -103,7 +103,7 @@
                 </div>
                 <button type="button" class="sidebar-action-btn" onclick="saveAndExitToMain()" style="margin-bottom:8px;background:#1e90ff;color:#fff;border:1px solid #3498db;">💾 저장 후 메인</button>
                 <button type="button" class="sidebar-action-btn" onclick="exitToMainWithoutSave()" style="margin-bottom:8px;background:#c0392b;color:#fff;border:1px solid #922b21;">🚪 저장 없이 메인</button>
-                <div id="log-battle" style="font-size:0.85em; overflow-y:auto; max-height:460px;"></div>
+                <div id="log-battle" class="log-battle-scroll" style="font-size:0.85em; overflow-y:auto;"></div>
             </div>
 
         </div> <!-- game-layout 닫기 -->
@@ -349,6 +349,6 @@
     <!-- ?v= 쿼리로 브라우저 캐시 무효화 (수정이 안 보일 때 강력 새로고침도 함께) -->
     <script src="data.js?v=s1"></script>
     <script src="rpg_v7.js?v=s1"></script>
-    <script src="game.js?v=s1r1"></script>
+    <script src="game.js?v=s1r2"></script>
 </body>
 </html>
