@@ -13,6 +13,12 @@ body { background-color: #121212; color: #e0e0e0; text-align: center; font-famil
     min-width: 0;
     box-sizing: border-box;
 }
+/* 양옆 패널은 줄어들지 않음 — 가운데 메인만 유동 */
+.game-layout > .sidebar,
+.game-layout > #sidebar-inventory,
+.game-layout > #sidebar-battle {
+    flex-shrink: 0;
+}
 
 .screen,
 .game-layout > .screen#main-screen {
@@ -21,6 +27,7 @@ body { background-color: #121212; color: #e0e0e0; text-align: center; font-famil
     border-radius: 12px;
     border: 1px solid #333;
     flex: 1 1 auto;
+    flex-shrink: 1;
     min-width: 0;
     width: auto;
     max-width: none;
@@ -104,13 +111,18 @@ body { background-color: #121212; color: #e0e0e0; text-align: center; font-famil
     isolation: isolate;
 }
 
-/* 상점 카드: 시너지 행 우측 정렬 */
-.shop-card-synergy {
+/* 상점 카드: 시너지 행 — 부모 정렬과 무관하게 카드 우측 하단에 고정 */
+.shop-item-card .shop-card-synergy {
+    align-self: flex-end;
     width: 100%;
-    margin-top: 8px;
+    max-width: 100%;
+    box-sizing: border-box;
+    margin-top: auto;
+    margin-left: 0;
+    padding-top: 8px;
     display: flex;
     justify-content: flex-end;
-    align-items: flex-start;
+    align-items: flex-end;
     text-align: right;
     flex-shrink: 0;
 }
@@ -121,9 +133,11 @@ body { background-color: #121212; color: #e0e0e0; text-align: center; font-famil
     align-items: center;
     gap: 4px 6px;
     max-width: 100%;
+    margin-left: auto;
     color: #2ed573;
     font-size: 0.78em;
     line-height: 1.45;
+    text-align: right;
 }
 .shop-card-synergy-label {
     font-weight: 800;
@@ -143,9 +157,15 @@ body { background-color: #121212; color: #e0e0e0; text-align: center; font-famil
     display: inline-block;
     vertical-align: baseline;
     z-index: 1;
+    -webkit-tap-highlight-color: transparent;
 }
+.synergy-tip-wrap.synergy-tip-open {
+    z-index: 999900;
+}
+@media (hover: hover) {
 .synergy-tip-wrap:hover {
     z-index: 999900;
+}
 }
 .synergy-tip-trigger {
     cursor: pointer;
@@ -186,11 +206,19 @@ body { background-color: #121212; color: #e0e0e0; text-align: center; font-famil
     pointer-events: none;
     box-sizing: border-box;
 }
+.synergy-tip-wrap.synergy-tip-open .synergy-tip-popup {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+@media (hover: hover) {
 .synergy-tip-wrap:hover .synergy-tip-popup {
     opacity: 1;
     visibility: visible;
     transform: translateY(0);
     pointer-events: auto;
+}
 }
 .syn-tip-detail {
     white-space: pre-wrap;
@@ -308,18 +336,37 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 .num-old { text-decoration: line-through; color: #ff4757; margin-right: 5px; }
 
 @media (max-width: 768px) {
-    .game-layout { flex-direction: column; align-items: stretch; }
+    body { padding: 12px; }
+    .container { gap: 12px; }
+    .game-layout {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+    /* 세로 순서: 메인 → 인벤/접속·도감 → 전투 로그 */
+    #main-screen { order: 1; width: 100%; max-width: 100%; }
+    #sidebar-inventory { order: 2; }
+    #sidebar-normal { order: 2; }
+    #sidebar-battle { order: 3; }
     .sidebar,
     #sidebar-battle,
     #sidebar-inventory,
     .game-layout > .sidebar#sidebar-normal {
         flex: 1 1 auto;
+        flex-shrink: 0;
         width: 100%;
-        min-width: unset;
+        min-width: 0;
         max-width: 100%;
     }
-    .game-layout > .screen#main-screen {
+    .game-layout > .screen#main-screen,
+    .screen {
         min-width: 0;
+    }
+    #inv-list {
+        max-height: min(50vh, 420px) !important;
+    }
+    #log-battle {
+        max-height: min(45vh, 380px);
     }
 }
 

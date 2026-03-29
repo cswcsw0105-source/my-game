@@ -344,8 +344,37 @@ function exitBattleLayout() {
     document.getElementById('sidebar-battle').style.display = 'none';
     document.getElementById('log').style.display = 'block';
 }
+
+/** 시너지 커스텀 툴팁: 터치/클릭으로 열고, 바깥 클릭 시 닫음 (PC는 @media hover로 마우스 호버도 유지) */
+function initSynergyTooltipInteractions() {
+    document.addEventListener(
+        'click',
+        (e) => {
+            const raw = e.target;
+            const el = raw && raw.nodeType === 1 ? raw : raw && raw.parentElement;
+            if (!el || !el.closest) return;
+            const trigger = el.closest('.synergy-tip-trigger');
+            if (trigger) {
+                const wrap = trigger.closest('.synergy-tip-wrap');
+                if (wrap) {
+                    e.stopPropagation();
+                    const wasOpen = wrap.classList.contains('synergy-tip-open');
+                    document.querySelectorAll('.synergy-tip-wrap.synergy-tip-open').forEach((w) => w.classList.remove('synergy-tip-open'));
+                    if (!wasOpen) wrap.classList.add('synergy-tip-open');
+                    return;
+                }
+            }
+            if (!el.closest('.synergy-tip-wrap')) {
+                document.querySelectorAll('.synergy-tip-wrap.synergy-tip-open').forEach((w) => w.classList.remove('synergy-tip-open'));
+            }
+        },
+        false
+    );
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     exitBattleLayout();
+    initSynergyTooltipInteractions();
     migrateAccPermaV71();
     console.log('[던전] 클라이언트 빌드 v' + GAME_BUILD + ' — 로그에 이 안 보이면 예전 JS 캐시입니다. 강력 새로고침(Cmd+Shift+R)하세요.');
 });
