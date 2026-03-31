@@ -1658,7 +1658,7 @@ function initRunFromMetaSlot() {
         showMercCompanionPicker();
         return true;
     }
-    spawnEnemy();
+    beginFloorEncounter();
     MetaRPG.markRunCheckpoint(slot.id);
     return true;
 }
@@ -1724,7 +1724,7 @@ window.pickMercCompanion = (kind) => {
     player.mercCompanionKind = kind;
     const el = document.getElementById('merc-companion-overlay');
     if (el) el.remove();
-    spawnEnemy();
+    beginFloorEncounter();
 };
 
 function checkEvolution() {
@@ -2082,7 +2082,7 @@ window.resolveStatSwap = (idx) => {
     else writeLog(`[이벤트층] 변화를 거부했습니다.`);
     updateUi();
     if (floor > 1 && floor % 3 === 0) pendingShop = true;
-    spawnEnemy();
+    beginFloorEncounter();
 };
 
 // ===================== 스킬 이벤트 =====================
@@ -2098,7 +2098,7 @@ function showSkillEvent() {
     if (bonusSkills.length === 0) {
         writeLog(`[이벤트층] 이미 모든 보너스 스킬을 보유하고 있습니다!`);
         if (floor > 1 && floor % 3 === 0) pendingShop = true;
-        spawnEnemy(); return;
+        beginFloorEncounter(); return;
     }
 
     const options = bonusSkills.sort(() => Math.random()-0.5).slice(0, 2);
@@ -2134,7 +2134,7 @@ window.resolveSkillEvent = (idx) => {
     } else writeLog(`[이벤트층] 각성을 거부했습니다.`);
     updateUi();
     if (floor > 1 && floor % 3 === 0) pendingShop = true;
-    spawnEnemy();
+    beginFloorEncounter();
 };
 
 // ===================== 대장간 =====================
@@ -2216,7 +2216,7 @@ window.resolveForge = (idx) => {
     }
     updateUi();
     if (floor > 1 && floor % 3 === 0) pendingShop = true;
-    spawnEnemy();
+    beginFloorEncounter();
 };
 
 // ===================== 랜덤 인카운터 =====================
@@ -2302,7 +2302,7 @@ window.resolveContractAltar = (id) => {
     }
     writeLog(`[계약] 🔮 <b style='color:#9b59b6'>${s.name}</b>과(와) 계약을 맺었습니다!`);
     updateUi();
-    spawnEnemy();
+    beginFloorEncounter();
 };
 
 function showRandomEncounter() {
@@ -2325,12 +2325,146 @@ window.resolveEncounter = (idx) => {
     document.body.removeChild(window._encounterOverlay);
     event.choices[idx].action(); updateUi();
     if (floor>1&&floor%3===0) pendingShop=true;
+    beginFloorEncounter();
+};
+
+// ===================== 인카운터(탐험) + 패닉 런 =====================
+const _PANIC_RARITY_ORDER = { common: 0, rare: 1, epic: 2, legendary: 3, relic: 4 };
+
+function getPanicRunSacrificeItems() {
+    if (!player || !Array.isArray(player.items)) return [];
+    return player.items.filter((it) => it && getEquipSlotKind(it) && it.type !== 'merc');
+}
+
+function pickLowestRaritySacrificeItem() {
+    const list = getPanicRunSacrificeItems();
+    if (!list.length) return null;
+    return [...list].sort(
+        (a, b) => ( _PANIC_RARITY_ORDER[a.rarity] ?? 9) - (_PANIC_RARITY_ORDER[b.rarity] ?? 9)
+    )[0];
+}
+
+function buildEncounterPhaseHtml() {
+    const sac = getPanicRunSacrificeItems();
+    const canFlee = sac.length > 0;
+    const fleeDisabled = canFlee ? '' : ' disabled';
+    const fleeHint = canFlee
+        ? ''
+        : '<p style="color:#888;font-size:0.82em;margin:10px 0 0;line-height:1.45;">인벤토리에 희생할 <b>장비</b>(무기·갑옷·반지)가 없습니다. 도망할 수 없습니다.</p>';
+    return `
+<div style="padding:18px 16px;background:#141820;border:1px solid #2a3548;border-radius:12px;text-align:center;max-width:520px;margin:0 auto;">
+  <p style="color:#b8c0d8;font-size:0.95em;line-height:1.55;margin:0 0 8px;">어둠 속에서 적의 기척이 느껴집니다...</p>
+  <p style="color:#e0e0e0;font-size:1.05em;font-weight:700;margin:0 0 18px;">${floor}층 — 전투를 피할지, 맞서 싸울지 선택하세요.</p>
+  <div style="display:flex;flex-direction:column;gap:10px;align-items:stretch;">
+    <button type="button" onclick="enterCombatFromEncounter()" style="background:#c0392b;color:#fff;padding:12px 16px;font-weight:800;border:none;border-radius:8px;cursor:pointer;font-size:0.95em;">⚔️ 전투 돌입</button>
+    <button type="button" onclick="openPanicRunSacrificeModal()"${fleeDisabled} style="background:#34495e;color:#e0e0e0;padding:12px 16px;font-weight:700;border:1px solid #4a6278;border-radius:8px;cursor:pointer;font-size:0.95em;">⚡ 장비 던지고 도망치기</button>
+  </div>
+  ${fleeHint}
+</div>`;
+}
+
+function hideEncounterPhaseUI() {
+    const ep = document.getElementById('encounter-phase');
+    const hud = document.getElementById('battle-hud');
+    if (ep) ep.style.display = 'none';
+    if (hud) hud.style.display = 'block';
+}
+
+function beginFloorEncounter() {
+    if (pendingShop) {
+        spawnEnemy();
+        return;
+    }
+    window._encounterPhaseActive = true;
+    enemy = null;
+    const ep = document.getElementById('encounter-phase');
+    const hud = document.getElementById('battle-hud');
+    if (ep) {
+        ep.style.display = 'block';
+        ep.innerHTML = buildEncounterPhaseHtml();
+    }
+    if (hud) hud.style.display = 'none';
+    updateUi();
+    renderActions();
+}
+
+window.enterCombatFromEncounter = function enterCombatFromEncounter() {
+    if (!player) return;
+    window._encounterPhaseActive = false;
+    hideEncounterPhaseUI();
     spawnEnemy();
+};
+
+window.openPanicRunSacrificeModal = function openPanicRunSacrificeModal() {
+    const list = getPanicRunSacrificeItems();
+    if (!list.length) return writeLog('[도망] 희생할 장비가 없습니다.');
+    const ov = document.createElement('div');
+    ov.id = 'panic-run-overlay';
+    ov.style.cssText =
+        'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:10050;display:flex;align-items:center;justify-content:center;padding:16px;';
+    const rows = list
+        .map((it) => {
+            ensureOwnedItemUid(it);
+            const rk = it.rarity || 'common';
+            const col = rk === 'legendary' ? '#e74c3c' : rk === 'epic' ? '#a55eea' : rk === 'rare' ? '#1e90ff' : '#888';
+            return `<button type="button" onclick="executePanicRunSacrifice('${escapeJsSingleQuoteString(it._uid)}')" style="width:100%;margin-bottom:8px;padding:10px 12px;text-align:left;background:#1a1a2e;border:1px solid #444;border-radius:8px;cursor:pointer;color:#e0e0e0;">
+            <span style="color:${col};font-weight:800;font-size:0.75em;">${rk.toUpperCase()}</span> <b>${escapeHtml(it.name)}</b>
+            <span style="color:#666;font-size:0.8em;display:block;margin-top:4px;">이 장비를 던져 적의 시야를 가립니다.</span>
+          </button>`;
+        })
+        .join('');
+    ov.innerHTML = `
+      <div style="background:#121a24;border:2px solid #1e90ff;border-radius:12px;padding:22px;max-width:420px;width:100%;max-height:90vh;overflow-y:auto;">
+        <h3 style="color:#1e90ff;margin:0 0 8px;">⚡ 무엇을 던질까?</h3>
+        <p style="color:#888;font-size:0.85em;margin:0 0 14px;line-height:1.45;">한 장비를 희생해야 도망을 시도할 수 있습니다. 선택 후 현재 층에서 <b>2~3층 아래</b>로 떨어집니다.</p>
+        ${rows}
+        <button type="button" onclick="executePanicRunAuto()" style="width:100%;margin-top:5px;padding:10px;background:#2c3e50;color:#ecf0f1;border:1px solid #555;border-radius:8px;cursor:pointer;font-weight:700;">🎲 가장 낮은 등급 장비 자동 희생</button>
+        <button type="button" onclick="closePanicRunModal()" style="width:100%;margin-top:10px;padding:8px;background:#333;color:#aaa;border:none;border-radius:8px;cursor:pointer;">취소</button>
+      </div>`;
+    document.body.appendChild(ov);
+};
+
+window.closePanicRunModal = function closePanicRunModal() {
+    const ov = document.getElementById('panic-run-overlay');
+    if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
+};
+
+window.executePanicRunAuto = function executePanicRunAuto() {
+    const it = pickLowestRaritySacrificeItem();
+    if (!it) return writeLog('[도망] 희생할 장비가 없습니다.');
+    ensureOwnedItemUid(it);
+    executePanicRunSacrifice(it._uid);
+};
+
+window.executePanicRunSacrifice = function executePanicRunSacrifice(uid) {
+    if (!player || !uid || !window._encounterPhaseActive) return;
+    closePanicRunModal();
+    const idx = player.items.findIndex((x) => x && x._uid === uid);
+    if (idx < 0) return writeLog('[도망] 아이템을 찾을 수 없습니다.');
+    const it = player.items[idx];
+    if (!getEquipSlotKind(it)) return writeLog('[도망] 장비만 희생할 수 있습니다.');
+    const itemName = it.name;
+    removeOwnedItemEffects(it);
+    player.items.splice(idx, 1);
+    if (player.metaSlotId && typeof fullResyncPlayerCombatStatsFromMetaAndInventory === 'function') {
+        fullResyncPlayerCombatStatsFromMetaAndInventory();
+    }
+    failActiveQuestIfLeavingFloor();
+    const drop = Math.random() < 0.5 ? 2 : 3;
+    const fromFloor = floor;
+    floor = Math.max(1, floor - drop);
+    writeLog(
+        `[패닉] 💨 <b>${escapeHtml(itemName)}</b>을(를) 적에게 집어 던지고 뒤도 돌아보지 않고 미친 듯이 도망쳤습니다… <b style="color:#ff4757;">${fromFloor}층 → ${floor}층</b>으로 굴러떨어졌습니다. (하락 ${drop}층)`
+    );
+    if (player && player.metaSlotId && typeof MetaRPG !== 'undefined') MetaRPG.markRunCheckpoint(player.metaSlotId);
+    beginFloorEncounter();
 };
 
 // ===================== 적 스폰 =====================
 function spawnEnemy() {
     if (pendingShop) { pendingShop=false; return openShop(); }
+    window._encounterPhaseActive = false;
+    hideEncounterPhaseUI();
     defendingTurns=0; dodgingTurns=0; shieldedTurns=0;
     regenTurns=0; regenAmount=0; potionUsedThisTurn=false;
     if (player) { player.mercRegenTurns = 0; player.mercRegenAmount = 0; }
@@ -2430,6 +2564,11 @@ function tryActivateFloorQuest() {
 
 function renderActions() {
     const div = document.getElementById('action-btns');
+    if (!div) return;
+    if (!enemy || window._encounterPhaseActive) {
+        div.innerHTML = '';
+        return;
+    }
     div.innerHTML = '';
     const atkBtn = document.createElement('button');
     atkBtn.id = 'btn-attack';
@@ -2859,12 +2998,12 @@ function winBattleContinueFrom(clearedFloor) {
     }
     if (clearedFloor === 10 && !player.evolved) {
         if (floor > 1 && floor % 3 === 0) pendingShop = true;
-        spawnEnemy();
+        beginFloorEncounter();
         setTimeout(() => checkEvolution(), 300);
         return;
     }
     if (floor > 1 && floor % 3 === 0) pendingShop = true;
-    spawnEnemy();
+    beginFloorEncounter();
 }
 
 function showMercEvolutionChoice(onDone) {
@@ -3027,6 +3166,7 @@ function serializeRunState() {
         shopVisitCount,
         lastEnemyJob,
         pendingShop: inShop ? false : pendingShop,
+        encounterPhase: !inShop && !enemySnap && !!window._encounterPhaseActive,
         inShop: !!inShop,
         attackGcdUntil,
         defendingTurns,
@@ -3119,7 +3259,8 @@ function loadRunFromMetaSnapshot(d) {
             renderShopItems();
         } else {
             pendingShop = false;
-            spawnEnemy();
+            if (d.encounterPhase) beginFloorEncounter();
+            else spawnEnemy();
         }
     } else {
         updateUi();
@@ -3338,7 +3479,7 @@ window.continuePastCentury = () => {
     document.getElementById('battle-area').style.display = 'block';
     enterBattleLayout();
     writeLog(`♾️ ${floor}층부터 진행`);
-    spawnEnemy();
+    beginFloorEncounter();
     updateUi();
 };
 window.returnToHubFromCenturyMilestone = () => {
@@ -3391,7 +3532,7 @@ window.leaveShopTrainHere = function leaveShopTrainHere() {
 window.nextFloor = () => {
     document.getElementById('shop-area').style.display='none';
     document.getElementById('battle-area').style.display='block';
-    spawnEnemy();
+    beginFloorEncounter();
 };
 
 function getUnlockedPoolItems() {
@@ -4312,6 +4453,18 @@ function updateUi() {
                 if (el) el.innerText = [floor, g, pots][i];
             });
             renderInventoryPanel();
+        } else if (window._encounterPhaseActive) {
+            const g = safeNum(gold, 0);
+            const pots = Math.max(0, safeNum(player.potions, 0));
+            ['floor-t-battle', 'gold-t-battle', 'potion-t-battle'].forEach((id, i) => {
+                const el = document.getElementById(id);
+                if (el) el.innerText = [floor, g, pots][i];
+            });
+            ['floor-t', 'gold-t', 'potion-t'].forEach((id, i) => {
+                const el = document.getElementById(id);
+                if (el) el.innerText = [floor, g, pots][i];
+            });
+            renderInventoryPanel();
         }
         return;
     }
@@ -4416,7 +4569,7 @@ function dungeonClear() {
 window.startInfiniteMode=()=>{
     floor=101; document.querySelector('.screen').innerHTML='';
     document.getElementById('battle-area').style.display='block'; enterBattleLayout();
-    writeLog(`♾️ [무한모드] 101층부터 끝없는 도전!`); spawnEnemy(); updateUi();
+    writeLog(`♾️ [무한모드] 101층부터 끝없는 도전!`); beginFloorEncounter(); updateUi();
 };
 
 function gameOver() {
