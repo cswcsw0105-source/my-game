@@ -463,6 +463,31 @@ function triggerScreenShakeHeavy() {
         setTimeout(() => s.classList.remove('shake'), 420);
     }
 }
+function triggerScreenShakeBoss() {
+    const s = document.querySelector('.screen');
+    if (!s) return;
+    s.classList.add('shake');
+    setTimeout(() => s.classList.remove('shake'), 800);
+}
+function triggerBossDim() {
+    const s = document.querySelector('.screen');
+    if (!s) return;
+    s.style.position = 'relative';
+    s.classList.add('boss-dimming');
+    setTimeout(() => s.classList.remove('boss-dimming'), 320);
+}
+function triggerGuardAura() {
+    const c = document.getElementById('player-card');
+    if (!c) return;
+    c.classList.add('guard-aura');
+    setTimeout(() => c.classList.remove('guard-aura'), 320);
+}
+function triggerDodgeMove(side) {
+    const c = document.getElementById(side === 'player' ? 'player-card' : 'enemy-card');
+    if (!c) return;
+    c.classList.add('dodge-move');
+    setTimeout(() => c.classList.remove('dodge-move'), 180);
+}
 function ensureCombatFxLayer() {
     const ba = document.getElementById('battle-area');
     if (!ba) return null;
@@ -598,9 +623,44 @@ function playAssassinStrikeVfx(targetSide) {
         if (slash.parentNode) slash.parentNode.removeChild(slash);
     }, 360);
 }
+function playBossStrikeVfx(targetSide) {
+    const layer = ensureCombatFxLayer();
+    const to = getCardCenter(targetSide);
+    if (!layer || !to) return Promise.resolve();
+    return new Promise((resolve) => {
+        triggerBossDim();
+        setTimeout(() => {
+            const slash = document.createElement('div');
+            slash.className = 'boss-strike';
+            slash.style.left = `${to.x}px`;
+            slash.style.top = `${to.y + 4}px`;
+            layer.appendChild(slash);
+            triggerScreenShakeBoss();
+            setTimeout(() => {
+                if (slash.parentNode) slash.parentNode.removeChild(slash);
+                resolve();
+            }, 360);
+        }, 300);
+    });
+}
+function showMissFloat(targetSide) {
+    const battleArea = document.getElementById('battle-area');
+    const p = getCardCenter(targetSide);
+    if (!battleArea || !p) return;
+    const el = document.createElement('div');
+    el.style.cssText =
+        `position:absolute;left:${p.x - 20}px;top:${p.y - 30}px;font-weight:900;font-size:1.05em;color:#9aa0aa;text-shadow:0 0 8px rgba(0,0,0,0.5);pointer-events:none;z-index:1300;animation:dmgFloat 0.9s ease forwards;`;
+    el.innerText = 'MISS';
+    battleArea.appendChild(el);
+    setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 920);
+}
 function playJobAttackVfx(attackerSide, jobName) {
     const archetype = normalizeCombatArchetype(jobName);
     if (archetype === 'mage') return playMageBoltVfx(attackerSide, attackerSide === 'player' ? 'enemy' : 'player');
+    // 요청사항: 플레이어 헌터/워리어 계열은 근접 돌진 연출 통일
+    if (archetype === 'hunter' && attackerSide === 'player') {
+        return playBerserkerChargeVfx(attackerSide, 'enemy');
+    }
     if (archetype === 'hunter') return playHunterStrikeVfx(attackerSide, attackerSide === 'player' ? 'enemy' : 'player');
     return playBerserkerChargeVfx(attackerSide, attackerSide === 'player' ? 'enemy' : 'player');
 }
@@ -613,7 +673,7 @@ function consumeHunterEvasionMissPenalty() {
     return 50;
 }
 function queueEnemyTurnWithPacing() {
-    const delay = 1000 + Math.floor(Math.random() * 401);
+    const delay = 1000 + Math.floor(Math.random() * 501);
     window._enemyThinkingHint = '타락한 선구자가 당신의 빈틈을 노립니다...';
     writeLog(`[긴장] ${window._enemyThinkingHint}`);
     updateUi();
@@ -3229,7 +3289,7 @@ window.useAction = async (type) => {
                 player.critMult = safeNum(player.critMult, 1.8) + 0.03;
                 writeLog(`[유물] 💚 혈반지 흡수! 회복 ${kh}, 치명 배율 +3%`);
             }
-        } else writeLog(`[빗나감] 공격 실패!`);
+        } else { writeLog(`[빗나감] 공격 실패!`); triggerDodgeMove('enemy'); showMissFloat('enemy'); }
         updateUi(); renderActions();
         if(enemy.curHp<=0) return winBattle();
 
@@ -3324,7 +3384,7 @@ window.usePotion = () => {
 
 let autoRegenCounter = 0;
 function enemyTurn() {
-    setTimeout(() => {
+    setTimeout(async () => {
         if (!enemy || !player) return;
         if (player && player.name === '성직자') {
             player.prayerCountThisTurn = 0;
@@ -3349,13 +3409,15 @@ function enemyTurn() {
         let hitLanded=true, currentEnemyAtk=enemy.atk;
         const enemyHpRate = safeNum(enemy.curHp, 1) / Math.max(1, safeNum(enemy.hp, 1));
         const playerHpRate = safeNum(player.curHp, 1) / Math.max(1, safeNum(getEffectiveMaxHp(), 1));
+        const isHunterEnemy = String(enemy.job || '').includes('헌터');
+        const hunterExecutionMode = isHunterEnemy && playerHpRate <= 0.4;
         let enemyIntent = 'attack';
         if (!enemy.isBoss) {
             // 풀피 방어 금지
             if (enemyHpRate < 0.9 && Math.random() < 0.18) enemyIntent = 'guard';
             if (String(enemy.job || '').includes('마법사') && enemyHpRate <= 0.38 && Math.random() < 0.65) enemyIntent = 'barrier';
-            if (String(enemy.job || '').includes('헌터') && enemyHpRate <= 0.4 && Math.random() < 0.55) enemyIntent = 'evasion';
-            if (String(enemy.job || '').includes('헌터') && playerHpRate <= 0.4) enemyIntent = 'attack';
+            if (isHunterEnemy && enemyHpRate <= 0.4 && Math.random() < 0.55) enemyIntent = 'evasion';
+            if (hunterExecutionMode) enemyIntent = 'attack';
             if (enemyHpRate >= 0.9 && (enemyIntent === 'guard' || enemyIntent === 'barrier')) enemyIntent = 'attack';
         }
         if (String(enemy.job || '').includes('워리어') && enemyHpRate <= 0.45) {
@@ -3392,15 +3454,23 @@ function enemyTurn() {
             dodgingTurns--;
             if(Math.random()*100<75){
                 writeLog(`[회피 성공] 💨 적의 공격을 피했습니다!`); hitLanded=false;
+                triggerDodgeMove('player'); showMissFloat('player');
                 if(player.relics&&player.relics.includes('dodge_counter')){const cd=Math.max(1,Math.floor(player.atk*0.9)-Math.floor(enemy.def*0.6));enemy.curHp-=cd;writeLog(`[유물] 🗡️ 그림자 반격! ${cd} 피해!`);showDmgFloat(cd,false,false);if(enemy.curHp<=0){setTimeout(()=>winBattle(),100);return;}}
             } else writeLog(`[회피 실패] 피하지 못했습니다!`);
         }
         if(hitLanded){
-            if(Math.random()*100<80){
-                playJobAttackVfx('enemy', enemy.job || '');
+            const enemyHitRate = hunterExecutionMode ? 100 : 80;
+            if(Math.random()*100<enemyHitRate){
+                if (enemy.isBoss) await playBossStrikeVfx('player');
+                else await playJobAttackVfx('enemy', enemy.job || '');
                 let dmg=Math.max(1,currentEnemyAtk-getTotalPlayerDefenseForHit());
-                if(shieldedTurns>0){dmg=Math.floor(dmg*0.5);shieldedTurns--;writeLog(`[방어막] ✨ 피해 50% 감소! (${dmg} 입음)`);if(player.relics&&player.relics.includes('barrier_reflect')){const rd=Math.floor(dmg*0.45);enemy.curHp-=rd;const heal=Math.floor(getEffectiveMaxHp()*0.05);player.curHp=Math.min(getEffectiveMaxHp(),player.curHp+heal);writeLog(`[유물] 🔮 마력 방벽: 반사 ${rd}, 회복 ${heal}`);if(enemy.curHp<=0){setTimeout(()=>winBattle(),100);}}}
-                else if(defendingTurns>0){dmg=Math.floor(dmg*0.4);defendingTurns--;writeLog(`[철벽 방어] 🛡️ 피해 60% 감소! (${dmg} 입음)`);}
+                if (hunterExecutionMode) {
+                    dmg = Math.max(1, Math.floor(dmg * 1.45));
+                    writeLog('[헌터 AI] ☠️ 처형인 본능 발동! 약해진 상대를 향해 확정 치명타 급 습격!');
+                    triggerCritEffect();
+                }
+                if(shieldedTurns>0){dmg=Math.floor(dmg*0.5);shieldedTurns--;writeLog(`[방어막] ✨ 피해 50% 감소! (${dmg} 입음)`); triggerGuardAura(); if(player.relics&&player.relics.includes('barrier_reflect')){const rd=Math.floor(dmg*0.45);enemy.curHp-=rd;const heal=Math.floor(getEffectiveMaxHp()*0.05);player.curHp=Math.min(getEffectiveMaxHp(),player.curHp+heal);writeLog(`[유물] 🔮 마력 방벽: 반사 ${rd}, 회복 ${heal}`);if(enemy.curHp<=0){setTimeout(()=>winBattle(),100);}}}
+                else if(defendingTurns>0){dmg=Math.floor(dmg*0.4);defendingTurns--;writeLog(`[철벽 방어] 🛡️ 피해 60% 감소! (${dmg} 입음)`); triggerGuardAura();}
                 else writeLog(`[피격] 적의 공격! ${dmg} 데미지.`);
                 if (player.summon && player.summon.id === 'golem') {
                     // 너프: 골렘 피해 감소 완화
@@ -3447,7 +3517,7 @@ function enemyTurn() {
                     }
                 }
                 }
-            } else writeLog(`[럭키] 적의 공격이 빗나갔습니다!`);
+            } else { writeLog(`[럭키] 적의 공격이 빗나갔습니다!`); triggerDodgeMove('player'); showMissFloat('player'); }
         }
         if (isMercenaryCaptainJob() && player.mercCooldownTurns > 0) {
             if (player._mercCooldownSkipOnce) {

@@ -745,6 +745,32 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     transform: translate(-50%, -50%) rotate(-8deg) scaleX(0.2);
     animation: assassinStrike 0.34s ease-out forwards;
 }
+.boss-strike {
+    position: absolute;
+    width: 240px;
+    height: 28px;
+    border-radius: 80% 20% 80% 20%;
+    background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255, 40, 40, 0.95), rgba(255,255,255,0));
+    box-shadow: 0 0 28px rgba(255, 30, 30, 0.9);
+    transform: translate(-50%, -50%) rotate(-16deg) scaleX(0.2);
+    animation: bossStrike 0.34s ease-out forwards;
+}
+.screen.boss-dimming::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.26);
+    pointer-events: none;
+    z-index: 1190;
+    animation: bossDimPulse 0.3s ease-out forwards;
+}
+.guard-aura {
+    box-shadow: 0 0 0 2px rgba(90, 170, 255, 0.85), 0 0 20px rgba(90, 170, 255, 0.65);
+    animation: guardAuraPulse 0.3s ease-out;
+}
+.dodge-move {
+    animation: dodgeMoveX 0.16s ease-out;
+}
 @keyframes mageExplosion {
     from { opacity: 0.95; transform: translate(-50%, -50%) scale(0.25); }
     to { opacity: 0; transform: translate(-50%, -50%) scale(1.08); }
@@ -764,6 +790,23 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 @keyframes assassinStrike {
     from { opacity: 0.98; transform: translate(-50%, -50%) rotate(-10deg) scaleX(0.2); }
     to { opacity: 0; transform: translate(-50%, -50%) rotate(-2deg) scaleX(1.28); }
+}
+@keyframes bossStrike {
+    from { opacity: 0.98; transform: translate(-50%, -50%) rotate(-18deg) scaleX(0.2); }
+    to { opacity: 0; transform: translate(-50%, -50%) rotate(-5deg) scaleX(1.35); }
+}
+@keyframes bossDimPulse {
+    from { opacity: 0.95; }
+    to { opacity: 0; }
+}
+@keyframes guardAuraPulse {
+    from { box-shadow: 0 0 0 2px rgba(90,170,255,0.9), 0 0 28px rgba(90,170,255,0.85); }
+    to { box-shadow: 0 0 0 1px rgba(90,170,255,0), 0 0 4px rgba(90,170,255,0); }
+}
+@keyframes dodgeMoveX {
+    0% { transform: translateX(0); }
+    45% { transform: translateX(10px); }
+    100% { transform: translateX(0); }
 }
 
 @keyframes slideIn {
