@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <title>던전 · 시즌 1</title>
+    <link rel="stylesheet" href="style.css?v=s1r12">
+    <style>
+        .auth-box { background: #2a2a2a; padding: 20px; border-radius: 8px; border: 1px solid #444; max-width: 300px; margin: 0 auto; }
+        .auth-box input { width: 90%; padding: 10px; margin: 10px 0; border-radius: 4px; border: 1px solid #555; background: #111; color: white; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 style="color: #fff; letter-spacing: 1px;">⚔️ 던전 · 로그라이트</h1>
+        <p style="color:#9b59b6;font-size:0.9em;margin:2px 0 8px;letter-spacing:0.5px;">시즌 1</p>
+        
+        <div class="game-layout" id="main-layout">
+            <!-- 던전·상점 중 왼쪽: 인벤 상시 (전투 로그는 오른쪽) -->
+            <div class="sidebar" id="sidebar-inventory" style="display:none;">
+                <h4 style="color:#fff;margin:0 0 8px 0;">🎒 인벤토리</h4>
+                <div id="inv-list" class="inv-list-scroll" style="font-size:0.82em; margin-top:4px; flex:1; overflow-y:auto; width:100%; text-align:left;">장비가 없습니다.</div>
+            </div>
+            <div class="screen" id="main-screen">
+                <div id="login-area" style="display:block;">
+                    <h2 style="color: #f1c40f;">던전 입장 (로그인)</h2>
+                    <p style="font-size: 0.85em; color: #888;">이메일 형식(ex: a@a.com)과 비번 6자리 필수!</p>
+                    <div class="auth-box">
+                        <input type="email" id="email-input" placeholder="이메일 입력 (ex: test@test.com)">
+                        <input type="password" id="pw-input" placeholder="비밀번호 (6자리 이상)">
+                        <p id="login-error" style="color: #ff4757; font-size: 0.85em; display: none; margin-bottom: 10px; font-weight: bold;"></p>
+                        <button onclick="handleLogin()" style="background:#2ed573; width:100%;">로그인</button>
+                        <button onclick="handleSignup()" style="background:#1e90ff; width:100%;">신규 가입</button>
+                    </div>
+                </div>
+
+                <div id="start-area" style="display:none;"></div>
+
+                <div id="battle-area" style="display:none;">
+                    <div id="encounter-phase" style="display:none;"></div>
+                    <div id="battle-hud">
+                    <div style="display:flex; justify-content:space-around;">
+                        <div id="player-card" style="width:45%">
+                            <h4 id="p-name" style="color: #fff;">나</h4>
+                            <div class="hp-bar-outer"><div id="p-hp" class="hp-bar-inner"></div></div>
+                            <span id="p-hp-t" style="font-weight:bold; color:#fff;"></span>
+                            <div id="p-summon-line" style="font-size:0.76em;color:#a55eea;margin-top:4px;min-height:1.1em;"></div>
+                            <div id="p-ult-stack-line" style="font-size:0.76em;color:#9b59b6;margin-top:2px;min-height:1.1em;"></div>
+                            <div id="p-status" class="status-badge"></div>
+                            <div class="stat-tag" style="cursor:default; font-size:0.82em;">
+                                ATK: <span id="p-atk-val" style="color:#f1c40f;">0</span> /
+                                DEF: <span id="p-def-val" style="color:#1e90ff;">0</span> /
+                                CRIT: <span id="p-crit-val" style="color:#f39c12;">5%</span>
+                                <span style="color:#f39c12; font-size:0.9em;">(배율: <span id="p-crit-mult-val" style="font-weight:700;">1.80x</span>)</span> /
+                                흡혈: <span id="p-lifesteal-val" style="color:#e74c3c;">0%</span>
+                            </div>
+                            <div id="p-lifesteal-note" style="font-size:0.72em;color:#aaa;text-align:left;margin-top:2px;min-height:1.1em;line-height:1.3;"></div>
+                        </div>
+                        <div id="enemy-card" style="width:45%">
+                            <h4 id="e-name" style="color: #fff;">적</h4>
+                            <div class="hp-bar-outer"><div id="e-hp" class="hp-bar-inner" style="background:#ff4757;"></div></div>
+                            <span id="e-hp-t" style="font-weight:bold; color:#fff;"></span>
+                            <div class="status-badge"></div>
+                            <div class="stat-tag" style="cursor:default;">ATK: <span id="e-atk-val" style="color:#f1c40f;">0</span> / DEF: <span id="e-def-val" style="color:#1e90ff;">0</span></div>
+                        </div>
+                    </div>
+                    <div id="action-btns" style="margin-top:20px;"></div>
+                    </div><!-- /battle-hud -->
+                </div>
+
+                <div id="shop-area" style="display:none;">
+                    <h2 style="color: #f1c40f;">🛒 신비한 상점</h2>
+                    <p>현재 체력: <b id="shop-hp-t" style="color:#2ed573;">0/0</b> | 골드: <b id="shop-gold-t" style="color:#f1c40f;">0</b>G</p>
+                    <div id="shop-list" style="margin-top: 20px;"></div>
+                    <div id="shop-leave-actions" style="margin-top: 15px;"></div>
+                </div>
+            </div>
+
+            <!-- 사이드바: 전투 외 화면용 -->
+            <div class="sidebar" id="sidebar-normal">
+                <h4 style="color: #fff;">👤 접속 정보</h4>
+                <p id="user-info" style="color:#2ed573; font-weight:bold; margin-bottom:5px;">로그인 필요</p>
+                <div id="user-rank-info" style="margin:0 0 8px 0;"></div>
+                <button onclick="handleLogout()" style="background:#ff4757; padding:6px 12px; font-size:0.8em; display:none;" id="logout-btn">로그아웃</button>
+                <hr style="border-top:1px solid #333; width: 100%;">
+                <h4 style="color: #fff;">📊 도감</h4>
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                    <button type="button" class="sidebar-action-btn sidebar-btn-collection" onclick="toggleEvolutionMap(true)">🧭 전직도</button>
+                    <button type="button" class="sidebar-action-btn sidebar-btn-collection" onclick="toggleCollection(true)">📖 장비 도감</button>
+                    <button type="button" class="sidebar-action-btn sidebar-btn-rank" onclick="toggleRank(true)">🏆 명예의 전당 보기</button>
+                    <button type="button" class="sidebar-action-btn sidebar-btn-patch" onclick="togglePatchNotes(true)">📜 패치 노트 보기</button>
+                </div>
+            </div>
+
+           <!-- 전투 로그: 전투 중에만 오른쪽에 표시 -->
+            <div class="sidebar" id="sidebar-battle" style="display:none;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <h4 style="color:#fff; margin:0;">📋 전투 로그</h4>
+                    <div style="font-size:0.8em; color:#888;">
+                        층: <b id="floor-t-battle" style="color:#fff;">1</b>F | 
+                        골드: <b id="gold-t-battle" style="color:#f1c40f;">0</b>G |
+                        포션: <b id="potion-t-battle" style="color:#2ed573;">0</b>
+                    </div>
+                </div>
+                <button type="button" class="sidebar-action-btn" onclick="saveAndExitToMain()" style="margin-bottom:8px;background:#1e90ff;color:#fff;border:1px solid #3498db;">💾 저장 후 메인</button>
+                <button type="button" class="sidebar-action-btn" onclick="exitToMainWithoutSave()" style="margin-bottom:8px;background:#c0392b;color:#fff;border:1px solid #922b21;">🚪 저장 없이 메인</button>
+                <div id="log-battle" class="log-battle-scroll" style="font-size:0.85em; overflow-y:auto;"></div>
+            </div>
+
+        </div> <!-- game-layout 닫기 -->
+
+        <!-- 전투 외 로그 (하단) -->
+        <div id="log" style="display:block;">온라인 서버 연결 대기 중...</div>
+    </div> <!-- container 닫기 -->
+
+    <!-- 장비 도감 모달 -->
+    <div id="collection-modal" class="modal-overlay">
+        <div class="modal-content">
+            <button class="close-btn" onclick="toggleCollection(false)">✖</button>
+            <h2>📖 장비 도감</h2>
+            <div id="collection-list" style="font-size:0.9em; margin-top:15px;"></div>
+        </div>
+    </div>
+
+    <!-- 전직도 모달 -->
+    <div id="evolution-modal" class="modal-overlay">
+        <div class="modal-content">
+            <button class="close-btn" onclick="toggleEvolutionMap(false)">✖</button>
+            <h2>🧭 전직도</h2>
+            <div id="evolution-list" style="font-size:0.9em; margin-top:15px;"></div>
+        </div>
+    </div>
+
+    <!-- 명예의 전당 모달 -->
+    <div id="rank-modal" class="modal-overlay">
+        <div class="modal-content">
+            <button class="close-btn" onclick="toggleRank(false)">✖</button>
+            <h2>🏆 글로벌 명예의 전당</h2>
+            <div id="rank-list" style="font-size:0.9em; color:#888; margin-top:15px;">데이터 불러오는 중...</div>
+        </div>
+    </div>
+
+    <!-- 패치 노트 모달 -->
+    <div id="patch-modal" class="modal-overlay">
+        <div class="modal-content">
+            <button class="close-btn" onclick="togglePatchNotes(false)">✖</button>
+            <h2>📜 패치 노트</h2>
+            <p style="color:#888;font-size:0.82em;margin:0 0 10px;line-height:1.55;">최신 패치가 위에 있고, 아래로 갈수록 오래된 패치입니다.</p>
+            <table class="patch-table">
+                <thead><tr><th>버전</th><th>항목</th><th>상세 내용</th></tr></thead>
+                <tbody>
+                    <tr><td class="v-tag">시즌 1</td><td>탐험 인카운터·패닉 런·제단</td><td>
+    <b>층 진입 탐험 분기:</b> 전투 즉시 진입 대신 인카운터 페이즈 추가. 확률 분기: <b>몬스터 60%</b> · <b>보물/함정 10%</b> · <b>휴식 8%</b> · <b>수상한 제단 14%</b> (잔여 확률은 몬스터로 보정).<br>
+    <b>몬스터 조우 선택지 확장:</b> <b>전투 돌입</b> / <b>장비 던지고 도망</b> / <b>기습하기</b>. 기습은 <b>성공 50%</b> 시 적 현재 체력 <b>20% 감소</b> 상태로 시작, 실패 시 플레이어 체력 <b>10~15%</b> 손실 후 전투 돌입.<br>
+    <b>패닉 런:</b> 인벤 장비 1개 희생 후 도주 가능. 성공 시 전투 회피 + 현재 층에서 <b>2~3층 하락</b>(최소 1층 보장).<br>
+    <b>보물/함정 방:</b> 「상자를 연다 / 무시하고 지나간다」 선택. 개봉 시 골드·포션 획득 또는 함정 피해가 랜덤 발생.<br>
+    <b>수상한 제단:</b> 아이템 대신 <b>패시브 각인(스탯 증감)</b> 부여. 선택지 카드 회전 연출 추가.<br>
+    <b>희귀 선택지 「황금 쿠폰」:</b> 제단에서 낮은 확률 등장. <b>모든 스탯 10% 희생</b> 대가로 다음 상점 <b>첫 구매 0G</b> 1회 제공.<br>
+    <b>영구 각인 기록 UI:</b> 사이드 패널에 <b>영구 각인 기록</b> 추가. 층/거래 내용이 실시간 누적 표시되며 저장/불러오기 연동.
+</td></tr>
+                    <tr><td class="v-tag">시즌 1</td><td>장비 스탯·컨셉</td><td>
+    • <b>등급별 총 예산제 유지:</b> 희귀도 예산으로 스탯을 나누되, 아이템 <b>컨셉</b>(극딜·암살·흡혈·탱커·하이브리드)과 이름으로 변별력 강화.<br>
+    • <b>키워드 테마:</b> <b>파멸·피·저주</b>, <b>신·축복·불사·용왕</b>, <b>번개·별·시간</b> 등에 따라 가중 배분(데이터 <code>keywordTheme</code>로 재정의 가능).<br>
+    • <b>에픽·전설:</b> 스탯 라인 <b>2~4개</b> 필수(단일 스탯 방지), 최종 수치에 <b>±15%</b> 무작위 변동.<br>
+    • <b>저주·파멸 계열:</b> 방어 <b>음수</b>·명중 패널티 등 트레이드오프 가능(설명·가격에 반영).
+</td></tr>
+                    <tr><td class="v-tag">시즌 1</td><td>UI·상점·시너지·난이도·명중·도감</td><td>
+    • <b>상점 장비 카드:</b> 장비에 <b>체력·공격·방어·치명·치명 배율·흡혈</b> 등을 <b>「장비 수치」</b> 블록으로 표시(유물·포션·용병 특수 항목 제외).<br>
+    • <b>전투 UI:</b> <b>체감 명중</b> 표시 제거. 실제 명중은 <b>기본 90%</b> + 직업·시너지·버프(최대 95%). 과거 전투 패널의 체감 표기는 이후 제거됨.<br>
+    • <b>명중·장비:</b> 실제 판정 기본 명중률 <b>90%</b> 통일. 장비의 명중 수치 옵션은 삭제하고 반지 등은 공격·치명 등으로 재배분. 희귀 2개 시너지의 명중 보상은 <b>방어</b>로 조정.<br>
+    • <b>장착 시너지(체력):</b> 시너지로 오른 <b>추가 최대 체력</b>이 회복·흡혈·포션·이벤트·승리 회복 상한에 반영. 상점·전투 HP 표시 동일.<br>
+    • <b>시너지 갱신:</b> 매 <b>행동</b> 시 시너지 보너스 재계산.<br>
+    • <b>난이도(적):</b> <b>보스</b> — 체력 ×약 <b>1.48</b>, 공격 ×약 <b>1.52</b>, 방어 ×약 <b>1.12</b>. <b>일반</b> — 체력 ×약 <b>1.46</b>, 공격 ×약 <b>1.5</b>, 방어 ×약 <b>1.1</b>. 체력 비율 판정은 <code>maxHp</code> 기준 유지.<br>
+    • <b>전직도·도감·랭킹:</b> 도감에 <b>전직도</b> 메뉴, 장비 <b>장착 칸</b> 표기, 시너지 툴팁, 아이템 밸런스·유물 개편, 명예의 전당 실시간화 등.<br>
+    • <b>클라이언트 빌드:</b> <code>S1</code> (콘솔 로그로 캐시 확인).
+</td></tr>
+                    <tr><td class="v-tag">시즌 1</td><td>성직자·밸런스·저장</td><td>
+    • <b>성직자 추가:</b> 마법사 3차 전직 추가, 신성력/기도 기반 전투 루프 도입, 전용 장비 대량 추가.<br>
+    • <b>표기 정리:</b> 신성력 정수 표기(0.1~0.4 내림, 0.5~0.9 올림).<br>
+    • <b>저장 파일:</b> 최대 3개 분리 저장, 허브에서 파일 전환/정리 가능.<br>
+    • <b>치명/환생:</b> 기본 치명 1%, 상한 65%, 환생 보너스 +10% 누적(공/방/치명배율).<br>
+    • <b>도감:</b> 일반 모드 마지막 탭을 성직자 탭으로 전환.
+</td></tr>
+                    <tr><td class="v-tag">시즌 1</td><td>허브·사망·환생 안정화</td><td>
+    • <b>사망 처리:</b> 빈 화면/복구 꼬임 수정, 사망 후 허브 복귀 흐름 고정.<br>
+    • <b>저장 삭제:</b> 삭제/취소 이중 확인 추가, 확정 시 런 저장 + 메타 Lv/EXP 초기화.<br>
+    • <b>환생 조건:</b> 500층 이상 + 비용 조건으로 조정, 최대 3회 유지.<br>
+    • <b>초기화 안정화:</b> 스냅샷·체크포인트·메타/영구강화 초기화 누락 버그 수정.<br>
+    • <b>허브 UI:</b> 슬롯 정보(직업/최고층) 강화, 불필요 문구 정리.
+</td></tr>
+                    <tr><td class="v-tag">시즌 1</td><td>상점·아이템 밸런스/표기</td><td>
+    <b>상점 구성:</b> 포션을 <b>전용 구매 칸</b>으로 분리, 기존 포션 칸은 장비로 대체해 리롤 시 <b>아이템 4개</b> 노출.<br>
+    <b>고등급 확률 강화:</b> 상점에서 골드로 전설/고급/희귀 확률을 단계적으로 올리는 기능 추가.<br>
+    <b>희귀도 보정:</b> 저등급이 고등급보다 비싸거나 강한 역전 케이스를 줄이도록 희귀도 기반 스탯/가격 보정 적용.<br>
+    <b>치명 밸런스:</b> 치명 확률 초과분 전환을 <b>1%당 치명 배율 +0.5%</b>로 조정.<br>
+    <b>표기 버그 수정:</b> 아이템명의 불필요 태그(예: <b>· 마50</b>) 제거, 설명의 「등급 보정 적용」·「직업 계열」 문구 제거, 소수점 표기 정리(올림 표기).
+</td></tr>
+                    <tr><td class="v-tag">시즌 1</td><td>테크·저장·장비</td><td>
+    캐릭터 생성 시 <b>A/B 메타 고정 제거</b> — 베이스캠프에서 <b>직업 내 테크 노드 자유 조합</b>. 사망 시 <b>저장 런이 있으면 자동으로 마지막 저장으로 복구</b>. 허브에 <b>저장 삭제</b> 버튼. 장비 스탯 <b>+20% 향상</b>·가격 유지·너프 시 <b>원본 대비 최소 10%</b> 보장. 직업 전용 추가 장비 <b>이름·중복 방지</b> 정리(시즌 문구 제거).
+</td></tr>
+                    <tr><td class="v-tag">시즌 1</td><td>시즌1·환생·사망</td><td>
+    최초 접속 시 <b>전체 진행 초기화</b>. 환생 시 <b>런 스냅샷·메타 Lv 초기화</b> + <b>○세 / 인생 ○회차</b>. 사망 시 <b>마지막 저장 런</b> 이어하기. 영구 강화 치명 <b>1%/단계</b>·배율 <b>+0.10/단계</b>.
+</td></tr>
+                    <tr><td class="v-tag">시즌 1</td><td>저장·베이스캠프</td><td>
+    퀵세이브 제거 → <b>저장 후 메인</b> / <b>저장 없이 메인</b>. 미저장 퇴장 시 메타 레벨·런 진행 <b>체크포인트로 복구</b>. 베이스캠프는 <b>30층+ 상점</b>에서만 입장 · 테크·영구강화는 <b>런 골드</b>로 구매. 영구강화 UI <b>스크롤 위치 유지</b>. 장비 <b>가격 롤백</b>, 스탯만 <b>~30% 너프</b>.
+</td></tr>
+                    <tr><td class="v-tag">시즌 1</td><td>밸런스·환생</td><td>
+    퀵세이브: <b>허브 퇴장 시 삭제</b>(보존 골드 중복 방지) · 상점 저장 시 <b>상점 유지</b> · HP0 적 재현 방지. 베이스캠프 영구강화 <b>슬롯 전용·무한 단계</b> + <b>치명/배율(소량)</b>. 장비·해금 <b>전역 너프</b> + <b>신규 50종</b>. <b>직업당 1캐</b> · <b>환생</b> 최대 3회(100층마다 물음·허브 유료). 패치노트 하단 <b>전직 도표</b>.
+</td></tr>
+                    <tr><td class="v-tag">시즌 1</td><td>진행·상점</td><td>
+    승리 후 <b>확인 없이</b> 다음 층 자동 진행. 전투 사이드바에 <b>저장 / 허브 / 베이스캠프(해당 층)</b>. <b>21층+</b> 「이 층 훈련」은 <b>상점 퇴장 시</b>만 선택 — 등반 재개는 상점에서 「등반 계속」.
+</td></tr>
+                    <tr><td class="v-tag">시즌 1</td><td>베이스캠프·저장</td><td>
+    베이스캠프 테크 효과 <b>한글 표시</b>. <b>21층부터만</b> 승리 시 「이 층 머물기」. 영구 강화(체력/공격/방어)를 <b>베이스캠프</b>로 이동, <b>명중 영구 강화 제거 + 골드 환불</b>. <b>퀵세이브·JSON 백업</b>.
+</td></tr>
+                    <tr><td class="v-tag">시즌 1</td><td>로그라이트·메가</td><td>
+    <b>무한 층:</b> 100층을 엔딩이 아닌 <b>이정표</b>로 처리. 승리 후 <b>다음 층 / 체류 파밍 / 베이스캠프(테크) / 허브</b> 선택.<br>
+    <b>영구 강화 상점 삭제:</b> 대신 <b>베이스캠프 층</b>에서만 보존 골드로 <b>테크 트리</b> 구매 · 캐릭터 생성 시 <b>A/B 라인 영구 고정</b>.<br>
+    <b>다중 캐릭터 슬롯</b> + <b>EXP/레벨</b>(메타 슬롯 저장) + <b>아이템 시너지(tags)</b> + <b>층별 리스크 퀘스트</b>(보상/패널티).<br>
+    <code>rpg_v7.js</code> — 메타 로직 분리.
+</td></tr>
+                    <tr><td class="v-tag">v6.6.4</td><td>용병 상점·가챠·부활</td><td>
+    <b>가챠(💰 용병 지원):</b> 동일 <b>이름 중복 없음</b>, <b>등급 가중</b> 랜덤(층·모드별). 단장 전용 풀 제거 후 <b>동료·공용 장비 풀</b> 기준.<br>
+    <b>상점(단장):</b> 포션 + <b>직접 장비 구매(직거래)</b> 비쌈·사기 30% + <b>용병 자금 지원</b> 저렴·사기 50%·고등급 확률↑.<br>
+    <b>부활:</b> 용병 전멸 후 <b>3적 턴</b> 쿨(사망 턴에는 감소 없음). 쿨 종료 시 <b>적 턴 직후 최대 HP의 90%</b>로 복귀. 다음 층 스폰도 동일. <b>🪙 긴급 재가동</b>은 만전 HP.<br>
+    <b>도감 「용병」:</b> 단장 전용 대신 <b>동료 장비 풀</b> 표기.
+</td></tr>
+                    <tr><td class="v-tag">v6.6.3</td><td>전열·지휘·가챠</td><td>
+    <b>UI:</b> 전투 패널 <b>전열=용병</b>(HP·화력·명중·치명), <b>후열=단장 지휘</b>(단장 HP·악성가챠 확률·지원 비용). 어그로는 전열 용병 우선 유지.<br>
+    <b>딜:</b> 용병은 <b>층수 기본 ATK + 동료 직업 장비 합산 + 소량 지휘 보정</b>으로 계산(단장 장비만으로 딜이 안 나가던 문제 완화).<br>
+    <b>💰 용병 지원(가챠):</b> 골드로 동료에게 장비를 사게 함. 동료 종류(워/헌/마)에 맞는 <b>장비 풀</b>에서 랜덤. <b>초반 악성 이벤트 50%</b> → 층·적 턴 경과 시 감소.<br>
+    <b>악성:</b> 용병 피해, 장비 분실, 단장 피해, 헛탕 등. <b>호재:</b> 장비 획득 — 초반에는 <b>전설·유물 등급 제외</b>(층 올라가며 상한 완화).<br>
+    <b>인벤:</b> <b>용병 장비</b> 별도 섹션. 전멸 시 장비는 <b>보관</b>되어 재소환 시 유지.
+</td></tr>
+                    <tr><td class="v-tag">v6.6.2</td><td>용병단장 리뉴얼</td><td>
+    <b>고용 아이템 폐지:</b> 상점·인벤 <b>용병 계약</b> 제거. 시작 시 <b>워리어 / 헌터 / 마법사</b> 중 <b>동료 1명</b> 선택.<br>
+    <b>딜 공식:</b> 등급 아이템이 아닌 <b>동료 종류·층수·전직</b>으로 HP/피해가 단조 증가(상위가 하위보다 약해지는 현상 방지).<br>
+    <b>20~30층 1회 전직:</b> 본가 전직보다 약한 <b>용병 전직</b> 선택(선택 중 적 턴 없음). 30층 클리어 시에도 창이 뜨도록 보정.<br>
+    <b>단장:</b> 직접 공격은 <b>극최약</b>. 포션은 기본적으로 <b>용병 HP 회복</b>(회복 목걸이는 용병 지속 회복). <b>포션 사용 시 적 턴 없음.</b><br>
+    <b>상점:</b> 용병단장은 <b>단장 전용 장비 풀만</b>(고용·유물 롤 삭제). 도감 「용병」탭도 전용 장비만.
+</td></tr>
+                    <tr><td class="v-tag">v6.6.1</td><td>용병 밸·도감</td><td>
+    <i>(v6.6.2에서 고용 아이템·상점 유물 롤 등은 폐지/대체됨.)</i> 당시: 필드 용병 전역 배율·HP 보정, 단장 전용 장비 풀 도입, 도감 용병 탭 정비.
+</td></tr>
+                    <tr><td class="v-tag">v6.6.0</td><td>신직업·도감</td><td>
+    <b>신 직업 「용병단장」:</b> 전용 메커 도입. <i>(이후 v6.6.2에서 고용 아이템 시작 지급 → 동료 선택으로 변경.)</i><br>
+    <b>필드 용병:</b> 동시 1명. 상성·어그로·쿨·골드 재가동 등 핵심 규칙.<br>
+    <b>용병 필살기:</b> 일반 공격 시 확률 강화 연출.<br>
+    <b>용병 랜덤 이벤트:</b> 층 구간별 부정/긍정 확률. <i>(무한 성장 루크 등 구 시스템은 v6.6.2에서 제거.)</i><br>
+    <b>장비 도감:</b> 용병단장은 <b>용병·세 계열</b> 탭.<br>
+    <b>기타:</b> NaN 방지, 글로벌 랭킹 용병단장.
+</td></tr>
+                    <tr><td class="v-tag">v6.5.1</td><td>핫픽스</td><td>
+    <b>치명타·흡혈 상한:</b> 치명타 확률 <b>65%</b> 초과분은 <b>치명 배율</b>로 전환(1%당 배율 +0.01). 흡혈 <b>85%</b> 초과분은 <b>공격력</b>으로 전환(1%당 ATK +1).<br>
+    <b>명중 기본 하향:</b> 기본 명중 표기 <b>75%</b> + 보너스 (최대 95% 캡).<br>
+    <b>직업·궁극기·소환 너프:</b> 베이스·전직·궁극기 배율·버서커 광폭화·소환 효과 전반 추가 하향.<br>
+    <b>영구 강화 상점:</b> 포션 영구 강화 <b>삭제</b>. 항목별 <b>강화</b> 버튼·누적 보너스(체력/공격/방어/명중) 표기.<br>
+    <b>전투:</b> 포션 사용 시 턴 소모(적 턴 진행). 흡혈 표시는 상한만 표시, 초과분은 별도 문구로 안내.<br>
+    <b>UI:</b> 사이드바 인벤/도감/랭킹/패치 버튼 정렬 통일.<br>
+    <b>아이템:</b> 직업별 전용·<b>고용 20종</b>. 신규 런 포션 <b>3개</b>.
+</td></tr>
+                    <tr><td class="v-tag">v6.5</td><td>시스템 &amp; 직업</td><td>
+    <b>공격 GCD(0.5초):</b> 공격 버튼 연타로 동시에 여러 번 실행되던 문제를 막기 위해, 공격 후 0.5초간 공격 버튼 비활성화(타격감 연출과 동일 타이밍).<br>
+    <b>버서커 패시브:</b> 체력 50% 이하 시 광폭화 — 공격력 1.5배, 가한 최종 피해의 30% 확정 회복.<br>
+    <b>암살자 패시브:</b> 적 턴 종료 시 15% 확률로 약점 노출 표식. 표식이 있는 적을 공격 시 방어 0으로 계산, 강제 치명타 및 치명 배율 2배(1회 소모).<br>
+    <b>소환사 15층 계약의 제단:</b> 1회 한정, 불의 정령 / 바위 골렘 / 어둠의 악마 중 계약. 전투 UI에 소환수 표시, 효과는 이후 전투에 지속.<br>
+    <b>궁극기 스택 UI:</b> 체력바 근처에 궁극기 스택이 실시간 표시되도록 수정.
+</td></tr>
+                    <tr><td class="v-tag">v6.4</td><td>밸런스</td><td>
+    <b>직업 밸런스 조정:</b> 마법사 전직(위저드/소환사) 중심의 과도한 딜 쏠림을 완화하고, 전직 전반의 체감 격차를 줄이도록 수치 조정.<br>
+    <b>치명타 상한 적용:</b> 치명타 확률이 100%에 고정되어 원킬이 과도하게 발생하는 현상을 줄이기 위해 치명타 확률 상한을 적용(분노 유물 포함).<br>
+    <b>치명타 배율 표시 추가:</b> 전투 UI에서 치명타 데미지 배율(`critMult`)을 실시간으로 함께 표시.<br>
+    <b>유물 ‘연쇄 마법진’ 너프:</b> 치명타 연계 추가 공격의 추가 피해 계수를 하향하여 특정 조건에서의 폭발 성능을 완화.
+</td></tr>
+                    <tr><td class="v-tag">v6.3</td><td>대규모 시스템</td><td>
+    <b>이벤트 층 추가:</b> 15, 25, 35, 45, 55, 65, 75, 85, 95층에 도달하면 특수 이벤트 발생. 20% 확률 대장간, 15% 확률 스킬 각성, 65% 확률 스탯 변환.<br>
+    <b>스탯 변환 시스템:</b> 공격↔방어 전환, 방어→치명타 전환, 체력→공격 전환, 랜덤 강화 중 선택.<br>
+    <b>궁극기 리워크:</b> 전직 시 자동 획득. 20층부터 사용 가능. 공격 스택을 쌓아야 발동 (직업별 3~4스택). 명중률 50% 고정. 성공 시 공격력의 4~5.5배 초고데미지.<br>
+    <b>대장간 시스템:</b> 이벤트 층에서 20% 확률로 등장. 보유 아이템을 재료로 더 강한 장비 합성. 성공률 40~85%로 실패 시 재료 소멸.<br>
+    <b>스킬 각성:</b> 이벤트 층에서 15% 확률로 등장 (25층 이후). 피의 분노/강철 심장/폭발 일격/철벽/사냥꾼의 눈 중 선택.<br>
+    <b>아이템 대폭 추가:</b> 직업별 전용 아이템 및 공용 아이템 다수 추가. 총 아이템 50여종으로 확장. 후반부에도 살 아이템 없는 문제 해소.<br>
+    <b>대장간 합성 아이템:</b> 강화 철검/갑주/반지, 영웅의 무기/갑옷, 전설의 파편, 불멸의 심장, 파멸의 각인 등 8종 합성 가능.
+</td></tr>
+    <tr><td class="v-tag">v6.2</td><td>대규모 콘텐츠</td><td>
+        <b>유물 시스템 추가:</b> 플레이 스타일을 바꾸는 특수 능력 유물 8종 추가. 20층 이후 상점에서 등장.<br>
+        <b>워리어 유물:</b> 분노의 심장 (체력 30% 이하 시 치명타 100%), 철벽의 의지 (방어 성공 시 다음 공격 +50%).<br>
+        <b>헌터 유물:</b> 그림자 반격 (회피 성공 시 고정 피해+흡혈), 처형자의 표식 (적 체력 20% 이하 시 공격력 2배).<br>
+        <b>마법사 유물:</b> 연쇄 마법진 (치명타 시 즉시 추가 공격), 마력 방벽 (방어막 성공 시 피해 반사).<br>
+        <b>공용 유물:</b> 뱀파이어의 반지 (킬 시 체력 15% 회복), 도박사의 주사위 (매 전투 랜덤 공격력 변동).<br>
+        <b>랜덤 인카운터 추가:</b> 5층 이후 전투 승리 시 15% 확률로 돌발 이벤트 발생. 6종의 이벤트 (여신상/상인/물약/모험가/제단/샘물).<br>
+        <b>타격감 CSS 효과:</b> 치명타 시 화면 플래시, 피격 시 HP바 흔들림, 보스 강공격 준비 시 화면 경고등, 데미지 숫자 플로팅 효과 추가.<br>
+        <b>상점 등급 확률 시스템:</b> 상점 방문 횟수마다 고급 등급 등장 확률 증가. 현재 확률 실시간 표시.
+    </td></tr>
+    <tr><td class="v-tag">v6.1</td><td>시스템 & 밸런스</td><td>
+        <b>치명타 시스템 추가:</b> 기본 치명타 확률 5%, 배율 180%. 일부 무기에 치명타 확률/배율 스탯 추가.<br>
+        <b>명중률 95% 캡:</b> 아이템으로 명중률을 아무리 올려도 최대 95%로 제한.<br>
+        <b>전투 UI 개편:</b> 전투 중 로그를 오른쪽으로 이동, 사이드바 버튼 숨김. 치명타 확률·흡혈% 실시간 표시.<br>
+        <b>영구 강화 개편:</b> 각 스탯 20단계로 확장. 단계별 점진적 비용 증가. 탭 방식 UI 적용.<br>
+        <b>층별 해금 직업 분리:</b> 5층마다 해금 아이템이 직업별로 따로 저장.<br>
+        <b>장비 도감 추가:</b> 획득한 아이템만 해금. 미획득 아이템은 ??? 표시.<br>
+        <b>해금 알림 팝업:</b> 아이템 해금 시 전투 로그와 별도로 우측 상단 팝업 표시.<br>
+        <b>난이도 상향:</b> 구간별(1~10/11~30/31~60/61~100층) 적 스탯 대폭 상향.<br>
+        <b>무한모드 추가:</b> 100층 클리어 후 101층부터 끝없이 진행 가능.
+    </td></tr>
+    <tr><td class="v-tag">v6.0</td><td>대규모 시스템</td><td>
+        <b>부활 시스템:</b> 게임 오버 시 획득 골드의 10%를 보존. 재도전 시 보존 골드로 영구 스탯 강화 가능.<br>
+        <b>영구 강화 상점:</b> 체력·공격력·방어력·명중률·포션 영구 강화.<br>
+        <b>전직 시스템 변경:</b> 아이템 조건 → 10층 도달 시 전직 선택으로 변경.<br>
+        <b>층별 아이템 해금:</b> 10층마다 공용 아이템, 5층마다 직업 전용 아이템 해금. 최대 100층.<br>
+        <b>난이도 조정:</b> 1~10층 낮은 난이도 및 골드 수급 완화. 11층부터 점차 상승.<br>
+        <b>인벤토리 분리:</b> 팝업 모달로 분리하여 전투 로그 가독성 개선.
+    </td></tr>
+    <tr><td class="v-tag">v5.5</td><td>밸런스</td><td>
+        <b>직업 체력 대폭 상향:</b> 워리어 320 / 헌터 280 / 마법사 200.<br>
+        <b>전직 체력 상향:</b> 나이트 420 / 버서커 340 / 궁수 370 / 암살자 320 / 위저드 260 / 소환사 320.<br>
+        <b>공격력 소폭 상향:</b> 워리어 22 / 헌터 26 / 마법사 52로 조정.
+    </td></tr>
+    <tr><td class="v-tag">v5.4</td><td>밸런스</td><td>
+        <b>적 상향:</b> 일반 몹 및 보스 체력·공격력 상향 조정.<br>
+        <b>골드 너프:</b> 기본 골드 수급량 하향. 역전 보너스 50% → 30%로 감소.
+    </td></tr>
+    <tr><td class="v-tag">v5.3</td><td>대규모 패치</td><td>
+        <b>전직 시스템:</b> 워리어→나이트/버서커, 헌터→궁수/암살자, 마법사→위저드/소환사.<br>
+        <b>방어 리워크:</b> 방패방어 피해 60% 감소, 방어막 피해 50% 감소.<br>
+        <b>포션 패치:</b> 턴당 1회 사용 제한. 회복의 목걸이 착용 시 2턴 지속 회복.
+    </td></tr>
+    <tr><td class="v-tag">v5.0</td><td>서버</td><td>
+        <b>글로벌 랭킹전 도입:</b> Firebase 연동 완료. 이메일 로그인 및 실시간 서버 랭킹 저장.
+    </td></tr>
+    <tr><td class="v-tag">v4.0</td><td>콘텐츠</td><td>
+        <b>명중률 실시간 표시.</b><br>
+        <b>전설 등급 무기 추가:</b> 직업 전용 궁극기 해제.
+    </td></tr>
+    <tr><td class="v-tag">v3.8</td><td>시스템</td><td>
+        <b>상점 리롤 시스템 추가.</b><br>
+        <b>적 명중률 하향:</b> 100% → 85%로 보정.
+    </td></tr>
+    <tr><td class="v-tag">v3.5</td><td>밸런스 & UI</td><td>
+        <b>클래스 상성 부활:</b> 우위 ×1.5 / 열세 ×0.8.<br>
+        <b>다크모드 리마스터.</b>
+    </td></tr>
+    <tr><td class="v-tag">v3.0</td><td>방향성 전환</td><td>
+        <b>로그라이크 RPG로 변경:</b> 전용 장비 및 직업별 패널티 시스템 도입.
+    </td></tr>
+    <tr><td class="v-tag">v2.0</td><td>시스템</td><td>
+        <b>층수 시스템 도입:</b> 3층마다 상점 등장.
+    </td></tr>
+    <tr><td class="v-tag">v1.0</td><td>출시</td><td>
+        <b>프로젝트 카운터 초기 기획.</b> 웹 기반 기본 인터페이스 구현.
+    </td></tr>
+</tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <!-- ?v= 쿼리로 브라우저 캐시 무효화 (수정이 안 보일 때 강력 새로고침도 함께) -->
+    <script src="data.js?v=s1"></script>
+    <script src="rpg_v7.js?v=s1"></script>
+    <script src="js/state.js?v=s1r17"></script>
+    <script src="js/vfx.js?v=s1r17"></script>
+    <script src="js/player.js?v=s1r17"></script>
+    <script src="js/enemy.js?v=s1r17"></script>
+    <script src="js/uiManager.js?v=s1r17"></script>
+    <script src="js/encounter.js?v=s1r17"></script>
+    <script src="js/shop.js?v=s1r17"></script>
+    <script src="js/combatLogic.js?v=s1r17"></script>
+    <script src="js/bootstrapCore.js?v=s1r17"></script>
+    <script src="game.js?v=s1r17"></script>
+</body>
+</html>
