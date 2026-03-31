@@ -69,6 +69,7 @@ if (!localStorage.getItem('perma_migrated_v651')) {
 let floor = 1, gold = 0, player = null, enemy = null;
 let defendingTurns = 0, dodgingTurns = 0, shieldedTurns = 0;
 let regenTurns = 0, regenAmount = 0;
+let isProcessing = false;
 let currentShopItems = [];
 let currentPotionOffer = null;
 let lastEnemyJob = "";
@@ -672,8 +673,23 @@ function consumeHunterEvasionMissPenalty() {
     writeLog('[헌터 AI] 회피 자세! 이번 공격은 빗나가기 쉬워졌습니다. (빗나감 확률 +50%)');
     return 50;
 }
+function setCombatProcessing(flag) {
+    isProcessing = !!flag;
+    updateCombatButtonsLockState();
+}
+function updateCombatButtonsLockState() {
+    const div = document.getElementById('action-btns');
+    if (!div) return;
+    const buttons = div.querySelectorAll('button');
+    buttons.forEach((btn) => {
+        btn.classList.toggle('combat-btn-processing', !!isProcessing);
+        if (isProcessing) btn.setAttribute('aria-disabled', 'true');
+        else btn.removeAttribute('aria-disabled');
+    });
+}
 function queueEnemyTurnWithPacing() {
     const delay = 1000 + Math.floor(Math.random() * 501);
+    setCombatProcessing(true);
     window._enemyThinkingHint = '타락한 선구자가 당신의 빈틈을 노립니다...';
     writeLog(`[긴장] ${window._enemyThinkingHint}`);
     updateUi();
@@ -2670,6 +2686,7 @@ function hideEncounterPhaseUI() {
 }
 
 function beginFloorEncounter() {
+    setCombatProcessing(false);
     if (pendingShop) {
         spawnEnemy();
         return;
@@ -2935,6 +2952,7 @@ function advanceFloorAfterNonCombatEncounter() {
 
 // ===================== 적 스폰 =====================
 function spawnEnemy() {
+    setCombatProcessing(false);
     if (pendingShop) { pendingShop=false; return openShop(); }
     window._encounterPhaseActive = false;
     hideEncounterPhaseUI();
@@ -3123,6 +3141,7 @@ function renderActions() {
         gc.onclick = () => mercenaryFundGacha();
         div.appendChild(gc);
     }
+    updateCombatButtonsLockState();
 }
 
 function applySummonDarkTurnStart() {
@@ -3147,13 +3166,19 @@ function applySummonDarkTurnStart() {
 }
 
 window.useAction = async (type) => {
+    if (isProcessing) return;
+    setCombatProcessing(true);
     if (type === '공격') {
         const now = Date.now();
         if (now < attackGcdUntil) {
+            setCombatProcessing(false);
             return writeLog(`[쿨다운] 공격을 너무 빨리 눌렀습니다!`);
         }
     }
-    if (applySummonDarkTurnStart()) return;
+    if (applySummonDarkTurnStart()) {
+        setCombatProcessing(false);
+        return;
+    }
     if (player) ensurePlayerSynergyBonuses();
 
     if (type==='공격') {
@@ -3352,6 +3377,8 @@ window.useAction = async (type) => {
         // 1회차 기도는 무턴, 2회차 기도는 턴 소모
         if (player.prayerCountThisTurn >= 2) {
             queueEnemyTurnWithPacing();
+        } else {
+            setCombatProcessing(false);
         }
         return;
     }
@@ -3359,6 +3386,7 @@ window.useAction = async (type) => {
 };
 
 window.usePotion = () => {
+    if (isProcessing) return;
     if (applySummonDarkTurnStart()) return;
     if(player.potions<=0) return writeLog("포션이 없습니다!");
     if(potionUsedThisTurn) return writeLog("이번 턴에 이미 포션을 사용했습니다!");
@@ -3386,6 +3414,14 @@ let autoRegenCounter = 0;
 function enemyTurn() {
     setTimeout(async () => {
         if (!enemy || !player) return;
+        let earlyUnlockSet = false;
+        const scheduleEarlyUnlock = (animMs) => {
+            const ms = Math.max(0, safeNum(animMs, 0) - 200);
+            setTimeout(() => {
+                earlyUnlockSet = true;
+                setCombatProcessing(false);
+            }, ms);
+        };
         if (player && player.name === '성직자') {
             player.prayerCountThisTurn = 0;
         }
@@ -3428,6 +3464,7 @@ function enemyTurn() {
             enemy._aiGuardedTurns = 1;
             writeLog('[적 AI] 적이 자세를 낮추고 방어 태세를 취합니다.');
             player._awaitPlayerTurn = true;
+            setCombatProcessing(false);
             updateUi(); renderActions();
             return;
         }
@@ -3435,6 +3472,7 @@ function enemyTurn() {
             enemy._aiGuardedTurns = 2;
             writeLog('[적 AI] 마법사가 긴급 방어막을 전개했습니다.');
             player._awaitPlayerTurn = true;
+            setCombatProcessing(false);
             updateUi(); renderActions();
             return;
         }
@@ -3442,6 +3480,7 @@ function enemyTurn() {
             enemy._hunterEvasionTurns = 1;
             writeLog('[적 AI] 헌터가 몸을 낮추고 회피 자세를 취합니다. 다음 1턴, 당신의 공격은 빗나가기 쉬워집니다.');
             player._awaitPlayerTurn = true;
+            setCombatProcessing(false);
             updateUi(); renderActions();
             return;
         }
@@ -3461,8 +3500,13 @@ function enemyTurn() {
         if(hitLanded){
             const enemyHitRate = hunterExecutionMode ? 100 : 80;
             if(Math.random()*100<enemyHitRate){
-                if (enemy.isBoss) await playBossStrikeVfx('player');
-                else await playJobAttackVfx('enemy', enemy.job || '');
+                if (enemy.isBoss) {
+                    scheduleEarlyUnlock(660);
+                    await playBossStrikeVfx('player');
+                } else {
+                    scheduleEarlyUnlock(360);
+                    await playJobAttackVfx('enemy', enemy.job || '');
+                }
                 let dmg=Math.max(1,currentEnemyAtk-getTotalPlayerDefenseForHit());
                 if (hunterExecutionMode) {
                     dmg = Math.max(1, Math.floor(dmg * 1.45));
@@ -3541,6 +3585,7 @@ function enemyTurn() {
         }
         player._awaitPlayerTurn = true;
         if(player.curHp<=0) return gameOver();
+        if (!earlyUnlockSet) setCombatProcessing(false);
         updateUi(); renderActions();
     }, 120);
 }
@@ -3638,6 +3683,7 @@ function processFloorQuestOnVictory() {
 }
 
 function winBattle() {
+    setCombatProcessing(false);
     triggerBossWarning(false);
     let baseGain;
     if(floor<=10){baseGain=enemy.isBoss?50+floor*5:28+Math.floor(Math.random()*8)+floor*2;}
@@ -4067,6 +4113,7 @@ window.reincarnateFromCenturyMilestone = function reincarnateFromCenturyMileston
 };
 
 function openShop() {
+    setCombatProcessing(false);
     shopVisitCount++;
     document.getElementById('battle-area').style.display='none';
     document.getElementById('shop-area').style.display='block';
@@ -5181,6 +5228,7 @@ window.startInfiniteMode=()=>{
 };
 
 function gameOver() {
+    setCombatProcessing(false);
     triggerBossWarning(false);
     window.__deathApplied = false;
     const sg = Math.floor(totalGoldEarned * 0.1);
