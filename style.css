@@ -682,6 +682,90 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 .crit-flash { animation: critFlash 0.5s ease; }
 .boss-warning { animation: bossWarning 0.6s ease infinite; }
 
+/* 직업별 전투 VFX */
+.combat-fx-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: visible;
+    z-index: 1200;
+}
+.mage-bolt {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #d8c9ff 0%, #a66bff 50%, rgba(166, 107, 255, 0) 75%);
+    box-shadow: 0 0 12px #a66bff, 0 0 28px rgba(166, 107, 255, 0.75);
+}
+.mage-explosion {
+    position: absolute;
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    border: 2px solid rgba(186, 147, 255, 0.95);
+    background: radial-gradient(circle, rgba(198, 166, 255, 0.55) 0%, rgba(120, 80, 190, 0.18) 55%, rgba(0, 0, 0, 0) 78%);
+    transform: translate(-50%, -50%) scale(0.25);
+    animation: mageExplosion 0.42s ease-out forwards;
+}
+.berserker-slash {
+    position: absolute;
+    width: 140px;
+    height: 36px;
+    border-radius: 60% 20% 60% 20%;
+    background: linear-gradient(90deg, rgba(255, 87, 87, 0) 0%, rgba(255, 90, 90, 0.95) 48%, rgba(255, 200, 200, 0.15) 100%);
+    box-shadow: 0 0 18px rgba(255, 90, 90, 0.6);
+    transform: translate(-50%, -50%) rotate(-18deg) scaleX(0.2);
+    animation: berserkerSlash 0.32s ease-out forwards;
+}
+.hunter-flash {
+    position: absolute;
+    width: 88px;
+    height: 88px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(190, 235, 255, 0.5) 35%, rgba(190, 235, 255, 0) 70%);
+    transform: translate(-50%, -50%) scale(0.3);
+    animation: hunterFlash 0.26s ease-out forwards;
+}
+.hunter-dagger {
+    position: absolute;
+    width: 82px;
+    height: 6px;
+    background: linear-gradient(90deg, rgba(255,255,255,0), rgba(180,245,255,0.9), rgba(255,255,255,0));
+    box-shadow: 0 0 14px rgba(180, 245, 255, 0.8);
+    transform: translate(-50%, -50%) rotate(14deg) scaleX(0.15);
+    animation: hunterDagger 0.3s ease-out forwards;
+}
+.assassin-strike {
+    position: absolute;
+    width: 180px;
+    height: 10px;
+    background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255, 100, 120, 0.95), rgba(255,255,255,0));
+    box-shadow: 0 0 20px rgba(255, 70, 120, 0.85);
+    transform: translate(-50%, -50%) rotate(-8deg) scaleX(0.2);
+    animation: assassinStrike 0.34s ease-out forwards;
+}
+@keyframes mageExplosion {
+    from { opacity: 0.95; transform: translate(-50%, -50%) scale(0.25); }
+    to { opacity: 0; transform: translate(-50%, -50%) scale(1.08); }
+}
+@keyframes berserkerSlash {
+    from { opacity: 0.95; transform: translate(-50%, -50%) rotate(-22deg) scaleX(0.2); }
+    to { opacity: 0; transform: translate(-50%, -50%) rotate(-6deg) scaleX(1.25); }
+}
+@keyframes hunterFlash {
+    from { opacity: 0.95; transform: translate(-50%, -50%) scale(0.3); }
+    to { opacity: 0; transform: translate(-50%, -50%) scale(1.3); }
+}
+@keyframes hunterDagger {
+    from { opacity: 0.95; transform: translate(-50%, -50%) rotate(14deg) scaleX(0.15); }
+    to { opacity: 0; transform: translate(-50%, -50%) rotate(14deg) scaleX(1.2); }
+}
+@keyframes assassinStrike {
+    from { opacity: 0.98; transform: translate(-50%, -50%) rotate(-10deg) scaleX(0.2); }
+    to { opacity: 0; transform: translate(-50%, -50%) rotate(-2deg) scaleX(1.28); }
+}
+
 @keyframes slideIn {
     from { transform: translateX(100px); opacity: 0; }
     to { transform: translateX(0); opacity: 1; }

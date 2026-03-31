@@ -456,6 +456,172 @@ function triggerShakeEffect() {
     const e = document.getElementById('e-hp');
     if (e) { e.classList.add('shake'); setTimeout(() => e.classList.remove('shake'), 400); }
 }
+function triggerScreenShakeHeavy() {
+    const s = document.querySelector('.screen');
+    if (s) {
+        s.classList.add('shake');
+        setTimeout(() => s.classList.remove('shake'), 420);
+    }
+}
+function ensureCombatFxLayer() {
+    const ba = document.getElementById('battle-area');
+    if (!ba) return null;
+    let layer = document.getElementById('combat-fx-layer');
+    if (!layer) {
+        layer = document.createElement('div');
+        layer.id = 'combat-fx-layer';
+        layer.className = 'combat-fx-layer';
+        ba.style.position = 'relative';
+        ba.appendChild(layer);
+    }
+    return layer;
+}
+function getCardCenter(side) {
+    const card = document.getElementById(side === 'player' ? 'player-card' : 'enemy-card');
+    const ba = document.getElementById('battle-area');
+    if (!card || !ba) return null;
+    const cr = card.getBoundingClientRect();
+    const br = ba.getBoundingClientRect();
+    return {
+        x: cr.left + cr.width / 2 - br.left,
+        y: cr.top + cr.height / 2 - br.top,
+    };
+}
+function normalizeCombatArchetype(jobName) {
+    const n = String(jobName || '');
+    if (n.includes('마법사') || n.includes('위저드') || n.includes('Mage')) return 'mage';
+    if (n.includes('헌터') || n.includes('암살자') || n.includes('궁수') || n.includes('Hunter')) return 'hunter';
+    if (n.includes('버서커') || n.includes('워리어') || n.includes('Berserker')) return 'berserker';
+    return 'berserker';
+}
+function playMageBoltVfx(fromSide, toSide) {
+    const layer = ensureCombatFxLayer();
+    const from = getCardCenter(fromSide);
+    const to = getCardCenter(toSide);
+    if (!layer || !from || !to) return Promise.resolve();
+    return new Promise((resolve) => {
+        const bolt = document.createElement('div');
+        bolt.className = 'mage-bolt';
+        bolt.style.left = `${from.x - 6}px`;
+        bolt.style.top = `${from.y - 6}px`;
+        bolt.style.transition = 'transform 0.4s ease-out, opacity 0.4s ease-out';
+        layer.appendChild(bolt);
+        requestAnimationFrame(() => {
+            bolt.style.transform = `translate(${to.x - from.x}px, ${to.y - from.y}px)`;
+            bolt.style.opacity = '0.35';
+        });
+        setTimeout(() => {
+            if (bolt.parentNode) bolt.parentNode.removeChild(bolt);
+            const ex = document.createElement('div');
+            ex.className = 'mage-explosion';
+            ex.style.left = `${to.x}px`;
+            ex.style.top = `${to.y}px`;
+            layer.appendChild(ex);
+            setTimeout(() => {
+                if (ex.parentNode) ex.parentNode.removeChild(ex);
+                resolve();
+            }, 430);
+        }, 400);
+    });
+}
+function playBerserkerChargeVfx(fromSide, toSide) {
+    const fromCard = document.getElementById(fromSide === 'player' ? 'player-card' : 'enemy-card');
+    const layer = ensureCombatFxLayer();
+    const from = getCardCenter(fromSide);
+    const to = getCardCenter(toSide);
+    if (!fromCard || !layer || !from || !to) return Promise.resolve();
+    return new Promise((resolve) => {
+        const dx = (to.x - from.x) * 0.25;
+        const dy = (to.y - from.y) * 0.1;
+        fromCard.style.transition = 'transform 0.18s ease-out, filter 0.18s ease-out';
+        fromCard.style.transform = `translate(${dx}px, ${dy}px) scale(1.07)`;
+        fromCard.style.filter = 'brightness(1.08)';
+        const slash = document.createElement('div');
+        slash.className = 'berserker-slash';
+        slash.style.left = `${to.x}px`;
+        slash.style.top = `${to.y}px`;
+        layer.appendChild(slash);
+        triggerScreenShakeHeavy();
+        setTimeout(() => {
+            fromCard.style.transform = '';
+            fromCard.style.filter = '';
+        }, 200);
+        setTimeout(() => {
+            if (slash.parentNode) slash.parentNode.removeChild(slash);
+            resolve();
+        }, 340);
+    });
+}
+function playHunterStrikeVfx(fromSide, toSide) {
+    const fromCard = document.getElementById(fromSide === 'player' ? 'player-card' : 'enemy-card');
+    const toCard = document.getElementById(toSide === 'player' ? 'player-card' : 'enemy-card');
+    const layer = ensureCombatFxLayer();
+    const to = getCardCenter(toSide);
+    if (!fromCard || !toCard || !layer || !to) return Promise.resolve();
+    return new Promise((resolve) => {
+        fromCard.style.transition = 'opacity 0.14s linear';
+        fromCard.style.opacity = '0.18';
+        toCard.style.transition = 'filter 0.18s ease-out';
+        toCard.style.filter = 'brightness(1.18)';
+        const flash = document.createElement('div');
+        flash.className = 'hunter-flash';
+        flash.style.left = `${to.x + 22}px`;
+        flash.style.top = `${to.y}px`;
+        const dagger = document.createElement('div');
+        dagger.className = 'hunter-dagger';
+        dagger.style.left = `${to.x + 18}px`;
+        dagger.style.top = `${to.y + 6}px`;
+        layer.appendChild(flash);
+        layer.appendChild(dagger);
+        setTimeout(() => {
+            fromCard.style.opacity = '';
+            toCard.style.filter = '';
+        }, 160);
+        setTimeout(() => {
+            if (flash.parentNode) flash.parentNode.removeChild(flash);
+            if (dagger.parentNode) dagger.parentNode.removeChild(dagger);
+            resolve();
+        }, 320);
+    });
+}
+function playAssassinStrikeVfx(targetSide) {
+    const layer = ensureCombatFxLayer();
+    const to = getCardCenter(targetSide);
+    if (!layer || !to) return;
+    const slash = document.createElement('div');
+    slash.className = 'assassin-strike';
+    slash.style.left = `${to.x}px`;
+    slash.style.top = `${to.y + 2}px`;
+    layer.appendChild(slash);
+    triggerScreenShakeHeavy();
+    setTimeout(() => {
+        if (slash.parentNode) slash.parentNode.removeChild(slash);
+    }, 360);
+}
+function playJobAttackVfx(attackerSide, jobName) {
+    const archetype = normalizeCombatArchetype(jobName);
+    if (archetype === 'mage') return playMageBoltVfx(attackerSide, attackerSide === 'player' ? 'enemy' : 'player');
+    if (archetype === 'hunter') return playHunterStrikeVfx(attackerSide, attackerSide === 'player' ? 'enemy' : 'player');
+    return playBerserkerChargeVfx(attackerSide, attackerSide === 'player' ? 'enemy' : 'player');
+}
+function consumeHunterEvasionMissPenalty() {
+    if (!enemy || !String(enemy.job || '').includes('헌터')) return 0;
+    const turns = safeNum(enemy._hunterEvasionTurns, 0);
+    if (turns <= 0) return 0;
+    enemy._hunterEvasionTurns = Math.max(0, turns - 1);
+    writeLog('[헌터 AI] 회피 자세! 이번 공격은 빗나가기 쉬워졌습니다. (빗나감 확률 +50%)');
+    return 50;
+}
+function queueEnemyTurnWithPacing() {
+    const delay = 1000 + Math.floor(Math.random() * 401);
+    window._enemyThinkingHint = '타락한 선구자가 당신의 빈틈을 노립니다...';
+    writeLog(`[긴장] ${window._enemyThinkingHint}`);
+    updateUi();
+    setTimeout(() => {
+        window._enemyThinkingHint = '';
+        enemyTurn();
+    }, delay);
+}
 function triggerBossWarning(on) {
     const s = document.querySelector('.screen');
     if (s) { if (on) s.classList.add('boss-warning'); else s.classList.remove('boss-warning'); }
@@ -1641,6 +1807,8 @@ function initRunFromMetaSlot() {
         shopRarityBoost: 0,
         freeShopCoupon: false,
         passiveContractHistory: [],
+        hunterExposeStacks: 0,
+        hunterExposeReady: false,
     };
     markPlayedJob(job.name);
     applyRebirthPctBonusToPlayer(slot);
@@ -2756,7 +2924,7 @@ function spawnEnemy() {
         bossHp = Math.floor(bossHp * _BH);
         bossAtk = Math.floor(bossAtk * _BA);
         bossDef = Math.max(0, Math.floor(bossDef * 1.12));
-        enemy={name:`👑 [보스] ${floor}층 군주`,job:'보스',hp:bossHp,curHp:bossHp,atk:bossAtk,def:bossDef,isBoss:true,turnCount:1,bossCharge:false,weakPoint:false};
+        enemy={name:`👑 [보스] ${floor}층 군주`,job:'보스',hp:bossHp,curHp:bossHp,atk:bossAtk,def:bossDef,isBoss:true,turnCount:1,bossCharge:false,weakPoint:false,_aiGuardedTurns:0,_hunterEvasionTurns:0};
         writeLog(`🚨 경고: ${floor}층의 지배자가 나타났습니다!`);
     } else {
         const eJobs=['워리어','헌터','마법사'];
@@ -2772,7 +2940,7 @@ function spawnEnemy() {
         mh = Math.floor(mh * _MH);
         ma = Math.floor(ma * _MA);
         md = Math.max(0, Math.floor(md * 1.1));
-        enemy={name:`[${rj}형] ${floor}층 괴수`,job:rj,hp:Math.floor(mh),curHp:Math.floor(mh),atk:Math.floor(ma),def:Math.floor(md),isBoss:false,weakPoint:false};
+        enemy={name:`[${rj}형] ${floor}층 괴수`,job:rj,hp:Math.floor(mh),curHp:Math.floor(mh),atk:Math.floor(ma),def:Math.floor(md),isBoss:false,weakPoint:false,_aiGuardedTurns:0,_hunterEvasionTurns:0};
     }
     // 인카운터 보정(기습 등)은 적 생성 직후 1회만 적용
     if (enemy && window._pendingEncounterCombatMod) {
@@ -2918,7 +3086,7 @@ function applySummonDarkTurnStart() {
     return false;
 }
 
-window.useAction = (type) => {
+window.useAction = async (type) => {
     if (type === '공격') {
         const now = Date.now();
         if (now < attackGcdUntil) {
@@ -2929,6 +3097,7 @@ window.useAction = (type) => {
     if (player) ensurePlayerSynergyBonuses();
 
     if (type==='공격') {
+        await playJobAttackVfx('player', player.name || player.baseJob);
         const now = Date.now();
         attackGcdUntil = now + ATTACK_GCD_MS;
         setTimeout(() => { renderActions(); }, ATTACK_GCD_MS);
@@ -2945,14 +3114,16 @@ window.useAction = (type) => {
         }
         const synAcc = safeNum(player._syn && player._syn.acc, 0);
         const mercAcc = isMercenaryCaptainJob() && player.fieldMerc && player.fieldMerc.mercHp > 0 ? getMercBonusAcc() : 0;
+        const missPenalty = consumeHunterEvasionMissPenalty();
         const accRateBase =
             Math.min(95, BASE_HIT_ACCURACY + safeNum(player.acc, 0) + synAcc + mercAcc);
+        const accRate = Math.max(5, accRateBase - missPenalty);
         let hitLanded = false;
         const prevStreak = safeNum(player._playerMissStreak, 0);
         if (prevStreak >= 3) {
             hitLanded = true;
             player._playerMissStreak = 0;
-        } else if (Math.random() * 100 < accRateBase) {
+        } else if (Math.random() * 100 < accRate) {
             hitLanded = true;
             player._playerMissStreak = 0;
         } else {
@@ -3015,6 +3186,11 @@ window.useAction = (type) => {
             const effDefRaw = (usedWeak ? 0 : enemy.def);
             const effDef = player && player.chosenPriest ? Math.floor(effDefRaw * 0.8) : effDefRaw;
             let finalDmg=Math.max(1,Math.floor(baseDmg*multiplier*relicAtkMult)-effDef);
+            if (enemy._aiGuardedTurns && enemy._aiGuardedTurns > 0) {
+                finalDmg = Math.max(1, Math.floor(finalDmg * 0.62));
+                enemy._aiGuardedTurns = Math.max(0, enemy._aiGuardedTurns - 1);
+                writeLog('[적 AI] 방어 태세로 피해 일부를 흘렸습니다.');
+            }
             enemy.curHp-=finalDmg;
             showDmgFloat(finalDmg,isCrit,false); triggerShakeEffect();
             writeLog(`[명중] ${effectMsg}적에게 ${finalDmg} 피해!`);
@@ -3058,17 +3234,25 @@ window.useAction = (type) => {
         if(enemy.curHp<=0) return winBattle();
 
     } else if (type==='궁극기') {
+        await playJobAttackVfx('player', player.name || player.baseJob);
         // 궁극기: 스택 소모, 50% 명중, 초고데미지
         if (player.ultStack < player.ultMaxStack) return writeLog(`[궁극기] 스택이 부족합니다! (${player.ultStack}/${player.ultMaxStack})`);
         player.ultStack = 0;
         const ultSpec = ultSkills[player.unlockedSkill];
         const dmgMult = ultSpec ? ultSpec.dmgMult : 4.0;
-        if (Math.random() < 0.5) {
+        const missPenalty = consumeHunterEvasionMissPenalty();
+        const ultHitRate = Math.max(5, 50 - missPenalty);
+        if (Math.random() * 100 < ultHitRate) {
             let berserkMult = (player.name==='버서커' && player.curHp <= player.maxHp * 0.5) ? 1.35 : 1;
             let ultDmg = Math.floor(getEffectiveAttackPower() * dmgMult * berserkMult);
             const critInfo=getCritInfo();
             const isCrit = Math.random()*100 < critInfo.effectiveCrit;
             if (isCrit) { ultDmg = Math.floor(ultDmg*getEffectiveCritMult()); triggerCritEffect(); }
+            if (enemy._aiGuardedTurns && enemy._aiGuardedTurns > 0) {
+                ultDmg = Math.max(1, Math.floor(ultDmg * 0.62));
+                enemy._aiGuardedTurns = Math.max(0, enemy._aiGuardedTurns - 1);
+                writeLog('[적 AI] 방어막이 궁극기 피해를 일부 상쇄했습니다.');
+            }
             enemy.curHp -= ultDmg;
             showDmgFloat(ultDmg, isCrit, false); triggerShakeEffect();
             writeLog(`[궁극기] 💥 ${player.unlockedSkill} 炸裂! ${isCrit?'🔥 치명타! ':''}${ultDmg} 피해!`);
@@ -3107,11 +3291,11 @@ window.useAction = (type) => {
         updateUi(); renderActions();
         // 1회차 기도는 무턴, 2회차 기도는 턴 소모
         if (player.prayerCountThisTurn >= 2) {
-            enemyTurn();
+            queueEnemyTurnWithPacing();
         }
         return;
     }
-    enemyTurn();
+    queueEnemyTurnWithPacing();
 };
 
 window.usePotion = () => {
@@ -3141,6 +3325,7 @@ window.usePotion = () => {
 let autoRegenCounter = 0;
 function enemyTurn() {
     setTimeout(() => {
+        if (!enemy || !player) return;
         if (player && player.name === '성직자') {
             player.prayerCountThisTurn = 0;
         }
@@ -3162,6 +3347,42 @@ function enemyTurn() {
         }
 
         let hitLanded=true, currentEnemyAtk=enemy.atk;
+        const enemyHpRate = safeNum(enemy.curHp, 1) / Math.max(1, safeNum(enemy.hp, 1));
+        const playerHpRate = safeNum(player.curHp, 1) / Math.max(1, safeNum(getEffectiveMaxHp(), 1));
+        let enemyIntent = 'attack';
+        if (!enemy.isBoss) {
+            // 풀피 방어 금지
+            if (enemyHpRate < 0.9 && Math.random() < 0.18) enemyIntent = 'guard';
+            if (String(enemy.job || '').includes('마법사') && enemyHpRate <= 0.38 && Math.random() < 0.65) enemyIntent = 'barrier';
+            if (String(enemy.job || '').includes('헌터') && enemyHpRate <= 0.4 && Math.random() < 0.55) enemyIntent = 'evasion';
+            if (String(enemy.job || '').includes('헌터') && playerHpRate <= 0.4) enemyIntent = 'attack';
+            if (enemyHpRate >= 0.9 && (enemyIntent === 'guard' || enemyIntent === 'barrier')) enemyIntent = 'attack';
+        }
+        if (String(enemy.job || '').includes('워리어') && enemyHpRate <= 0.45) {
+            currentEnemyAtk = Math.floor(currentEnemyAtk * (enemyHpRate <= 0.25 ? 1.55 : 1.3));
+            writeLog('[적 AI] 광폭한 압박! 체력이 낮아진 적의 공격이 폭증합니다.');
+        }
+        if (enemyIntent === 'guard') {
+            enemy._aiGuardedTurns = 1;
+            writeLog('[적 AI] 적이 자세를 낮추고 방어 태세를 취합니다.');
+            player._awaitPlayerTurn = true;
+            updateUi(); renderActions();
+            return;
+        }
+        if (enemyIntent === 'barrier') {
+            enemy._aiGuardedTurns = 2;
+            writeLog('[적 AI] 마법사가 긴급 방어막을 전개했습니다.');
+            player._awaitPlayerTurn = true;
+            updateUi(); renderActions();
+            return;
+        }
+        if (enemyIntent === 'evasion') {
+            enemy._hunterEvasionTurns = 1;
+            writeLog('[적 AI] 헌터가 몸을 낮추고 회피 자세를 취합니다. 다음 1턴, 당신의 공격은 빗나가기 쉬워집니다.');
+            player._awaitPlayerTurn = true;
+            updateUi(); renderActions();
+            return;
+        }
         if(enemy.isBoss){
             if(enemy.bossCharge){writeLog(`💥 [강공격] 보스의 묵직한 일격!!`);currentEnemyAtk=enemy.atk*2.5;enemy.bossCharge=false;triggerBossWarning(false);}
             else if(enemy.turnCount%4===3){enemy.bossCharge=true;triggerBossWarning(true);writeLog(`⚠️ [위험] 보스가 강공격을 준비합니다!`);enemy.turnCount++;updateUi();return;}
@@ -3176,6 +3397,7 @@ function enemyTurn() {
         }
         if(hitLanded){
             if(Math.random()*100<80){
+                playJobAttackVfx('enemy', enemy.job || '');
                 let dmg=Math.max(1,currentEnemyAtk-getTotalPlayerDefenseForHit());
                 if(shieldedTurns>0){dmg=Math.floor(dmg*0.5);shieldedTurns--;writeLog(`[방어막] ✨ 피해 50% 감소! (${dmg} 입음)`);if(player.relics&&player.relics.includes('barrier_reflect')){const rd=Math.floor(dmg*0.45);enemy.curHp-=rd;const heal=Math.floor(getEffectiveMaxHp()*0.05);player.curHp=Math.min(getEffectiveMaxHp(),player.curHp+heal);writeLog(`[유물] 🔮 마력 방벽: 반사 ${rd}, 회복 ${heal}`);if(enemy.curHp<=0){setTimeout(()=>winBattle(),100);}}}
                 else if(defendingTurns>0){dmg=Math.floor(dmg*0.4);defendingTurns--;writeLog(`[철벽 방어] 🛡️ 피해 60% 감소! (${dmg} 입음)`);}
@@ -3206,6 +3428,24 @@ function enemyTurn() {
                     }
                 } else {
                 player.curHp-=dmg; showDmgFloat(dmg,false,true);
+                if (String(enemy.job || '').includes('헌터')) {
+                    if (player.hunterExposeReady) {
+                        const bonusFixed = Math.max(1, Math.floor(getEffectiveMaxHp() * 0.1));
+                        player.curHp = Math.max(0, player.curHp - bonusFixed);
+                        player.hunterExposeReady = false;
+                        player.hunterExposeStacks = 0;
+                        playAssassinStrikeVfx('player');
+                        writeLog(`[헌터] 🎯 약점 공격 발동! 추가 고정 피해 ${bonusFixed}`);
+                    } else {
+                        player.hunterExposeStacks = Math.max(0, safeNum(player.hunterExposeStacks, 0)) + 1;
+                        const cur = Math.min(3, player.hunterExposeStacks);
+                        writeLog(`[헌터] 약점을 간파합니다... (${cur}/3)`);
+                        if (player.hunterExposeStacks >= 3) {
+                            player.hunterExposeReady = true;
+                            writeLog('[헌터] 다음 타격은 치명적인 약점 공격으로 강화됩니다!');
+                        }
+                    }
+                }
                 }
             } else writeLog(`[럭키] 적의 공격이 빗나갔습니다!`);
         }
@@ -3232,7 +3472,7 @@ function enemyTurn() {
         player._awaitPlayerTurn = true;
         if(player.curHp<=0) return gameOver();
         updateUi(); renderActions();
-    }, 400);
+    }, 120);
 }
 
 function winBattleContinueFrom(clearedFloor) {
@@ -3487,6 +3727,8 @@ function loadRunFromMetaSnapshot(d) {
     if (player && player.shopRarityBoost == null) player.shopRarityBoost = 0;
     if (player && player.freeShopCoupon == null) player.freeShopCoupon = false;
     if (player && !Array.isArray(player.passiveContractHistory)) player.passiveContractHistory = [];
+    if (player && player.hunterExposeStacks == null) player.hunterExposeStacks = 0;
+    if (player && player.hunterExposeReady == null) player.hunterExposeReady = false;
     enemy = d.enemy;
     if (enemy && (safeNum(enemy.curHp, 0) <= 0 || safeNum(enemy.hp, 0) <= 0)) {
         enemy = null;
@@ -4828,7 +5070,11 @@ function updateUi() {
         if (player.unlockedSkill && floor >= 20) ultLine.innerHTML = `<span style="color:#9b59b6;">궁극기</span> [${safeNum(player.ultStack, 0)}/${Math.max(1, safeNum(player.ultMaxStack, 1))}]`;
         else ultLine.innerHTML = '';
     }
-    document.getElementById('e-name').innerText=enemy.name;
+    const enemyNameEl = document.getElementById('e-name');
+    if (enemyNameEl) {
+        const hint = window._enemyThinkingHint ? `<div style="color:#ffb3b3;font-size:0.72em;font-weight:600;margin-top:3px;">${escapeHtml(window._enemyThinkingHint)}</div>` : '';
+        enemyNameEl.innerHTML = `${escapeHtml(enemy.name)}${hint}`;
+    }
     document.getElementById('e-hp').style.width=`${Math.max(0,(eCur/eHp)*100)}%`;
     document.getElementById('e-hp-t').innerText=`${eCur} / ${eHp}`;
     document.getElementById('e-atk-val').innerText=String(safeNum(enemy.atk, 0));
