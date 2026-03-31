@@ -443,7 +443,7 @@ function showDmgFloat(dmg, isCrit, isPlayer) {
     const battleArea = document.getElementById('battle-area');
     if (!battleArea) return;
     const el = document.createElement('div');
-    el.style.cssText = `position:absolute;font-weight:900;font-size:${isCrit?'2em':'1.4em'};color:${isPlayer?'#ff4757':isCrit?'#f1c40f':'#2ed573'};text-shadow:0 0 10px ${isCrit?'#f1c40f':'transparent'};pointer-events:none;z-index:999;left:${isPlayer?'10%':'55%'};top:25%;animation:dmgFloat 1s ease forwards;`;
+    el.style.cssText = `position:absolute;font-weight:900;font-size:${isCrit?'3.2em':'1.4em'};color:${isPlayer?'#ff4757':isCrit?'#f1c40f':'#2ed573'};text-shadow:0 0 16px ${isCrit?'#f1c40f':'transparent'};pointer-events:none;z-index:999;left:${isPlayer?'10%':'55%'};top:25%;animation:dmgFloat 1s ease forwards;`;
     el.innerText = `${isCrit?'💥':''}${dmg}`;
     battleArea.style.position = 'relative';
     battleArea.appendChild(el);
@@ -451,7 +451,12 @@ function showDmgFloat(dmg, isCrit, isPlayer) {
 }
 function triggerCritEffect() {
     const s = document.querySelector('.screen');
-    if (s) { s.classList.add('crit-flash'); setTimeout(() => s.classList.remove('crit-flash'), 500); }
+    if (s) {
+        s.classList.add('crit-flash');
+        s.classList.add('crit-blackout');
+        setTimeout(() => s.classList.remove('crit-blackout'), 150);
+        setTimeout(() => s.classList.remove('crit-flash'), 500);
+    }
 }
 function triggerShakeEffect() {
     const e = document.getElementById('e-hp');
@@ -460,8 +465,8 @@ function triggerShakeEffect() {
 function triggerScreenShakeHeavy() {
     const s = document.querySelector('.screen');
     if (s) {
-        s.classList.add('shake');
-        setTimeout(() => s.classList.remove('shake'), 420);
+        s.classList.add('heavy-shake');
+        setTimeout(() => s.classList.remove('heavy-shake'), 220);
     }
 }
 function triggerScreenShakeBoss() {
@@ -551,63 +556,73 @@ function playMageBoltVfx(fromSide, toSide) {
     });
 }
 function playBerserkerChargeVfx(fromSide, toSide) {
-    const fromCard = document.getElementById(fromSide === 'player' ? 'player-card' : 'enemy-card');
     const layer = ensureCombatFxLayer();
-    const from = getCardCenter(fromSide);
     const to = getCardCenter(toSide);
-    if (!fromCard || !layer || !from || !to) return Promise.resolve();
+    if (!layer || !to) return Promise.resolve();
     return new Promise((resolve) => {
-        const dx = (to.x - from.x) * 0.25;
-        const dy = (to.y - from.y) * 0.1;
-        fromCard.style.transition = 'transform 0.18s ease-out, filter 0.18s ease-out';
-        fromCard.style.transform = `translate(${dx}px, ${dy}px) scale(1.07)`;
-        fromCard.style.filter = 'brightness(1.08)';
         const slash = document.createElement('div');
-        slash.className = 'berserker-slash';
+        slash.className = 'slash-effect';
         slash.style.left = `${to.x}px`;
         slash.style.top = `${to.y}px`;
         layer.appendChild(slash);
         triggerScreenShakeHeavy();
         setTimeout(() => {
-            fromCard.style.transform = '';
-            fromCard.style.filter = '';
-        }, 200);
-        setTimeout(() => {
             if (slash.parentNode) slash.parentNode.removeChild(slash);
             resolve();
-        }, 340);
+        }, 120);
     });
 }
 function playHunterStrikeVfx(fromSide, toSide) {
-    const fromCard = document.getElementById(fromSide === 'player' ? 'player-card' : 'enemy-card');
-    const toCard = document.getElementById(toSide === 'player' ? 'player-card' : 'enemy-card');
     const layer = ensureCombatFxLayer();
     const to = getCardCenter(toSide);
-    if (!fromCard || !toCard || !layer || !to) return Promise.resolve();
+    if (!layer || !to) return Promise.resolve();
     return new Promise((resolve) => {
-        fromCard.style.transition = 'opacity 0.14s linear';
-        fromCard.style.opacity = '0.18';
-        toCard.style.transition = 'filter 0.18s ease-out';
-        toCard.style.filter = 'brightness(1.18)';
-        const flash = document.createElement('div');
-        flash.className = 'hunter-flash';
-        flash.style.left = `${to.x + 22}px`;
-        flash.style.top = `${to.y}px`;
-        const dagger = document.createElement('div');
-        dagger.className = 'hunter-dagger';
-        dagger.style.left = `${to.x + 18}px`;
-        dagger.style.top = `${to.y + 6}px`;
-        layer.appendChild(flash);
-        layer.appendChild(dagger);
+        const slash = document.createElement('div');
+        slash.className = 'slash-effect';
+        slash.style.left = `${to.x + 10}px`;
+        slash.style.top = `${to.y + 2}px`;
+        layer.appendChild(slash);
+        triggerScreenShakeHeavy();
         setTimeout(() => {
-            fromCard.style.opacity = '';
-            toCard.style.filter = '';
-        }, 160);
-        setTimeout(() => {
-            if (flash.parentNode) flash.parentNode.removeChild(flash);
-            if (dagger.parentNode) dagger.parentNode.removeChild(dagger);
+            if (slash.parentNode) slash.parentNode.removeChild(slash);
             resolve();
-        }, 320);
+        }, 120);
+    });
+}
+function playMagicBurstVfx(targetSide) {
+    const layer = ensureCombatFxLayer();
+    const to = getCardCenter(targetSide);
+    if (!layer || !to) return Promise.resolve();
+    return new Promise((resolve) => {
+        const burst = document.createElement('div');
+        burst.className = 'magic-burst';
+        burst.style.left = `${to.x}px`;
+        burst.style.top = `${to.y}px`;
+        layer.appendChild(burst);
+        const particles = [];
+        for (let i = 0; i < 14; i++) {
+            const p = document.createElement('div');
+            p.className = 'magic-particle';
+            p.style.left = `${to.x}px`;
+            p.style.top = `${to.y}px`;
+            const ang = (Math.PI * 2 * i) / 14;
+            const dist = 36 + Math.random() * 52;
+            p.style.transition = 'transform 0.36s ease-out, opacity 0.36s ease-out';
+            layer.appendChild(p);
+            particles.push({ el: p, dx: Math.cos(ang) * dist, dy: Math.sin(ang) * dist });
+        }
+        requestAnimationFrame(() => {
+            particles.forEach((x) => {
+                x.el.style.transform = `translate(${x.dx}px, ${x.dy}px) scale(0.2)`;
+                x.el.style.opacity = '0';
+            });
+        });
+        triggerScreenShakeHeavy();
+        setTimeout(() => {
+            if (burst.parentNode) burst.parentNode.removeChild(burst);
+            particles.forEach((x) => { if (x.el.parentNode) x.el.parentNode.removeChild(x.el); });
+            resolve();
+        }, 390);
     });
 }
 function playAssassinStrikeVfx(targetSide) {
@@ -623,6 +638,19 @@ function playAssassinStrikeVfx(targetSide) {
     setTimeout(() => {
         if (slash.parentNode) slash.parentNode.removeChild(slash);
     }, 360);
+}
+function playCritGoldBurst(targetSide) {
+    const layer = ensureCombatFxLayer();
+    const to = getCardCenter(targetSide);
+    if (!layer || !to) return;
+    const burst = document.createElement('div');
+    burst.className = 'crit-gold-burst';
+    burst.style.left = `${to.x}px`;
+    burst.style.top = `${to.y}px`;
+    layer.appendChild(burst);
+    setTimeout(() => {
+        if (burst.parentNode) burst.parentNode.removeChild(burst);
+    }, 330);
 }
 function playBossStrikeVfx(targetSide) {
     const layer = ensureCombatFxLayer();
@@ -657,7 +685,10 @@ function showMissFloat(targetSide) {
 }
 function playJobAttackVfx(attackerSide, jobName) {
     const archetype = normalizeCombatArchetype(jobName);
-    if (archetype === 'mage') return playMageBoltVfx(attackerSide, attackerSide === 'player' ? 'enemy' : 'player');
+    if (archetype === 'mage') {
+        const targetSide = attackerSide === 'player' ? 'enemy' : 'player';
+        return playMageBoltVfx(attackerSide, targetSide).then(() => playMagicBurstVfx(targetSide));
+    }
     // 요청사항: 플레이어 헌터/워리어 계열은 근접 돌진 연출 통일
     if (archetype === 'hunter' && attackerSide === 'player') {
         return playBerserkerChargeVfx(attackerSide, 'enemy');
@@ -688,7 +719,7 @@ function updateCombatButtonsLockState() {
     });
 }
 function queueEnemyTurnWithPacing() {
-    const delay = 1000 + Math.floor(Math.random() * 501);
+    const delay = 1000 + Math.floor(Math.random() * 401);
     setCombatProcessing(true);
     window._enemyThinkingHint = '타락한 선구자가 당신의 빈틈을 노립니다...';
     writeLog(`[긴장] ${window._enemyThinkingHint}`);
@@ -3258,6 +3289,7 @@ window.useAction = async (type) => {
                 baseDmg = Math.floor(baseDmg * (mercCritMode ? getMercEffectiveCritMultForMercAttack() : getEffectiveCritMult()) * 2);
                 effectMsg += "<b style='color:#9b59b6'>【약점 노출】</b> <b style='color:#f1c40f'>💥 암살!</b> ";
                 triggerCritEffect();
+                playCritGoldBurst('enemy');
             } else {
                 if (player && player.priestNextCrit) {
                     isCrit = true;
@@ -3266,7 +3298,7 @@ window.useAction = async (type) => {
                 } else {
                     isCrit = Math.random()*100<effectiveCrit;
                 }
-                if(isCrit){baseDmg=Math.floor(baseDmg*(mercCritMode?getMercEffectiveCritMultForMercAttack():getEffectiveCritMult()));effectMsg+="<b style='color:#f1c40f'>💥 치명타!</b> ";triggerCritEffect();}
+                if(isCrit){baseDmg=Math.floor(baseDmg*(mercCritMode?getMercEffectiveCritMultForMercAttack():getEffectiveCritMult()));effectMsg+="<b style='color:#f1c40f'>💥 치명타!</b> ";triggerCritEffect(); playCritGoldBurst('enemy');}
             }
             const effDefRaw = (usedWeak ? 0 : enemy.def);
             const effDef = player && player.chosenPriest ? Math.floor(effDefRaw * 0.8) : effDefRaw;
@@ -3332,7 +3364,7 @@ window.useAction = async (type) => {
             let ultDmg = Math.floor(getEffectiveAttackPower() * dmgMult * berserkMult);
             const critInfo=getCritInfo();
             const isCrit = Math.random()*100 < critInfo.effectiveCrit;
-            if (isCrit) { ultDmg = Math.floor(ultDmg*getEffectiveCritMult()); triggerCritEffect(); }
+            if (isCrit) { ultDmg = Math.floor(ultDmg*getEffectiveCritMult()); triggerCritEffect(); playCritGoldBurst('enemy'); }
             if (enemy._aiGuardedTurns && enemy._aiGuardedTurns > 0) {
                 ultDmg = Math.max(1, Math.floor(ultDmg * 0.62));
                 enemy._aiGuardedTurns = Math.max(0, enemy._aiGuardedTurns - 1);
@@ -3512,6 +3544,7 @@ function enemyTurn() {
                     dmg = Math.max(1, Math.floor(dmg * 1.45));
                     writeLog('[헌터 AI] ☠️ 처형인 본능 발동! 약해진 상대를 향해 확정 치명타 급 습격!');
                     triggerCritEffect();
+                    playCritGoldBurst('player');
                 }
                 if(shieldedTurns>0){dmg=Math.floor(dmg*0.5);shieldedTurns--;writeLog(`[방어막] ✨ 피해 50% 감소! (${dmg} 입음)`); triggerGuardAura(); if(player.relics&&player.relics.includes('barrier_reflect')){const rd=Math.floor(dmg*0.45);enemy.curHp-=rd;const heal=Math.floor(getEffectiveMaxHp()*0.05);player.curHp=Math.min(getEffectiveMaxHp(),player.curHp+heal);writeLog(`[유물] 🔮 마력 방벽: 반사 ${rd}, 회복 ${heal}`);if(enemy.curHp<=0){setTimeout(()=>winBattle(),100);}}}
                 else if(defendingTurns>0){dmg=Math.floor(dmg*0.4);defendingTurns--;writeLog(`[철벽 방어] 🛡️ 피해 60% 감소! (${dmg} 입음)`); triggerGuardAura();}
