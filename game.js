@@ -427,7 +427,7 @@ function formatTechEffect(e) {
 
 // ===================== 타격감 효과 =====================
 // stage 1 split: moved to js/vfx.js
-// stage 4 split: combat core moved to js/combatLogic.js
+// stage 4 split: combat loop helpers moved to js/combatLogic.js
 
 // stage 3 split: moved to js/player.js
 function formatShopItemName(name) {
@@ -3192,4 +3192,18 @@ window.onclick=function(event){
 
 // stage 1 split: moved to js/uiManager.js
 
+// stage 4 split: moved to js/combatLogic.js
+
+window.startInfiniteMode=()=>{
+    floor=101; document.querySelector('.screen').innerHTML='';
+    document.getElementById('battle-area').style.display='block'; enterBattleLayout();
+    writeLog(`♾️ [무한모드] 101층부터 끝없는 도전!`); beginFloorEncounter(); updateUi();
+};
+
+// stage 4 split: moved to js/combatLogic.js
+
+/** 사망 후 저장 런으로 복구 — 보존/페널티 없음 */
+// stage 4 split: moved to js/combatLogic.js
+
+/** 사망 처리: 보존 골드·퀘스트 페널티 후 허브로 */
 // stage 4 split: moved to js/combatLogic.js

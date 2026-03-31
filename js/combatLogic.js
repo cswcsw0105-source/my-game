@@ -314,10 +314,12 @@ function enemyTurn() {
             writeLog(`[용병 재생] 💚 ${player.mercRegenAmount} (남은 턴: ${player.mercRegenTurns})`);
         }
         potionUsedThisTurn=false;
+
         if (player.bonusSkills && player.bonusSkills.includes('bonus_regen')) {
             autoRegenCounter++;
             if (autoRegenCounter % 3 === 0) { const h=Math.floor(getEffectiveMaxHp()*0.05); player.curHp=Math.min(getEffectiveMaxHp(),player.curHp+h); writeLog(`[스킬] 강철 심장 ${h} 회복!`); }
         }
+
         let hitLanded=true, currentEnemyAtk=enemy.atk;
         const enemyHpRate = safeNum(enemy.curHp, 1) / Math.max(1, safeNum(enemy.hp, 1));
         const playerHpRate = safeNum(player.curHp, 1) / Math.max(1, safeNum(getEffectiveMaxHp(), 1));
@@ -503,12 +505,6 @@ function dungeonClear() {
     writeLog(`🏆 ${player.name}이(가) 100층을 클리어했습니다!!!`);
 }
 
-window.startInfiniteMode=()=>{
-    floor=101; document.querySelector('.screen').innerHTML='';
-    document.getElementById('battle-area').style.display='block'; enterBattleLayout();
-    writeLog(`♾️ [무한모드] 101층부터 끝없는 도전!`); beginFloorEncounter(); updateUi();
-};
-
 function gameOver() {
     setCombatProcessing(false);
     triggerBossWarning(false);
@@ -518,8 +514,10 @@ function gameOver() {
     const enName = enemy ? enemy.name : '알 수 없는 적';
     const fl = floor;
     window.__deathCtx = { sg, slotId, floor: fl, enemyName: enName };
+
     exitBattleLayout();
     document.getElementById('battle-area').style.display = 'none';
+
     finalizeGameOverDeath();
 }
 
