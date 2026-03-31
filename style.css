@@ -447,6 +447,46 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 
 #log { background: #0a0a0a; padding: 15px; height: 180px; overflow-y: auto; border-radius: 8px; text-align: left; font-size: 0.9em; border: 1px solid #222; margin-top: 15px; color: #bbb; }
 
+.altar-options-wrap {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+}
+.altar-option-card {
+    width: 100%;
+    text-align: left;
+    border: 1px solid #6d2f71;
+    background: linear-gradient(135deg, #2b1630 0%, #1d1026 100%);
+    color: #eee;
+    border-radius: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+    animation: altarSpinIn 0.55s ease-out;
+    transform-style: preserve-3d;
+    transition: transform 0.16s ease, border-color 0.16s ease;
+}
+.altar-option-card:hover {
+    transform: rotateY(10deg) translateY(-2px);
+    border-color: #d980fa;
+}
+.altar-option-title {
+    display: block;
+    color: #f4b9ff;
+    font-size: 0.9em;
+    font-weight: 800;
+}
+.altar-option-desc {
+    display: block;
+    color: #b59fc3;
+    font-size: 0.78em;
+    margin-top: 5px;
+    line-height: 1.35;
+}
+@keyframes altarSpinIn {
+    from { opacity: 0; transform: rotateY(65deg) scale(0.96); }
+    to { opacity: 1; transform: rotateY(0deg) scale(1); }
+}
+
 .stat-tag { font-size: 0.85em; color: #888; font-weight: 600; cursor: help; position: relative; display: inline-block; width: 100%; }
 .tooltip-text { 
     visibility: hidden; width: 220px; background-color: #333; color: #fff; text-align: left; 
