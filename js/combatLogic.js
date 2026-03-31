@@ -26,7 +26,18 @@ function queueEnemyTurnWithPacing() {
 }
 function triggerBossWarning(on) {
     const s = document.querySelector('.screen');
-    if (s) { if (on) s.classList.add('boss-warning'); else s.classList.remove('boss-warning'); }
+    if (s) {
+        if (on) {
+            s.classList.add('boss-warning');
+            s.classList.add('boss-warning-glow');
+        } else {
+            s.classList.remove('boss-warning');
+            s.classList.remove('boss-warning-glow');
+        }
+    }
+}
+function waitMs(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function applySummonDarkTurnStart() {
@@ -363,7 +374,18 @@ function enemyTurn() {
         }
         if(enemy.isBoss){
             if(enemy.bossCharge){writeLog(`💥 [강공격] 보스의 묵직한 일격!!`);currentEnemyAtk=enemy.atk*2.5;enemy.bossCharge=false;triggerBossWarning(false);}
-            else if(enemy.turnCount%4===3){enemy.bossCharge=true;triggerBossWarning(true);writeLog(`⚠️ [위험] 보스가 강공격을 준비합니다!`);enemy.turnCount++;updateUi();return;}
+            else if(enemy.turnCount%4===3){
+                enemy.bossCharge=true;
+                triggerBossWarning(true);
+                writeLog(`⚠️ [위험] 보스가 강공격을 준비합니다!`);
+                enemy.turnCount++;
+                await waitMs(220);
+                player._awaitPlayerTurn = true;
+                setCombatProcessing(false);
+                updateUi();
+                renderActions();
+                return;
+            }
             enemy.turnCount++;
         }
         if(dodgingTurns>0){
