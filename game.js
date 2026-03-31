@@ -78,6 +78,7 @@ let currentUser = null;
 const RANK_BASE_JOBS = ['워리어', '헌터', '마법사', '용병단장'];
 let rankRealtimeUnsubs = [];
 let rankRealtimeCache = {};
+window._combatLogHistory = [];
 function clearRankRealtimeSubs() {
     if (Array.isArray(rankRealtimeUnsubs)) {
         rankRealtimeUnsubs.forEach((u) => {
@@ -2132,6 +2133,17 @@ function winBattleContinueFrom(clearedFloor) {
     beginFloorEncounter();
 }
 
+function renderCombatLogsFromSnapshotRows(rows) {
+    const arr = Array.isArray(rows) ? rows : [];
+    const html = arr
+        .map((msg) => `<p style="margin:4px 0;border-bottom:1px solid #333;padding-bottom:4px;">${msg}</p>`)
+        .join('');
+    const b = document.getElementById('log-battle');
+    const n = document.getElementById('log');
+    if (b) b.innerHTML = html;
+    if (n) n.innerHTML = html;
+}
+
 function showMercEvolutionChoice(onDone) {
     const kind = player.mercCompanionKind;
     const opts = mercCompanionEvolutions[kind];
@@ -2274,6 +2286,15 @@ function serializeRunState() {
         shieldedTurns,
         regenTurns,
         regenAmount,
+        combatLogs: Array.isArray(window._combatLogHistory) ? window._combatLogHistory.slice(0, 220) : [],
+        enemyBehaviorState: enemySnap
+            ? {
+                  bossCharge: !!enemySnap.bossCharge,
+                  turnCount: safeNum(enemySnap.turnCount, 1),
+                  aiGuardedTurns: safeNum(enemySnap._aiGuardedTurns, 0),
+                  hunterEvasionTurns: safeNum(enemySnap._hunterEvasionTurns, 0),
+              }
+            : null,
         player: playerSnap,
         enemy: enemySnap,
         slotLevel: slot ? slot.level : 1,
@@ -2308,6 +2329,7 @@ function loadRunFromMetaSnapshot(d) {
     shieldedTurns = d.shieldedTurns || 0;
     regenTurns = d.regenTurns || 0;
     regenAmount = d.regenAmount || 0;
+    window._combatLogHistory = Array.isArray(d.combatLogs) ? d.combatLogs.slice(0, 220) : [];
     player = d.player;
     if (player) {
         player.extraAtk = 0;
@@ -2336,11 +2358,19 @@ function loadRunFromMetaSnapshot(d) {
     if (player && player.hunterExposeStacks == null) player.hunterExposeStacks = 0;
     if (player && player.hunterExposeReady == null) player.hunterExposeReady = false;
     enemy = d.enemy;
+    if (enemy && d.enemyBehaviorState) {
+        enemy.bossCharge = !!d.enemyBehaviorState.bossCharge;
+        enemy.turnCount = safeNum(d.enemyBehaviorState.turnCount, safeNum(enemy.turnCount, 1));
+        enemy._aiGuardedTurns = safeNum(d.enemyBehaviorState.aiGuardedTurns, safeNum(enemy._aiGuardedTurns, 0));
+        enemy._hunterEvasionTurns = safeNum(d.enemyBehaviorState.hunterEvasionTurns, safeNum(enemy._hunterEvasionTurns, 0));
+    }
     if (enemy && (safeNum(enemy.curHp, 0) <= 0 || safeNum(enemy.hp, 0) <= 0)) {
         enemy = null;
     }
+    window._enemyThinkingHint = '';
+    setCombatProcessing(false);
     document.getElementById('start-area').style.display = 'none';
-    document.getElementById('log-battle').innerHTML = '';
+    renderCombatLogsFromSnapshotRows(window._combatLogHistory);
     enterBattleLayout();
     if (savedInShop) {
         document.getElementById('battle-area').style.display = 'none';
@@ -2402,11 +2432,7 @@ window.exitToMainWithoutSave = function exitToMainWithoutSave() {
         writeLog('[허브] 진행 중인 런이 없습니다.');
         return;
     }
-    if (MetaRPG.getRunSnapshot(player.metaSlotId)) {
-        if (!confirm('저장하지 않고 나가면 마지막 「저장 후 나가기」 이후의 레벨·인벤 진행이 사라집니다. 계속할까요?')) return;
-    } else if (!confirm('저장하지 않고 나가면 이번 런에서 오른 메타 레벨·EXP가 초기화됩니다. 계속할까요?')) return;
-    MetaRPG.revertRunToCheckpoint(player.metaSlotId);
-    MetaRPG.clearRunSnapshot(player.metaSlotId);
+    if (!confirm('저장 없이 메인으로 이동합니다. 마지막 저장 시점 데이터는 유지됩니다. 계속할까요?')) return;
     returnToHubFromRun(false);
 };
 
@@ -2417,7 +2443,7 @@ function returnToHubFromRun(savedExit) {
         if (typeof MetaRPG !== 'undefined') MetaRPG.addSavedGold(sg);
         writeLog(`[허브] 런 종료 — 보존 골드 +${sg}G`);
     } else {
-        writeLog('[허브] 저장 없이 종료 — 런 보존 골드 없음, 메타 레벨은 체크포인트로 복구됨');
+        writeLog('[허브] 저장 없이 종료 — 런 보존 골드 없음 (마지막 저장 데이터는 유지)');
     }
     player = null;
     enemy = null;

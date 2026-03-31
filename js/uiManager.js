@@ -232,6 +232,9 @@ function updateUi() {
 }
 
 function writeLog(msg) {
+    if (!Array.isArray(window._combatLogHistory)) window._combatLogHistory = [];
+    window._combatLogHistory.unshift(String(msg));
+    if (window._combatLogHistory.length > 220) window._combatLogHistory.length = 220;
     const bs=document.getElementById('sidebar-battle'), isBattle=bs&&bs.style.display==='flex';
     const p=`<p style="margin:4px 0;border-bottom:1px solid #333;padding-bottom:4px;">${msg}</p>`;
     if(isBattle){const bl=document.getElementById('log-battle');if(bl)bl.innerHTML=p+bl.innerHTML;}
