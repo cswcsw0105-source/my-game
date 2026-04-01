@@ -2222,18 +2222,21 @@ function getEquipSlotKind(it) {
     if (it.type === 'atk') return 'weapon';
     if (it.type === 'hp') return 'armor';
     if (it.type === 'ring') return 'ring';
+    if (it.type === 'rune') return 'rune';
     return null;
 }
 function getEquipSlotLimit(kind) {
     if (kind === 'weapon') return 2;
     if (kind === 'armor') return 2;
     if (kind === 'ring') return 3;
+    if (kind === 'rune') return 1;
     return Infinity;
 }
 function getEquipSlotLabel(kind) {
     if (kind === 'weapon') return '무기';
     if (kind === 'armor') return '갑옷';
     if (kind === 'ring') return '반지';
+    if (kind === 'rune') return '룬';
     return '장비';
 }
 function getEquipSlotLineHtml(it) {
@@ -2241,7 +2244,7 @@ function getEquipSlotLineHtml(it) {
     if (!k) return '';
     const lim = getEquipSlotLimit(k);
     const label = getEquipSlotLabel(k);
-    const icon = k === 'weapon' ? '⚔️' : k === 'armor' ? '🛡️' : '💍';
+    const icon = k === 'weapon' ? '⚔️' : k === 'armor' ? '🛡️' : k === 'rune' ? '🔮' : '💍';
     return `<div style="color:#9fb0ff;font-size:0.76em;margin-top:4px;line-height:1.35;">${icon} <b>장착 칸</b>: ${label} (동시 최대 ${lim}개)</div>`;
 }
 /** 상점 카드 — 장비만 HP/공격/방어/치명·배율 등 수치 블록(명중·체감 표시 없음) */
@@ -2288,6 +2291,11 @@ function canEquipMoreOfItem(it) {
     if (!k) return true;
     return getEquippedCountByKind(k) < getEquipSlotLimit(k);
 }
+window.getEquipSlotKind = getEquipSlotKind;
+window.getEquipSlotLimit = getEquipSlotLimit;
+window.getEquippedCountByKind = getEquippedCountByKind;
+window.canEquipMoreOfItem = canEquipMoreOfItem;
+
 function getItemSynergyHints(it) {
     if (!it || typeof synergyRules === 'undefined' || !Array.isArray(synergyRules)) return [];
     const tags = new Set();
@@ -2376,6 +2384,23 @@ function ensureOwnedItemUid(it) {
 }
 function removeOwnedItemEffects(it) {
     if (!it || !player) return;
+    if (it.type === 'rune') {
+        if (typeof it.value === 'number' && it.value) {
+            player.atk = Math.max(1, safeNum(player.atk, 1) - safeNum(it.value, 0));
+        }
+        if (typeof it.hpBonus === 'number' && it.hpBonus) {
+            player.maxHp = Math.max(1, safeNum(player.maxHp, 1) - safeNum(it.hpBonus, 0));
+            player.curHp = Math.min(getEffectiveMaxHp(), safeNum(player.curHp, 0));
+        }
+        if (it.def) player.extraDef = Math.max(0, safeNum(player.extraDef, 0) - safeNum(it.def, 0));
+        if (it.lifesteal) player.lifesteal = Math.max(0, safeNum(player.lifesteal, 0) - safeNum(it.lifesteal, 0));
+        if (it.critBonus) player.crit = Math.max(1, safeNum(player.crit, 1) - safeNum(it.critBonus, 0));
+        if (it.critMult) player.critMult = Math.max(1.8, safeNum(player.critMult, 1.8) - safeNum(it.critMult, 0));
+        const hasRegen = (player.items || []).some((x) => x !== it && x && x.regenPotion);
+        player.hasRegenPotion = !!hasRegen;
+        recalcPlayerDivineGainMult();
+        return;
+    }
     if (it.type === 'atk' || it.type === 'ring') player.atk = Math.max(1, safeNum(player.atk, 1) - safeNum(it.value, 0));
     if (it.type === 'hp') {
         player.maxHp = Math.max(1, safeNum(player.maxHp, 1) - safeNum(it.value, 0));
@@ -2659,6 +2684,7 @@ function renderInventoryPanel() {
         { kind: 'weapon', label: '⚔️ 무기', color: '#ffb347' },
         { kind: 'armor', label: '🛡️ 갑옷', color: '#74b9ff' },
         { kind: 'ring', label: '💍 반지', color: '#9b59b6' },
+        { kind: 'rune', label: '🔮 룬', color: '#00cec9' },
     ];
     slots.forEach((sdef) => {
         const slotItems = (player.items || []).filter((it) => getEquipSlotKind(it) === sdef.kind);

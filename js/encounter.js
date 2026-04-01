@@ -22,7 +22,9 @@ function rollEncounterSceneType() {
 
 function getPanicRunSacrificeItems() {
     if (!player || !Array.isArray(player.items)) return [];
-    return player.items.filter((it) => it && getEquipSlotKind(it) && it.type !== 'merc');
+    return player.items.filter(
+        (it) => it && getEquipSlotKind(it) && it.type !== 'merc' && it.type !== 'rune'
+    );
 }
 
 function pickLowestRaritySacrificeItem() {
@@ -212,7 +214,11 @@ window.executePanicRunSacrifice = function executePanicRunSacrifice(uid) {
         fullResyncPlayerCombatStatsFromMetaAndInventory();
     }
     failActiveQuestIfLeavingFloor();
-    const drop = Math.random() < 0.5 ? 2 : 3;
+    let drop = Math.random() < 0.5 ? 2 : 3;
+    const fleeRollBonus = typeof getPlayerFleeBonus === 'function' ? getPlayerFleeBonus() : 0;
+    if (fleeRollBonus > 0 && Math.random() < fleeRollBonus) {
+        drop = Math.max(1, drop - 1);
+    }
     const fromFloor = floor;
     floor = Math.max(1, floor - drop);
     writeLog(
@@ -232,7 +238,8 @@ window.resolveTreasureChest = function resolveTreasureChest(openChest) {
     }
     const roll = Math.random();
     if (roll < 0.45) {
-        const gain = 12 + Math.floor(Math.random() * 24) + Math.floor(floor * 0.8);
+        const goldMult = typeof getPlayerGoldGainMult === 'function' ? getPlayerGoldGainMult() : 1;
+        const gain = Math.floor((12 + Math.floor(Math.random() * 24) + Math.floor(floor * 0.8)) * goldMult);
         gold += gain;
         totalGoldEarned += gain;
         writeLog(`[보물] 💰 녹슨 상자에서 ${gain}G를 찾았습니다.`);

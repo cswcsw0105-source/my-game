@@ -208,7 +208,7 @@ function getMercGachaBadChance() {
 function getMercGachaCandidatePool() {
     const keys = new Set(getMercEquipmentJobKeys());
     return equipmentPool.filter((it) => {
-        if (!it || it.type === 'merc') return false;
+        if (!it || it.type === 'merc' || it.type === 'rune') return false;
         if (!it.onlyFor || !Array.isArray(it.onlyFor) || it.onlyFor.length === 0) return true;
         return it.onlyFor.some((j) => keys.has(j));
     });
@@ -847,7 +847,8 @@ function winBattle() {
     let bonus=0, bonusMsg="";
     const relKey=getAffinityRelKey();
     if(!enemy.isBoss&&relations[relKey]&&relations[relKey].weak===enemy.job){bonus=Math.floor(baseGain*0.3);bonusMsg=` <b style='color:#f1c40f'>(역전 보너스 +${bonus}G!)</b>`;}
-    const gain=baseGain+bonus;
+    const goldMult = typeof getPlayerGoldGainMult === 'function' ? getPlayerGoldGainMult() : 1;
+    const gain = Math.floor((baseGain + bonus) * goldMult);
     gold+=gain; totalGoldEarned+=gain;
     { const _em = getEffectiveMaxHp(); player.curHp = Math.min(_em, player.curHp + Math.floor(_em * 0.15)); }
     writeLog(`[승리] ${gain}G 획득 및 체력 소량 회복.${bonusMsg}`);
