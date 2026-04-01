@@ -77,14 +77,14 @@ const ultSkills = {
 const floorUnlocks = {
     10:  { name: "용기의 목걸이",     type: "hp",  value: 40, def: 5,  price: 60,  rarity: "rare",      desc: "10층 달성 해금. 체력(+40), 방어(+5)." },
     20:  { name: "전사의 팔찌",       type: "ring", value: 18, price: 75,  rarity: "rare",      desc: "20층 달성 해금. 공격(+18)." },
-    30:  { name: "불사조의 깃털",     type: "hp",  value: 60, price: 90,  rarity: "epic",      regenPotion: true, desc: "30층 달성 해금. 체력(+60). 포션 효과 강화." },
+    30:  { name: "불사조의 깃털",     type: "hp",  value: 60, def: 14, price: 90,  rarity: "epic",      desc: "30층 달성 해금. 체력(+60), 방어(+14)." },
     40:  { name: "심연의 보석",       type: "atk", value: 25, price: 110, rarity: "epic",      lifesteal: 0.2, desc: "40층 달성 해금. 공격력(+25). 흡혈 20%." },
     50:  { name: "천공의 갑옷",       type: "hp",  value: 100, def: 20, price: 150, rarity: "epic",     desc: "50층 달성 해금. 체력(+100), 방어(+20)." },
     60:  { name: "파멸의 검",         type: "atk", value: 40, price: 160, rarity: "legendary", lifesteal: 0.3, desc: "60층 달성 해금. 공격력(+40). 흡혈 30%." },
     70:  { name: "불멸의 흉갑",       type: "hp",  value: 120, def: 25, price: 180, rarity: "legendary", desc: "70층 달성 해금. 체력(+120), 방어(+25)." },
-    80:  { name: "신의 축복",         type: "atk", value: 55, price: 200, rarity: "legendary", desc: "80층 달성 해금. 공격력(+55), 명중률(+15%)." },
+    80:  { name: "신의 축복",         type: "atk", value: 55, price: 200, rarity: "legendary", desc: "80층 달성 해금. 공격력(+55)." },
     90:  { name: "용왕의 비늘",       type: "hp",  value: 150, def: 30, price: 220, rarity: "legendary", desc: "90층 달성 해금. 체력(+150), 방어(+30)." },
-    100: { name: "전설의 유산",       type: "atk", value: 80, price: 250, rarity: "legendary", lifesteal: 0.4, desc: "100층 달성! 전설의 유산. 공격력(+80), 명중률(+20%), 흡혈 40%." },
+    100: { name: "전설의 유산",       type: "atk", value: 80, price: 250, rarity: "legendary", lifesteal: 0.4, desc: "100층 달성! 전설의 유산. 공격력(+80), 흡혈 40%." },
     5:   { name: "철의 의지",   type: "hp",  value: 30, def: 8,  price: 50,  rarity: "rare", onlyFor: ["워리어","나이트","버서커"], desc: "5층 해금. 워리어 계열. 체력(+30), 방어(+8)." },
     15:  { name: "광전사의 도끼", type: "atk", value: 20, price: 70, rarity: "rare", onlyFor: ["워리어","나이트","버서커"], desc: "15층 해금. 워리어 계열. 공격력(+20)." },
     25:  { name: "성기사의 방패", type: "hp",  value: 50, def: 18, price: 100, rarity: "epic", onlyFor: ["워리어","나이트","버서커"], desc: "25층 해금. 워리어 계열. 체력(+50), 방어(+18)." },
@@ -93,10 +93,10 @@ const floorUnlocks = {
 };
 
 const floorUnlocksHunter = {
-    5:  { name: "독수리의 눈",   type: "ring", value: 20, price: 50,  rarity: "rare", onlyFor: ["헌터","궁수","암살자"], tags: ["precision"], desc: "5층 해금. 헌터 계열. 명중률(+20%)." },
+    5:  { name: "독수리의 눈",   type: "ring", value: 20, price: 50,  rarity: "rare", onlyFor: ["헌터","궁수","암살자"], tags: ["precision"], desc: "5층 해금. 헌터 계열. 공격(+20)." },
     15: { name: "바람의 화살",   type: "atk", value: 18, price: 70,  rarity: "rare", onlyFor: ["헌터","궁수","암살자"], desc: "15층 해금. 헌터 계열. 공격력(+18)." },
     25: { name: "그림자 단검",   type: "atk", value: 30, price: 100, rarity: "epic", onlyFor: ["헌터","궁수","암살자"], lifesteal: 0.2, desc: "25층 해금. 헌터 계열. 공격력(+30), 흡혈 20%." },
-    35: { name: "은신 망토", type: "hp",  value: 40, price: 120, rarity: "epic", onlyFor: ["헌터","궁수","암살자"], desc: "35층 해금. 헌터 계열. 체력(+40)." },
+    35: { name: "은신 망토", type: "hp",  value: 40, def: 10, price: 120, rarity: "epic", onlyFor: ["헌터","궁수","암살자"], desc: "35층 해금. 헌터 계열. 체력(+40), 방어(+10)." },
     45: { name: "정령의 화살통", type: "atk", value: 45, price: 160, rarity: "legendary", onlyFor: ["헌터","궁수","암살자"], desc: "45층 해금. 헌터 계열. 공격력(+45)." },
 };
 
@@ -134,390 +134,86 @@ function legacyAccUpgradePrice(level) {
     return Math.floor(baseCost * Math.pow(costMult, Math.max(0, level - 1)));
 }
 
-/** 직업별 추가 장비 (희귀도별) */
-const equipmentPoolV651 = [
-    // 워리어 계열 — common x5
-    { name: "녹슨 철퇴", type: "atk", value: 7, def: 3, price: 28, rarity: "common", onlyFor: ["워리어","나이트","버서커"], tags: ["blade", "heavy"], desc: "공격(+7), 방어(+3)." },
-    { name: "훈련용 목검", type: "atk", value: 9, price: 32, rarity: "common", onlyFor: ["워리어","나이트","버서커"], desc: "공격(+9)." },
-    { name: "보병의 흉갑", type: "hp", value: 28, def: 6, price: 30, rarity: "common", onlyFor: ["워리어","나이트","버서커"], desc: "체력(+28), 방어(+6)." },
-    { name: "철벽 방패", type: "hp", value: 22, def: 8, price: 34, rarity: "common", onlyFor: ["워리어","나이트","버서커"], desc: "체력(+22), 방어(+8)." },
-    { name: "전장의 붕대", type: "hp", value: 35, price: 26, rarity: "common", onlyFor: ["워리어","나이트","버서커"], desc: "체력(+35)." },
-    // 워리어 — rare x5
-    { name: "기사단 양날검", type: "atk", value: 16, critBonus: 3, price: 62, rarity: "rare", onlyFor: ["워리어","나이트","버서커"], desc: "공격(+16), 치명(+3%)." },
-    { name: "가시 갑옷", type: "hp", value: 45, def: 10, price: 68, rarity: "rare", onlyFor: ["워리어","나이트","버서커"], desc: "체력(+45), 방어(+10)." },
-    { name: "광전사의 팔찌", type: "ring", value: 14, lifesteal: 0.06, price: 72, rarity: "rare", onlyFor: ["워리어","나이트","버서커"], tags: ["blood", "heavy"], desc: "공격(+14), 흡혈(6%)." },
-    { name: "수호 기사의 인장", type: "hp", value: 35, def: 14, price: 65, rarity: "rare", onlyFor: ["워리어","나이트","버서커"], desc: "체력(+35), 방어(+14)." },
-    { name: "철의 반지", type: "ring", value: 12, def: 5, price: 60, rarity: "rare", onlyFor: ["워리어","나이트","버서커"], desc: "공격(+12), 방어(+5)." },
-    // 워리어 — epic x5 (fix: use hp+def instead of invalid type def)
-    { name: "룬문자 대검", type: "atk", value: 24, critBonus: 5, price: 118, rarity: "epic", onlyFor: ["워리어","나이트","버서커"], desc: "공격(+24), 치명(+5%)." },
-    { name: "깊은 광산 판금", type: "hp", value: 70, def: 14, price: 115, rarity: "epic", onlyFor: ["워리어","나이트","버서커"], desc: "체력(+70), 방어(+14)." },
-    { name: "피의 맹세", type: "atk", value: 20, lifesteal: 0.1, price: 122, rarity: "epic", onlyFor: ["워리어","나이트","버서커"], desc: "공격(+20), 흡혈(10%)." },
-    { name: "성역의 방패", type: "hp", value: 55, def: 18, price: 120, rarity: "epic", onlyFor: ["워리어","나이트","버서커"], desc: "체력(+55), 방어(+18)." },
-    { name: "전장의 함성", type: "atk", value: 18, critMult: 0.12, price: 125, rarity: "epic", onlyFor: ["워리어","나이트","버서커"], desc: "공격(+18), 치명 배율(+12%)." },
-    // 워리어 — legendary x5
-    { name: "태양검 심연", type: "atk", value: 38, critBonus: 8, critMult: 0.15, price: 195, rarity: "legendary", onlyFor: ["워리어","나이트","버서커"], desc: "공격(+38), 치명(+8%), 배율(+15%)." },
-    { name: "불멸의 요새", type: "hp", value: 120, def: 24, price: 200, rarity: "legendary", onlyFor: ["워리어","나이트","버서커"], desc: "체력(+120), 방어(+24)." },
-    { name: "광기의 도끼 잔향", type: "atk", value: 42, lifesteal: 0.12, price: 205, rarity: "legendary", onlyFor: ["버서커"], desc: "버서커. 공격(+42), 흡혈(12%)." },
-    { name: "성기사의 성배", type: "hp", value: 90, def: 20, price: 198, rarity: "legendary", onlyFor: ["나이트"], desc: "나이트. 체력(+90), 방어(+20)." },
-    { name: "전쟁신의 유산", type: "atk", value: 35, def: 12, price: 210, rarity: "legendary", onlyFor: ["워리어","나이트","버서커"], desc: "공격(+35), 방어(+12)." },
-    // 헌터 계열 — common x5
-    { name: "나무 활", type: "atk", value: 8, price: 29, rarity: "common", onlyFor: ["헌터","궁수","암살자"], desc: "공격(+8)." },
-    { name: "가죽 장갑", type: "hp", value: 36, def: 4, price: 31, rarity: "common", onlyFor: ["헌터","궁수","암살자"], desc: "체력(+36), 방어(+4)." },
-    { name: "작은 단검", type: "atk", value: 10, critBonus: 2, price: 33, rarity: "common", onlyFor: ["헌터","궁수","암살자"], desc: "공격(+10), 치명(+2%)." },
-    { name: "숲길 장화", type: "hp", value: 32, price: 27, rarity: "common", onlyFor: ["헌터","궁수","암살자"], desc: "체력(+32)." },
-    { name: "독침 화살", type: "atk", value: 9, lifesteal: 0.04, price: 35, rarity: "common", onlyFor: ["헌터","궁수","암살자"], desc: "공격(+9), 흡혈(4%)." },
-    // 헌터 — rare x5
-    { name: "바람의 시위", type: "ring", value: 16, critBonus: 4, price: 66, rarity: "rare", onlyFor: ["헌터","궁수","암살자"], desc: "명중(+16%), 치명(+4%)." },
-    { name: "그림자 가면", type: "atk", value: 17, critMult: 0.15, price: 74, rarity: "rare", onlyFor: ["헌터","궁수","암살자"], desc: "공격(+17), 치명 배율(+15%)." },
-    { name: "맹금의 깃털", type: "atk", value: 15, price: 69, rarity: "rare", onlyFor: ["헌터","궁수","암살자"], desc: "공격(+15), 명중(+8%)." },
-    { name: "그림자 장화", type: "hp", value: 38, def: 5, price: 71, rarity: "rare", onlyFor: ["헌터","궁수","암살자"], desc: "체력(+38), 방어(+5)." },
-    { name: "독니 화살", type: "atk", value: 16, lifesteal: 0.08, price: 73, rarity: "rare", onlyFor: ["헌터","궁수","암살자"], desc: "공격(+16), 흡혈(8%)." },
-    // 헌터 — epic x5
-    { name: "폭풍 시위", type: "atk", value: 26, price: 124, rarity: "epic", onlyFor: ["궁수"], desc: "궁수. 공격(+26), 명중(+12%)." },
-    { name: "암흑 각오", type: "atk", value: 30, critMult: 0.28, price: 128, rarity: "epic", onlyFor: ["암살자"], desc: "암살자. 공격(+30), 치명 배율(+28%)." },
-    { name: "정찰병의 망원경", type: "ring", value: 22, critBonus: 6, price: 119, rarity: "epic", onlyFor: ["헌터","궁수","암살자"], desc: "명중(+22%), 치명(+6%)." },
-    { name: "맹독 가죽", type: "atk", value: 24, lifesteal: 0.1, price: 126, rarity: "epic", onlyFor: ["헌터","궁수","암살자"], desc: "공격(+24), 흡혈(10%)." },
-    { name: "천둥 화살", type: "atk", value: 28, critBonus: 7, price: 127, rarity: "epic", onlyFor: ["헌터","궁수","암살자"], desc: "공격(+28), 치명(+7%)." },
-    // 헌터 — legendary x5
-    { name: "별빛 석궁", type: "atk", value: 40, critBonus: 9, price: 202, rarity: "legendary", onlyFor: ["궁수"], desc: "궁수. 공격(+40), 명중(+15%), 치명(+9%)." },
-    { name: "심연의 낫", type: "atk", value: 44, critMult: 0.35, lifesteal: 0.1, price: 208, rarity: "legendary", onlyFor: ["암살자"], desc: "암살자. 공격(+44), 배율(+35%), 흡혈(10%)." },
-    { name: "천둥신의 활시위", type: "atk", value: 36, critMult: 0.22, price: 198, rarity: "legendary", onlyFor: ["헌터","궁수","암살자"], desc: "공격(+36), 치명 배율(+22%)." },
-    { name: "바람의 군주", type: "atk", value: 38, price: 204, rarity: "legendary", onlyFor: ["헌터","궁수","암살자"], desc: "공격(+38), 명중(+14%)." },
-    { name: "피의 계약서", type: "atk", value: 32, lifesteal: 0.14, critBonus: 8, price: 206, rarity: "legendary", onlyFor: ["헌터","궁수","암살자"], desc: "공격(+32), 흡혈(14%), 치명(+8%)." },
-    // 마법사 계열 — common x5
-    { name: "마나 잔류석", type: "atk", value: 9, price: 30, rarity: "common", onlyFor: ["마법사","위저드","소환사"], tags: ["arcane"], desc: "공격(+9)." },
-    { name: "초급 주문서", type: "atk", value: 7, critBonus: 2, price: 28, rarity: "common", onlyFor: ["마법사","위저드","소환사"], desc: "공격(+7), 치명(+2%)." },
-    { name: "마도 학도 로브", type: "hp", value: 40, def: 5, price: 32, rarity: "common", onlyFor: ["마법사","위저드","소환사"], desc: "체력(+40), 방어(+5)." },
-    { name: "정령 가루", type: "atk", value: 8, critMult: 0.08, price: 31, rarity: "common", onlyFor: ["마법사","위저드","소환사"], desc: "공격(+8), 치명 배율(+8%)." },
-    { name: "마력 전도체", type: "atk", value: 11, price: 34, rarity: "common", onlyFor: ["마법사","위저드","소환사"], desc: "공격(+11)." },
-    // 마법사 — rare x5
-    { name: "고대 룬스톤", type: "atk", value: 18, critMult: 0.18, price: 71, rarity: "rare", onlyFor: ["마법사","위저드","소환사"], desc: "공격(+18), 치명 배율(+18%)." },
-    { name: "마력 증폭 링", type: "atk", value: 16, lifesteal: 0.06, price: 73, rarity: "rare", onlyFor: ["마법사","위저드","소환사"], desc: "공격(+16), 흡혈(6%)." },
-    { name: "시간의 모래", type: "hp", value: 48, def: 7, price: 70, rarity: "rare", onlyFor: ["마법사","위저드","소환사"], desc: "체력(+48), 방어(+7)." },
-    { name: "번개 인장", type: "atk", value: 19, critBonus: 4, price: 72, rarity: "rare", onlyFor: ["마법사","위저드","소환사"], desc: "공격(+19), 치명(+4%)." },
-    { name: "심연의 페이지", type: "atk", value: 17, critMult: 0.14, price: 74, rarity: "rare", onlyFor: ["마법사","위저드","소환사"], desc: "공격(+17), 치명 배율(+14%)." },
-    // 마법사 — epic x5
-    { name: "성역 마도서", type: "atk", value: 32, critMult: 0.32, price: 128, rarity: "epic", onlyFor: ["위저드"], desc: "위저드. 공격(+32), 치명 배율(+32%)." },
-    { name: "소환진 외피", type: "hp", value: 75, def: 11, lifesteal: 0.1, price: 124, rarity: "epic", onlyFor: ["소환사"], desc: "소환사. 체력(+75), 방어(+11), 흡혈(10%)." },
-    { name: "혼돈 보주", type: "atk", value: 27, critBonus: 7, price: 121, rarity: "epic", onlyFor: ["마법사","위저드","소환사"], desc: "공격(+27), 치명(+7%)." },
-    { name: "별무리 로브", type: "hp", value: 62, def: 9, price: 119, rarity: "epic", onlyFor: ["마법사","위저드","소환사"], desc: "체력(+62), 방어(+9)." },
-    { name: "마력 폭풍 지팡이", type: "atk", value: 30, critMult: 0.25, price: 126, rarity: "epic", onlyFor: ["마법사","위저드","소환사"], desc: "공격(+30), 치명 배율(+25%)." },
-    // 마법사 — legendary x5
-    { name: "천공의 지팡이", type: "atk", value: 42, critMult: 0.38, price: 205, rarity: "legendary", onlyFor: ["위저드"], desc: "위저드. 공격(+42), 치명 배율(+38%)." },
-    { name: "차원문 인장", type: "hp", value: 95, def: 14, lifesteal: 0.12, price: 200, rarity: "legendary", onlyFor: ["소환사"], desc: "소환사. 체력(+95), 방어(+14), 흡혈(12%)." },
-    { name: "마도 제국의 왕관", type: "atk", value: 36, critBonus: 10, price: 198, rarity: "legendary", onlyFor: ["마법사","위저드","소환사"], desc: "공격(+36), 치명(+10%)." },
-    { name: "불멸의 마력 심장", type: "atk", value: 34, critMult: 0.3, price: 202, rarity: "legendary", onlyFor: ["마법사","위저드","소환사"], desc: "공격(+34), 치명 배율(+30%)." },
-    { name: "세계수의 잎새", type: "hp", value: 85, def: 12, price: 196, rarity: "legendary", onlyFor: ["마법사","위저드","소환사"], desc: "체력(+85), 방어(+12)." },
-];
-
-/** v7.0.3 — 상점 풀 확장 (밸런스 조정된 저~중 스탯) */
-const equipmentPoolExtra703 = [
-    { name: "낡은 끈", type: "hp", value: 6, price: 10, rarity: "common", desc: "공용. 체력(+6)." },
-    { name: "조각난 화살촉", type: "atk", value: 3, price: 11, rarity: "common", desc: "공용. 공격(+3)." },
-    { name: "구리 반지", type: "ring", value: 2, price: 12, rarity: "common", onlyFor: ["워리어", "나이트", "버서커"], desc: "워계. 공격(+2)." },
-    { name: "이끼 낀 돌", type: "hp", value: 9, def: 1, price: 13, rarity: "common", desc: "공용. 체력(+9), 방어(+1)." },
-    { name: "가죽 끈", type: "ring", value: 4, price: 14, rarity: "common", desc: "공용. 명중(+4%)." },
-    { name: "작은 철못", type: "atk", value: 4, price: 15, rarity: "common", onlyFor: ["헌터", "궁수", "암살자"], desc: "헌계. 공격(+4)." },
-    { name: "마른 허브", type: "hp", value: 7, price: 11, rarity: "common", onlyFor: ["마법사", "위저드", "소환사"], tags: ["arcane"], desc: "마계. 체력(+7)." },
-    { name: "부서진 수정", type: "atk", value: 4, critBonus: 1, price: 16, rarity: "common", onlyFor: ["마법사", "위저드", "소환사"], desc: "마계. 공격(+4), 치명(+1%)." },
-    { name: "녹슨 못", type: "atk", value: 3, def: 1, price: 12, rarity: "common", desc: "공용. 공격(+3), 방어(+1)." },
-    { name: "짚신", type: "hp", value: 8, price: 10, rarity: "common", desc: "공용. 체력(+8)." },
-    { name: "유리 조각", type: "atk", value: 5, critBonus: 1, price: 18, rarity: "common", desc: "공용. 공격(+5), 치명(+1%)." },
-    { name: "작은 방울", type: "ring", value: 5, price: 17, rarity: "common", desc: "공용. 명중(+5%)." },
-    { name: "밧줄 조각", type: "hp", value: 10, price: 14, rarity: "common", desc: "공용. 체력(+10)." },
-    { name: "납 동전", type: "atk", value: 4, price: 13, rarity: "common", desc: "공용. 공격(+4)." },
-    { name: "마른 고기", type: "hp", value: 11, price: 15, rarity: "common", lifesteal: 0.02, desc: "공용. 체력(+11), 흡혈(2%)." },
-    { name: "작은 방패 파편", type: "hp", value: 9, def: 2, price: 19, rarity: "common", onlyFor: ["워리어", "나이트", "버서커"], tags: ["heavy"], desc: "워계. 체력(+9), 방어(+2)." },
-    { name: "깃털 화살", type: "atk", value: 5, price: 20, rarity: "common", onlyFor: ["헌터", "궁수", "암살자"], tags: ["precision"], desc: "헌계. 공격(+5), 명중(+3%)." },
-    { name: "연습용 구슬", type: "atk", value: 5, critMult: 0.04, price: 21, rarity: "common", onlyFor: ["마법사", "위저드", "소환사"], desc: "마계. 공격(+5), 치명 배율(+4%)." },
-    { name: "청동 팔찌", type: "atk", value: 6, def: 1, price: 22, rarity: "rare", desc: "공용. 공격(+6), 방어(+1)." },
-    { name: "은박 반지", type: "ring", value: 14, price: 24, rarity: "rare", desc: "공용. 공격(+14)." },
-    { name: "가는 철검", type: "atk", value: 7, critBonus: 2, price: 26, rarity: "rare", onlyFor: ["워리어", "나이트", "버서커"], desc: "워계. 공격(+7), 치명(+2%)." },
-    { name: "사냥꾼 주머니", type: "atk", value: 6, lifesteal: 0.03, price: 27, rarity: "rare", onlyFor: ["헌터", "궁수", "암살자"], desc: "헌계. 공격(+6), 흡혈(3%)." },
-    { name: "마력 잔물결", type: "atk", value: 6, price: 25, rarity: "rare", onlyFor: ["마법사", "위저드", "소환사"], desc: "마계. 공격(+6)." },
-    { name: "단단한 가죽", type: "hp", value: 16, def: 2, price: 28, rarity: "rare", desc: "공용. 체력(+16), 방어(+2)." },
-    { name: "바람 깃털", type: "ring", value: 8, critBonus: 1, price: 29, rarity: "rare", desc: "공용. 명중(+8%), 치명(+1%)." },
-    { name: "작은 붉은 수정", type: "atk", value: 8, price: 32, rarity: "rare", desc: "공용. 공격(+8)." },
-    { name: "강철 버클", type: "hp", value: 13, def: 3, price: 31, rarity: "rare", onlyFor: ["워리어", "나이트", "버서커"], desc: "워계. 체력(+13), 방어(+3)." },
-    { name: "야간 투시경", type: "ring", value: 9, price: 33, rarity: "rare", onlyFor: ["헌터", "궁수", "암살자"], desc: "헌계. 명중(+9%)." },
-    { name: "마나 잔디", type: "hp", value: 18, price: 34, rarity: "rare", onlyFor: ["마법사", "위저드", "소환사"], desc: "마계. 체력(+18)." },
-    { name: "냉기 결정", type: "atk", value: 9, critBonus: 2, price: 38, rarity: "epic", onlyFor: ["마법사", "위저드", "소환사"], desc: "마계. 공격(+9), 치명(+2%)." },
-    { name: "강철 너클", type: "atk", value: 10, critMult: 0.06, price: 39, rarity: "epic", onlyFor: ["워리어", "나이트", "버서커"], desc: "워계. 공격(+10), 치명 배율(+6%)." },
-    { name: "독침 통", type: "atk", value: 9, lifesteal: 0.05, price: 40, rarity: "epic", onlyFor: ["헌터", "궁수", "암살자"], desc: "헌계. 공격(+9), 흡혈(5%)." },
-    { name: "별무늬 천", type: "hp", value: 22, price: 41, rarity: "epic", desc: "공용. 체력(+22)." },
-    { name: "암흑 가루", type: "atk", value: 11, price: 44, rarity: "epic", desc: "공용. 공격(+11), 명중(+4%)." },
-    { name: "은빛 고리", type: "atk", value: 10, def: 2, price: 42, rarity: "epic", desc: "공용. 공격(+10), 방어(+2)." },
-    { name: "화염 잔재", type: "atk", value: 12, critBonus: 3, price: 48, rarity: "epic", desc: "공용. 공격(+12), 치명(+3%)." },
-    { name: "빛바랜 망토", type: "hp", value: 20, def: 3, price: 46, rarity: "epic", desc: "공용. 체력(+20), 방어(+3)." },
-    { name: "수정 렌즈", type: "ring", value: 11, critBonus: 2, price: 47, rarity: "epic", desc: "공용. 명중(+11%), 치명(+2%)." },
-    { name: "천상의 파편", type: "atk", value: 14, critMult: 0.08, price: 52, rarity: "legendary", desc: "전설. 공격(+14), 치명 배율(+8%)." },
-    { name: "고대 철판", type: "hp", value: 28, def: 5, price: 54, rarity: "legendary", desc: "전설. 체력(+28), 방어(+5)." },
-    { name: "폭풍의 씨앗", type: "atk", value: 13, price: 53, rarity: "legendary", onlyFor: ["마법사", "위저드", "소환사"], desc: "마계. 공격(+13), 명중(+5%)." },
-    { name: "용해액 병", type: "atk", value: 12, lifesteal: 0.07, price: 51, rarity: "legendary", onlyFor: ["헌터", "궁수", "암살자"], desc: "헌계. 공격(+12), 흡혈(7%)." },
-    { name: "성스러운 철", type: "atk", value: 13, def: 3, price: 55, rarity: "legendary", onlyFor: ["워리어", "나이트", "버서커"], desc: "워계. 공격(+13), 방어(+3)." },
-    { name: "심해 비늘", type: "hp", value: 26, lifesteal: 0.06, price: 56, rarity: "legendary", desc: "전설. 체력(+26), 흡혈(6%)." },
-    { name: "얼음 핵", type: "atk", value: 14, critBonus: 3, price: 57, rarity: "legendary", desc: "전설. 공격(+14), 치명(+3%)." },
-    { name: "시간의 가루", type: "hp", value: 24, def: 4, price: 58, rarity: "legendary", desc: "전설. 체력(+24), 방어(+4)." },
-    { name: "혼령 실", type: "atk", value: 11, critMult: 0.09, price: 50, rarity: "epic", desc: "공용. 공격(+11), 치명 배율(+9%)." },
-    { name: "태양 가루", type: "ring", value: 10, price: 45, rarity: "epic", desc: "공용. 명중(+10%)." },
-    { name: "암석 심장", type: "hp", value: 30, price: 59, rarity: "legendary", desc: "전설. 체력(+30)." },
-    { name: "유리한 거래", type: "atk", value: 9, price: 36, rarity: "rare", desc: "공용. 공격(+9)." },
-    { name: "잊힌 인장", type: "hp", value: 17, def: 2, price: 37, rarity: "rare", desc: "공용. 체력(+17), 방어(+2)." },
-    { name: "바람의 조각", type: "atk", value: 8, price: 35, rarity: "rare", desc: "공용. 공격(+8), 명중(+4%)." },
-    { name: "대지의 알", type: "hp", value: 19, price: 43, rarity: "epic", desc: "공용. 체력(+19)." },
-    { name: "불꽃 심지", type: "atk", value: 10, critBonus: 2, price: 49, rarity: "epic", desc: "공용. 공격(+10), 치명(+2%)." },
-];
-
-/** 직업 전용 장비 추가 (워·헌·마 각 50종, 이름 중복 없음) — 접미사를 무기/갑옷/반지로 분리해 슬롯과 이름 일치 */
-const equipmentPoolS1Extra = (function generateEquipmentPoolS1Extra() {
-    const W = ['워리어', '나이트', '버서커'];
-    const H = ['헌터', '궁수', '암살자'];
-    const Z = ['마법사', '위저드', '소환사'];
-    const wP = ['철벽','강철','용병','성역','전장','파쇄','불굴','수호','심연','맹세','야수','검은','붉은','푸른','금빛','은빛','전설','파멸','천벌','신성','맹렬','철기','용맹','빛의','어둠','불꽃','얼음','폭풍','번개','대지','하늘','재앙','구원','철의','강철심','불굴','수호','심연','야수','맹렬','성기사','광전','성역','검은철','붉은장','푸른빛','은빛','금빛','낡은','전장','맹세'];
-    const wWeapon = ['대검','도끼','창','너클','철퇴','양날검','장검','모닝스타','리치','그레이트소드','전장검','언월도'];
-    const wArmor = ['흉갑','각반','투구','손갑','망토','부츠','갑옷','방패','벨트','요새','유산'];
-    const wRing = ['링','인장','휘장','방울','반지'];
-    const hP = ['바람','그림자','맹금','독','야생','달빛','별빛','숲','늪','절벽','저격','추적','은신','암살','날렵','민첩','독수리','뱀','여우','늑대','새벽','황혼','서리','폭풍','번개','유령','맹독','은빛','금빛','진홍','밤','안개','이슬','빙결','화염','천둥','유성','유령','침묵','속삭임','날쌤','예리','냉기','불꽃','질풍','신속','급습','매복'];
-    const hWeapon = ['활','단검','화살','시위','석궁','쇠뇌','표창','비수','투척칼','독침','함정'];
-    const hArmor = ['망토','장갑','부츠','화살통','목걸이','가죽','띠','깃털'];
-    const hRing = ['반지','주머니','표식','망원경','눈','휘장','링'];
-    const zP = ['고대','마나','별','심연','시간','공허','불꽃','얼음','번개','혼돈','성스러운','금지된','잊힌','비밀','대마도','소환','차원','천공','심장','눈동자','지팡이','보주','룬','인장','페이지','서적','모래','수정','수호','파동','잔향','심연','성역','마력','주문','봉인','파괴','정화','저주','축복','각성','각인','결계','마도','영혼','불사','불멸','환영','심연'];
-    const zWeapon = ['지팡이','보주','페이지','마력봉','각인','결정','파편','구슬','주문봉'];
-    const zArmor = ['로브','모래시계','수정','수호진','결계','주문서','마도서','장막','목걸이','심장','문자 봉인석'];
-    const zRing = ['링','인장','구슬','장식핀','주술목'];
-    const out = [];
-    function nameForSlot(i, pArr, weaponS, armorS, ringS, slotKind) {
-        const a = pArr[(i * 7) % pArr.length];
-        const pick = (arr) => arr[(i * 11) % arr.length];
-        if (slotKind === 'weapon') return `${a} ${pick(weaponS)}`;
-        if (slotKind === 'armor') return `${a} ${pick(armorS)}`;
-        return `${a} ${pick(ringS)}`;
-    }
-    function addLine(jobArr, tag, jobKey, i, pArr, weaponS, armorS, ringS) {
-        const rar = i % 25 === 0 ? 'legendary' : i % 6 === 0 ? 'epic' : i % 2 === 0 ? 'rare' : 'common';
-        const v = 6 + (i * 7) % 28;
-        const p = 22 + i * 2 + (rar === 'legendary' ? 100 : rar === 'epic' ? 40 : 0);
-        const k = i % 6;
-        const tg = tag ? [tag] : undefined;
-        const slotNm = k === 1 ? 'armor' : k === 3 ? 'ring' : 'weapon';
-        const nm = nameForSlot(i, pArr, weaponS, armorS, ringS, slotNm);
-        if (k === 0) {
-            const d = Math.floor(v / 10);
-            out.push({
-                name: nm,
-                type: 'atk',
-                value: v,
-                def: d,
-                price: p,
-                rarity: rar,
-                onlyFor: jobArr,
-                tags: tg,
-                desc: `공격(+${v}), 방어(+${d}).`,
-            });
-        } else if (k === 1) {
-            const df = 4 + (i % 12);
-            out.push({
-                name: nm,
-                type: 'hp',
-                value: v * 2,
-                def: df,
-                price: p,
-                rarity: rar,
-                onlyFor: jobArr,
-                tags: tg,
-                desc: `체력(+${v * 2}), 방어(+${df}).`,
-            });
-        } else if (k === 2) {
-            const cb = 2 + (i % 9);
-            out.push({
-                name: nm,
-                type: 'atk',
-                value: v,
-                critBonus: cb,
-                price: p,
-                rarity: rar,
-                onlyFor: jobArr,
-                tags: tg,
-                desc: `공격(+${v}), 치명(+${cb}%).`,
-            });
-        } else if (k === 3) {
-            const ac = 10 + (i % 15);
-            out.push({
-                name: nm,
-                type: 'ring',
-                value: ac,
-                price: p,
-                rarity: rar,
-                onlyFor: jobArr,
-                tags: tg,
-                desc: `반지 공격(+${ac}).`,
-            });
-        } else if (k === 4) {
-            const ls = Math.round((0.04 + (i % 9) * 0.012) * 1000) / 1000;
-            out.push({
-                name: nm,
-                type: 'atk',
-                value: v,
-                lifesteal: ls,
-                price: p,
-                rarity: rar,
-                onlyFor: jobArr,
-                tags: tg,
-                desc: `공격(+${v}), 흡혈(${Math.round(ls * 100)}%).`,
-            });
-        } else {
-            const cm = Math.round((0.06 + (i % 8) * 0.03) * 100) / 100;
-            out.push({
-                name: nm,
-                type: 'atk',
-                value: v,
-                critMult: cm,
-                price: p,
-                rarity: rar,
-                onlyFor: jobArr,
-                tags: tg,
-                desc: `공격(+${v}), 치명 배율(+${Math.round(cm * 100)}%).`,
-            });
-        }
-    }
-    for (let i = 1; i <= 50; i++) addLine(W, 'heavy', 'w', i, wP, wWeapon, wArmor, wRing);
-    for (let i = 1; i <= 50; i++) addLine(H, 'precision', 'h', i, hP, hWeapon, hArmor, hRing);
-    for (let i = 1; i <= 50; i++) addLine(Z, 'arcane', 'm', i, zP, zWeapon, zArmor, zRing);
-    return out;
-})();
-
-/** 성직자 전용 장비 60종 — 신성력 획득 보너스(divinityGainBonus) 일부 포함 */
-const equipmentPoolPriest = (function genPriestPool() {
-    const out = [];
-    const rc = ['common', 'common', 'rare', 'epic', 'legendary'];
-    const roots = ['공명의', '서약의', '찬가의', '축성의', '은총의', '심판의', '계시의', '영광의'];
-    const marks = ['인장', '성배', '잔향', '빛결', '유성', '서광', '성운', '찬란'];
-    for (let i = 0; i < 60; i++) {
-        const r = rc[i % 5];
-        const typ = i % 3 === 0 ? 'atk' : i % 3 === 1 ? 'hp' : 'ring';
-        const nm = `${roots[Math.floor(i / 8)]} ${marks[i % 8]}`;
-        const base = 4 + (i % 20);
-        const prayerBonus = r === 'epic' || r === 'legendary' ? 2 : 1;
-        const o = {
-            name: nm,
-            type: typ,
-            rarity: r,
-            onlyFor: ['성직자'],
-            price: 0,
-            prayerBonus,
-            desc: '',
-        };
-        if (typ === 'atk') o.value = base + 2;
-        else if (typ === 'hp') o.value = base * 3 + 8;
-        else o.value = 5 + (i % 16);
-
-        const mod = i % 4;
-        if (mod === 0) {
-            o.value = (o.value || 0) + (r === 'legendary' ? 14 : r === 'epic' ? 10 : r === 'rare' ? 7 : 4);
-        } else if (mod === 1) {
-            o.def = (o.def || 0) + (r === 'legendary' ? 26 : r === 'epic' ? 18 : r === 'rare' ? 12 : 7);
-        } else if (mod === 2) {
-            o.critBonus = (o.critBonus || 0) + (r === 'legendary' ? 9 : r === 'epic' ? 6 : r === 'rare' ? 4 : 2);
-        } else {
-            o.critMult = (o.critMult || 0) + (r === 'legendary' ? 0.22 : r === 'epic' ? 0.14 : r === 'rare' ? 0.09 : 0.05);
-        }
-        if (i % 6 === 0) o.divinityGainBonus = 0.04 + (r === 'legendary' ? 0.08 : r === 'epic' ? 0.05 : r === 'rare' ? 0.03 : 0.01);
-        if (i % 11 === 0) {
-            o.lifesteal = (o.lifesteal || 0) + (r === 'legendary' ? 0.1 : r === 'epic' ? 0.07 : r === 'rare' ? 0.05 : 0.03);
-        }
-        if (i % 13 === 0) {
-            o.critMult = (o.critMult || 0) + (r === 'legendary' ? 0.1 : r === 'epic' ? 0.08 : r === 'rare' ? 0.05 : 0.03);
-        }
-        if (i % 7 === 0 && typ === 'hp') {
-            o.def = (o.def || 0) + (r === 'legendary' ? 6 : r === 'epic' ? 5 : 4);
-        }
-        if (i % 9 === 0 && (typ === 'atk' || typ === 'ring')) {
-            o.critBonus = (o.critBonus || 0) + (r === 'legendary' ? 5 : r === 'epic' ? 4 : r === 'rare' ? 3 : 2);
-        }
-        o.tags = [`rarity_${r}`, `type_${typ}`, `synergy_priest`];
-        out.push(o);
-    }
-    return out;
-})();
-
-/** 룬 전용 칸 1개 — 등급별 고정 상점가. 골드·도주 유틸 및 소량 전투 스탯. */
+/** 시즌1 장비 풀: 부위 규칙(무기=공격계열만, 갑옷=방어·체력만, 반지=5스탯 조합, 룬=고정가). 총 72종. */
 const runePool = [
-    { name: '구리 각인 룬', type: 'rune', rarity: 'common', goldGainBonus: 0.025, desc: '공용. 골드 획득(+2.5%).' },
-    { name: '바람의 은빛 룬', type: 'rune', rarity: 'common', fleeBonus: 0.07, desc: '공용. 패닉 도주 시 층 하락 완화(+7% 발동).' },
-    { name: '불꽃 박석 룬', type: 'rune', rarity: 'common', value: 4, desc: '공용. 공격(+4).' },
-    { name: '청동 수호 룬', type: 'rune', rarity: 'rare', hpBonus: 32, def: 5, desc: '공용. 체력(+32), 방어(+5).' },
-    { name: '매매의 황금 룬', type: 'rune', rarity: 'rare', goldGainBonus: 0.055, desc: '공용. 골드 획득(+5.5%).' },
-    { name: '그림자 도피 룬', type: 'rune', rarity: 'rare', fleeBonus: 0.12, desc: '공용. 패닉 도주 하락 완화(+12%).' },
-    { name: '심연 파열 룬', type: 'rune', rarity: 'epic', value: 12, critBonus: 4, desc: '공용. 공격(+12), 치명(+4%).' },
-    { name: '대지 심장 룬', type: 'rune', rarity: 'epic', hpBonus: 52, def: 10, goldGainBonus: 0.04, desc: '공용. 체력(+52), 방어(+10), 골드(+4%).' },
-    { name: '유물 잔광 룬', type: 'rune', rarity: 'legendary', value: 18, critMult: 0.12, goldGainBonus: 0.085, desc: '공용. 공격(+18), 치명 배율(+12%), 골드(+8.5%).' },
-    { name: '공허 이탈 룬', type: 'rune', rarity: 'legendary', fleeBonus: 0.2, goldGainBonus: 0.06, desc: '공용. 도주 하락 완화(+20%), 골드(+6%).' },
+    { name: '재생의 룬', type: 'rune', rarity: 'common', price: 300, regenPotion: true, desc: '포션을 2턴에 나눠 회복.' },
+    { name: '행운의 룬', type: 'rune', rarity: 'common', price: 300, goldGainBonus: 0.1, desc: '골드 획득(+10%).' },
+    { name: '신속의 룬', type: 'rune', rarity: 'common', price: 300, fleeBonus: 0.15, desc: '도망 성공 시 층 하락 완화(+15%).' },
+    { name: '약한 힘의 룬', type: 'rune', rarity: 'common', price: 300, value: 4, desc: '공격(+4).' },
+    { name: '강화 재생 룬', type: 'rune', rarity: 'rare', price: 800, regenPotion: true, goldGainBonus: 0.03, desc: '포션 분할 회복, 골드(+3%).' },
+    { name: '상인의 룬', type: 'rune', rarity: 'rare', price: 800, goldGainBonus: 0.06, desc: '골드 획득(+6%).' },
+    { name: '그림자 도피 룬', type: 'rune', rarity: 'rare', price: 800, fleeBonus: 0.18, desc: '도망 완화(+18%).' },
+    { name: '전투 각인 룬', type: 'rune', rarity: 'rare', price: 800, value: 10, critBonus: 3, desc: '공격(+10), 치명(+3%).' },
+    { name: '대재생 룬', type: 'rune', rarity: 'epic', price: 1500, regenPotion: true, fleeBonus: 0.08, desc: '포션 분할 회복, 도망(+8%).' },
+    { name: '황금 심연 룬', type: 'rune', rarity: 'epic', price: 1500, goldGainBonus: 0.12, desc: '골드 획득(+12%).' },
+    { name: '차원 탈출 룬', type: 'rune', rarity: 'epic', price: 1500, fleeBonus: 0.22, desc: '도망 완화(+22%).' },
+    { name: '파괴 각인 룬', type: 'rune', rarity: 'epic', price: 1500, value: 14, critMult: 0.1, desc: '공격(+14), 치명 배율(+10%).' },
+    { name: '불멸 재생 룬', type: 'rune', rarity: 'legendary', price: 3000, regenPotion: true, goldGainBonus: 0.05, desc: '포션 분할, 골드(+5%).' },
+    { name: '용의 보물 룬', type: 'rune', rarity: 'legendary', price: 3000, goldGainBonus: 0.15, desc: '골드 획득(+15%).' },
+    { name: '공허 이탈 룬', type: 'rune', rarity: 'legendary', price: 3000, fleeBonus: 0.28, desc: '도망 완화(+28%).' },
+    { name: '창세석 룬', type: 'rune', rarity: 'legendary', price: 3000, value: 20, critBonus: 6, critMult: 0.08, desc: '공격(+20), 치명(+6%), 배율(+8%).' },
 ];
 
 const equipmentPool = [
-    // ===== 워리어 전용 =====
-    { name: "거인족의 대검",      type: "atk", value: 21, price: 90,  rarity: "epic",   onlyFor: ["워리어","나이트","버서커"], critBonus: 6,  desc: "워리어 계열. 공격력(+21). 치명타 확률(+6%)." },
-    { name: "찬빛 합금 흉갑",        type: "hp",  value: 80, def: 16, price: 90,  rarity: "epic",   onlyFor: ["워리어","나이트","버서커"], desc: "워리어 계열. 체력(+80), 방어(+16)." },
-    { name: "용사의 방패",        type: "hp",  value: 50, def: 14, price: 60,  rarity: "rare",   onlyFor: ["워리어","나이트","버서커"], desc: "워리어 계열. 체력(+50), 방어(+14)." },
-    { name: "전쟁의 도끼",        type: "atk", value: 18, price: 70,  rarity: "rare",   onlyFor: ["워리어","나이트","버서커"], critBonus: 4,  desc: "워리어 계열. 공격력(+18). 치명타 확률(+4%)." },
-    { name: "분노의 투구",        type: "hp",  value: 55, def: 8, price: 50,  rarity: "common", onlyFor: ["워리어","나이트","버서커"], desc: "워리어 계열. 체력(+55), 방어(+8)." },
-    { name: "철벽의 각반",        type: "hp",  value: 30, def: 10, price: 45,  rarity: "common", onlyFor: ["워리어","나이트","버서커"], desc: "워리어 계열. 체력(+30), 방어(+10)." },
-    { name: "강철 팔찌",          type: "ring", value: 8,  def: 6,  price: 40,  rarity: "common", onlyFor: ["워리어","나이트","버서커"], desc: "워리어 계열. 공격(+8), 방어(+6)." },
-    { name: "파괴자의 도끼",      type: "atk", value: 35, price: 130, rarity: "epic",   onlyFor: ["버서커"], critBonus: 10, desc: "버서커 전용. 공격력(+35). 치명타 확률(+10%)." },
-    { name: "성기사의 검",        type: "atk", value: 28, def: 8, price: 120, rarity: "epic",   onlyFor: ["나이트"], desc: "나이트 전용. 공격력(+28), 방어(+8)." },
-
-    // ===== 헌터 전용 =====
-    { name: "정령왕의 활",        type: "atk", value: 22, price: 95,  rarity: "epic",   onlyFor: ["헌터","궁수","암살자"], critBonus: 8,  desc: "헌터 계열. 공격력(+22). 치명타 확률(+8%)." },
-    { name: "은신 단검",      type: "atk", value: 18, price: 70,  rarity: "rare",   onlyFor: ["헌터","궁수","암살자"], critMult: 0.25, desc: "헌터 계열. 공격력(+18). 치명타 배율(+25%)." },
-    { name: "독화살 통",          type: "atk", value: 14, price: 55,  rarity: "rare",   onlyFor: ["헌터","궁수","암살자"], desc: "헌터 계열. 공격력(+14)." },
-    { name: "그림자 망토",        type: "hp",  value: 40, def: 4, price: 45,  rarity: "common", onlyFor: ["헌터","궁수","암살자"], desc: "헌터 계열. 체력(+40), 방어(+4)." },
-    { name: "사냥꾼의 장갑",      type: "hp",  value: 52, def: 5, price: 50,  rarity: "common", onlyFor: ["헌터","궁수","암살자"], desc: "헌터 계열. 체력(+52), 방어(+5)." },
-    { name: "바람의 신발",        type: "hp",  value: 38, def: 4, price: 35,  rarity: "common", onlyFor: ["헌터","궁수","암살자"], desc: "헌터 계열. 체력(+38), 방어(+4)." },
-    { name: "독이 묻은 화살촉",   type: "atk", value: 10, price: 40,  rarity: "common", onlyFor: ["헌터","궁수","암살자"], lifesteal: 0.08, desc: "헌터 계열. 공격력(+10). 흡혈(8%)." },
-    { name: "폭풍의 활",          type: "atk", value: 32, price: 120, rarity: "epic",   onlyFor: ["궁수"], critBonus: 6, desc: "궁수 전용. 공격력(+32). 치명타(+6%), 명중(+10%)." },
-    { name: "그림자 쌍검",        type: "atk", value: 28, price: 110, rarity: "epic",   onlyFor: ["암살자"], critMult: 0.4, lifesteal: 0.12, desc: "암살자 전용. 공격력(+28). 치명타 배율(+40%), 흡혈(12%)." },
-
-    // ===== 마법사 전용 =====
-    { name: "고대 마도 지팡이",  type: "atk", value: 28, price: 100, rarity: "epic",   onlyFor: ["마법사","위저드","소환사"], critMult: 0.4, desc: "마법사 계열. 공격력(+28). 치명타 배율(+40%)." },
-    { name: "학자의 로브",        type: "hp",  value: 50, def: 6, price: 45,  rarity: "common", onlyFor: ["마법사","위저드","소환사"], desc: "마법사 계열. 체력(+50), 방어(+6)." },
-    { name: "마력 증폭기",        type: "atk", value: 20, price: 75,  rarity: "rare",   onlyFor: ["마법사","위저드","소환사"], critMult: 0.25, desc: "마법사 계열. 공격력(+20). 치명타 배율(+25%)." },
-    { name: "정령의 로브",        type: "hp",  value: 65, def: 8, price: 65,  rarity: "rare",   onlyFor: ["마법사","위저드","소환사"], desc: "마법사 계열. 체력(+65), 방어(+8)." },
-    { name: "마력 수정",      type: "atk", value: 15, price: 50,  rarity: "common", onlyFor: ["마법사","위저드","소환사"], desc: "마법사 계열. 공격력(+15)." },
-    { name: "마력 구슬",          type: "atk", value: 10, price: 35,  rarity: "common", onlyFor: ["마법사","위저드","소환사"], desc: "마법사 계열. 공격력(+10)." },
-    { name: "마력 봉인 관",      type: "atk", value: 8,  price: 30,  rarity: "common", onlyFor: ["마법사","위저드","소환사"], critBonus: 3, desc: "마법사 계열. 공격력(+8). 치명타 확률(+3%)." },
-    { name: "고대 마법진",        type: "atk", value: 38, price: 130, rarity: "epic",   onlyFor: ["위저드"], critMult: 0.5, desc: "위저드 전용. 공격력(+38). 치명타 배율(+50%)." },
-    { name: "차원 부름 인장",      type: "hp",  value: 80, def: 12, price: 120, rarity: "epic",   onlyFor: ["소환사"], lifesteal: 0.15, desc: "소환사 전용. 체력(+80), 방어(+12). 흡혈(15%)." },
-
-    // ===== 공용 =====
-    { name: "드래곤의 심장",      type: "hp",  value: 130, def: 14, price: 180, rarity: "legendary", desc: "전설. 체력(+130), 방어(+14)." },
-    { name: "빛의 잔광검",         type: "atk", value: 45, price: 200, rarity: "legendary", critBonus: 10, critMult: 0.3, desc: "전설. 공격력(+45), 명중(+10%), 치명타 확률(+10%), 배율(+30%)." },
-    { name: "흡혈 반지",          type: "ring", value: 8,  price: 60,  rarity: "rare",   lifesteal: 0.15, desc: "공용. 공격(+8). 흡혈(15%)." },
-    { name: "흡혈 망토",          type: "hp",  value: 35, price: 75,  rarity: "rare",   lifesteal: 0.25, desc: "공용. 체력(+35). 흡혈(25%)." },
-    { name: "저주받은 검",        type: "atk", value: 38, price: 100, rarity: "epic",   penalty: { '워리어': 15, '헌터': 20, '마법사': 25 }, critBonus: 12, desc: "공용. 공격력(+38). 치명타(+12%). 명중률 대폭 하락." },
-    { name: "바람의 부츠",        type: "hp",  value: 48, def: 6, price: 55,  rarity: "rare",   desc: "공용. 체력(+48), 방어(+6)." },
-    { name: "중갑옷",             type: "hp",  value: 75, def: 12, price: 65,  rarity: "rare",   penalty: { '마법사': 20, '헌터': 15 }, desc: "공용. 체력(+75), 방어(+12). 마법사·헌터는 명중률 감소." },
-    { name: "낡은 가죽 갑옷",     type: "hp",  value: 35, def: 4,  price: 25,  rarity: "common", desc: "공용. 체력(+35), 방어(+4)." },
-    { name: "회복의 목걸이",      type: "hp",  value: 20, price: 40,  rarity: "common", regenPotion: true, desc: "공용. 체력(+20). 포션 사용 시 2턴간 서서히 회복." },
-    { name: "대지의 반지",        type: "ring", value: 45, def: 5,  price: 50,  rarity: "common", desc: "공용. 공격(+45), 방어(+5)." },
-    { name: "수련자의 검",        type: "atk", value: 6,  price: 20,  rarity: "common", desc: "공용. 공격력(+6)." },
-    { name: "견습 갑옷",          type: "hp",  value: 25, def: 3,  price: 20,  rarity: "common", desc: "공용. 체력(+25), 방어(+3)." },
-    { name: "행운의 동전",        type: "ring", value: 8,  price: 25,  rarity: "common", critBonus: 2, desc: "공용. 명중률(+8%), 치명타 확률(+2%)." },
-    { name: "불꽃 반지",          type: "ring", value: 12, price: 45,  rarity: "common", critBonus: 3, desc: "공용. 공격(+12), 치명(+3%)." },
-    { name: "생명의 돌",          type: "hp",  value: 55, price: 45,  rarity: "rare",   desc: "공용. 체력(+55)." },
-    { name: "전투 반지",          type: "ring", value: 14, def: 4, price: 55,  rarity: "rare",   desc: "공용. 공격(+14), 방어(+4)." },
-    { name: "용의 비늘 조각",     type: "hp",  value: 60, def: 8,  price: 70,  rarity: "rare",   desc: "공용. 체력(+60), 방어(+8)." },
-    { name: "고대 유물 파편",     type: "atk", value: 18, price: 65,  rarity: "rare",   desc: "공용. 공격력(+18), 명중률(+5%)." },
-    { name: "피의 에센스",        type: "atk", value: 20, price: 80,  rarity: "epic",   lifesteal: 0.18, critBonus: 5, desc: "공용. 공격력(+20). 흡혈(18%), 치명타(+5%)." },
-    { name: "불사의 갑옷",        type: "hp",  value: 90, def: 15, price: 140, rarity: "epic",   desc: "공용. 체력(+90), 방어(+15)." },
-    { name: "번개의 반지",        type: "ring", value: 25, price: 110, rarity: "epic",   critBonus: 8, critMult: 0.2, desc: "공용. 공격(+25). 치명(+8%), 배율(+20%)." },
-    { name: "폭군의 갑옷",        type: "hp",  value: 110, def: 20, price: 170, rarity: "legendary", critBonus: 5, desc: "전설. 체력(+110), 방어(+20), 치명타(+5%)." },
-    { name: "세계수의 가지",      type: "hp",  value: 80, price: 150, rarity: "legendary", regenPotion: true, lifesteal: 0.2, desc: "전설. 체력(+80). 포션 강화, 흡혈(20%)." },
-    ...equipmentPoolV651,
-    ...equipmentPoolExtra703,
-    ...equipmentPoolS1Extra,
-    ...equipmentPoolPriest,
     ...runePool,
+    { name: '녹슨 쇠검', type: 'atk', rarity: 'common', price: 190, value: 9, critBonus: 2, desc: '녹슨 쇠검. 공격·치명·흡혈 계열 무기.' },
+    { name: '청동 마도봉', type: 'atk', rarity: 'common', price: 270, value: 12, critBonus: 3, desc: '청동 마도봉. 공격·치명·흡혈 계열 무기.' },
+    { name: '훈련용 단검', type: 'atk', rarity: 'common', price: 310, value: 11, lifesteal: 0.04, desc: '훈련용 단검. 공격·치명·흡혈 계열 무기.' },
+    { name: '사냥꾼 단궁', type: 'atk', rarity: 'common', price: 400, value: 10, critMult: 0.06, desc: '사냥꾼 단궁. 공격·치명·흡혈 계열 무기.' },
+    { name: '강철 장검', type: 'atk', rarity: 'rare', price: 600, value: 20, critBonus: 4, desc: '강철 장검. 공격·치명·흡혈 계열 무기.' },
+    { name: '은빛 미늘창', type: 'atk', rarity: 'rare', price: 1230, value: 22, critMult: 0.12, desc: '은빛 미늘창. 공격·치명·흡혈 계열 무기.' },
+    { name: '피의 송곳니', type: 'atk', rarity: 'rare', price: 735, value: 19, lifesteal: 0.06, desc: '피의 송곳니. 공격·치명·흡혈 계열 무기.' },
+    { name: '그림자 비수', type: 'atk', rarity: 'rare', price: 1290, value: 21, critBonus: 5, critMult: 0.08, desc: '그림자 비수. 공격·치명·흡혈 계열 무기.' },
+    { name: '천둥 망치', type: 'atk', rarity: 'epic', price: 2725, value: 34, critBonus: 7, lifesteal: 0.08, desc: '천둥 망치. 공격·치명·흡혈 계열 무기.' },
+    { name: '혼돈의 지팡이', type: 'atk', rarity: 'epic', price: 2825, value: 38, critMult: 0.15, desc: '혼돈의 지팡이. 공격·치명·흡혈 계열 무기.' },
+    { name: '학살자 도끼', type: 'atk', rarity: 'epic', price: 3050, value: 32, critBonus: 8, critMult: 0.1, desc: '학살자 도끼. 공격·치명·흡혈 계열 무기.' },
+    { name: '뱀파이어 낫', type: 'atk', rarity: 'epic', price: 2900, value: 36, lifesteal: 0.1, critBonus: 6, desc: '뱀파이어 낫. 공격·치명·흡혈 계열 무기.' },
+    { name: '용암 핵심검', type: 'atk', rarity: 'legendary', price: 10720, value: 58, critBonus: 14, critMult: 0.2, lifesteal: 0.08, desc: '용암 핵심검. 공격·치명·흡혈 계열 무기.' },
+    { name: '성스러운 성검', type: 'atk', rarity: 'legendary', price: 9680, value: 62, critMult: 0.24, critBonus: 12, desc: '성스러운 성검. 공격·치명·흡혈 계열 무기.' },
+    { name: '심연 흡혈검', type: 'atk', rarity: 'legendary', price: 8160, value: 54, lifesteal: 0.14, critBonus: 16, desc: '심연 흡혈검. 공격·치명·흡혈 계열 무기.' },
+    { name: '파멸의 양날도', type: 'atk', rarity: 'legendary', price: 11800, value: 65, critBonus: 18, critMult: 0.22, lifesteal: 0.06, desc: '파멸의 양날도. 공격·치명·흡혈 계열 무기.' },
+    { name: '낡은 가죽 갑옷', type: 'hp', value: 35, def: 5, rarity: 'common', price: 92, desc: '낡은 가죽 갑옷. 체력·방어 전용.' },
+    { name: '철판 흉갑', type: 'hp', value: 38, def: 6, rarity: 'common', price: 109, desc: '철판 흉갑. 체력·방어 전용.' },
+    { name: '수련생 로브', type: 'hp', value: 42, def: 7, rarity: 'common', price: 126, desc: '수련생 로브. 체력·방어 전용.' },
+    { name: '거인의 허리띠', type: 'hp', value: 46, def: 8, rarity: 'common', price: 143, desc: '거인의 허리띠. 체력·방어 전용.' },
+    { name: '기사단 판금', type: 'hp', value: 72, def: 12, rarity: 'rare', price: 324, desc: '기사단 판금. 체력·방어 전용.' },
+    { name: '어둠의 흉갑', type: 'hp', value: 76, def: 13, rarity: 'rare', price: 349, desc: '어둠의 흉갑. 체력·방어 전용.' },
+    { name: '바람의 망토', type: 'hp', value: 80, def: 14, rarity: 'rare', price: 375, desc: '바람의 망토. 체력·방어 전용.' },
+    { name: '대지 수호 갑옷', type: 'hp', value: 84, def: 15, rarity: 'rare', price: 400, desc: '대지 수호 갑옷. 체력·방어 전용.' },
+    { name: '거인의 흉갑', type: 'hp', value: 128, def: 21, rarity: 'epic', price: 947, desc: '거인의 흉갑. 체력·방어 전용.' },
+    { name: '드래곤 비늘 갑옷', type: 'hp', value: 136, def: 22, rarity: 'epic', price: 995, desc: '드래곤 비늘 갑옷. 체력·방어 전용.' },
+    { name: '심연 판금', type: 'hp', value: 144, def: 23, rarity: 'epic', price: 1042, desc: '심연 판금. 체력·방어 전용.' },
+    { name: '천공 방어구', type: 'hp', value: 152, def: 24, rarity: 'epic', price: 1090, desc: '천공 방어구. 체력·방어 전용.' },
+    { name: '불멸의 성역', type: 'hp', value: 215, def: 31, rarity: 'legendary', price: 2290, desc: '불멸의 성역. 체력·방어 전용.' },
+    { name: '세계수 껍질', type: 'hp', value: 228, def: 33, rarity: 'legendary', price: 2436, desc: '세계수 껍질. 체력·방어 전용.' },
+    { name: '지옥의 갑옷', type: 'hp', value: 242, def: 35, rarity: 'legendary', price: 2584, desc: '지옥의 갑옷. 체력·방어 전용.' },
+    { name: '신의 갑주', type: 'hp', value: 255, def: 37, rarity: 'legendary', price: 2730, desc: '신의 갑주. 체력·방어 전용.' },
+    { name: '청동 힘의 반지', type: 'ring', rarity: 'common', price: 100, value: 10, desc: '공격·방어·체력·치명 배율·흡혈 조합 반지.' },
+    { name: '수호의 은반지', type: 'ring', rarity: 'common', price: 120, def: 8, desc: '공격·방어·체력·치명 배율·흡혈 조합 반지.' },
+    { name: '생명 조각 고리', type: 'ring', rarity: 'common', price: 74, hpBonus: 28, def: 4, desc: '공격·방어·체력·치명 배율·흡혈 조합 반지.' },
+    { name: '예리한 각인', type: 'ring', rarity: 'common', price: 400, critMult: 0.08, desc: '공격·방어·체력·치명 배율·흡혈 조합 반지.' },
+    { name: '전투의 고리', type: 'ring', rarity: 'rare', price: 405, value: 18, def: 6, desc: '공격·방어·체력·치명 배율·흡혈 조합 반지.' },
+    { name: '대지 수호 인장', type: 'ring', rarity: 'rare', price: 351, value: 14, hpBonus: 38, def: 5, desc: '공격·방어·체력·치명 배율·흡혈 조합 반지.' },
+    { name: '흡혈 각인', type: 'ring', rarity: 'rare', price: 900, value: 15, lifesteal: 0.09, desc: '공격·방어·체력·치명 배율·흡혈 조합 반지.' },
+    { name: '균형의 고리', type: 'ring', rarity: 'rare', price: 249, def: 10, hpBonus: 32, desc: '공격·방어·체력·치명 배율·흡혈 조합 반지.' },
+    { name: '번개 고리', type: 'ring', rarity: 'epic', price: 3200, value: 28, critMult: 0.14, lifesteal: 0.06, desc: '공격·방어·체력·치명 배율·흡혈 조합 반지.' },
+    { name: '대지의 반지', type: 'ring', rarity: 'epic', price: 1025, value: 24, def: 10, hpBonus: 40, desc: '공격·방어·체력·치명 배율·흡혈 조합 반지.' },
+    { name: '심연 뱀 고리', type: 'ring', rarity: 'epic', price: 3275, value: 26, lifesteal: 0.11, critMult: 0.1, desc: '공격·방어·체력·치명 배율·흡혈 조합 반지.' },
+    { name: '천공의 인장', type: 'ring', rarity: 'epic', price: 1060, value: 22, def: 12, hpBonus: 48, desc: '공격·방어·체력·치명 배율·흡혈 조합 반지.' },
+    { name: '절대 왕의 인장', type: 'ring', rarity: 'legendary', price: 2770, value: 45, def: 14, hpBonus: 65, desc: '공격·방어·체력·치명 배율·흡혈 조합 반지.' },
+    { name: '종말의 각인', type: 'ring', rarity: 'legendary', price: 8320, value: 48, critMult: 0.2, lifesteal: 0.12, desc: '공격·방어·체력·치명 배율·흡혈 조합 반지.' },
+    { name: '불사의 고리', type: 'ring', rarity: 'legendary', price: 5424, value: 42, lifesteal: 0.18, hpBonus: 72, desc: '공격·방어·체력·치명 배율·흡혈 조합 반지.' },
+    { name: '창세의 루비', type: 'ring', rarity: 'legendary', price: 7440, value: 52, def: 16, critMult: 0.22, desc: '공격·방어·체력·치명 배율·흡혈 조합 반지.' },
+    { name: '성화의 철퇴', type: 'atk', rarity: 'rare', price: 630, tags: ['synergy_priest'], onlyFor: ['성직자'], value: 22, critBonus: 4, desc: '성직자 전용 무기.' },
+    { name: '심판의 망치', type: 'atk', rarity: 'epic', price: 2450, tags: ['synergy_priest'], onlyFor: ['성직자'], value: 28, critMult: 0.14, desc: '성직자 전용 무기.' },
+    { name: '빛의 예복', type: 'hp', rarity: 'rare', price: 348, value: 75, def: 13, tags: ['synergy_priest'], onlyFor: ['성직자'], desc: '성직자 전용 갑옷.' },
+    { name: '성역 판금', type: 'hp', rarity: 'epic', price: 710, value: 88, def: 16, tags: ['synergy_priest'], onlyFor: ['성직자'], desc: '성직자 전용 갑옷.' },
+    { name: '신앙 고리', type: 'ring', rarity: 'rare', price: 438, tags: ['synergy_priest'], onlyFor: ['성직자'], value: 14, def: 9, hpBonus: 35, desc: '성직자 전용 반지.' },
+    { name: '기도의 인장', type: 'ring', rarity: 'epic', price: 1550, tags: ['synergy_priest'], onlyFor: ['성직자'], value: 12, def: 10, lifesteal: 0.07, desc: '성직자 전용 반지.' },
+    { name: '축복석 룬', type: 'rune', rarity: 'common', price: 300, tags: ['synergy_priest'], onlyFor: ['성직자'], regenPotion: true, divinityGainBonus: 0.02, desc: '성직자 시너지. 룬.' },
+    { name: '성스러운 각인 룬', type: 'rune', rarity: 'rare', price: 800, tags: ['synergy_priest'], onlyFor: ['성직자'], goldGainBonus: 0.05, prayerBonus: 1, desc: '성직자 시너지. 룬.' },
 ];
+
 
 /**
  * v7 시너지(리워크): 등급별 아이템 조합 시 추가 효과
@@ -579,9 +275,9 @@ const relicPool = [
 
 // 대장간 합성 레시피
 const forgeRecipes = [
-    { name: "강화 철검",     type: "atk", value: 28, def: 0,  price: 0, rarity: "rare",      desc: "대장간 합성. 공격력(+28).",          materials: 2, materialRarity: "common", successRate: 0.85 },
+    { name: "강화 철검",     type: "atk", value: 28, price: 0, rarity: "rare",      desc: "대장간 합성. 공격력(+28).",          materials: 2, materialRarity: "common", successRate: 0.85 },
     { name: "강화 갑주",     type: "hp",  value: 70, def: 12, price: 0, rarity: "rare",      desc: "대장간 합성. 체력(+70), 방어(+12).", materials: 2, materialRarity: "common", successRate: 0.85 },
-    { name: "강화 반지",     type: "ring", value: 22, price: 0, rarity: "rare",      desc: "대장간 합성. 명중률(+22%)",          materials: 2, materialRarity: "common", successRate: 0.85, critBonus: 4 },
+    { name: "강화 반지",     type: "ring", value: 22, def: 8, price: 0, rarity: "rare",      desc: "대장간 합성. 공격(+22), 방어(+8).", materials: 2, materialRarity: "common", successRate: 0.85 },
     { name: "영웅의 무기",   type: "atk", value: 42, price: 0, rarity: "epic",      desc: "대장간 합성. 공격력(+42).",          materials: 2, materialRarity: "rare",   successRate: 0.65, critBonus: 8 },
     { name: "영웅의 갑옷",   type: "hp",  value: 100, def: 18, price: 0, rarity: "epic",     desc: "대장간 합성. 체력(+100), 방어(+18).", materials: 2, materialRarity: "rare", successRate: 0.65 },
     { name: "전설의 파편",   type: "atk", value: 60, price: 0, rarity: "legendary", desc: "대장간 합성. 공격력(+60). 치명타(+12%).", materials: 3, materialRarity: "rare", successRate: 0.40, critBonus: 12 },
@@ -601,9 +297,11 @@ function buildEquipmentStatParts(it) {
         if (typeof it.lifesteal === 'number') parts.push(`흡혈(${Math.round(it.lifesteal * 100)}%)`);
         if (typeof it.goldGainBonus === 'number') parts.push(`골드 획득(+${Math.round(it.goldGainBonus * 100)}%)`);
         if (typeof it.fleeBonus === 'number') parts.push(`도주 완화(${Math.round(it.fleeBonus * 100)}%)`);
+        if (it.regenPotion) parts.push('포션 2턴 분할 회복');
         return parts;
     }
     if ((it.type === 'atk' || it.type === 'ring') && typeof it.value === 'number') parts.push(`공격(+${it.value})`);
+    if (it.type === 'ring' && typeof it.hpBonus === 'number' && it.hpBonus) parts.push(`체력(+${it.hpBonus})`);
     if (it.type === 'hp' && typeof it.value === 'number') parts.push(`체력(+${it.value})`);
     if (typeof it.def === 'number' && it.def !== 0) {
         parts.push(it.def > 0 ? `방어(+${it.def})` : `방어(${it.def})`);
@@ -659,11 +357,11 @@ const BUDGET_BY_RARITY = {
 /** 등급별 스탯 상한 — 과도한 수치 방지(상점/배분 공통) */
 function _statMaxForRarity(rk) {
     const R = {
-        common: { atk: 26, hp: 95, def: 22, crit: 22, cm: 18, ls: 22 },
-        rare: { atk: 38, hp: 155, def: 34, crit: 32, cm: 24, ls: 28 },
-        epic: { atk: 52, hp: 220, def: 48, crit: 42, cm: 30, ls: 34 },
-        legendary: { atk: 65, hp: 290, def: 62, crit: 52, cm: 36, ls: 40 },
-        legend: { atk: 65, hp: 290, def: 62, crit: 52, cm: 36, ls: 40 },
+        common: { atk: 28, hp: 100, def: 24, crit: 24, cm: 20, ls: 24 },
+        rare: { atk: 42, hp: 165, def: 36, crit: 34, cm: 26, ls: 30 },
+        epic: { atk: 58, hp: 235, def: 52, crit: 44, cm: 32, ls: 36 },
+        legendary: { atk: 72, hp: 310, def: 68, crit: 56, cm: 40, ls: 42 },
+        legend: { atk: 72, hp: 310, def: 68, crit: 56, cm: 40, ls: 42 },
     };
     const k = String(rk || 'common').toLowerCase();
     return R[k] || R.common;
@@ -1053,7 +751,9 @@ function _safeNumForPrice(v, fb) {
 }
 
 /**
- * 스탯 총합(STAT_COST_X100) + 희귀도 계수로 골드 가격 산출 — 상점·해금·드랍 공통.
+ * 시즌1 절대 가격 공식 — 룬은 등급 고정가.
+ * Base = 공격×10 + 방어×15 + 체력(hp/value·hpBonus)×0.5 + (치명%/배율%/흡혈%) 각 1%당 50골드
+ * 최종 = Base × (Normal 1 / Rare 1.5 / Epic 2.5 / Legend 4)
  */
 function computeEquipmentGoldPrice(it) {
     if (!it || it.type === 'relic') return _safeNumForPrice(it && it.price, 0);
@@ -1062,21 +762,28 @@ function computeEquipmentGoldPrice(it) {
         const fixed = { common: 300, rare: 800, epic: 1500, legendary: 3000, legend: 3000 };
         return fixed[rk] ?? 300;
     }
-    const C = STAT_COST_X100;
-    let pt = 0;
-    if (it.type === 'hp') pt += C.hp * Math.max(0, _safeNumForPrice(it.value, 0));
-    else if (it.type === 'atk' || it.type === 'ring') pt += C.atk * Math.max(0, _safeNumForPrice(it.value, 0));
-    pt += C.def * Math.max(0, _safeNumForPrice(it.def, 0));
-    pt += C.crit * Math.max(0, _safeNumForPrice(it.critBonus, 0));
-    pt += C.cm * Math.max(0, _safeNumForPrice(it.critMult, 0) * 100);
-    pt += C.ls * Math.max(0, _safeNumForPrice(it.lifesteal, 0) * 100);
     const rk = String(it.rarity || 'common').toLowerCase();
-    const tier = { common: 1, rare: 1.1, epic: 1.26, legendary: 1.42, legend: 1.42 }[rk] || 1;
-    const prayer = _safeNumForPrice(it.prayerBonus, 0) * 400;
-    const div = _safeNumForPrice(it.divinityGainBonus, 0) * 5200;
-    const regen = it.regenPotion ? 1600 : 0;
-    const base = 14 + (pt / 100) * 0.34 * tier + prayer + div + regen;
-    return Math.max(8, Math.floor(base));
+    const tierMult = { common: 1, rare: 1.5, epic: 2.5, legendary: 4, legend: 4 }[rk] || 1;
+    let base = 0;
+    if (it.type === 'atk') {
+        base += _safeNumForPrice(it.value, 0) * 10;
+        base += _safeNumForPrice(it.critBonus, 0) * 50;
+        base += _safeNumForPrice(it.critMult, 0) * 100 * 50;
+        base += _safeNumForPrice(it.lifesteal, 0) * 100 * 50;
+    } else if (it.type === 'hp') {
+        base += _safeNumForPrice(it.value, 0) * 0.5;
+        base += _safeNumForPrice(it.def, 0) * 15;
+    } else if (it.type === 'ring') {
+        base += _safeNumForPrice(it.value, 0) * 10;
+        base += _safeNumForPrice(it.def, 0) * 15;
+        base += _safeNumForPrice(it.hpBonus, 0) * 0.5;
+        base += _safeNumForPrice(it.critBonus, 0) * 50;
+        base += _safeNumForPrice(it.critMult, 0) * 100 * 50;
+        base += _safeNumForPrice(it.lifesteal, 0) * 100 * 50;
+    }
+    base += _safeNumForPrice(it.prayerBonus, 0) * 50;
+    base += _safeNumForPrice(it.divinityGainBonus, 0) * 100 * 50;
+    return Math.max(1, Math.floor(base * tierMult));
 }
 
 function _jitterWeights(base, rnd) {
@@ -1313,6 +1020,9 @@ function clampEquipmentItemStatsToRarityCaps(it) {
     if (typeof it.value === 'number') {
         if (it.type === 'hp') it.value = Math.max(1, Math.min(M.hp, it.value));
         else if (it.type === 'atk' || it.type === 'ring') it.value = Math.max(1, Math.min(M.atk, it.value));
+    }
+    if (it.type === 'ring' && typeof it.hpBonus === 'number') {
+        it.hpBonus = Math.max(0, Math.min(M.hp, it.hpBonus));
     }
     if (typeof it.def === 'number') {
         const negCap = rk === 'legendary' || rk === 'legend' ? -22 : -16;

@@ -2396,12 +2396,16 @@ function removeOwnedItemEffects(it) {
         if (it.lifesteal) player.lifesteal = Math.max(0, safeNum(player.lifesteal, 0) - safeNum(it.lifesteal, 0));
         if (it.critBonus) player.crit = Math.max(1, safeNum(player.crit, 1) - safeNum(it.critBonus, 0));
         if (it.critMult) player.critMult = Math.max(1.8, safeNum(player.critMult, 1.8) - safeNum(it.critMult, 0));
-        const hasRegen = (player.items || []).some((x) => x !== it && x && x.regenPotion);
+        const hasRegen = (player.items || []).some((x) => x !== it && x && x.regenPotion && x.type === 'rune');
         player.hasRegenPotion = !!hasRegen;
         recalcPlayerDivineGainMult();
         return;
     }
     if (it.type === 'atk' || it.type === 'ring') player.atk = Math.max(1, safeNum(player.atk, 1) - safeNum(it.value, 0));
+    if (it.type === 'ring' && typeof it.hpBonus === 'number' && it.hpBonus) {
+        player.maxHp = Math.max(1, safeNum(player.maxHp, 1) - safeNum(it.hpBonus, 0));
+        player.curHp = Math.min(getEffectiveMaxHp(), safeNum(player.curHp, 0));
+    }
     if (it.type === 'hp') {
         player.maxHp = Math.max(1, safeNum(player.maxHp, 1) - safeNum(it.value, 0));
         player.curHp = Math.min(getEffectiveMaxHp(), safeNum(player.curHp, 0));
@@ -2411,7 +2415,7 @@ function removeOwnedItemEffects(it) {
     if (it.critBonus) player.crit = Math.max(1, safeNum(player.crit, 1) - safeNum(it.critBonus, 0));
     if (it.critMult) player.critMult = Math.max(1.8, safeNum(player.critMult, 1.8) - safeNum(it.critMult, 0));
     if (it.penalty && it.penalty[player.name]) player.acc += safeNum(it.penalty[player.name], 0);
-    const hasRegen = (player.items || []).some((x) => x !== it && x && x.regenPotion);
+    const hasRegen = (player.items || []).some((x) => x !== it && x && x.regenPotion && x.type === 'rune');
     player.hasRegenPotion = !!hasRegen;
     recalcPlayerDivineGainMult();
 }

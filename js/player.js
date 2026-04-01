@@ -58,6 +58,11 @@ function applyOwnedEquipmentItemBonuses(it) {
     if (it.type === 'atk' || it.type === 'ring') {
         player.atk = Math.max(1, safeNum(player.atk, 1) + safeNum(it.value, 0));
     }
+    if (it.type === 'ring' && typeof it.hpBonus === 'number' && it.hpBonus) {
+        const add = safeNum(it.hpBonus, 0);
+        player.maxHp = Math.max(1, safeNum(player.maxHp, 1) + add);
+        player.curHp = safeNum(player.curHp, 0) + add;
+    }
     if (it.type === 'hp') {
         const add = safeNum(it.value, 0);
         player.maxHp = Math.max(1, safeNum(player.maxHp, 1) + add);
@@ -125,7 +130,7 @@ function fullResyncPlayerCombatStatsFromMetaAndInventory() {
     for (const it of player.items || []) {
         applyOwnedEquipmentItemBonuses(it);
     }
-    player.hasRegenPotion = !!(player.items || []).some((x) => x && x.regenPotion && x.type !== 'merc');
+    player.hasRegenPotion = !!(player.items || []).some((x) => x && x.regenPotion && x.type === 'rune');
 
     recalcPlayerDivineGainMult();
 }

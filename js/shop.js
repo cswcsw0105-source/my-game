@@ -430,10 +430,11 @@ window.buyItem = (event, idx) => {
                 if (it.critMult) player.critMult = (player.critMult || 1.8) + it.critMult;
             } else {
                 if(it.type==='atk'||it.type==='ring')player.atk+=it.value;
+                if(it.type==='ring'&&typeof it.hpBonus==='number'&&it.hpBonus){player.maxHp+=it.hpBonus;player.curHp+=it.hpBonus;}
                 if(it.type==='hp'){player.maxHp+=it.value;player.curHp+=it.value;}
                 if(it.def)player.extraDef+=it.def;
                 if(it.lifesteal)player.lifesteal=(player.lifesteal||0)+it.lifesteal;
-                if(it.regenPotion)player.hasRegenPotion=true;
+                if(it.regenPotion&&it.type==='rune')player.hasRegenPotion=true;
                 if(it.critBonus)player.crit=(player.crit||1)+it.critBonus;
                 if(it.critMult)player.critMult=(player.critMult||1.8)+it.critMult;
                 if(it.penalty&&it.penalty[player.name]){player.acc-=it.penalty[player.name];writeLog(`[패널티] 명중률 -${it.penalty[player.name]}% 적용`);}
