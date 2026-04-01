@@ -140,6 +140,15 @@ function applyShopRarityTuning(baseItem) {
     if (baseItem.type === 'relic' || baseItem.type === 'potion' || baseItem.type === 'merc_shop_direct' || baseItem.type === 'merc_shop_fund') {
         return { ...baseItem };
     }
+    if (baseItem.type === 'rune') {
+        const tuned = { ...baseItem };
+        tuned.name = formatShopItemName(tuned.name);
+        if (typeof window.applyOfficialStatsToEquipmentItem === 'function') {
+            window.applyOfficialStatsToEquipmentItem(tuned, { rebuildDesc: true });
+        }
+        tuned.desc = formatShopItemDesc(tuned.desc);
+        return tuned;
+    }
     const tuned = { ...baseItem };
     tuned.name = formatShopItemName(tuned.name);
     if (typeof window.applyOfficialStatsToEquipmentItem === 'function') {
@@ -209,6 +218,17 @@ function renderShopItems(keepCurrentStock) {
                 desc: '직거래보다 저렴. 사기 50%. 성공 시 고등급 확률↑ (이름 중복 없음).',
             }
         );
+        const runeMerc = getNonMercEquipmentPool().filter((i) => i && i.type === 'rune');
+        if (runeMerc.length) {
+            const shuffled = [...runeMerc].sort(() => Math.random() - 0.5);
+            for (const raw of shuffled) {
+                const tuned = applyShopRarityTuning({ ...raw });
+                if (currentShopItems.some((p) => p && p.name === tuned.name)) continue;
+                if (player.items.some((x) => x && x.name === tuned.name)) continue;
+                currentShopItems.push(tuned);
+                break;
+            }
+        }
     } else if (!keepCurrentStock) {
         if (floor >= 20 && Math.random() < 0.25 && player.relics) {
             const ar = relicPool.filter((r) => {
@@ -237,6 +257,19 @@ function renderShopItems(keepCurrentStock) {
             }
             picked.push(applyShopRarityTuning(item));
     }
+        /** 풀에 생성 장비가 매우 많아 랜덤만으로는 룬이 거의 안 나옴 → 매 상점에 룬 1칸 확정 */
+        const runeOnly = getNonMercEquipmentPool().filter((i) => i && i.type === 'rune');
+        if (runeOnly.length && !picked.some((p) => p && p.type === 'rune')) {
+            const shuffled = [...runeOnly].sort(() => Math.random() - 0.5);
+            for (const raw of shuffled) {
+                const tuned = applyShopRarityTuning({ ...raw });
+                if (picked.some((p) => p.name === tuned.name)) continue;
+                if (player.items.some((x) => x && x.name === tuned.name)) continue;
+                picked.unshift(tuned);
+                while (picked.length > 4) picked.pop();
+                break;
+            }
+        }
     currentShopItems.push(...picked);
     }
     if (currentPotionOffer) {
@@ -263,7 +296,7 @@ function renderShopItems(keepCurrentStock) {
         else if(it.rarity==='rare'){bc='#1e90ff';bac='#1e90ff';bb='#1a1e2d';bt='RARE';}
         let nc=isRelic?'#f1c40f':it.rarity==='legendary'?'#e74c3c':it.rarity==='epic'?'#a55eea':it.rarity==='rare'?'#1e90ff':'#e0e0e0';
         let ti=isRelic?'✨':'🎒';
-        if(!isRelic){if(it.type==='atk')ti='⚔️';else if(it.type==='hp')ti='🛡️';else if(it.type==='ring')ti='💍';else if(it.type==='potion')ti='🧪';else if(it.type==='merc')ti='⚔️';else if(it.type==='merc_shop_direct')ti='💼';else if(it.type==='merc_shop_fund')ti='🤝';if(it.lifesteal)ti='🩸';if(it.regenPotion)ti='💚';}
+        if(!isRelic){if(it.type==='atk')ti='⚔️';else if(it.type==='hp')ti='🛡️';else if(it.type==='ring')ti='💍';else if(it.type==='rune')ti='🔮';else if(it.type==='potion')ti='🧪';else if(it.type==='merc')ti='⚔️';else if(it.type==='merc_shop_direct')ti='💼';else if(it.type==='merc_shop_fund')ti='🤝';if(it.lifesteal)ti='🩸';if(it.regenPotion)ti='💚';}
         const iu=getUnlockedPoolItems().some(u=>u.name===it.name);
         const pref = isPreferredItem(it.name);
         const btnClass = full ? 'shop-card-btn shop-card-btn--full' : owned ? 'shop-card-btn shop-card-btn--owned' : 'shop-card-btn shop-card-btn--buy';
@@ -384,14 +417,27 @@ window.buyItem = (event, idx) => {
             ensureOwnedItemUid(it);
             it._buyPrice = safeNum(it.price, 0);
             player.items.push(it); saveCollection(it.name);
-            if(it.type==='atk'||it.type==='ring')player.atk+=it.value;
-            if(it.type==='hp'){player.maxHp+=it.value;player.curHp+=it.value;}
-            if(it.def)player.extraDef+=it.def;
-            if(it.lifesteal)player.lifesteal=(player.lifesteal||0)+it.lifesteal;
-            if(it.regenPotion)player.hasRegenPotion=true;
-            if(it.critBonus)player.crit=(player.crit||1)+it.critBonus;
-            if(it.critMult)player.critMult=(player.critMult||1.8)+it.critMult;
-            if(it.penalty&&it.penalty[player.name]){player.acc-=it.penalty[player.name];writeLog(`[패널티] 명중률 -${it.penalty[player.name]}% 적용`);}
+            if (it.type === 'rune') {
+                if (typeof it.value === 'number' && it.value) player.atk += it.value;
+                if (typeof it.hpBonus === 'number' && it.hpBonus) {
+                    player.maxHp += it.hpBonus;
+                    player.curHp += it.hpBonus;
+                }
+                if (it.def) player.extraDef += it.def;
+                if (it.lifesteal) player.lifesteal = (player.lifesteal || 0) + it.lifesteal;
+                if (it.regenPotion) player.hasRegenPotion = true;
+                if (it.critBonus) player.crit = (player.crit || 1) + it.critBonus;
+                if (it.critMult) player.critMult = (player.critMult || 1.8) + it.critMult;
+            } else {
+                if(it.type==='atk'||it.type==='ring')player.atk+=it.value;
+                if(it.type==='hp'){player.maxHp+=it.value;player.curHp+=it.value;}
+                if(it.def)player.extraDef+=it.def;
+                if(it.lifesteal)player.lifesteal=(player.lifesteal||0)+it.lifesteal;
+                if(it.regenPotion)player.hasRegenPotion=true;
+                if(it.critBonus)player.crit=(player.crit||1)+it.critBonus;
+                if(it.critMult)player.critMult=(player.critMult||1.8)+it.critMult;
+                if(it.penalty&&it.penalty[player.name]){player.acc-=it.penalty[player.name];writeLog(`[패널티] 명중률 -${it.penalty[player.name]}% 적용`);}
+            }
             recalcPlayerDivineGainMult();
             writeLog(`[상점] ${it.name} 장착 완료!`);
             renderShopItems(true);

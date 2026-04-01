@@ -440,9 +440,23 @@ const equipmentPoolPriest = (function genPriestPool() {
     return out;
 })();
 
+/** 룬 전용 칸 1개 — 등급별 고정 상점가. 골드·도주 유틸 및 소량 전투 스탯. */
+const runePool = [
+    { name: '구리 각인 룬', type: 'rune', rarity: 'common', goldGainBonus: 0.025, desc: '공용. 골드 획득(+2.5%).' },
+    { name: '바람의 은빛 룬', type: 'rune', rarity: 'common', fleeBonus: 0.07, desc: '공용. 패닉 도주 시 층 하락 완화(+7% 발동).' },
+    { name: '불꽃 박석 룬', type: 'rune', rarity: 'common', value: 4, desc: '공용. 공격(+4).' },
+    { name: '청동 수호 룬', type: 'rune', rarity: 'rare', hpBonus: 32, def: 5, desc: '공용. 체력(+32), 방어(+5).' },
+    { name: '매매의 황금 룬', type: 'rune', rarity: 'rare', goldGainBonus: 0.055, desc: '공용. 골드 획득(+5.5%).' },
+    { name: '그림자 도피 룬', type: 'rune', rarity: 'rare', fleeBonus: 0.12, desc: '공용. 패닉 도주 하락 완화(+12%).' },
+    { name: '심연 파열 룬', type: 'rune', rarity: 'epic', value: 12, critBonus: 4, desc: '공용. 공격(+12), 치명(+4%).' },
+    { name: '대지 심장 룬', type: 'rune', rarity: 'epic', hpBonus: 52, def: 10, goldGainBonus: 0.04, desc: '공용. 체력(+52), 방어(+10), 골드(+4%).' },
+    { name: '유물 잔광 룬', type: 'rune', rarity: 'legendary', value: 18, critMult: 0.12, goldGainBonus: 0.085, desc: '공용. 공격(+18), 치명 배율(+12%), 골드(+8.5%).' },
+    { name: '공허 이탈 룬', type: 'rune', rarity: 'legendary', fleeBonus: 0.2, goldGainBonus: 0.06, desc: '공용. 도주 하락 완화(+20%), 골드(+6%).' },
+];
+
 const equipmentPool = [
     // ===== 워리어 전용 =====
-    { name: "거인족의 대검",      type: "atk", value: 21, price: 90,  rarity: "epic",   onlyFor: ["워리어","나이트","버서커"], critBonus: 6,  desc: "워리어 계열. 공격력(+22). 치명타 확률(+6%)." },
+    { name: "거인족의 대검",      type: "atk", value: 21, price: 90,  rarity: "epic",   onlyFor: ["워리어","나이트","버서커"], critBonus: 6,  desc: "워리어 계열. 공격력(+21). 치명타 확률(+6%)." },
     { name: "찬빛 합금 흉갑",        type: "hp",  value: 80, def: 16, price: 90,  rarity: "epic",   onlyFor: ["워리어","나이트","버서커"], desc: "워리어 계열. 체력(+80), 방어(+16)." },
     { name: "용사의 방패",        type: "hp",  value: 50, def: 14, price: 60,  rarity: "rare",   onlyFor: ["워리어","나이트","버서커"], desc: "워리어 계열. 체력(+50), 방어(+14)." },
     { name: "전쟁의 도끼",        type: "atk", value: 18, price: 70,  rarity: "rare",   onlyFor: ["워리어","나이트","버서커"], critBonus: 4,  desc: "워리어 계열. 공격력(+18). 치명타 확률(+4%)." },
@@ -502,6 +516,7 @@ const equipmentPool = [
     ...equipmentPoolExtra703,
     ...equipmentPoolS1Extra,
     ...equipmentPoolPriest,
+    ...runePool,
 ];
 
 /**
@@ -577,6 +592,17 @@ const forgeRecipes = [
 /** 비유물 장비 스탯 설명 줄 생성 */
 function buildEquipmentStatParts(it) {
     const parts = [];
+    if (it.type === 'rune') {
+        if (typeof it.value === 'number' && it.value) parts.push(`공격(+${it.value})`);
+        if (typeof it.hpBonus === 'number' && it.hpBonus) parts.push(`체력(+${it.hpBonus})`);
+        if (typeof it.def === 'number' && it.def !== 0) parts.push(it.def > 0 ? `방어(+${it.def})` : `방어(${it.def})`);
+        if (typeof it.critBonus === 'number') parts.push(`치명(+${it.critBonus}%)`);
+        if (typeof it.critMult === 'number') parts.push(`치명 배율(+${Math.round(it.critMult * 100)}%)`);
+        if (typeof it.lifesteal === 'number') parts.push(`흡혈(${Math.round(it.lifesteal * 100)}%)`);
+        if (typeof it.goldGainBonus === 'number') parts.push(`골드 획득(+${Math.round(it.goldGainBonus * 100)}%)`);
+        if (typeof it.fleeBonus === 'number') parts.push(`도주 완화(${Math.round(it.fleeBonus * 100)}%)`);
+        return parts;
+    }
     if ((it.type === 'atk' || it.type === 'ring') && typeof it.value === 'number') parts.push(`공격(+${it.value})`);
     if (it.type === 'hp' && typeof it.value === 'number') parts.push(`체력(+${it.value})`);
     if (typeof it.def === 'number' && it.def !== 0) {
@@ -591,6 +617,11 @@ function buildEquipmentStatParts(it) {
 
 function rebuildEquipmentDesc(it, opts) {
     if (!it || it.type === 'relic') return;
+    if (it.type === 'rune') {
+        const parts = buildEquipmentStatParts(it);
+        it.desc = parts.length ? `룬. ${parts.join(', ')}.` : (it.desc || '');
+        return;
+    }
     const parts = buildEquipmentStatParts(it);
     const s = parts.join(', ');
     if (opts && opts.floorUnlockKey != null) {
@@ -1026,6 +1057,11 @@ function _safeNumForPrice(v, fb) {
  */
 function computeEquipmentGoldPrice(it) {
     if (!it || it.type === 'relic') return _safeNumForPrice(it && it.price, 0);
+    if (it.type === 'rune') {
+        const rk = String(it.rarity || 'common').toLowerCase();
+        const fixed = { common: 300, rare: 800, epic: 1500, legendary: 3000, legend: 3000 };
+        return fixed[rk] ?? 300;
+    }
     const C = STAT_COST_X100;
     let pt = 0;
     if (it.type === 'hp') pt += C.hp * Math.max(0, _safeNumForPrice(it.value, 0));
@@ -1230,8 +1266,8 @@ function _allocateBudgetToStats(Bx, ch, rnd, rarityKey, it) {
 }
 
 /**
- * 등급·특징별 예산 100% 랜덤 배분. 유물(relic 타입·relic 등급) 제외.
- * 상점 복제본에도 동일 적용을 위해 window에 노출.
+ * 비유물 장비: 데이터 수치 통과 + 클램프·가격·설명 갱신. (무기/반지=공격·유틸, 갑옷=체력·방어 테이블 유지)
+ * 룬은 등급 고정가. 유물·relic 등급 제외.
  */
 function applyOfficialStatsToEquipmentItem(it, opts) {
     if (!it) return it;
@@ -1245,48 +1281,18 @@ function applyOfficialStatsToEquipmentItem(it, opts) {
         return it;
     }
 
-    const rk = String(it.rarity || 'common').toLowerCase();
-    const B = BUDGET_BY_RARITY[rk] ?? BUDGET_BY_RARITY.common;
-    let Bx = Math.round(B * 100);
-    const tagsKey = Array.isArray(it.tags) ? [...it.tags].sort().join(',') : '';
-    const seedStr = `${it.name}|${rk}|${it.type}|${tagsKey}`;
-    const rnd = _budgetMulberry32(_budgetHashSeed(seedStr));
+    /** 통과형: 무기·반지=공격 계열, 갑옷=체력·방어 계열로 데이터 수치 유지(랜덤 재배분 없음). */
+    if (it.type === 'rune') {
+        it.price = computeEquipmentGoldPrice(it);
+        it._officialStatApplied = true;
+        if (o.rebuildDesc !== false) rebuildEquipmentDesc(it, o);
+        return it;
+    }
 
-    const strictFill = !(rk === 'epic' || rk === 'legendary' || rk === 'legend');
-    const concept = _detectItemConcept(it);
-    it.itemConceptKey = concept;
-    it._itemConceptLabelKo = ITEM_CONCEPT_LABEL_KO[concept] || '유틸/하이브리드';
-
-    const keywordTheme = _detectKeywordTheme(it);
-    it.keywordThemeKey = keywordTheme || '';
-    it._keywordThemeLabelKo = keywordTheme ? KEYWORD_THEME_LABEL_KO[keywordTheme] : '';
-
-    let ch = _mergeNamePersonalityChannels(it, _snapshotStatChannels(it), strictFill);
-    ch = _narrowChannelsForConcept(it, ch, concept);
-    ch = _enforceEpicLegendChannelBounds(ch, it, rk, rnd);
-    const nCh = ['atk', 'hp', 'def', 'crit', 'cm', 'ls'].filter((k) => ch[k]).length;
-    Bx = Math.round(Bx * Math.min(1.16, 1 + 0.032 * Math.max(0, nCh - 3)));
-    let a = _allocateBudgetToStats(Bx, ch, rnd, rk, it);
-    a = _ensureEpicLegendChannelMinimums(a, ch, rk, rnd);
-    a = _applyVar15PctToAllocatedStats(a, rnd, it);
-    a = _applyRuinTradeoff(it, a, keywordTheme, rnd);
-    a = _ensureMinStatLinesAfterRoll(it, a, ch, rk, rnd);
-
-    const round1 = (x) => Math.max(0, Math.round((Number(x) || 0) * 10) / 10);
-
-    delete it.def;
-    delete it.acc;
-    delete it.critBonus;
-    delete it.critMult;
-    delete it.lifesteal;
-
-    if (it.type === 'atk' || it.type === 'ring') it.value = Math.max(1, a.atk);
-    else if (it.type === 'hp') it.value = Math.max(1, a.hp);
-
-    if (a.def !== 0) it.def = a.def;
-    if (a.crit > 0) it.critBonus = round1(a.crit);
-    if (a.cm > 0) it.critMult = a.cm / 100;
-    if (a.ls > 0) it.lifesteal = a.ls / 100;
+    delete it.itemConceptKey;
+    delete it.keywordThemeKey;
+    delete it._itemConceptLabelKo;
+    delete it._keywordThemeLabelKo;
 
     it._officialStatApplied = true;
     clampEquipmentItemStatsToRarityCaps(it);
@@ -1301,7 +1307,7 @@ function applyOfficialStatsToEquipmentItem(it, opts) {
 
 /** 저장 데이터·구버전 보정: 등급 상한으로 장비 수치 클램프 후 설명 갱신 */
 function clampEquipmentItemStatsToRarityCaps(it) {
-    if (!it || it.type === 'relic' || it.type === 'merc') return it;
+    if (!it || it.type === 'relic' || it.type === 'merc' || it.type === 'rune') return it;
     const rk = String(it.rarity || 'common').toLowerCase();
     const M = _statMaxForRarity(rk);
     if (typeof it.value === 'number') {
@@ -1322,6 +1328,7 @@ if (typeof window !== 'undefined') {
     window.applyOfficialStatsToEquipmentItem = applyOfficialStatsToEquipmentItem;
     window.clampEquipmentItemStatsToRarityCaps = clampEquipmentItemStatsToRarityCaps;
     window.computeEquipmentGoldPrice = computeEquipmentGoldPrice;
+    window.RUNE_POOL_COUNT = typeof runePool !== 'undefined' ? runePool.length : 0;
 }
 
 /** 공식 기반 스탯 테이블 적용 (비유물 전용) */

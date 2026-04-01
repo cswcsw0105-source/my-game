@@ -39,6 +39,22 @@ function applyRebirthPctBonusToPlayer(slot) {
 
 function applyOwnedEquipmentItemBonuses(it) {
     if (!it || it.type === 'merc') return;
+    if (it.type === 'rune') {
+        if (typeof it.value === 'number' && it.value) {
+            player.atk = Math.max(1, safeNum(player.atk, 1) + safeNum(it.value, 0));
+        }
+        if (typeof it.hpBonus === 'number' && it.hpBonus) {
+            const add = safeNum(it.hpBonus, 0);
+            player.maxHp = Math.max(1, safeNum(player.maxHp, 1) + add);
+            player.curHp = safeNum(player.curHp, 0) + add;
+        }
+        if (it.def) player.extraDef = safeNum(player.extraDef, 0) + safeNum(it.def, 0);
+        if (it.lifesteal) player.lifesteal = safeNum(player.lifesteal, 0) + safeNum(it.lifesteal, 0);
+        if (it.critBonus) player.crit = safeNum(player.crit, 1) + safeNum(it.critBonus, 0);
+        if (it.critMult) player.critMult = safeNum(player.critMult, 1.8) + safeNum(it.critMult, 0);
+        if (it.regenPotion) player.hasRegenPotion = true;
+        return;
+    }
     if (it.type === 'atk' || it.type === 'ring') {
         player.atk = Math.max(1, safeNum(player.atk, 1) + safeNum(it.value, 0));
     }
@@ -247,3 +263,24 @@ window.recalcPlayerDivineGainMult = recalcPlayerDivineGainMult;
 window.addDivinePower = addDivinePower;
 window.getEffectiveAttackPower = getEffectiveAttackPower;
 window.getTotalPlayerDefenseForHit = getTotalPlayerDefenseForHit;
+
+function sumRuneBonuses(field) {
+    if (!player || !Array.isArray(player.items)) return 0;
+    let s = 0;
+    for (const it of player.items) {
+        if (it && it.type === 'rune' && typeof it[field] === 'number') s += safeNum(it[field], 0);
+    }
+    return s;
+}
+
+function getPlayerGoldGainMult() {
+    return 1 + sumRuneBonuses('goldGainBonus');
+}
+
+/** 패닉 도주 시 층 하락 완화 확률(합산, 상한 55%) */
+function getPlayerFleeBonus() {
+    return Math.min(0.55, sumRuneBonuses('fleeBonus'));
+}
+
+window.getPlayerGoldGainMult = getPlayerGoldGainMult;
+window.getPlayerFleeBonus = getPlayerFleeBonus;
