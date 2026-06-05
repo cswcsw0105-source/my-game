@@ -1,4 +1,33 @@
 // Enemy domain module (stage 3 split)
+function getEnemyScalingForFloor(floorValue) {
+    const f = Math.max(1, Math.floor(safeNum(floorValue, 1)));
+    const wallFloor = BALANCE.enemyWallFloor || 30;
+    const preFloors = Math.max(0, Math.min(f - 1, wallFloor - 1));
+    const postFloors = Math.max(0, f - wallFloor);
+    const pre = Math.pow(BALANCE.enemyPreWallGrowth || 1.055, preFloors);
+    const post = Math.pow(BALANCE.enemyPostWallGrowth || 1.065, postFloors);
+    const wall = f >= wallFloor;
+    return {
+        hp: pre * post * (wall ? BALANCE.enemyWallHpMult || 2.2 : 1),
+        atk: pre * post * (wall ? BALANCE.enemyWallAtkMult || 2.0 : 1),
+        def: Math.pow((BALANCE.enemyPreWallGrowth || 1.055) - 0.012, preFloors) *
+            Math.pow((BALANCE.enemyPostWallGrowth || 1.065) - 0.007, postFloors) *
+            (wall ? BALANCE.enemyWallDefMult || 2.1 : 1),
+    };
+}
+
+function buildEnemyStatsForFloor(floorValue, isBoss) {
+    const f = Math.max(1, Math.floor(safeNum(floorValue, 1)));
+    const s = getEnemyScalingForFloor(f);
+    const wave = 1 + ((f % 5) - 2) * 0.025;
+    const boss = isBoss ? { hp: 2.65, atk: 1.72, def: 1.65 } : { hp: 1, atk: 1, def: 1 };
+    return {
+        hp: Math.max(1, Math.floor((44 + f * 4.5) * s.hp * boss.hp * wave)),
+        atk: Math.max(1, Math.floor((6 + f * 0.55) * s.atk * boss.atk * wave)),
+        def: Math.max(0, Math.floor((1 + f * 0.22) * s.def * boss.def)),
+    };
+}
+
 function spawnEnemy() {
     setCombatProcessing(false);
     if (pendingShop) { pendingShop=false; return openShop(); }
@@ -41,15 +70,10 @@ function spawnEnemy() {
     }
 
     if (floor%10===0) {
-        let bossHp,bossAtk,bossDef;
-        const _BH = 1.48, _BA = 1.52;
-        if(floor<=10){bossHp=200+floor*20;bossAtk=12+floor*3;bossDef=3+Math.floor(floor/3);}
-        else if(floor<=30){bossHp=400+floor*30;bossAtk=20+floor*5;bossDef=8+Math.floor(floor/2);}
-        else if(floor<=60){bossHp=800+floor*40;bossAtk=35+floor*7;bossDef=15+Math.floor(floor/2);}
-        else{bossHp=1500+floor*55;bossAtk=60+floor*10;bossDef=25+Math.floor(floor/2);}
-        bossHp = Math.floor(bossHp * _BH);
-        bossAtk = Math.floor(bossAtk * _BA);
-        bossDef = Math.max(0, Math.floor(bossDef * 1.12));
+        const stats = buildEnemyStatsForFloor(floor, true);
+        const bossHp = stats.hp;
+        const bossAtk = stats.atk;
+        const bossDef = stats.def;
         enemy={name:`👑 [보스] ${floor}층 군주`,job:'보스',hp:bossHp,curHp:bossHp,atk:bossAtk,def:bossDef,isBoss:true,turnCount:1,bossCharge:false,weakPoint:false,_aiGuardedTurns:0,_hunterEvasionTurns:0};
         writeLog(`🚨 경고: ${floor}층의 지배자가 나타났습니다!`);
     } else {
@@ -57,15 +81,10 @@ function spawnEnemy() {
         let rj=eJobs[Math.floor(Math.random()*eJobs.length)];
         if(rj===lastEnemyJob) rj=eJobs[Math.floor(Math.random()*eJobs.length)];
         lastEnemyJob=rj;
-        let mh,ma,md;
-        const _MH = 1.46, _MA = 1.5;
-        if(floor<=10){mh=30+floor*8;ma=5+floor*1.5;md=Math.floor(floor/4);}
-        else if(floor<=30){mh=100+floor*15;ma=18+floor*3;md=4+Math.floor(floor/3);}
-        else if(floor<=60){mh=300+floor*22;ma=35+floor*5;md=10+Math.floor(floor/2);}
-        else{mh=700+floor*30;ma=65+floor*8;md=20+Math.floor(floor/2);}
-        mh = Math.floor(mh * _MH);
-        ma = Math.floor(ma * _MA);
-        md = Math.max(0, Math.floor(md * 1.1));
+        const stats = buildEnemyStatsForFloor(floor, false);
+        let mh = stats.hp;
+        let ma = stats.atk;
+        let md = stats.def;
         enemy={name:`[${rj}형] ${floor}층 괴수`,job:rj,hp:Math.floor(mh),curHp:Math.floor(mh),atk:Math.floor(ma),def:Math.floor(md),isBoss:false,weakPoint:false,_aiGuardedTurns:0,_hunterEvasionTurns:0};
     }
     if (enemy && window._pendingEncounterCombatMod) {
@@ -110,3 +129,5 @@ function tryActivateFloorQuest() {
 
 window.spawnEnemy = spawnEnemy;
 window.tryActivateFloorQuest = tryActivateFloorQuest;
+window.getEnemyScalingForFloor = getEnemyScalingForFloor;
+window.buildEnemyStatsForFloor = buildEnemyStatsForFloor;

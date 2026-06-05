@@ -202,6 +202,22 @@
         return m.slots.find((s) => s.id === id) || null;
     }
 
+    function getCampStatGrowthBonus(slot, key, level) {
+        const lv = Math.max(0, Number(level) || 0);
+        if (!slot || lv <= 0) return 0;
+        const job = typeof jobBase !== 'undefined' ? jobBase[slot.jobKey] : null;
+        if (!job) return 0;
+        const floorEquivalent = lv * ((typeof BALANCE !== 'undefined' && BALANCE.upgradeFloorEquivalent) || 1.25);
+        const perFloorGrowth = (typeof BALANCE !== 'undefined' && BALANCE.enemyPostWallGrowth) || 1.065;
+        const growth = Math.pow(perFloorGrowth, floorEquivalent) - 1;
+        const ref = {
+            hp: Math.max(1, Number(job.hp) || 1),
+            atk: Math.max(1, Number(job.atk) || 1),
+            def: Math.max(8, Number(job.def) || 1),
+        }[key];
+        return Math.floor(ref * growth);
+    }
+
     function recalcTechBonus(slot) {
         const bought = new Set(slot.techPurchased || []);
         const techMult = 1 + Math.min(3, slot.reincarnationCount || 0) * 0.05;
@@ -220,10 +236,10 @@
             acc += (e.acc || 0) * techMult;
         }
         const cp = slot.campPerma || { hp: 0, atk: 0, def: 0, crit: 0, cm: 0 };
-        /** 베이스캠프 영구: 단계당 체력/공/방 상향, 치명 1%/단계·배율 +0.10/단계 (무한) */
-        hp += (cp.hp || 0) * 32;
-        atk += (cp.atk || 0) * 5;
-        def += (cp.def || 0) * 3;
+        /** 베이스캠프 영구: 1단계 ≈ 1.25층 성장분, 4단계 ≈ 5층 돌파분 */
+        hp += getCampStatGrowthBonus(slot, 'hp', cp.hp || 0);
+        atk += getCampStatGrowthBonus(slot, 'atk', cp.atk || 0);
+        def += getCampStatGrowthBonus(slot, 'def', cp.def || 0);
         const critFromCamp = (cp.crit || 0) * 1.0;
         const cmFromCamp = (cp.cm || 0) * 0.1;
         const leg = slot.legacyPerma || { hp: 0, atk: 0, def: 0, acc: 0 };
@@ -364,13 +380,33 @@
         return { ok: true, cost };
     }
 
-    function createCharacter(name, jobKey) {
+    function createCharacter(name, jobKey, options) {
         const m = loadMeta();
         if (m.slots.length >= MAX_SLOTS) return { ok: false, msg: '슬롯 가득 (최대 ' + MAX_SLOTS + ')' };
+        const opt = options && typeof options === 'object' ? options : {};
+        const raceKey =
+            opt.raceKey && typeof raceStories !== 'undefined' && raceStories[opt.raceKey] ? opt.raceKey : null;
+        const weaponKey =
+            opt.weaponKey && typeof introWeaponChoices !== 'undefined' && introWeaponChoices[opt.weaponKey]
+                ? opt.weaponKey
+                : null;
+        const classKey =
+            opt.classKey && typeof classStories !== 'undefined' && classStories[opt.classKey]
+                ? opt.classKey
+                : weaponKey && typeof introWeaponChoices !== 'undefined'
+                  ? introWeaponChoices[weaponKey].classKey
+                  : jobKey;
         const slot = {
             id: uid(),
             name: name || '무명',
             jobKey,
+            raceKey,
+            introWeaponKey: weaponKey,
+            classKey,
+            currentPromotion: null,
+            promotionHistory: [],
+            storyFlags: {},
+            storyLog: [],
             techLine: null,
             techPurchased: [],
             legacyPerma: { hp: 0, atk: 0, def: 0, acc: 0 },
@@ -610,6 +646,7 @@
         migrateLegacyOnce,
         getSlotById,
         recalcTechBonus,
+        getCampStatGrowthBonus,
         getTechNodesForSlot,
         canPurchaseNode,
         purchaseTechNode,

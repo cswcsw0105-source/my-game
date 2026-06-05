@@ -128,16 +128,16 @@ function getMercBonusAcc() {
 
 function getMercEffectiveCritForMercAttack() {
     const fm = player.fieldMerc;
-    if (!fm) return Math.min(CRIT_SOFT_CAP, Math.max(0, safeNum(player.crit, 1)));
+    if (!fm) return Math.min(CRIT_SOFT_CAP, getRawCritChance(0));
     const bonus = safeNum(fm.mercBonusCrit, 0);
-    return Math.min(CRIT_SOFT_CAP, Math.max(0, safeNum(player.crit, 1) + bonus));
+    return Math.min(CRIT_SOFT_CAP, getRawCritChance(bonus));
 }
 
 function getMercEffectiveCritMultForMercAttack() {
     const fm = player.fieldMerc;
-    const base = getEffectiveCritMult();
-    if (!fm || !fm.mercBonusCritMult) return base;
-    return base + safeNum(fm.mercBonusCritMult, 0) * 0.85;
+    const bonusCrit = fm ? safeNum(fm.mercBonusCrit, 0) : 0;
+    const bonusMult = fm ? safeNum(fm.mercBonusCritMult, 0) * 0.85 : 0;
+    return clampCritMultiplier(getCritBaseMultBeforeOverflow(bonusMult) + getCritOverflowMultBonus(bonusCrit));
 }
 
 /** 층·동료·전직 기반 배율 — 실제 ATK는 getMercEffectiveAttackPower */
@@ -604,15 +604,29 @@ window.useAction = async (type) => {
         if(Math.random()*100<shieldRate){shieldedTurns=2;writeLog(`[성공] ✨ 2턴간 피해 50% 감소!`);}
         else writeLog(`[실패] 방어막 전개 실패!`);
     } else if (type === '기도') {
-        if (player.name !== '성직자') return writeLog('[기도] 성직자만 사용할 수 있습니다.');
-        if (player.chosenPriest) return writeLog('[기도] 선택받은 성직자는 더 이상 기도할 수 없습니다.');
+        if (player.name !== '성직자') {
+            setCombatProcessing(false);
+            return writeLog('[기도] 성직자만 사용할 수 있습니다.');
+        }
+        normalizeDivineState();
+        if (clampDivinePower(player.divinePower) >= DIVINE_POWER_MAX) {
+            setCombatProcessing(false);
+            return writeLog(`[기도] 신성력은 이미 최대치입니다. (${DIVINE_POWER_MAX}/${DIVINE_POWER_MAX})`);
+        }
         player.prayerCountThisTurn = safeNum(player.prayerCountThisTurn, 0);
-        if (player.prayerCountThisTurn >= 2) return writeLog('[기도] 이번 턴에는 최대 2번만 기도할 수 있습니다.');
+        if (player.prayerCountThisTurn >= 2) {
+            setCombatProcessing(false);
+            return writeLog('[기도] 이번 턴에는 최대 2번만 기도할 수 있습니다.');
+        }
         const gain = (1 + safeNum(player.prayerBonusFlat, 0)) * safeNum(player.divineGainMult, 1);
-        addDivinePower(gain);
+        const actualGain = addDivinePower(gain);
         player.prayerVulnerableHits = 1;
         player.prayerCountThisTurn += 1;
-        writeLog(`[신성력] 🙏 기도 — 신성력 <b>+${gain}</b> (합계 ${formatDivinePowerForDisplay(player.divinePower)} / 최대 200) · 다음 피격 2배`);
+        writeLog(
+            `[신성력] 🙏 기도 — 신성력 <b>+${formatDivinePowerForDisplay(actualGain)}</b> (합계 ${formatDivinePowerForDisplay(
+                player.divinePower
+            )} / 최대 ${DIVINE_POWER_MAX}) · 다음 피격 2배`
+        );
         updateUi(); renderActions();
         if (player.prayerCountThisTurn >= 2) {
             queueEnemyTurnWithPacing();

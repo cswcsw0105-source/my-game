@@ -151,6 +151,22 @@
             <table class="patch-table">
                 <thead><tr><th>버전</th><th>항목</th><th>상세 내용</th></tr></thead>
                 <tbody>
+                    <tr><td class="v-tag">시즌 1</td><td>종족·프롤로그·무기 선택</td><td>
+    <b>캐릭터 생성 개편:</b> 새 캐릭터는 먼저 <b>종족</b>을 선택하고, 종족별 과거 스토리와 프롤로그를 본 뒤 다급하게 집은 <b>무기</b>로 직업이 확정됩니다.<br>
+    <b>스토리 데이터 기반:</b> <code>raceStories</code>, <code>classStories</code>, <code>promotionStories</code> 구조를 추가해 층 돌파·유물 획득·전직 성공 시 선택 조합에 맞는 텍스트를 출력할 수 있게 했습니다.<br>
+    <b>튜토리얼 전투:</b> 무기 선택 직후 1층 인카운터 선택지를 건너뛰고 눈앞의 몬스터와 바로 첫 전투를 시작합니다.
+</td></tr>
+                    <tr><td class="v-tag">시즌 1</td><td>보안·30층 벽·성장 템포</td><td>
+    <b>클라이언트 보안:</b> 게임 런타임을 <b>IIFE 번들</b>로 캡슐화해 <code>player</code>, <code>enemy</code>, <code>floor</code>, <code>gold</code>, <code>MetaRPG</code> 등 핵심 상태가 콘솔 전역에 노출되지 않도록 정리했습니다.<br>
+    <b>30층 통곡의 벽:</b> 30층부터 몬스터 체력·공격·방어에 벽 배율과 후반 지수 성장을 적용해, 무강화 기본 플레이가 30층 부근에서 막히도록 조정했습니다.<br>
+    <b>강화 템포:</b> 베이스캠프 체력/공격/방어 강화 1단계를 약 <b>1.25층 성장분</b>으로 환산해, <b>4강화 ≈ 5층 돌파</b> 흐름이 유지되도록 재설계했습니다.<br>
+    <b>등급 밸런스:</b> 장비 예산과 희귀도 상한을 일반 1.0배, 희귀 1.5배, 영웅 2.5배, 전설 4.0배 기준으로 재조정하고 직업 초기/전직 스탯을 새 난이도에 맞췄습니다.
+</td></tr>
+                    <tr><td class="v-tag">시즌 1</td><td>성직자·치명 핫픽스</td><td>
+    <b>성직자:</b> 신성력 최대치를 <b>20스택</b>으로 고정하고, 저장 데이터 복구 시에도 초과 스택과 구버전 200스택 상태를 정규화합니다.<br>
+    <b>신의 가호:</b> 20스택 달성 보너스를 <b>방어+20</b>, <b>흡혈+5%</b>, 다음 공격 확정 치명으로 재조정했습니다.<br>
+    <b>치명타:</b> 치명 확률 <b>65%</b> 초과분은 1%당 치명 배율 <b>+0.05x</b>로 선형 전환하며, 최종 치명 배율은 <b>최대 5.00x</b>로 제한됩니다.
+</td></tr>
                     <tr><td class="v-tag">시즌 1</td><td>탐험 인카운터·패닉 런·제단</td><td>
     <b>층 진입 탐험 분기:</b> 전투 즉시 진입 대신 인카운터 페이즈 추가. 확률 분기: <b>몬스터 60%</b> · <b>보물/함정 10%</b> · <b>휴식 8%</b> · <b>수상한 제단 14%</b> (잔여 확률은 몬스터로 보정).<br>
     <b>몬스터 조우 선택지 확장:</b> <b>전투 돌입</b> / <b>장비 던지고 도망</b> / <b>기습하기</b>. 기습은 <b>성공 50%</b> 시 적 현재 체력 <b>20% 감소</b> 상태로 시작, 실패 시 플레이어 체력 <b>10~15%</b> 손실 후 전투 돌입.<br>
@@ -359,17 +375,6 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <!-- ?v= 쿼리로 브라우저 캐시 무효화 (수정이 안 보일 때 강력 새로고침도 함께) -->
-    <script src="data.js?v=s2rune"></script>
-    <script src="rpg_v7.js?v=s2rune"></script>
-    <script src="js/state.js?v=s2rune"></script>
-    <script src="js/vfx.js?v=s2rune"></script>
-    <script src="js/player.js?v=s2rune"></script>
-    <script src="js/enemy.js?v=s2rune"></script>
-    <script src="js/uiManager.js?v=s2rune"></script>
-    <script src="js/encounter.js?v=s2rune"></script>
-    <script src="js/shop.js?v=s2rune"></script>
-    <script src="js/combatLogic.js?v=s2rune"></script>
-    <script src="js/bootstrapCore.js?v=s2rune"></script>
-    <script src="game.js?v=s2rune"></script>
+    <script src="bundle.js?v=s3secure"></script>
 </body>
 </html>
