@@ -57,9 +57,35 @@ const jobBase = {
     MercenaryCaptain: { name: '용병단장', hp: 210, atk: 5, def: 5, color: '#e67e22' },
 };
 
-const introPrologueLines = Object.freeze([
-    '당신은 과거에 엄청난 사건들이 가득했던 존재였습니다. 지금은 어떤 일인지 과거의 일이 하나도 기억나지 않습니다.. 그리고 현재 당신의 앞에는 몬스터가 침을 흘리며 당신을 쳐다보고 있습니다! 당신의 옆에는 금방이라도 부셔질 것 같은 무기들이 널부러져 있습니다. 뭔가 많이 떨어져 있지만 시간이 별로 없습니다! 무엇을 집겠습니까?',
-]);
+const introPrologueText = Object.freeze({
+    memoryPrompt:
+        '정신을 차리려 눈을 감자, 기억의 파편들이 스쳐 지나갑니다. 당신이 기억하는 마지막 기억은 무엇입니까?',
+    dangerPrompt:
+        '당신은 과거에 엄청난 사건들이 가득했던 존재였습니다. 지금은 어떤 일인지 과거의 일이 하나도 기억나지 않습니다.. 그리고 현재 당신의 앞에는 몬스터가 침을 흘리며 당신을 쳐다보고 있습니다!',
+    weaponPrompt:
+        '옆에는 금방이라도 부셔질 것 같은 무기들이 널부러져 있습니다. 시간이 별로 없습니다. 무엇을 집겠습니까?',
+});
+
+const introMemoryChoices = Object.freeze({
+    betrayed_heroes: {
+        key: 'betrayed_heroes',
+        label: '나를 배신한 동료들의 차가운 눈빛',
+        raceKey: 'human',
+        baseJobKey: 'Warrior',
+    },
+    demon_lord_mockery: {
+        key: 'demon_lord_mockery',
+        label: '나를 멸시하던 마왕의 비웃음',
+        raceKey: 'demon',
+        baseJobKey: 'Wizard',
+    },
+    burning_tribe: {
+        key: 'burning_tribe',
+        label: '불타오르던 고향 부족의 불길',
+        raceKey: 'beastkin',
+        baseJobKey: 'Hunter',
+    },
+});
 
 const raceStories = Object.freeze({
     human: {
@@ -1984,6 +2010,16 @@ if (typeof window !== 'undefined') {
         const opt = options && typeof options === 'object' ? options : {};
         const raceKey =
             opt.raceKey && typeof raceStories !== 'undefined' && raceStories[opt.raceKey] ? opt.raceKey : null;
+        const memoryKey =
+            opt.memoryKey && typeof introMemoryChoices !== 'undefined' && introMemoryChoices[opt.memoryKey]
+                ? opt.memoryKey
+                : null;
+        const originBaseJobKey =
+            opt.originBaseJobKey && typeof jobBase !== 'undefined' && jobBase[opt.originBaseJobKey]
+                ? opt.originBaseJobKey
+                : memoryKey && typeof introMemoryChoices !== 'undefined'
+                  ? introMemoryChoices[memoryKey].baseJobKey
+                  : jobKey;
         const weaponKey =
             opt.weaponKey && typeof introWeaponChoices !== 'undefined' && introWeaponChoices[opt.weaponKey]
                 ? opt.weaponKey
@@ -1999,6 +2035,8 @@ if (typeof window !== 'undefined') {
             name: name || '무명',
             jobKey,
             raceKey,
+            memoryKey,
+            originBaseJobKey,
             introWeaponKey: weaponKey,
             classKey,
             currentPromotion: null,
@@ -3650,12 +3688,21 @@ function saveUnlockedFloor(f, job) {
     if (!unlocked.includes(f)) { unlocked.push(f); localStorage.setItem(key, JSON.stringify(unlocked)); }
 }
 
+function updatePrologueBattleControls() {
+    const locked = !!(player && player.prologueLocked);
+    const saveBtn = document.getElementById('battle-save-main-btn');
+    const exitBtn = document.getElementById('battle-exit-main-btn');
+    if (saveBtn) saveBtn.style.display = locked ? 'none' : '';
+    if (exitBtn) exitBtn.style.display = locked ? 'none' : '';
+}
+
 function enterBattleLayout() {
     document.getElementById('sidebar-normal').style.display = 'none';
     const invSb = document.getElementById('sidebar-inventory');
     if (invSb) invSb.style.display = 'flex';
     document.getElementById('sidebar-battle').style.display = 'flex';
     document.getElementById('log').style.display = 'none';
+    updatePrologueBattleControls();
 }
 function exitBattleLayout() {
     document.getElementById('sidebar-normal').style.display = 'flex';
@@ -3663,6 +3710,7 @@ function exitBattleLayout() {
     if (invSb) invSb.style.display = 'none';
     document.getElementById('sidebar-battle').style.display = 'none';
     document.getElementById('log').style.display = 'block';
+    updatePrologueBattleControls();
 }
 
 /** 시너지 커스텀 툴팁: 터치/클릭으로 열고, 바깥 클릭 시 닫음 (PC는 @media hover로 마우스 호버도 유지) */
@@ -4123,69 +4171,184 @@ function emitRelicStory(it) {
     writeStoryLines('유물 기억', lines);
 }
 
-function buildRaceChoiceCards() {
-    const keys = typeof raceStories !== 'undefined' ? Object.keys(raceStories) : [];
-    if (!keys.length) return '<p style="color:#888;">선택 가능한 종족 데이터가 없습니다.</p>';
-    return keys
-        .map((key) => {
-            const race = raceStories[key];
-            return `<div onclick="chooseOriginRace('${escapeJsSingleQuoteString(key)}')" style="background:#121217;border:2px solid ${race.color || '#888'};border-radius:10px;padding:14px;text-align:left;cursor:pointer;min-height:132px;">
-            <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:8px;">
-                <div style="color:${race.color || '#f1c40f'};font-weight:900;font-size:1.05em;">${escapeHtml(race.name)}</div>
-                <div style="color:#777;font-size:0.72em;">종족 선택</div>
-            </div>
-            <div style="color:#ddd;font-size:0.84em;font-weight:700;margin-bottom:7px;">${escapeHtml(race.summary || '')}</div>
-            <div style="color:#888;font-size:0.78em;line-height:1.45;">${escapeHtml(race.past || '')}</div>
-        </div>`;
-        })
-        .join('');
+function getIntroMemoryChoiceDef(memoryKey) {
+    if (typeof introMemoryChoices === 'undefined') return null;
+    return introMemoryChoices[memoryKey] || null;
 }
 
-function renderOriginPrologue(raceKey) {
-    const race = getRaceStoryDef(raceKey);
-    if (!race) return showPreGameScreen();
-    const weaponKeys = typeof introWeaponChoices !== 'undefined' ? Object.keys(introWeaponChoices) : [];
-    const prologue = typeof introPrologueLines !== 'undefined' ? introPrologueLines : [];
-    const weaponCards = weaponKeys
-        .map((key) => {
-            const w = introWeaponChoices[key];
-            const job = jobBase[w.jobKey] || { name: w.className || '직업', color: w.color || '#888' };
-            return `<button type="button" onclick="chooseIntroWeapon('${escapeJsSingleQuoteString(raceKey)}','${escapeJsSingleQuoteString(key)}')" style="text-align:left;background:#111923;border:1px solid ${w.color || job.color};border-radius:10px;padding:13px 14px;cursor:pointer;color:#e0e0e0;">
-                <span style="display:block;color:${w.color || job.color};font-weight:900;font-size:0.98em;">${escapeHtml(w.label)}</span>
-                <span style="display:block;color:#aaa;font-size:0.78em;margin-top:4px;">${escapeHtml(w.className || job.name)} · ${escapeHtml(job.name)}</span>
-                <span style="display:block;color:#777;font-size:0.76em;line-height:1.45;margin-top:7px;">${escapeHtml(w.desc || '')}</span>
-            </button>`;
-        })
-        .join('');
-    const area = document.getElementById('start-area');
-    if (!area) return;
-    area.style.display = 'block';
-    document.getElementById('battle-area').style.display = 'none';
-    document.getElementById('shop-area').style.display = 'none';
-    area.innerHTML = `
-        <div style="max-width:680px;margin:0 auto;text-align:left;">
-            <button type="button" onclick="returnToOriginRaceChoice()" style="background:#333;color:#ddd;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;margin-bottom:12px;">← 돌아가기</button>
-            <div style="background:#101014;border:1px solid ${race.color || '#555'};border-radius:12px;padding:18px;margin-bottom:14px;">
-                <div style="color:${race.color || '#f1c40f'};font-weight:900;font-size:1.1em;margin-bottom:6px;">${escapeHtml(race.name)} — ${escapeHtml(race.summary || '')}</div>
-                <div style="color:#999;font-size:0.84em;line-height:1.55;">${escapeHtml(race.past || '')}</div>
-            </div>
-            <div style="background:#17110f;border:1px solid #5a3424;border-radius:12px;padding:18px;margin-bottom:14px;">
-                ${prologue.map((line) => `<p style="color:#f0ddd0;font-size:0.96em;line-height:1.7;margin:0;">${escapeHtml(line)}</p>`).join('')}
-            </div>
-            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;">
-                ${weaponCards}
-            </div>
+function ensurePrologueScreen() {
+    let screen = document.getElementById('prologue-screen');
+    if (screen) return screen;
+    screen = document.createElement('div');
+    screen.id = 'prologue-screen';
+    screen.style.cssText =
+        'position:fixed;inset:0;z-index:12000;background:radial-gradient(circle at 50% 35%,#221510 0%,#09090d 48%,#020203 100%);color:#e8e0d8;display:flex;align-items:center;justify-content:center;padding:22px;box-sizing:border-box;';
+    document.body.appendChild(screen);
+    return screen;
+}
+
+function setMainUiHiddenForPrologue(hidden) {
+    const container = document.querySelector('.container');
+    if (container) container.style.display = hidden ? 'none' : '';
+    const log = document.getElementById('log');
+    if (log) log.style.display = hidden ? 'none' : log.style.display || 'block';
+}
+
+function closePrologueScreen() {
+    const screen = document.getElementById('prologue-screen');
+    if (screen) screen.remove();
+    setMainUiHiddenForPrologue(false);
+}
+
+function buildPrologueChoiceButton(label, handler, tone) {
+    const border = tone || '#6b5848';
+    return `<button type="button" onclick="${handler}" style="width:100%;background:rgba(5,7,10,0.72);border:1px solid ${border};color:#f2ece6;padding:14px 16px;border-radius:6px;text-align:left;font-size:0.95em;font-weight:800;line-height:1.45;cursor:pointer;box-shadow:0 0 0 1px rgba(255,255,255,0.02) inset;">${escapeHtml(label)}</button>`;
+}
+
+let currentPhase = 'memory';
+let selectedPrologueMemoryKey = null;
+
+function setProloguePhase(nextPhase, payload) {
+    currentPhase = nextPhase || 'memory';
+    if (payload && Object.prototype.hasOwnProperty.call(payload, 'memoryKey')) {
+        selectedPrologueMemoryKey = payload.memoryKey || null;
+    }
+    renderProloguePhase();
+}
+
+function buildProloguePanelHtml({ eyebrow, text, actionsHtml, mutedText }) {
+    return `
+        <div style="width:min(700px,100%);">
+            ${eyebrow ? `<div style="color:#8f8278;font-size:0.78em;letter-spacing:0;margin-bottom:12px;">${escapeHtml(eyebrow)}</div>` : ''}
+            ${mutedText ? `<p style="font-size:0.9em;line-height:1.65;margin:0 0 18px;color:#8f8278;">${escapeHtml(mutedText)}</p>` : ''}
+            <p class="prologue-fade-text" style="font-size:1.1em;line-height:1.88;margin:0 0 26px;color:#efe6dc;font-weight:800;animation:prologueFadeIn 520ms ease-out both;">${escapeHtml(text || '')}</p>
+            ${actionsHtml ? `<div style="display:flex;flex-direction:column;gap:11px;animation:prologueFadeIn 520ms ease-out 140ms both;">${actionsHtml}</div>` : ''}
         </div>`;
 }
 
-function confirmNewCharacterFromOrigin(raceKey, weaponKey) {
+function renderProloguePhase() {
+    const screen = ensurePrologueScreen();
+    setMainUiHiddenForPrologue(true);
+    if (!document.getElementById('prologue-fade-style')) {
+        const style = document.createElement('style');
+        style.id = 'prologue-fade-style';
+        style.textContent = '@keyframes prologueFadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}';
+        document.head.appendChild(style);
+    }
+
+    if (currentPhase === 'memory') {
+        selectedPrologueMemoryKey = null;
+        const text = typeof introPrologueText !== 'undefined' ? introPrologueText.memoryPrompt : '';
+        const choices = typeof introMemoryChoices !== 'undefined' ? Object.keys(introMemoryChoices) : [];
+        const actionsHtml = choices
+            .map((key) => {
+                const c = introMemoryChoices[key];
+                const race = getRaceStoryDef(c.raceKey);
+                return buildPrologueChoiceButton(
+                    c.label,
+                    `choosePrologueMemory('${escapeJsSingleQuoteString(key)}')`,
+                    race && race.color ? race.color : '#6b5848'
+                );
+            })
+            .join('');
+        screen.innerHTML = buildProloguePanelHtml({ text, actionsHtml });
+        return;
+    }
+
+    const memory = getIntroMemoryChoiceDef(selectedPrologueMemoryKey);
+    const race = memory ? getRaceStoryDef(memory.raceKey) : null;
+    if (!memory || !race) {
+        currentPhase = 'memory';
+        selectedPrologueMemoryKey = null;
+        renderProloguePhase();
+        return;
+    }
+
+    if (currentPhase === 'raceStory') {
+        const actionsHtml = buildPrologueChoiceButton('눈을 뜬다', 'advanceProloguePhase()', race.color || '#6b5848');
+        screen.innerHTML = buildProloguePanelHtml({
+            text: race.past,
+            actionsHtml,
+        });
+        return;
+    }
+
+    if (currentPhase === 'danger') {
+        const text = typeof introPrologueText !== 'undefined' ? introPrologueText.dangerPrompt : '';
+        const actionsHtml = buildPrologueChoiceButton('주변의 무기를 살핀다', 'advanceProloguePhase()', '#9b6a4a');
+        screen.innerHTML = buildProloguePanelHtml({ text, actionsHtml });
+        return;
+    }
+
+    if (currentPhase === 'weapon') {
+        const text = typeof introPrologueText !== 'undefined' ? introPrologueText.weaponPrompt : '';
+        const weaponKeys = typeof introWeaponChoices !== 'undefined' ? Object.keys(introWeaponChoices) : [];
+        const actionsHtml = weaponKeys
+            .map((key) => {
+                const w = introWeaponChoices[key];
+                return buildPrologueChoiceButton(
+                    w.label,
+                    `chooseIntroWeapon('${escapeJsSingleQuoteString(selectedPrologueMemoryKey)}','${escapeJsSingleQuoteString(key)}')`,
+                    w.color || '#6b5848'
+                );
+            })
+            .join('');
+        screen.innerHTML = buildProloguePanelHtml({ text, actionsHtml });
+    }
+}
+
+function canCreateCharacterInCurrentFile() {
+    if (typeof MetaRPG === 'undefined') return false;
+    const m = MetaRPG.loadMeta();
+    if (m.slots.length < MetaRPG.MAX_SLOTS) return true;
+    const n = MetaRPG.getSaveFileSlotCount ? MetaRPG.getSaveFileSlotCount() : 3;
+    for (let fi = 0; fi < n; fi++) {
+        const pm = MetaRPG.peekMetaAtFileIndex(fi);
+        if (pm && pm.slots && pm.slots.length < MetaRPG.MAX_SLOTS) {
+            if (
+                confirm(
+                    `이 저장 파일의 캐릭터 슬롯이 가득 찼습니다.\n저장 파일 ${fi + 1}번에는 빈 슬롯이 있습니다.\n해당 파일로 전환할까요?`
+                )
+            ) {
+                MetaRPG.setActiveSaveFileIndex(fi);
+                showPreGameScreen();
+            }
+            return false;
+        }
+    }
+    const ans = prompt(
+        `모든 저장 파일에서 캐릭터 슬롯이 가득 찼습니다.\n비우고 새로 만들 저장 파일 번호를 입력하세요 (1~${n}).\n※ 해당 파일의 메타·캐릭터 데이터가 삭제됩니다. 취소하려면 취소를 누르세요.`
+    );
+    if (ans == null) return false;
+    const num = parseInt(String(ans).trim(), 10);
+    if (!Number.isFinite(num) || num < 1 || num > n) {
+        alert('1~' + n + ' 사이 숫자를 입력해 주세요.');
+        return false;
+    }
+    const idx = num - 1;
+    if (!confirm(`저장 파일 ${num}번을 완전히 비우고 새 캐릭터를 만듭니다. 계속할까요?`)) return false;
+    MetaRPG.clearSaveFile(idx);
+    MetaRPG.setActiveSaveFileIndex(idx);
+    return true;
+}
+
+function startNewCharacterPrologueFlow() {
     if (typeof MetaRPG === 'undefined') return;
-    const race = getRaceStoryDef(raceKey);
+    if (!canCreateCharacterInCurrentFile()) return;
+    setProloguePhase('memory', { memoryKey: null });
+}
+
+function confirmNewCharacterFromPrologue(memoryKey, weaponKey) {
+    if (typeof MetaRPG === 'undefined') return;
+    const memory = getIntroMemoryChoiceDef(memoryKey);
+    const race = memory ? getRaceStoryDef(memory.raceKey) : null;
     const weapon = getIntroWeaponDef(weaponKey);
-    if (!race || !weapon) return showPreGameScreen();
-    const name = prompt('캐릭터 이름을 입력하세요 (비우면 무명):', race.name + ' 생존자');
-    const r = MetaRPG.createCharacter(name || '무명', weapon.jobKey, {
-        raceKey,
+    if (!memory || !race || !weapon) return setProloguePhase('memory', { memoryKey: null });
+    const className = weapon.className || (jobBase[weapon.jobKey] && jobBase[weapon.jobKey].name) || '생존자';
+    const r = MetaRPG.createCharacter(`${race.name} ${className}`, weapon.jobKey, {
+        raceKey: memory.raceKey,
+        memoryKey,
+        originBaseJobKey: memory.baseJobKey,
         weaponKey,
         classKey: weapon.classKey,
     });
@@ -4193,10 +4356,14 @@ function confirmNewCharacterFromOrigin(raceKey, weaponKey) {
         alert(r.msg || '생성 실패');
         return;
     }
+    closePrologueScreen();
     initRunFromMetaSlot({ forceTutorialBattle: true });
 }
 
 function showPreGameScreen() {
+    const lingeringPrologue = document.getElementById('prologue-screen');
+    if (lingeringPrologue) lingeringPrologue.remove();
+    setMainUiHiddenForPrologue(false);
     exitBattleLayout();
     migrateGlobalPermaIntoSlotOnce();
     if (typeof MetaRPG !== 'undefined') {
@@ -4276,7 +4443,6 @@ function showPreGameScreen() {
         }
         saveFileBar = `<div style="margin-bottom:14px;padding:12px;background:#0d0d12;border:1px solid #333;border-radius:10px;"><div style="color:#f1c40f;font-weight:700;margin-bottom:8px;font-size:0.9em;">💾 저장 파일 (최대 3)</div><div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">${parts.join('')}</div><p style="color:#666;font-size:0.72em;margin:8px 0 0;line-height:1.45;">다른 파일을 불러오려면 위 버튼을 누르세요. 모든 파일이 가득 차면 새 캐릭터 생성 시 <b>비울 파일</b>을 묻습니다.</p></div>`;
     }
-    const newCharGrid = buildRaceChoiceCards();
     document.getElementById('start-area').style.display = 'block';
     document.getElementById('battle-area').style.display = 'none';
     document.getElementById('shop-area').style.display = 'none';
@@ -4296,10 +4462,10 @@ function showPreGameScreen() {
             <h4 style="color:#f1c40f;margin:0 0 8px 0;">💾 캐릭터 슬롯 (최대 ${typeof MetaRPG !== 'undefined' ? MetaRPG.MAX_SLOTS : 4})</h4>
             ${slotRows}
         </div>
-        <h4 style="color:#aaa;font-size:0.9em;margin:12px 0;">새 생존자 — 먼저 <b>종족</b>을 고르면, 프롤로그에서 급히 집을 무기로 직업이 결정됩니다.</h4>
-        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;max-width:520px;margin-left:auto;margin-right:auto;">
-            ${newCharGrid}
-            </div>
+        <div style="max-width:520px;margin:0 auto 16px;text-align:center;">
+            <button type="button" onclick="startNewCharacterPrologue()" style="width:100%;background:#15100d;border:1px solid #6b5848;color:#f2e9df;padding:14px 18px;border-radius:8px;font-size:0.98em;font-weight:900;cursor:pointer;">새 캐릭터 시작</button>
+            <p style="color:#777;font-size:0.76em;line-height:1.5;margin:8px 0 0;">시작하면 허브를 떠나 어두운 프롤로그 화면으로 전환됩니다.</p>
+        </div>
         <div style="max-width:560px;margin:0 auto 16px;padding:14px;background:#111;border:1px solid #333;border-radius:10px;text-align:left;">
             <h4 style="color:#f1c40f;margin:0 0 10px;text-align:center;">💾 저장 / 불러오기</h4>
             ${slotSnapHints.length ? `<p style="color:#2ed573;font-size:0.82em;margin:0 0 10px;line-height:1.45;">💾 저장된 런: ${slotSnapHints.join(' · ')} — 캐릭터 <b>이어하기</b>로 복구됩니다.</p>` : '<p style="color:#555;font-size:0.8em;margin:0 0 8px;">저장된 런 없음 — 전투 중 <b>💾 저장 후 메인</b>으로 진행을 남기세요.</p>'}
@@ -4367,16 +4533,26 @@ window.reincarnateFromHub = function reincarnateFromHub(slotId) {
     }
 };
 
-window.returnToOriginRaceChoice = function returnToOriginRaceChoice() {
-    showPreGameScreen();
+window.startNewCharacterPrologue = function startNewCharacterPrologue() {
+    startNewCharacterPrologueFlow();
 };
 
-window.chooseOriginRace = function chooseOriginRace(raceKey) {
-    renderOriginPrologue(raceKey);
+window.choosePrologueMemory = function choosePrologueMemory(memoryKey) {
+    setProloguePhase('raceStory', { memoryKey });
 };
 
-window.chooseIntroWeapon = function chooseIntroWeapon(raceKey, weaponKey) {
-    confirmNewCharacterFromOrigin(raceKey, weaponKey);
+window.advanceProloguePhase = function advanceProloguePhase() {
+    if (currentPhase === 'raceStory') {
+        setProloguePhase('danger', { memoryKey: selectedPrologueMemoryKey });
+        return;
+    }
+    if (currentPhase === 'danger') {
+        setProloguePhase('weapon', { memoryKey: selectedPrologueMemoryKey });
+    }
+};
+
+window.chooseIntroWeapon = function chooseIntroWeapon(memoryKey, weaponKey) {
+    confirmNewCharacterFromPrologue(memoryKey, weaponKey);
 };
 
 window.openTechLinePicker = (jobKey) => {
@@ -4531,9 +4707,13 @@ function initRunFromMetaSlot(options) {
         hasRegenPotion: false,
         baseJob: job.name,
         raceKey: slot.raceKey || null,
+        memoryKey: slot.memoryKey || null,
+        originBaseJobKey: slot.originBaseJobKey || jb,
         classKey: slot.classKey || jb,
         introWeaponKey: slot.introWeaponKey || null,
         currentPromotion: slot.currentPromotion || null,
+        tutorialBattleActive: !!opt.forceTutorialBattle,
+        prologueLocked: !!opt.forceTutorialBattle,
         evolved: false,
         shieldEmpowered: false,
         summon: null,
@@ -5143,6 +5323,8 @@ function loadRunFromMetaSnapshot(d) {
             const storySlot = MetaRPG.getSlotById(player.metaSlotId);
             if (storySlot) {
                 player.raceKey = player.raceKey || storySlot.raceKey || null;
+                player.memoryKey = player.memoryKey || storySlot.memoryKey || null;
+                player.originBaseJobKey = player.originBaseJobKey || storySlot.originBaseJobKey || storySlot.jobKey || null;
                 player.classKey = player.classKey || storySlot.classKey || storySlot.jobKey || null;
                 player.introWeaponKey = player.introWeaponKey || storySlot.introWeaponKey || null;
                 player.currentPromotion = player.currentPromotion || storySlot.currentPromotion || null;
@@ -8184,6 +8366,12 @@ function winBattle() {
     gold+=gain; totalGoldEarned+=gain;
     { const _em = getEffectiveMaxHp(); player.curHp = Math.min(_em, player.curHp + Math.floor(_em * 0.15)); }
     writeLog(`[승리] ${gain}G 획득 및 체력 소량 회복.${bonusMsg}`);
+    if (player.tutorialBattleActive) {
+        player.tutorialBattleActive = false;
+        player.prologueLocked = false;
+        writeLog('[튜토리얼] 첫 전투를 넘겼습니다. 이제 마굴을 오르며 잃어버린 기억을 추적합니다.');
+        if (typeof updatePrologueBattleControls === 'function') updatePrologueBattleControls();
+    }
     const expGain = 8 + Math.floor(floor * 0.85) + (enemy.isBoss ? 28 : 0);
     if (player.metaSlotId && typeof MetaRPG !== 'undefined') {
         const r = MetaRPG.addExpToSlot(player.metaSlotId, expGain);
@@ -8262,6 +8450,24 @@ window.finalizeGameOverDeath = function finalizeGameOverDeath() {
         const ps = getSavedGold();
         localStorage.setItem('saved_gold', ps + sg);
     }
+    if (player && player.prologueLocked) {
+        writeLog(`💀 ${fl}층에서 ${enName}에게 쓰러졌습니다. 기억이 다시 어둠 속으로 가라앉습니다.`);
+        const deadSlotId = player.metaSlotId;
+        if (typeof MetaRPG !== 'undefined' && deadSlotId && typeof MetaRPG.deleteSlot === 'function') {
+            MetaRPG.deleteSlot(deadSlotId);
+        }
+        player = null;
+        enemy = null;
+        floor = 1;
+        gold = 0;
+        totalGoldEarned = 0;
+        exitBattleLayout();
+        document.getElementById('battle-area').style.display = 'none';
+        if (typeof setProloguePhase === 'function') {
+            setProloguePhase('memory', { memoryKey: null });
+            return;
+        }
+    }
     writeLog(`💀 ${fl}층에서 ${enName}에게 패배했습니다. 허브로 복귀합니다.`);
     returnToHubFromRun(false);
 };
@@ -8336,8 +8542,9 @@ window.addEventListener('load', () => {
         'switchActiveSaveFile',
         'requestDeleteSaveFile',
         'reincarnateFromHub',
-        'returnToOriginRaceChoice',
-        'chooseOriginRace',
+        'startNewCharacterPrologue',
+        'choosePrologueMemory',
+        'advanceProloguePhase',
         'chooseIntroWeapon',
         'openTechLinePicker',
         'deleteRunSnapshotForSlot',

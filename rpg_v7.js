@@ -386,6 +386,16 @@
         const opt = options && typeof options === 'object' ? options : {};
         const raceKey =
             opt.raceKey && typeof raceStories !== 'undefined' && raceStories[opt.raceKey] ? opt.raceKey : null;
+        const memoryKey =
+            opt.memoryKey && typeof introMemoryChoices !== 'undefined' && introMemoryChoices[opt.memoryKey]
+                ? opt.memoryKey
+                : null;
+        const originBaseJobKey =
+            opt.originBaseJobKey && typeof jobBase !== 'undefined' && jobBase[opt.originBaseJobKey]
+                ? opt.originBaseJobKey
+                : memoryKey && typeof introMemoryChoices !== 'undefined'
+                  ? introMemoryChoices[memoryKey].baseJobKey
+                  : jobKey;
         const weaponKey =
             opt.weaponKey && typeof introWeaponChoices !== 'undefined' && introWeaponChoices[opt.weaponKey]
                 ? opt.weaponKey
@@ -401,6 +411,8 @@
             name: name || '무명',
             jobKey,
             raceKey,
+            memoryKey,
+            originBaseJobKey,
             introWeaponKey: weaponKey,
             classKey,
             currentPromotion: null,
