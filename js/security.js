@@ -1,0 +1,264 @@
+// Browser hardening layer. Loaded last inside bundle.js.
+(function installDungeonClientHardening() {
+    const protectedStateNames = [
+        'player',
+        'enemy',
+        'floor',
+        'gold',
+        'currentShopItems',
+        'currentPotionOffer',
+        'lastEnemyJob',
+        'rerollCost',
+        'defendingTurns',
+        'dodgingTurns',
+        'shieldedTurns',
+        'regenTurns',
+        'regenAmount',
+        'isProcessing',
+    ];
+
+    const publicApiNames = [
+        'handleSignup',
+        'handleLogin',
+        'handleLogout',
+        'resumeMetaSlot',
+        'switchActiveSaveFile',
+        'requestDeleteSaveFile',
+        'reincarnateFromHub',
+        'returnToOriginRaceChoice',
+        'chooseOriginRace',
+        'chooseIntroWeapon',
+        'openTechLinePicker',
+        'deleteRunSnapshotForSlot',
+        'buyCampPermaNext',
+        'buyPermUpgradeNext',
+        'buyPermUpgrade',
+        'selectJobAndStart',
+        'pickMercCompanion',
+        'toggleEvolutionMap',
+        'evolve',
+        'resolveMercEvolution',
+        'saveAndExitToMain',
+        'exitToMainWithoutSave',
+        'exportFullSave',
+        'importFullSave',
+        'openBaseCampTech',
+        'buyTechNode',
+        'continuePastCentury',
+        'returnToHubFromCenturyMilestone',
+        'reincarnateFromCenturyMilestone',
+        'togglePreferredItem',
+        'togglePatchNotes',
+        'toggleRank',
+        'toggleInv',
+        'mercGoldSkipCooldown',
+        'useMercenarySlot',
+        'setCodexTab',
+        'setCodexStatFilter',
+        'toggleCollection',
+        'startInfiniteMode',
+        'leaveShopContinueAscent',
+        'leaveShopTrainHere',
+        'nextFloor',
+        'rerollShop',
+        'buyPotionOffer',
+        'buyShopRarityBoost',
+        'sellItemByUid',
+        'buyItem',
+        'mercenaryFundGacha',
+        'useAction',
+        'usePotion',
+        'resumeFromLastSaveAfterDeath',
+        'finalizeGameOverDeath',
+        'enterCombatFromEncounter',
+        'ambushEncounterEnemy',
+        'openPanicRunSacrificeModal',
+        'closePanicRunModal',
+        'executePanicRunAuto',
+        'executePanicRunSacrifice',
+        'resolveTreasureChest',
+        'resolveRestSpot',
+        'resolveAltarOption',
+        'skipAltarOption',
+        'resolveStatSwap',
+        'resolveSkillEvent',
+        'resolveForge',
+        'resolveContractAltar',
+        'resolveEncounter',
+    ];
+
+    const internalExportNames = [
+        'MetaRPG',
+        'BASE_CAMP_FLOORS',
+        'applyOfficialStatsToEquipmentItem',
+        'clampEquipmentItemStatsToRarityCaps',
+        'computeEquipmentGoldPrice',
+        'RUNE_POOL_COUNT',
+        'ensurePlayerSynergyBonuses',
+        'getEffectiveMaxHp',
+        'getRawCritChance',
+        'getCritOverflowForMult',
+        'getCritOverflowMultBonus',
+        'clampCritMultiplier',
+        'getCritBaseMultBeforeOverflow',
+        'getEffectiveCritMult',
+        'applyRebirthPctBonusToPlayer',
+        'applyOwnedEquipmentItemBonuses',
+        'fullResyncPlayerCombatStatsFromMetaAndInventory',
+        'getCritInfo',
+        'getLifestealEffective',
+        'getLifestealOverflowAtk',
+        'isPriestJob',
+        'isPriestBlessed',
+        'isChosenPriest',
+        'formatDivinePowerForDisplay',
+        'clampDivinePower',
+        'normalizeDivineState',
+        'getDivineAtkBonus',
+        'getDivineDefBonus',
+        'recalcPlayerDivineGainMult',
+        'addDivinePower',
+        'getEffectiveAttackPower',
+        'getTotalPlayerDefenseForHit',
+        'getPlayerGoldGainMult',
+        'getPlayerFleeBonus',
+        'showDmgFloat',
+        'triggerCritEffect',
+        'triggerShakeEffect',
+        'triggerScreenShakeHeavy',
+        'triggerScreenShakeBoss',
+        'triggerBossDim',
+        'triggerGuardAura',
+        'triggerDodgeMove',
+        'ensureCombatFxLayer',
+        'getCardCenter',
+        'normalizeCombatArchetype',
+        'playMageBoltVfx',
+        'playBerserkerChargeVfx',
+        'playHunterStrikeVfx',
+        'playMagicBurstVfx',
+        'playAssassinStrikeVfx',
+        'playCritGoldBurst',
+        'playBossStrikeVfx',
+        'showMissFloat',
+        'playJobAttackVfx',
+        'consumeHunterEvasionMissPenalty',
+        'renderActions',
+        'renderPassiveContractHistoryPanels',
+        'updateUi',
+        'writeLog',
+        'spawnEnemy',
+        'tryActivateFloorQuest',
+        'getEnemyScalingForFloor',
+        'buildEnemyStatsForFloor',
+        'openShop',
+        'renderShopLeaveButtons',
+        'getUnlockedPoolItems',
+        'getItemsByRarity',
+        'getShopRarityChances',
+        'computeShopEquipmentPriceMultiplier',
+        'applyShopRarityTuning',
+        'getShopRarityBoostPrice',
+        'renderShopItems',
+        'formatShopItemName',
+        'formatShopItemDesc',
+        'mercCaptainExclusiveItem',
+        'getNonMercEquipmentPool',
+        'setCombatProcessing',
+        'updateCombatButtonsLockState',
+        'queueEnemyTurnWithPacing',
+        'triggerBossWarning',
+        'applySummonDarkTurnStart',
+        'enemyTurn',
+        'winBattle',
+        'dungeonClear',
+        'gameOver',
+        'isMercenaryCaptainJob',
+        'getAffinityRelKey',
+        'getMercGoldSkipCost',
+        'getMercEffectiveAttackPower',
+        'getMercBonusAcc',
+        'getMercEffectiveCritForMercAttack',
+        'getMercEffectiveCritMultForMercAttack',
+        'getFieldMercAttackMult',
+        'buildFieldMercFromTemplate',
+        'getMercGachaCost',
+        'tryMercenaryRandomEvent',
+        'rollEncounterSceneType',
+        'getPanicRunSacrificeItems',
+        'pickLowestRaritySacrificeItem',
+        'buildMonsterEncounterHtml',
+        'buildTreasureEncounterHtml',
+        'buildRestEncounterHtml',
+        'buildAltarEncounterHtml',
+        'buildEncounterPhaseHtml',
+        'hideEncounterPhaseUI',
+        'beginFloorEncounter',
+        'buildAltarEncounterOptions',
+        'pushPassiveContractHistory',
+        'advanceFloorAfterNonCombatEncounter',
+        'checkEventFloor',
+        'showEventFloor',
+        'showContractAltar',
+        'showRandomEncounter',
+        'winBattleContinueFrom',
+        'getEquipSlotKind',
+        'getEquipSlotLimit',
+        'getEquippedCountByKind',
+        'canEquipMoreOfItem',
+    ];
+
+    for (const name of internalExportNames) {
+        if (!Object.prototype.hasOwnProperty.call(window, name)) continue;
+        try {
+            delete window[name];
+        } catch (err) {
+            console.warn(`[보안] 내부 전역 제거 실패: ${name}`, err);
+        }
+    }
+
+    for (const name of protectedStateNames) {
+        if (Object.prototype.hasOwnProperty.call(window, name)) continue;
+        try {
+            Object.defineProperty(window, name, {
+                get() {
+                    return undefined;
+                },
+                set() {
+                    console.warn(`[보안] '${name}' 상태는 런타임 클로저 내부에 캡슐화되어 있습니다.`);
+                    return false;
+                },
+                enumerable: false,
+                configurable: false,
+            });
+        } catch (err) {
+            console.warn(`[보안] 전역 상태 보호 실패: ${name}`, err);
+        }
+    }
+
+    for (const name of publicApiNames) {
+        const value = window[name];
+        if (typeof value !== 'function') continue;
+        try {
+            Object.defineProperty(window, name, {
+                value,
+                writable: false,
+                enumerable: false,
+                configurable: false,
+            });
+        } catch (err) {
+            console.warn(`[보안] 공개 API 잠금 실패: ${name}`, err);
+        }
+    }
+
+    try {
+        Object.defineProperty(window, '__DUNGEON_SECURE_BUILD', {
+            value: true,
+            writable: false,
+            enumerable: false,
+            configurable: false,
+        });
+    } catch (err) {
+        console.warn('[보안] 보안 빌드 플래그 설정 실패', err);
+    }
+})();
