@@ -30,11 +30,13 @@ function renderActions() {
 
     if (player.name === '성직자') {
         const prayBtn = document.createElement('button');
+        const divinePower = clampDivinePower(player.divinePower);
+        const divineAtCap = divinePower >= DIVINE_POWER_MAX;
         prayBtn.style.background = '#9b59b6';
         prayBtn.style.color = '#fff';
-        prayBtn.innerText = player.chosenPriest ? '🔒 기도 봉인' : '🙏 기도 (+신성력)';
-        prayBtn.disabled = !!player.chosenPriest;
-        if (player.chosenPriest) {
+        prayBtn.innerText = divineAtCap ? `🙏 신성력 최대 (${DIVINE_POWER_MAX})` : '🙏 기도 (+신성력)';
+        prayBtn.disabled = divineAtCap;
+        if (divineAtCap) {
             prayBtn.style.opacity = '0.5';
             prayBtn.style.cursor = 'not-allowed';
         }
@@ -167,7 +169,7 @@ function updateUi() {
         document.getElementById('p-def-val').textContent = String(safeNum(fm.mercBonusDef, 0));
         document.getElementById('p-crit-val').textContent = `${Math.round(getMercEffectiveCritForMercAttack())}%`;
         const ecmM = getMercEffectiveCritMultForMercAttack();
-        if (critMultEl) critMultEl.textContent = `${Math.ceil(Number.isFinite(ecmM) ? ecmM : 1.8)}x`;
+        if (critMultEl) critMultEl.textContent = `${(Number.isFinite(ecmM) ? ecmM : 1.8).toFixed(2)}x`;
         const lsMain = document.getElementById('p-lifesteal-val');
         const lsNote = document.getElementById('p-lifesteal-note');
         if (lsMain) lsMain.textContent = `${Math.round(safeNum(fm.mercBonusLifesteal, 0) * 100)}%`;
@@ -192,8 +194,8 @@ function updateUi() {
             else if (player.name === '성직자') {
                 const dp = formatDivinePowerForDisplay(safeNum(player.divinePower, 0));
                 const gm = safeNum(player.divineGainMult, 1);
-                const st = player.chosenPriest ? '👑 선택받은 성직자' : player.priestBlessed ? '✨ 신의 가호' : '·';
-                summLine.innerHTML = `<span style="color:#888;font-size:0.85em;"><b>${player.name}</b>${lvTxt} · <span style="color:#f1c40f;">✨ 신성력 ${dp}/200</span> · 획득×${gm.toFixed(2)} · ${st}${synHint}</span>${synStatus}`;
+                const st = player.priestBlessed ? '✨ 신의 가호' : '·';
+                summLine.innerHTML = `<span style="color:#888;font-size:0.85em;"><b>${player.name}</b>${lvTxt} · <span style="color:#f1c40f;">✨ 신성력 ${dp}/${DIVINE_POWER_MAX}</span> · 획득×${gm.toFixed(2)} · ${st}${synHint}</span>${synStatus}`;
             } else summLine.innerHTML = `<span style="color:#888;font-size:0.85em;"><b>${player.name}</b>${lvTxt}${synHint}</span>${synStatus}`;
         }
         document.getElementById('p-atk-val').textContent = String(getEffectiveAttackPower());
@@ -201,7 +203,7 @@ function updateUi() {
         const critInfo = getCritInfo();
         document.getElementById('p-crit-val').textContent = `${Math.round(safeNum(critInfo.effectiveCrit, 0))}%`;
         const ecm = getEffectiveCritMult();
-        if (critMultEl) critMultEl.textContent = `${Math.ceil(Number.isFinite(ecm) ? ecm : 1.8)}x`;
+        if (critMultEl) critMultEl.textContent = `${(Number.isFinite(ecm) ? ecm : 1.8).toFixed(2)}x`;
         const lsOv = getLifestealOverflowAtk();
         const lsMain = document.getElementById('p-lifesteal-val');
         const lsNote = document.getElementById('p-lifesteal-note');
@@ -466,13 +468,6 @@ window.__baseCampScrollTop = 0;
 const MERC_DMG_GLOBAL_SCALE = 1.56;
 /** 층수에 따른 용병 딜/HP 성장 상한(과도한 폭주 방지) */
 const MERC_FLOOR_SCALE_CAP = 1.65;
-/** 치명 확률 상한 65% — 1% 초과분은 배율로 전환 (1%당 치명 배율 +0.05) */
-const CRIT_SOFT_CAP = 65;
-const LIFESTEAL_SOFT_CAP = 0.85;
-/** 실제 판정에 쓰는 기본 명중(%) — 장비 명중 옵션 제거 후 직업·시너지·버프만 가산 */
-const BASE_HIT_ACCURACY = 90;
-const CRIT_OVERFLOW_TO_MULT = 0.01;
-
 function clearSummonRunStorage() {
     localStorage.removeItem('summon_altar_done');
     localStorage.removeItem('summon_contract_json');
@@ -824,10 +819,13 @@ auth.onAuthStateChanged((user) => {
 
 /** 베이스캠프 영구 강화 — 무한 단계, 슬롯 전용 */
 function getCampPermaNextPrice(key, level) {
+    const growth = (typeof BALANCE !== 'undefined' && BALANCE.enemyPostWallGrowth) || 1.065;
+    const floorEq = (typeof BALANCE !== 'undefined' && BALANCE.upgradeFloorEquivalent) || 1.25;
+    const tempo = Math.max(1.28, Math.pow(growth, floorEq * 5.2));
     const T = {
-        hp: [18, 1.34],
-        atk: [26, 1.38],
-        def: [22, 1.38],
+        hp: [20, tempo],
+        atk: [24, tempo],
+        def: [22, tempo],
         crit: [120, 1.45],
         cm: [180, 1.48],
     };
@@ -848,10 +846,18 @@ function buildPermanentShopHtml() {
     const sumLine = `<p style="color:#888;font-size:0.78em;margin:0 0 12px 0;line-height:1.5;">📌 <b>이 캐릭터 누적</b> — 체력+테크 <b style="color:#2ed573">${Math.ceil(tb.hp || 0)}</b> · 공격 <b style="color:#f1c40f">${Math.ceil(tb.atk || 0)}</b> · 방어 <b style="color:#1e90ff">${Math.ceil(tb.def || 0)}</b> · 치명 <b style="color:#f39c12">+${Math.ceil(tb.crit || 0)}%</b> · 배율 <b style="color:#e67e22">+${Math.ceil((tb.critMult || 0) * 100)}%</b></p><p style="color:#2ed573;font-size:0.8em;">💰 런 골드로 구매: <b>${runGold}G</b></p>`;
     const catKeys = ['hp', 'atk', 'def', 'crit', 'cm'];
     const labels = { hp: '❤️ 체력', atk: '⚔️ 공격', def: '🛡️ 방어', crit: '💥 치명 확률', cm: '🎯 치명 배율' };
+    const getCampDeltaText = (key, lv) => {
+        if (!['hp', 'atk', 'def'].includes(key) || typeof MetaRPG.getCampStatGrowthBonus !== 'function') return null;
+        const now = MetaRPG.getCampStatGrowthBonus(slot, key, lv);
+        const next = MetaRPG.getCampStatGrowthBonus(slot, key, lv + 1);
+        const delta = Math.max(0, next - now);
+        const label = key === 'hp' ? 'HP' : key === 'atk' ? '공격' : '방어';
+        return `다음 +${delta} ${label} (≈${((typeof BALANCE !== 'undefined' && BALANCE.upgradeFloorEquivalent) || 1.25).toFixed(2)}층 성장분)`;
+    };
     const sub = {
-        hp: '+32 HP/단계',
-        atk: '+5/단계',
-        def: '+3/단계',
+        hp: '층 성장 곡선 연동',
+        atk: '층 성장 곡선 연동',
+        def: '층 성장 곡선 연동',
         crit: '+1%/단계',
         cm: '+0.10 배율/단계 (≈10%)',
     };
@@ -863,10 +869,11 @@ function buildPermanentShopHtml() {
             const can = runGold >= price;
             const btnBg = can ? '#f1c40f' : '#333';
             const btnFg = can ? '#111' : '#666';
+            const deltaText = getCampDeltaText(key, lv) || sub[key];
             return `<div style="display:flex;justify-content:space-between;align-items:center;background:#111;border:1px solid #333;border-radius:8px;padding:10px 12px;margin-bottom:8px;">
             <div style="flex:1;">
                 <span style="color:${colors[key]};font-weight:700;font-size:0.9em;">${labels[key]}</span>
-                <span style="color:#888;font-size:0.8em;margin-left:10px;">Lv.${lv} · ${sub[key]}</span>
+                <span style="color:#888;font-size:0.8em;margin-left:10px;">Lv.${lv} · ${deltaText}</span>
                 <div style="color:#555;font-size:0.72em;margin-top:3px;">다음 비용: <b style="color:#f1c40f;">${price}G</b></div>
             </div>
             <button type="button" onclick="buyCampPermaNext('${key}')" ${!can ? 'disabled' : ''} style="background:${btnBg};color:${btnFg};padding:8px 18px;font-size:0.82em;font-weight:700;border:none;border-radius:6px;cursor:${!can ? 'not-allowed' : 'pointer'};">강화</button>
@@ -908,6 +915,186 @@ function migrateGlobalPermaIntoSlotOnce() {
     localStorage.setItem('v703_global_perma_migrated', '1');
 }
 
+function getRaceStoryDef(raceKey) {
+    if (typeof raceStories === 'undefined') return null;
+    return raceStories[raceKey] || null;
+}
+
+function getIntroWeaponDef(weaponKey) {
+    if (typeof introWeaponChoices === 'undefined') return null;
+    return introWeaponChoices[weaponKey] || null;
+}
+
+function getClassStoryDef(classKey) {
+    if (typeof classStories === 'undefined') return null;
+    return classStories[classKey] || null;
+}
+
+function getPromotionStoryDef(promotionKey) {
+    if (typeof promotionStories === 'undefined') return null;
+    return promotionStories[promotionKey] || null;
+}
+
+function writeStoryLines(title, lines) {
+    const arr = Array.isArray(lines) ? lines.filter(Boolean) : [];
+    if (!arr.length) return;
+    const safeTitle = escapeHtml(title || '기억');
+    const body = arr.map((line) => `<span style="display:block;margin-top:3px;">${escapeHtml(line)}</span>`).join('');
+    writeLog(`<span style="color:#9b59b6;font-weight:800;">[${safeTitle}]</span> ${body}`);
+}
+
+function markStorySeen(slotId, flag, lines) {
+    if (!slotId || !flag || typeof MetaRPG === 'undefined') return false;
+    const m = MetaRPG.loadMeta();
+    const slot = m.slots.find((s) => s.id === slotId);
+    if (!slot) return false;
+    slot.storyFlags = slot.storyFlags || {};
+    if (slot.storyFlags[flag]) return false;
+    slot.storyFlags[flag] = Date.now();
+    slot.storyLog = Array.isArray(slot.storyLog) ? slot.storyLog : [];
+    slot.storyLog.push({
+        flag,
+        at: Date.now(),
+        floor: typeof floor !== 'undefined' ? floor : 0,
+        lines: Array.isArray(lines) ? lines.slice(0, 6) : [],
+    });
+    if (slot.storyLog.length > 80) slot.storyLog = slot.storyLog.slice(-80);
+    MetaRPG.saveMeta(m);
+    return true;
+}
+
+function emitRunStartStory(slot) {
+    if (!slot) return;
+    const race = getRaceStoryDef(slot.raceKey);
+    const cls = getClassStoryDef(slot.classKey);
+    const lines = [
+        ...((race && race.fragments && race.fragments.runStart) || []),
+        ...((cls && cls.intro) || []),
+    ];
+    if (!lines.length) return;
+    if (!markStorySeen(slot.id, `runStart:${slot.raceKey || 'none'}:${slot.classKey || slot.jobKey}`, lines)) return;
+    const raceName = race ? race.name : '기억';
+    const className = cls ? cls.name : jobBase[slot.jobKey] ? jobBase[slot.jobKey].name : '모험가';
+    writeStoryLines(`${raceName} / ${className}`, lines);
+}
+
+function emitFloorStory(f) {
+    if (!player || !player.metaSlotId || typeof MetaRPG === 'undefined') return;
+    const slot = MetaRPG.getSlotById(player.metaSlotId);
+    if (!slot) return;
+    const race = getRaceStoryDef(slot.raceKey);
+    const cls = getClassStoryDef(slot.classKey);
+    const promo = getPromotionStoryDef(player.name);
+    const lines = [
+        ...((race && race.fragments && race.fragments.floorMilestones && race.fragments.floorMilestones[f]) || []),
+        ...((cls && cls.floorMilestones && cls.floorMilestones[f]) || []),
+        ...((promo && promo.floorMilestones && promo.floorMilestones[f]) || []),
+    ];
+    if (!lines.length) return;
+    if (!markStorySeen(slot.id, `floor:${f}:${slot.raceKey || 'none'}:${slot.classKey || slot.jobKey}:${player.name}`, lines)) return;
+    writeStoryLines(`${f}층 기억`, lines);
+}
+
+function emitPromotionStory(promotionName) {
+    if (!player || !player.metaSlotId || !promotionName) return;
+    const promo = getPromotionStoryDef(promotionName);
+    const lines = (promo && promo.intro) || [];
+    if (!lines.length) return;
+    if (!markStorySeen(player.metaSlotId, `promotion:${promotionName}`, lines)) return;
+    writeStoryLines(`${promotionName} 각성`, lines);
+}
+
+function emitRelicStory(it) {
+    if (!player || !player.metaSlotId || !it) return;
+    const slot = typeof MetaRPG !== 'undefined' ? MetaRPG.getSlotById(player.metaSlotId) : null;
+    if (!slot) return;
+    const race = getRaceStoryDef(slot.raceKey);
+    const cls = getClassStoryDef(slot.classKey);
+    const relicKey = it.effect || it.name || 'unknown';
+    const raceRelic = race && race.fragments && race.fragments.relic;
+    const classRelic = cls && cls.relic;
+    const lines = [
+        (raceRelic && (raceRelic[relicKey] || raceRelic.default)) || '',
+        (classRelic && (classRelic[relicKey] || classRelic.default)) || '',
+    ].filter(Boolean);
+    if (!lines.length) return;
+    if (!markStorySeen(slot.id, `relic:${relicKey}`, lines)) return;
+    writeStoryLines('유물 기억', lines);
+}
+
+function buildRaceChoiceCards() {
+    const keys = typeof raceStories !== 'undefined' ? Object.keys(raceStories) : [];
+    if (!keys.length) return '<p style="color:#888;">선택 가능한 종족 데이터가 없습니다.</p>';
+    return keys
+        .map((key) => {
+            const race = raceStories[key];
+            return `<div onclick="chooseOriginRace('${escapeJsSingleQuoteString(key)}')" style="background:#121217;border:2px solid ${race.color || '#888'};border-radius:10px;padding:14px;text-align:left;cursor:pointer;min-height:132px;">
+            <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:8px;">
+                <div style="color:${race.color || '#f1c40f'};font-weight:900;font-size:1.05em;">${escapeHtml(race.name)}</div>
+                <div style="color:#777;font-size:0.72em;">종족 선택</div>
+            </div>
+            <div style="color:#ddd;font-size:0.84em;font-weight:700;margin-bottom:7px;">${escapeHtml(race.summary || '')}</div>
+            <div style="color:#888;font-size:0.78em;line-height:1.45;">${escapeHtml(race.past || '')}</div>
+        </div>`;
+        })
+        .join('');
+}
+
+function renderOriginPrologue(raceKey) {
+    const race = getRaceStoryDef(raceKey);
+    if (!race) return showPreGameScreen();
+    const weaponKeys = typeof introWeaponChoices !== 'undefined' ? Object.keys(introWeaponChoices) : [];
+    const prologue = typeof introPrologueLines !== 'undefined' ? introPrologueLines : [];
+    const weaponCards = weaponKeys
+        .map((key) => {
+            const w = introWeaponChoices[key];
+            const job = jobBase[w.jobKey] || { name: w.className || '직업', color: w.color || '#888' };
+            return `<button type="button" onclick="chooseIntroWeapon('${escapeJsSingleQuoteString(raceKey)}','${escapeJsSingleQuoteString(key)}')" style="text-align:left;background:#111923;border:1px solid ${w.color || job.color};border-radius:10px;padding:13px 14px;cursor:pointer;color:#e0e0e0;">
+                <span style="display:block;color:${w.color || job.color};font-weight:900;font-size:0.98em;">${escapeHtml(w.label)}</span>
+                <span style="display:block;color:#aaa;font-size:0.78em;margin-top:4px;">${escapeHtml(w.className || job.name)} · ${escapeHtml(job.name)}</span>
+                <span style="display:block;color:#777;font-size:0.76em;line-height:1.45;margin-top:7px;">${escapeHtml(w.desc || '')}</span>
+            </button>`;
+        })
+        .join('');
+    const area = document.getElementById('start-area');
+    if (!area) return;
+    area.style.display = 'block';
+    document.getElementById('battle-area').style.display = 'none';
+    document.getElementById('shop-area').style.display = 'none';
+    area.innerHTML = `
+        <div style="max-width:680px;margin:0 auto;text-align:left;">
+            <button type="button" onclick="returnToOriginRaceChoice()" style="background:#333;color:#ddd;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;margin-bottom:12px;">← 돌아가기</button>
+            <div style="background:#101014;border:1px solid ${race.color || '#555'};border-radius:12px;padding:18px;margin-bottom:14px;">
+                <div style="color:${race.color || '#f1c40f'};font-weight:900;font-size:1.1em;margin-bottom:6px;">${escapeHtml(race.name)} — ${escapeHtml(race.summary || '')}</div>
+                <div style="color:#999;font-size:0.84em;line-height:1.55;">${escapeHtml(race.past || '')}</div>
+            </div>
+            <div style="background:#17110f;border:1px solid #5a3424;border-radius:12px;padding:18px;margin-bottom:14px;">
+                ${prologue.map((line) => `<p style="color:#f0ddd0;font-size:0.96em;line-height:1.7;margin:0;">${escapeHtml(line)}</p>`).join('')}
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;">
+                ${weaponCards}
+            </div>
+        </div>`;
+}
+
+function confirmNewCharacterFromOrigin(raceKey, weaponKey) {
+    if (typeof MetaRPG === 'undefined') return;
+    const race = getRaceStoryDef(raceKey);
+    const weapon = getIntroWeaponDef(weaponKey);
+    if (!race || !weapon) return showPreGameScreen();
+    const name = prompt('캐릭터 이름을 입력하세요 (비우면 무명):', race.name + ' 생존자');
+    const r = MetaRPG.createCharacter(name || '무명', weapon.jobKey, {
+        raceKey,
+        weaponKey,
+        classKey: weapon.classKey,
+    });
+    if (!r.ok) {
+        alert(r.msg || '생성 실패');
+        return;
+    }
+    initRunFromMetaSlot({ forceTutorialBattle: true });
+}
+
 function showPreGameScreen() {
     exitBattleLayout();
     migrateGlobalPermaIntoSlotOnce();
@@ -940,6 +1127,9 @@ function showPreGameScreen() {
                   .map((s) => {
                       MetaRPG.recalcTechBonus(s);
                       const jb = jobBase[s.jobKey] || { name: '?', color: '#888' };
+                      const race = getRaceStoryDef(s.raceKey);
+                      const weapon = getIntroWeaponDef(s.introWeaponKey);
+                      const cls = getClassStoryDef(s.classKey);
                       const techFree = '테크 자유';
                       const rct = s.reincarnationCount || 0;
                       const gen = rct + 1;
@@ -957,7 +1147,7 @@ function showPreGameScreen() {
                       return `<div style="background:#111;border:1px solid #444;border-radius:10px;padding:12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
                         <div style="text-align:left;">
                             <div style="color:#f1c40f;font-weight:700;">${esc(s.name)} ${gen > 1 ? `<span style="color:#aaa;font-size:0.85em;">(인생 ${gen}회차)</span>` : ''}</div>
-                            <div style="color:#888;font-size:0.78em;">직업 ${jb.name} · ${lifeBadge}${techFree} · 메타 Lv.${s.level || 1} · 최고 ${bestFloor}층 · 환생 ${rct}/3</div>
+                            <div style="color:#888;font-size:0.78em;">${race ? `종족 ${race.name} · ` : ''}${weapon ? `무기 ${weapon.label} · ` : ''}직업 ${jb.name}${cls ? `(${cls.name})` : ''} · ${lifeBadge}${techFree} · 메타 Lv.${s.level || 1} · 최고 ${bestFloor}층 · 환생 ${rct}/3</div>
                             <div style="color:#666;font-size:0.72em;">환생 조건: ${rebNeedFloor}층 이상 도달 + 골드 필요</div>
                         </div>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
@@ -985,15 +1175,7 @@ function showPreGameScreen() {
         }
         saveFileBar = `<div style="margin-bottom:14px;padding:12px;background:#0d0d12;border:1px solid #333;border-radius:10px;"><div style="color:#f1c40f;font-weight:700;margin-bottom:8px;font-size:0.9em;">💾 저장 파일 (최대 3)</div><div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">${parts.join('')}</div><p style="color:#666;font-size:0.72em;margin:8px 0 0;line-height:1.45;">다른 파일을 불러오려면 위 버튼을 누르세요. 모든 파일이 가득 차면 새 캐릭터 생성 시 <b>비울 파일</b>을 묻습니다.</p></div>`;
     }
-    const newCharGrid = ['Warrior', 'Hunter', 'Wizard', 'MercenaryCaptain']
-        .map((job) => {
-            return `
-        <div onclick="openTechLinePicker('${job}')" style="background:#1a1a1a;border:2px solid ${jobBase[job].color};border-radius:10px;padding:12px;text-align:center;cursor:pointer;">
-            <div style="color:${jobBase[job].color};font-weight:700;">${jobBase[job].name}</div>
-            <div style="color:#666;font-size:0.72em;margin-top:4px;">새 캐릭터</div>
-        </div>`;
-        })
-        .join('');
+    const newCharGrid = buildRaceChoiceCards();
     document.getElementById('start-area').style.display = 'block';
     document.getElementById('battle-area').style.display = 'none';
     document.getElementById('shop-area').style.display = 'none';
@@ -1013,7 +1195,7 @@ function showPreGameScreen() {
             <h4 style="color:#f1c40f;margin:0 0 8px 0;">💾 캐릭터 슬롯 (최대 ${typeof MetaRPG !== 'undefined' ? MetaRPG.MAX_SLOTS : 4})</h4>
             ${slotRows}
         </div>
-        <h4 style="color:#aaa;font-size:0.9em;margin:12px 0;">새 모험가 — 직업만 고르면 됩니다. <b>테크·장비</b>는 플레이 중 원하는 대로 고릅니다.</h4>
+        <h4 style="color:#aaa;font-size:0.9em;margin:12px 0;">새 생존자 — 먼저 <b>종족</b>을 고르면, 프롤로그에서 급히 집을 무기로 직업이 결정됩니다.</h4>
         <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;max-width:520px;margin-left:auto;margin-right:auto;">
             ${newCharGrid}
             </div>
@@ -1084,8 +1266,24 @@ window.reincarnateFromHub = function reincarnateFromHub(slotId) {
     }
 };
 
+window.returnToOriginRaceChoice = function returnToOriginRaceChoice() {
+    showPreGameScreen();
+};
+
+window.chooseOriginRace = function chooseOriginRace(raceKey) {
+    renderOriginPrologue(raceKey);
+};
+
+window.chooseIntroWeapon = function chooseIntroWeapon(raceKey, weaponKey) {
+    confirmNewCharacterFromOrigin(raceKey, weaponKey);
+};
+
 window.openTechLinePicker = (jobKey) => {
     if (typeof MetaRPG === 'undefined') return;
+    if (!jobKey || !jobBase[jobKey]) {
+        showPreGameScreen();
+        return;
+    }
     const tryCreate = () => confirmNewCharacter(jobKey);
     if (MetaRPG.loadMeta().slots.length >= MetaRPG.MAX_SLOTS) {
         const n = MetaRPG.getSaveFileSlotCount ? MetaRPG.getSaveFileSlotCount() : 3;
@@ -1176,11 +1374,12 @@ function confirmNewCharacter(jobKey) {
         alert(r.msg || '생성 실패');
         return;
     }
-    initRunFromMetaSlot();
+    initRunFromMetaSlot({ forceTutorialBattle: true });
 }
 
-function initRunFromMetaSlot() {
+function initRunFromMetaSlot(options) {
     if (typeof MetaRPG === 'undefined') return false;
+    const opt = options && typeof options === 'object' ? options : {};
     const m = MetaRPG.loadMeta();
     const slot = m.slots.find((s) => s.id === m.activeSlotId);
     if (!slot) return false;
@@ -1230,6 +1429,10 @@ function initRunFromMetaSlot() {
         lifesteal: 0,
         hasRegenPotion: false,
         baseJob: job.name,
+        raceKey: slot.raceKey || null,
+        classKey: slot.classKey || jb,
+        introWeaponKey: slot.introWeaponKey || null,
+        currentPromotion: slot.currentPromotion || null,
         evolved: false,
         shieldEmpowered: false,
         summon: null,
@@ -1268,9 +1471,19 @@ function initRunFromMetaSlot() {
     document.getElementById('log-battle').innerHTML = '';
     enterBattleLayout();
     loadCollection();
+    emitRunStartStory(slot);
     if (jb === 'MercenaryCaptain') {
         MetaRPG.markRunCheckpoint(slot.id);
         showMercCompanionPicker();
+        return true;
+    }
+    if (opt.forceTutorialBattle) {
+        window._encounterPhaseActive = false;
+        window._encounterPhaseScene = null;
+        hideEncounterPhaseUI();
+        writeLog('[튜토리얼] 눈앞의 몬스터가 달려듭니다. 선택한 무기로 첫 전투를 시작합니다!');
+        spawnEnemy();
+        MetaRPG.markRunCheckpoint(slot.id);
         return true;
     }
     beginFloorEncounter();
@@ -1512,7 +1725,7 @@ function getJobPassiveText(jobName) {
         암살자: '암습: 고화력 일격',
         위저드: '마도 폭주: 마법 화력 특화',
         소환사: '소환 지휘: 소환수 중심 운영',
-        성직자: '신성력: 기도/가호/선택받은 성직자',
+        성직자: `신성력: 최대 ${DIVINE_POWER_MAX}스택, 가호 방어+${DIVINE_BLESSING_DEF_BONUS}`,
     };
     return map[jobName] || '고유 패시브';
 }
@@ -1557,8 +1770,19 @@ window.evolve = (idx) => {
     const oldName = player.name;
     player.name = evol.name;
     player.evolved = true;
+    player.currentPromotion = evol.name;
     markPlayedJob(evol.name);
     markEvolutionSeen(evol.name);
+    if (player.metaSlotId && typeof MetaRPG !== 'undefined') {
+        const m = MetaRPG.loadMeta();
+        const slot = m.slots.find((s) => s.id === player.metaSlotId);
+        if (slot) {
+            slot.currentPromotion = evol.name;
+            slot.promotionHistory = Array.isArray(slot.promotionHistory) ? slot.promotionHistory : [];
+            if (!slot.promotionHistory.includes(evol.name)) slot.promotionHistory.push(evol.name);
+            MetaRPG.saveMeta(m);
+        }
+    }
     fullResyncPlayerCombatStatsFromMetaAndInventory();
     // 궁극기 세팅
     player.unlockedSkill = evol.ult;
@@ -1571,15 +1795,18 @@ window.evolve = (idx) => {
     }
     document.body.removeChild(window._evolOverlay);
     if (evol.name === '성직자') {
-        player.divinePower = safeNum(player.divinePower, 0);
+        player.divinePower = clampDivinePower(player.divinePower);
         recalcPlayerDivineGainMult();
+        normalizeDivineState();
     }
     writeLog(`⚡ [전직] ${oldName} → <b style='color:#f1c40f'>${evol.name}</b>! 궁극기 [${evol.ult}] 획득!`);
+    emitPromotionStory(evol.name);
     updateUi(); renderActions();
 };
 
 function checkFloorUnlock(f) {
     const baseJob = player.baseJob;
+    emitFloorStory(f);
     try { maybeUnlockEvolutionItemsFromBasePlay(f); } catch (e) { /* ignore */ }
     if (f%10===0 && floorUnlocks[f]) {
         const gu = getUnlockedFloors(null);
@@ -1811,6 +2038,15 @@ function loadRunFromMetaSnapshot(d) {
         player.extraAtk = 0;
         player._relicTempCrit = 0;
         player._relicGamblerDefSub = 0;
+        if (player.metaSlotId && typeof MetaRPG !== 'undefined') {
+            const storySlot = MetaRPG.getSlotById(player.metaSlotId);
+            if (storySlot) {
+                player.raceKey = player.raceKey || storySlot.raceKey || null;
+                player.classKey = player.classKey || storySlot.classKey || storySlot.jobKey || null;
+                player.introWeaponKey = player.introWeaponKey || storySlot.introWeaponKey || null;
+                player.currentPromotion = player.currentPromotion || storySlot.currentPromotion || null;
+            }
+        }
     }
     if (player && player.divinePower == null) player.divinePower = 0;
     if (player && player.divineGainMult == null) player.divineGainMult = 1;
@@ -1820,13 +2056,16 @@ function loadRunFromMetaSnapshot(d) {
     if (player && player.priestNextCrit == null) player.priestNextCrit = false;
     if (player && player.prayerVulnerableHits == null) player.prayerVulnerableHits = 0;
     if (player && player.prayerCountThisTurn == null) player.prayerCountThisTurn = 0;
-    if (player && player.items && typeof window.clampEquipmentItemStatsToRarityCaps === 'function') {
+    if (player && player.items && typeof clampEquipmentItemStatsToRarityCaps === 'function') {
         player.items.forEach((it) => {
-            if (it && it.type !== 'merc') window.clampEquipmentItemStatsToRarityCaps(it);
+            if (it && it.type !== 'merc') clampEquipmentItemStatsToRarityCaps(it);
         });
     }
     if (player && player.metaSlotId) fullResyncPlayerCombatStatsFromMetaAndInventory();
-    if (player && player.name === '성직자') recalcPlayerDivineGainMult();
+    if (player && player.name === '성직자') {
+        recalcPlayerDivineGainMult();
+        normalizeDivineState();
+    }
     if (player && player.metaSlotId && typeof MetaRPG !== 'undefined' && MetaRPG.updateBestFloor) MetaRPG.updateBestFloor(player.metaSlotId, d.floor || 1);
     if (player && player.shopRarityBoost == null) player.shopRarityBoost = 0;
     if (player && player.freeShopCoupon == null) player.freeShopCoupon = false;

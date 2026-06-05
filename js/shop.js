@@ -143,16 +143,16 @@ function applyShopRarityTuning(baseItem) {
     if (baseItem.type === 'rune') {
         const tuned = { ...baseItem };
         tuned.name = formatShopItemName(tuned.name);
-        if (typeof window.applyOfficialStatsToEquipmentItem === 'function') {
-            window.applyOfficialStatsToEquipmentItem(tuned, { rebuildDesc: true });
+        if (typeof applyOfficialStatsToEquipmentItem === 'function') {
+            applyOfficialStatsToEquipmentItem(tuned, { rebuildDesc: true });
         }
         tuned.desc = formatShopItemDesc(tuned.desc);
         return tuned;
     }
     const tuned = { ...baseItem };
     tuned.name = formatShopItemName(tuned.name);
-    if (typeof window.applyOfficialStatsToEquipmentItem === 'function') {
-        window.applyOfficialStatsToEquipmentItem(tuned, { rebuildDesc: true });
+    if (typeof applyOfficialStatsToEquipmentItem === 'function') {
+        applyOfficialStatsToEquipmentItem(tuned, { rebuildDesc: true });
     }
     const basePrice = Math.max(1, safeNum(tuned.price, 1));
     tuned.price = Math.max(1, Math.round(basePrice * computeShopEquipmentPriceMultiplier(tuned)));
@@ -399,6 +399,7 @@ window.buyItem = (event, idx) => {
         }
         player.relics.push(it.effect); saveCollection(it.name);
         writeLog(`[유물 획득] ✨ <b style='color:#f1c40f'>${it.name}</b> 장착!`);
+        if (typeof emitRelicStory === 'function') emitRelicStory(it);
         showUnlockPopup(`✨ 유물 획득!`,`<b style="color:#f1c40f;">${it.name}</b><br>${it.desc}`,'#f1c40f');
     } else if(it.type==='potion'){
         player.potions++; writeLog(`[상점] 포션 구매 완료.`);

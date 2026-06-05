@@ -14,16 +14,39 @@ function getEffectiveMaxHp() {
     return Math.max(1, safeNum(player.maxHp, 1) + safeNum(player._syn && player._syn.hp, 0));
 }
 
-function getCritOverflowForMult() {
-    if (!player) return 0;
-    let raw = safeNum(player.crit, 1) + safeNum(player._relicTempCrit, 0);
-    return Math.max(0, raw - CRIT_SOFT_CAP);
+function getRawCritChance(extraCrit) {
+    if (!player) return Math.max(0, safeNum(extraCrit, 0));
+    ensurePlayerSynergyBonuses();
+    return Math.max(
+        0,
+        safeNum(player.crit, 1) +
+            safeNum(player._relicTempCrit, 0) +
+            safeNum(player._syn && player._syn.crit, 0) +
+            safeNum(extraCrit, 0)
+    );
+}
+
+function getCritOverflowForMult(extraCrit) {
+    return Math.max(0, getRawCritChance(extraCrit) - CRIT_SOFT_CAP);
+}
+
+function getCritOverflowMultBonus(extraCrit) {
+    return getCritOverflowForMult(extraCrit) * CRIT_OVERFLOW_TO_MULT;
+}
+
+function clampCritMultiplier(value) {
+    return Math.min(CRIT_MULT_HARD_CAP, Math.max(1, safeNum(value, 1.8)));
+}
+
+function getCritBaseMultBeforeOverflow(extraMult) {
+    if (player) ensurePlayerSynergyBonuses();
+    const base = safeNum(player && player.critMult, 1.8);
+    const syn = safeNum(player && player._syn && player._syn.critMult, 0);
+    return (base > 0 ? base : 1.8) + syn + safeNum(extraMult, 0);
 }
 
 function getEffectiveCritMult() {
-    const base = safeNum(player && player.critMult, 1.8);
-    const syn = safeNum(player && player._syn && player._syn.critMult, 0);
-    return (base > 0 ? base : 1.8) + syn + getCritOverflowForMult() * CRIT_OVERFLOW_TO_MULT;
+    return clampCritMultiplier(getCritBaseMultBeforeOverflow(0) + getCritOverflowMultBonus(0));
 }
 
 function applyRebirthPctBonusToPlayer(slot) {
@@ -34,7 +57,7 @@ function applyRebirthPctBonusToPlayer(slot) {
     const cmPct = Math.max(0, safeNum(rb.critMultPct, 0));
     if (atkPct > 0) player.atk = Math.ceil(player.atk * (1 + atkPct / 100));
     if (defPct > 0) player.def = Math.ceil(player.def * (1 + defPct / 100));
-    if (cmPct > 0) player.critMult = Math.ceil(player.critMult * (1 + cmPct / 100));
+    if (cmPct > 0) player.critMult = safeNum((player.critMult * (1 + cmPct / 100)).toFixed(4), player.critMult);
 }
 
 function applyOwnedEquipmentItemBonuses(it) {
@@ -131,18 +154,15 @@ function fullResyncPlayerCombatStatsFromMetaAndInventory() {
 }
 
 function getCritInfo() {
-    const rawCrit = safeNum(player && player.crit, 1) + safeNum(player && player._relicTempCrit, 0);
-    const valueForCap = rawCrit;
+    const rawCrit = getRawCritChance(0);
     const isBerserkCrit = false;
-    let synC = 0;
-    if (player && player._syn && player._syn.crit) synC = safeNum(player._syn.crit, 0);
-    const effectiveCrit = Math.min(CRIT_SOFT_CAP, Math.max(0, valueForCap + synC));
+    const effectiveCrit = Math.min(CRIT_SOFT_CAP, rawCrit);
     return { rawCrit, effectiveCrit, isBerserkCrit };
 }
 
 function getLifestealEffective() {
     const r = safeNum(player && player.lifesteal, 0);
-    const priestBonus = player && player.priestBlessed ? 0.1 : 0;
+    const priestBonus = player && player.priestBlessed ? DIVINE_BLESSING_LIFESTEAL_BONUS : 0;
     return Math.min(LIFESTEAL_SOFT_CAP, Math.max(0, r + priestBonus));
 }
 
@@ -165,7 +185,7 @@ function isChosenPriest() {
 }
 
 function formatDivinePowerForDisplay(v) {
-    const x = safeNum(v, 0);
+    const x = clampDivinePower(v);
     const i = Math.floor(x);
     const frac = x - i;
     if (frac >= 0.1 && frac <= 0.4) return i;
@@ -174,17 +194,36 @@ function formatDivinePowerForDisplay(v) {
     return i;
 }
 
+function clampDivinePower(v) {
+    return Math.max(0, Math.min(DIVINE_POWER_MAX, safeNum(v, 0)));
+}
+
+function normalizeDivineState() {
+    if (!player) return;
+    if (!isPriestJob()) {
+        player.divinePower = 0;
+        player.divineGainMult = 1;
+        player.prayerBonusFlat = 0;
+        player.priestBlessed = false;
+        player.chosenPriest = false;
+        player.priestNextCrit = false;
+        return;
+    }
+    player.divinePower = clampDivinePower(player.divinePower);
+    const blessed = player.divinePower >= DIVINE_BLESSING_THRESHOLD;
+    player.priestBlessed = blessed;
+    player.chosenPriest = false;
+    if (!blessed) player.priestNextCrit = false;
+}
+
 function getDivineAtkBonus() {
     if (!isPriestJob()) return 0;
-    if (isChosenPriest()) return 200;
-    if (isPriestBlessed()) return -50;
     return 0;
 }
 
 function getDivineDefBonus() {
     if (!isPriestJob()) return 0;
-    if (isPriestBlessed() || isChosenPriest()) return 100;
-    return 0;
+    return isPriestBlessed() ? DIVINE_BLESSING_DEF_BONUS : 0;
 }
 
 function recalcPlayerDivineGainMult() {
@@ -203,22 +242,24 @@ function recalcPlayerDivineGainMult() {
     }
     player.divineGainMult = m;
     player.prayerBonusFlat = Math.max(0, p);
+    normalizeDivineState();
 }
 
 function addDivinePower(amount) {
     if (!isPriestJob()) return 0;
-    const before = safeNum(player.divinePower, 0);
-    const after = Math.max(0, Math.min(200, before + safeNum(amount, 0)));
+    normalizeDivineState();
+    const before = clampDivinePower(player.divinePower);
+    const wasBlessed = !!player.priestBlessed;
+    const after = clampDivinePower(before + safeNum(amount, 0));
     player.divinePower = after;
-    if (!player.priestBlessed && after >= 30) {
+    if (!wasBlessed && after >= DIVINE_BLESSING_THRESHOLD) {
         player.priestBlessed = true;
         player.priestNextCrit = true;
-        writeLog('[신성] ✨ 30스택 달성! <b>신의 가호</b> (흡혈+10%, 방어+100, 다음 공격 확정 치명, 공격-50)');
-    }
-    if (!player.chosenPriest && after >= 200) {
-        player.chosenPriest = true;
-        player.priestNextCrit = true;
-        writeLog('[신성] 👑 200스택 달성! <b>선택받은 성직자</b> (공격+200, 방어무시 20%, 기도 불가)');
+        writeLog(
+            `[신성] ✨ ${DIVINE_BLESSING_THRESHOLD}스택 달성! <b>신의 가호</b> (흡혈+${Math.round(
+                DIVINE_BLESSING_LIFESTEAL_BONUS * 100
+            )}%, 방어+${DIVINE_BLESSING_DEF_BONUS}, 다음 공격 확정 치명)`
+        );
     }
     return after - before;
 }
@@ -245,7 +286,11 @@ function getTotalPlayerDefenseForHit() {
 
 window.ensurePlayerSynergyBonuses = ensurePlayerSynergyBonuses;
 window.getEffectiveMaxHp = getEffectiveMaxHp;
+window.getRawCritChance = getRawCritChance;
 window.getCritOverflowForMult = getCritOverflowForMult;
+window.getCritOverflowMultBonus = getCritOverflowMultBonus;
+window.clampCritMultiplier = clampCritMultiplier;
+window.getCritBaseMultBeforeOverflow = getCritBaseMultBeforeOverflow;
 window.getEffectiveCritMult = getEffectiveCritMult;
 window.applyRebirthPctBonusToPlayer = applyRebirthPctBonusToPlayer;
 window.applyOwnedEquipmentItemBonuses = applyOwnedEquipmentItemBonuses;
@@ -257,6 +302,8 @@ window.isPriestJob = isPriestJob;
 window.isPriestBlessed = isPriestBlessed;
 window.isChosenPriest = isChosenPriest;
 window.formatDivinePowerForDisplay = formatDivinePowerForDisplay;
+window.clampDivinePower = clampDivinePower;
+window.normalizeDivineState = normalizeDivineState;
 window.getDivineAtkBonus = getDivineAtkBonus;
 window.getDivineDefBonus = getDivineDefBonus;
 window.recalcPlayerDivineGainMult = recalcPlayerDivineGainMult;

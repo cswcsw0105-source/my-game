@@ -16,13 +16,242 @@ const relations = {
     '성직자':  { weak: '헌터',  strong: '워리어' },
 };
 
+const BALANCE = Object.freeze({
+    baseHitAccuracy: 90,
+    lifestealSoftCap: 0.85,
+    critSoftCap: 65,
+    critOverflowToMult: 0.05,
+    critMultHardCap: 5,
+    divinePowerMax: 20,
+    divineBlessingThreshold: 20,
+    divineBlessingDefBonus: 20,
+    divineBlessingLifestealBonus: 0.05,
+
+    enemyWallFloor: 30,
+    enemyPreWallGrowth: 1.055,
+    enemyPostWallGrowth: 1.065,
+    enemyWallHpMult: 2.2,
+    enemyWallAtkMult: 2.0,
+    enemyWallDefMult: 2.1,
+    upgradeFloorEquivalent: 1.25,
+
+    rarityPower: {
+        common: 1,
+        rare: 1.5,
+        epic: 2.5,
+        legendary: 4,
+        legend: 4,
+    },
+});
+
 const jobBase = {
-    Warrior: { name: '워리어', hp: 275, atk: 18, def: 8, color: '#ff4757' },
-    Hunter:  { name: '헌터',   hp: 240, atk: 22, def: 5,  color: '#2ed573' },
-    Wizard:  { name: '마법사', hp: 170, atk: 44, def: 3,  color: '#1e90ff' },
+    Warrior: { name: '워리어', hp: 300, atk: 19, def: 10, color: '#ff4757' },
+    Hunter:  { name: '헌터',   hp: 245, atk: 25, def: 5,  color: '#2ed573' },
+    Wizard:  { name: '마법사', hp: 185, atk: 42, def: 3,  color: '#1e90ff' },
     /** 동료 용병이 싸움. 단장은 직접 전투 불가에 가깝게 최하위 ATK */
-    MercenaryCaptain: { name: '용병단장', hp: 200, atk: 5, def: 4, color: '#e67e22' },
+    MercenaryCaptain: { name: '용병단장', hp: 210, atk: 5, def: 5, color: '#e67e22' },
 };
+
+const introPrologueLines = Object.freeze([
+    '당신은 과거에 엄청난 사건들이 가득했던 존재였습니다. 지금은 어떤 일인지 과거의 일이 하나도 기억나지 않습니다.. 그리고 현재 당신의 앞에는 몬스터가 침을 흘리며 당신을 쳐다보고 있습니다! 당신의 옆에는 금방이라도 부셔질 것 같은 무기들이 널부러져 있습니다. 뭔가 많이 떨어져 있지만 시간이 별로 없습니다! 무엇을 집겠습니까?',
+]);
+
+const raceStories = Object.freeze({
+    human: {
+        key: 'human',
+        name: '인간',
+        color: '#f1c40f',
+        summary: '배신당한 옛 용사 파티원',
+        past:
+            '과거 용사 파티의 일원이었으나, 마지막 원정에서 동료들에게 배신당해 마굴 아래로 던져진 인간.',
+        fragments: {
+            runStart: [
+                '희미한 기억 속에서 누군가 당신을 용사라고 불렀다. 하지만 지금 손에 남은 것은 피와 먼지뿐이다.',
+            ],
+            floorMilestones: {
+                5: ['무너진 회랑의 문양이 낯익다. 이곳은 과거 당신이 봉인했던 마굴의 바깥층일지도 모른다.'],
+                10: ['검은 제단 앞에서 배신자의 웃음소리가 짧게 스친다. 이름은 아직 떠오르지 않는다.'],
+                30: ['마굴의 벽이 심장처럼 뛰기 시작한다. 당신을 이곳에 던진 자들이 이 아래를 두려워했던 이유가 있다.'],
+            },
+            relic: {
+                default: '유물이 손에 닿자 용사 파티의 맹세가 조각난 목소리로 되살아난다.',
+            },
+        },
+    },
+    demon: {
+        key: 'demon',
+        name: '마족',
+        color: '#e74c3c',
+        summary: '기억을 잃은 전 마왕군',
+        past:
+            '과거 마왕군에 속했으나 알 수 없는 이유로 군단을 배신했고, 기억을 잃은 채 감옥 같은 마굴에 떨어진 마족.',
+        fragments: {
+            runStart: [
+                '몬스터의 침 냄새보다 먼저 익숙한 마기가 코끝을 찌른다. 이곳은 감옥이면서, 한때 당신의 진영이었다.',
+            ],
+            floorMilestones: {
+                5: ['벽의 발톱 자국을 읽을 수 있다. 누군가 이 통로를 마왕군의 언어로 봉쇄했다.'],
+                10: ['당신의 배신을 저주하는 듯한 낡은 군기가 천장에 걸려 있다.'],
+                30: ['심층의 마기가 당신을 주인으로 착각했다가 곧바로 적으로 인식한다.'],
+            },
+            relic: {
+                default: '유물 안쪽에서 마왕군의 명령 체계가 반응한다. 당신은 이 물건의 사용법을 알고 있었다.',
+            },
+        },
+    },
+    beastkin: {
+        key: 'beastkin',
+        name: '수인',
+        color: '#2ed573',
+        summary: '봉인된 사냥 부족의 생존자',
+        past:
+            '마굴의 길목을 지키던 사냥 부족 출신. 부족이 몰살되던 밤의 기억은 사라졌지만, 몸은 아직 사냥법을 기억한다.',
+        fragments: {
+            runStart: [
+                '발밑의 진동과 숨소리만으로도 적의 거리를 알 수 있다. 기억은 사라졌지만 본능은 남았다.',
+            ],
+            floorMilestones: {
+                5: ['낡은 함정의 배치가 당신의 부족 방식과 닮아 있다. 누군가 오래전에 이곳에서 싸웠다.'],
+                10: ['피 냄새 사이로 익숙한 약초 향이 섞인다. 잊었던 사냥터의 기억이 아주 잠깐 열린다.'],
+                30: ['심층의 포효가 뼈를 울린다. 당신의 부족이 끝까지 막으려 했던 것이 이 아래에 있다.'],
+            },
+            relic: {
+                default: '유물이 손에 닿자 잃어버린 부족의 사냥 노래가 귓가에 맴돈다.',
+            },
+        },
+    },
+});
+
+const introWeaponChoices = Object.freeze({
+    old_sword: {
+        key: 'old_sword',
+        label: '낡은 검',
+        jobKey: 'Warrior',
+        classKey: 'sword_warrior',
+        className: '검사',
+        color: '#ff4757',
+        desc: '녹슬었지만 균형이 남아 있는 검. 가장 정직하게 적을 베는 길.',
+    },
+    giant_hammer: {
+        key: 'giant_hammer',
+        label: '거대한 망치',
+        jobKey: 'Warrior',
+        classKey: 'hammer_vanguard',
+        className: '파쇄 전사',
+        color: '#d35400',
+        desc: '손잡이가 갈라진 대형 망치. 느리지만 한 번 맞으면 뼈째 부순다.',
+    },
+    broken_staff: {
+        key: 'broken_staff',
+        label: '부러진 지팡이',
+        jobKey: 'Wizard',
+        classKey: 'broken_staff_mage',
+        className: '마법사',
+        color: '#1e90ff',
+        desc: '끝이 부러진 지팡이. 불안정하지만 마력의 잔향이 살아 있다.',
+    },
+    snapped_bow: {
+        key: 'snapped_bow',
+        label: '줄 끊어진 활',
+        jobKey: 'Hunter',
+        classKey: 'desperate_archer',
+        className: '헌터',
+        color: '#2ed573',
+        desc: '끊어진 활줄을 임시로 묶었다. 거리와 약점을 읽는 자에게 맞다.',
+    },
+});
+
+const classStories = Object.freeze({
+    sword_warrior: {
+        jobKey: 'Warrior',
+        name: '검사',
+        intro: ['검을 쥐는 순간 손목이 먼저 자세를 잡는다. 당신은 이 움직임을 오래전에 배웠다.'],
+        floorMilestones: {
+            10: ['검날의 녹이 벗겨지며 오래된 검술의 감각이 조금 돌아온다.'],
+        },
+        relic: {
+            default: '유물이 검 손잡이와 공명한다. 잊었던 전장의 함성이 들린다.',
+        },
+    },
+    hammer_vanguard: {
+        jobKey: 'Warrior',
+        name: '파쇄 전사',
+        intro: ['망치를 들어 올리는 순간 어깨의 오래된 흉터가 뜨겁게 욱신거린다. 방어선을 부수던 기억이다.'],
+        floorMilestones: {
+            10: ['바닥의 균열을 따라 망치를 내리치고 싶은 충동이 인다. 이 무기는 문도, 방패도, 뼈도 부순다.'],
+        },
+        relic: {
+            default: '유물이 둔탁한 박동을 낸다. 무너뜨려야 할 성문 하나가 기억 속에서 열린다.',
+        },
+    },
+    broken_staff_mage: {
+        jobKey: 'Wizard',
+        name: '마법사',
+        intro: ['부러진 지팡이 끝에서 푸른 불꽃이 한 번 튄다. 주문은 기억나지 않지만 마력은 당신을 기억한다.'],
+        floorMilestones: {
+            10: ['벽의 룬을 읽는 순간 혀끝에 잊힌 주문의 첫 음절이 맴돈다.'],
+        },
+        relic: {
+            default: '유물이 지팡이의 균열을 따라 빛난다. 사라진 연구실의 냄새가 되살아난다.',
+        },
+    },
+    desperate_archer: {
+        jobKey: 'Hunter',
+        name: '헌터',
+        intro: ['끊어진 활줄을 묶자 손가락이 저릿하다. 불완전한 무기라도 급소를 노리기에는 충분하다.'],
+        floorMilestones: {
+            10: ['어둠 속 움직임이 선으로 보인다. 당신은 도망치는 적의 숨을 세는 법을 알고 있다.'],
+        },
+        relic: {
+            default: '유물이 활대에 닿자 오래된 사냥 표식이 시야 가장자리에 떠오른다.',
+        },
+    },
+});
+
+const promotionStories = Object.freeze({
+    '나이트': {
+        intro: ['갑옷의 무게가 낯설지 않다. 누군가를 지키지 못했던 기억이 방패 안쪽에서 울린다.'],
+        floorMilestones: {
+            30: ['통곡의 벽 앞에서 나이트의 맹세가 다시 세워진다. 이번에는 물러서지 않는다.'],
+        },
+    },
+    '버서커': {
+        intro: ['이성보다 먼저 피가 대답한다. 분노는 기억보다 깊은 곳에 남아 있었다.'],
+        floorMilestones: {
+            30: ['심층의 압박이 분노를 먹이 삼아 더 크게 타오른다.'],
+        },
+    },
+    '궁수': {
+        intro: ['시야가 길게 열린다. 숨 한 번에 거리, 바람, 심장 박동이 정렬된다.'],
+        floorMilestones: {
+            30: ['통곡의 벽 너머에서도 약점은 있다. 찾는 데 시간이 걸릴 뿐이다.'],
+        },
+    },
+    '암살자': {
+        intro: ['그림자가 당신을 피하지 않는다. 오히려 기다렸다는 듯 몸을 감싼다.'],
+        floorMilestones: {
+            30: ['이 깊이의 어둠은 적의 편이 아니다. 당신의 칼끝도 같은 어둠에서 나온다.'],
+        },
+    },
+    '위저드': {
+        intro: ['부서졌던 주문 체계가 다시 맞물린다. 세계가 잠깐 수식처럼 보인다.'],
+        floorMilestones: {
+            30: ['마굴의 심장이 뿜는 마력은 위험하지만, 읽을 수 있다면 무기가 된다.'],
+        },
+    },
+    '소환사': {
+        intro: ['비어 있던 곁에 낯선 기척이 선다. 당신은 혼자 싸우던 존재가 아니었다.'],
+        floorMilestones: {
+            30: ['심층의 문 너머에서 응답이 온다. 부름을 들은 것은 하나가 아니다.'],
+        },
+    },
+    '성직자': {
+        intro: ['기도의 말은 기억나지 않는다. 하지만 빛은 당신의 침묵에도 응답한다.'],
+        floorMilestones: {
+            30: ['통곡의 벽 앞에서 신성력이 흔들린다. 믿음이 아니라 선택을 시험하는 빛이다.'],
+        },
+    },
+});
 
 /** 시작 시 동료 1명: 워리어/헌터/마법사 (고용 아이템 없음) — v6.6.3 기본 성장 상향 */
 const mercCompanionBases = {
@@ -49,17 +278,17 @@ const mercCompanionEvolutions = {
 
 const jobEvolutions = {
     '워리어': [
-        { name: '나이트',  bonusAtk: 20, bonusDef: 14, bonusHp: 370, desc: '철벽 수호자. 방어력과 체력이 크게 증가한다.', ult: '신성한 강타' },
-        { name: '버서커',  bonusAtk: 34, bonusDef: 5,  bonusHp: 300, desc: '광전사. 공격력이 폭발하지만 체력이 줄어든다.', ult: '분노의 일격' },
+        { name: '나이트',  bonusAtk: 23, bonusDef: 18, bonusHp: 390, desc: '철벽 수호자. 방어력과 체력이 크게 증가한다.', ult: '신성한 강타' },
+        { name: '버서커',  bonusAtk: 37, bonusDef: 5,  bonusHp: 310, desc: '광전사. 공격력이 폭발하지만 체력이 줄어든다.', ult: '분노의 일격' },
     ],
     '헌터': [
-        { name: '궁수',   bonusAtk: 27, bonusDef: 6,  bonusHp: 325, bonusAcc: 10, desc: '원거리 특화. 공격력과 명중률이 상승한다.', ult: '폭풍화살' },
-        { name: '암살자', bonusAtk: 34, bonusDef: 4,  bonusHp: 280, desc: '그림자 암살자. 공격력이 크게 오르지만 방어가 약해진다.', ult: '그림자 찌르기' },
+        { name: '궁수',   bonusAtk: 29, bonusDef: 6,  bonusHp: 330, bonusAcc: 12, desc: '원거리 특화. 공격력과 명중률이 상승한다.', ult: '폭풍화살' },
+        { name: '암살자', bonusAtk: 36, bonusDef: 4,  bonusHp: 285, desc: '그림자 암살자. 공격력이 크게 오르지만 방어가 약해진다.', ult: '그림자 찌르기' },
     ],
     '마법사': [
-        { name: '위저드',  bonusAtk: 52, bonusDef: 3,  bonusHp: 245, desc: '고위 마법사. 마법 공격력이 폭발적으로 증가한다.', ult: '메테오' },
-        { name: '소환사',  bonusAtk: 40, bonusDef: 9, bonusHp: 285, desc: '소환사. 소환수의 방어막으로 생존력이 증가한다.', ult: '차원 붕괴' },
-        { name: '성직자',  bonusAtk: 38, bonusDef: 12, bonusHp: 270, desc: '신성력으로 버틴다. 공격 시 신성력 축적·기도로 가속.', ult: '성광 심판' },
+        { name: '위저드',  bonusAtk: 50, bonusDef: 3,  bonusHp: 250, desc: '고위 마법사. 마법 공격력이 폭발적으로 증가한다.', ult: '메테오' },
+        { name: '소환사',  bonusAtk: 38, bonusDef: 10, bonusHp: 300, desc: '소환사. 소환수의 방어막으로 생존력이 증가한다.', ult: '차원 붕괴' },
+        { name: '성직자',  bonusAtk: 35, bonusDef: 11, bonusHp: 285, desc: '신성력으로 버틴다. 신성력은 최대 20스택까지 축적된다.', ult: '성광 심판' },
     ],
 };
 
@@ -647,26 +876,32 @@ function rebuildEquipmentDesc(it, opts) {
     it.desc = s ? `${s}.` : (it.desc || '');
 }
 
-/** 등급별 총 예산(pt). Legend·Legendary 동일. (상한 강화에 맞춰 소폭 하향) */
+function getRarityPowerMultiplier(rk) {
+    const key = String(rk || 'common').toLowerCase();
+    return (BALANCE.rarityPower && BALANCE.rarityPower[key]) || BALANCE.rarityPower.common;
+}
+
+/** 등급별 총 예산(pt): 일반 1x, 희귀 1.5x, 영웅 2.5x, 전설 4x */
+const BASE_EQUIPMENT_BUDGET = 48;
 const BUDGET_BY_RARITY = {
-    common: 44,
-    rare: 88,
-    epic: 132,
-    legendary: 172,
-    legend: 172,
+    common: Math.round(BASE_EQUIPMENT_BUDGET * getRarityPowerMultiplier('common')),
+    rare: Math.round(BASE_EQUIPMENT_BUDGET * getRarityPowerMultiplier('rare')),
+    epic: Math.round(BASE_EQUIPMENT_BUDGET * getRarityPowerMultiplier('epic')),
+    legendary: Math.round(BASE_EQUIPMENT_BUDGET * getRarityPowerMultiplier('legendary')),
+    legend: Math.round(BASE_EQUIPMENT_BUDGET * getRarityPowerMultiplier('legend')),
 };
 
-/** 등급별 스탯 상한 — 과도한 수치 방지(상점/배분 공통) */
+/** 등급별 스탯 상한도 동일한 희귀도 파워 배율을 기준으로 확장 */
 function _statMaxForRarity(rk) {
-    const R = {
-        common: { atk: 26, hp: 95, def: 22, crit: 22, cm: 18, ls: 22 },
-        rare: { atk: 38, hp: 155, def: 34, crit: 32, cm: 24, ls: 28 },
-        epic: { atk: 52, hp: 220, def: 48, crit: 42, cm: 30, ls: 34 },
-        legendary: { atk: 65, hp: 290, def: 62, crit: 52, cm: 36, ls: 40 },
-        legend: { atk: 65, hp: 290, def: 62, crit: 52, cm: 36, ls: 40 },
+    const m = getRarityPowerMultiplier(rk);
+    return {
+        atk: Math.round(22 * m),
+        hp: Math.round(90 * m),
+        def: Math.round(16 * m),
+        crit: Math.round(14 * m),
+        cm: Math.round(12 * m),
+        ls: Math.round(10 * m),
     };
-    const k = String(rk || 'common').toLowerCase();
-    return R[k] || R.common;
 }
 
 /**
