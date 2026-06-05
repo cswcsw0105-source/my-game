@@ -866,6 +866,12 @@ function winBattle() {
     gold+=gain; totalGoldEarned+=gain;
     { const _em = getEffectiveMaxHp(); player.curHp = Math.min(_em, player.curHp + Math.floor(_em * 0.15)); }
     writeLog(`[승리] ${gain}G 획득 및 체력 소량 회복.${bonusMsg}`);
+    if (player.tutorialBattleActive) {
+        player.tutorialBattleActive = false;
+        player.prologueLocked = false;
+        writeLog('[튜토리얼] 첫 전투를 넘겼습니다. 이제 마굴을 오르며 잃어버린 기억을 추적합니다.');
+        if (typeof updatePrologueBattleControls === 'function') updatePrologueBattleControls();
+    }
     const expGain = 8 + Math.floor(floor * 0.85) + (enemy.isBoss ? 28 : 0);
     if (player.metaSlotId && typeof MetaRPG !== 'undefined') {
         const r = MetaRPG.addExpToSlot(player.metaSlotId, expGain);
@@ -943,6 +949,24 @@ window.finalizeGameOverDeath = function finalizeGameOverDeath() {
     } else {
         const ps = getSavedGold();
         localStorage.setItem('saved_gold', ps + sg);
+    }
+    if (player && player.prologueLocked) {
+        writeLog(`💀 ${fl}층에서 ${enName}에게 쓰러졌습니다. 기억이 다시 어둠 속으로 가라앉습니다.`);
+        const deadSlotId = player.metaSlotId;
+        if (typeof MetaRPG !== 'undefined' && deadSlotId && typeof MetaRPG.deleteSlot === 'function') {
+            MetaRPG.deleteSlot(deadSlotId);
+        }
+        player = null;
+        enemy = null;
+        floor = 1;
+        gold = 0;
+        totalGoldEarned = 0;
+        exitBattleLayout();
+        document.getElementById('battle-area').style.display = 'none';
+        if (typeof setProloguePhase === 'function') {
+            setProloguePhase('memory', { memoryKey: null });
+            return;
+        }
     }
     writeLog(`💀 ${fl}층에서 ${enName}에게 패배했습니다. 허브로 복귀합니다.`);
     returnToHubFromRun(false);

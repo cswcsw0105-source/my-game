@@ -52,9 +52,35 @@ const jobBase = {
     MercenaryCaptain: { name: '용병단장', hp: 210, atk: 5, def: 5, color: '#e67e22' },
 };
 
-const introPrologueLines = Object.freeze([
-    '당신은 과거에 엄청난 사건들이 가득했던 존재였습니다. 지금은 어떤 일인지 과거의 일이 하나도 기억나지 않습니다.. 그리고 현재 당신의 앞에는 몬스터가 침을 흘리며 당신을 쳐다보고 있습니다! 당신의 옆에는 금방이라도 부셔질 것 같은 무기들이 널부러져 있습니다. 뭔가 많이 떨어져 있지만 시간이 별로 없습니다! 무엇을 집겠습니까?',
-]);
+const introPrologueText = Object.freeze({
+    memoryPrompt:
+        '정신을 차리려 눈을 감자, 기억의 파편들이 스쳐 지나갑니다. 당신이 기억하는 마지막 기억은 무엇입니까?',
+    dangerPrompt:
+        '당신은 과거에 엄청난 사건들이 가득했던 존재였습니다. 지금은 어떤 일인지 과거의 일이 하나도 기억나지 않습니다.. 그리고 현재 당신의 앞에는 몬스터가 침을 흘리며 당신을 쳐다보고 있습니다!',
+    weaponPrompt:
+        '옆에는 금방이라도 부셔질 것 같은 무기들이 널부러져 있습니다. 시간이 별로 없습니다. 무엇을 집겠습니까?',
+});
+
+const introMemoryChoices = Object.freeze({
+    betrayed_heroes: {
+        key: 'betrayed_heroes',
+        label: '나를 배신한 동료들의 차가운 눈빛',
+        raceKey: 'human',
+        baseJobKey: 'Warrior',
+    },
+    demon_lord_mockery: {
+        key: 'demon_lord_mockery',
+        label: '나를 멸시하던 마왕의 비웃음',
+        raceKey: 'demon',
+        baseJobKey: 'Wizard',
+    },
+    burning_tribe: {
+        key: 'burning_tribe',
+        label: '불타오르던 고향 부족의 불길',
+        raceKey: 'beastkin',
+        baseJobKey: 'Hunter',
+    },
+});
 
 const raceStories = Object.freeze({
     human: {
