@@ -74,8 +74,9 @@ function spawnEnemy() {
         const bossHp = stats.hp;
         const bossAtk = stats.atk;
         const bossDef = stats.def;
-        enemy={name:`👑 [보스] ${floor}층 군주`,job:'보스',hp:bossHp,curHp:bossHp,atk:bossAtk,def:bossDef,isBoss:true,turnCount:1,bossCharge:false,weakPoint:false,_aiGuardedTurns:0,_hunterEvasionTurns:0};
-        writeLog(`🚨 경고: ${floor}층의 지배자가 나타났습니다!`);
+        if (floor === 100 && typeof emitFinalBossOpeningStory === 'function') emitFinalBossOpeningStory();
+        enemy={name:floor === 100 ? '👑 [최종보스] 배신한 조력자' : `👑 [보스] ${floor}층 군주`,job:'보스',hp:bossHp,curHp:bossHp,atk:bossAtk,def:bossDef,isBoss:true,turnCount:1,bossCharge:false,weakPoint:false,_aiGuardedTurns:0,_hunterEvasionTurns:0};
+        writeLog(floor === 100 ? '🚨 최종전: 배신한 조력자가 본모습을 드러냈습니다!' : `🚨 경고: ${floor}층의 지배자가 나타났습니다!`);
     } else {
         const eJobs=['워리어','헌터','마법사'];
         let rj=eJobs[Math.floor(Math.random()*eJobs.length)];

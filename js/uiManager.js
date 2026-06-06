@@ -574,6 +574,52 @@ function exitBattleLayout() {
     updatePrologueBattleControls();
 }
 
+let mainViewTransitionQueue = Promise.resolve();
+
+function waitForElementTransition(el) {
+    return new Promise((resolve) => {
+        if (!el) {
+            resolve();
+            return;
+        }
+        const onEnd = (event) => {
+            if (event && event.target !== el) return;
+            el.removeEventListener('transitionend', onEnd);
+            resolve();
+        };
+        el.addEventListener('transitionend', onEnd);
+    });
+}
+
+function cleanupTransientViewDom() {
+    const fx = document.getElementById('combat-fx-layer');
+    if (fx) fx.replaceChildren();
+    document.querySelectorAll('.floating-damage').forEach((el) => el.remove());
+    const ep = document.getElementById('encounter-phase');
+    if (ep && ep.style.display === 'none') ep.replaceChildren();
+}
+
+function transitionMainView(renderFn) {
+    const host = document.getElementById('main-screen') || document.querySelector('.screen');
+    if (!host || typeof renderFn !== 'function') {
+        if (typeof renderFn === 'function') renderFn();
+        return Promise.resolve();
+    }
+    mainViewTransitionQueue = mainViewTransitionQueue.then(async () => {
+        host.classList.add('screen-transitioning');
+        void host.offsetWidth;
+        host.classList.add('screen-fade-out');
+        await waitForElementTransition(host);
+        cleanupTransientViewDom();
+        renderFn();
+        host.classList.remove('screen-fade-out');
+        await waitForElementTransition(host);
+        host.classList.remove('screen-transitioning');
+        cleanupTransientViewDom();
+    });
+    return mainViewTransitionQueue;
+}
+
 /** 시너지 커스텀 툴팁: 터치/클릭으로 열고, 바깥 클릭 시 닫음 (PC는 @media hover로 마우스 호버도 유지) */
 function initSynergyTooltipInteractions() {
     document.addEventListener(
@@ -945,6 +991,49 @@ function getPromotionStoryDef(promotionKey) {
     return promotionStories[promotionKey] || null;
 }
 
+function getGlobalFloorStoryBand(f) {
+    if (typeof floorStories === 'undefined' || !Array.isArray(floorStories.bands)) return null;
+    const floorNum = Math.max(1, Math.floor(safeNum(f, 1)));
+    return floorStories.bands.find((band) => floorNum >= band.from && floorNum <= band.to) || null;
+}
+
+function getGlobalFloorStoryDef(f) {
+    if (typeof floorStories === 'undefined') return null;
+    const floorNum = Math.max(1, Math.floor(safeNum(f, 1)));
+    const band = getGlobalFloorStoryBand(floorNum);
+    const exactLines = floorStories.milestones && floorStories.milestones[floorNum]
+        ? floorStories.milestones[floorNum]
+        : [];
+    const bandLines = [];
+    if (band && Array.isArray(band.lines) && band.lines.length) {
+        const cadence = Math.max(1, Math.floor(safeNum(band.cadence, 1)));
+        const index = Math.min(band.lines.length - 1, Math.floor((floorNum - band.from) / cadence));
+        bandLines.push(band.lines[Math.max(0, index)]);
+    }
+    const lines = [...bandLines, ...exactLines].filter(Boolean);
+    if (!lines.length) return null;
+    return {
+        key: band ? `${band.key}:${floorNum}` : `milestone:${floorNum}`,
+        title: band ? `${floorNum}층 ${band.title}` : `${floorNum}층 기억`,
+        lines,
+    };
+}
+
+function getRelicStoryClueLines(relicKey) {
+    if (typeof floorStories === 'undefined' || !floorStories.relicClues) return [];
+    const f = Math.max(1, Math.floor(safeNum(floor, 1)));
+    if (f < 51) return [];
+    const band = getGlobalFloorStoryBand(f);
+    const key = band && band.key === 'summit_eve' ? 'summit_eve' : 'deep_truth';
+    let pool = floorStories.relicClues[key];
+    if (!Array.isArray(pool) || !pool.length) pool = floorStories.relicClues.default || [];
+    if (!Array.isArray(pool) || !pool.length) return [];
+    const seed = `${relicKey || 'relic'}:${f}`;
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+    return [pool[hash % pool.length]];
+}
+
 function writeStoryLines(title, lines) {
     const arr = Array.isArray(lines) ? lines.filter(Boolean) : [];
     if (!arr.length) return;
@@ -995,14 +1084,17 @@ function emitFloorStory(f) {
     const race = getRaceStoryDef(slot.raceKey);
     const cls = getClassStoryDef(slot.classKey);
     const promo = getPromotionStoryDef(player.name);
+    const globalStory = getGlobalFloorStoryDef(f);
     const lines = [
+        ...((globalStory && globalStory.lines) || []),
         ...((race && race.fragments && race.fragments.floorMilestones && race.fragments.floorMilestones[f]) || []),
         ...((cls && cls.floorMilestones && cls.floorMilestones[f]) || []),
         ...((promo && promo.floorMilestones && promo.floorMilestones[f]) || []),
     ];
     if (!lines.length) return;
-    if (!markStorySeen(slot.id, `floor:${f}:${slot.raceKey || 'none'}:${slot.classKey || slot.jobKey}:${player.name}`, lines)) return;
-    writeStoryLines(`${f}층 기억`, lines);
+    const globalKey = globalStory ? globalStory.key : 'personal';
+    if (!markStorySeen(slot.id, `floor:${f}:${globalKey}:${slot.raceKey || 'none'}:${slot.classKey || slot.jobKey}:${player.name}`, lines)) return;
+    writeStoryLines(globalStory ? globalStory.title : `${f}층 기억`, lines);
 }
 
 function emitPromotionStory(promotionName) {
@@ -1023,13 +1115,26 @@ function emitRelicStory(it) {
     const relicKey = it.effect || it.name || 'unknown';
     const raceRelic = race && race.fragments && race.fragments.relic;
     const classRelic = cls && cls.relic;
+    const storyBand = getGlobalFloorStoryBand(floor);
     const lines = [
+        ...getRelicStoryClueLines(relicKey),
         (raceRelic && (raceRelic[relicKey] || raceRelic.default)) || '',
         (classRelic && (classRelic[relicKey] || classRelic.default)) || '',
     ].filter(Boolean);
     if (!lines.length) return;
-    if (!markStorySeen(slot.id, `relic:${relicKey}`, lines)) return;
+    if (!markStorySeen(slot.id, `relic:${relicKey}:${storyBand ? storyBand.key : 'early'}`, lines)) return;
     writeStoryLines('유물 기억', lines);
+}
+
+function emitFinalBossOpeningStory() {
+    if (!player || !player.metaSlotId || typeof MetaRPG === 'undefined') return;
+    if (Math.floor(safeNum(floor, 1)) !== 100) return;
+    const lines = typeof floorStories !== 'undefined' && Array.isArray(floorStories.finalBossOpening)
+        ? floorStories.finalBossOpening
+        : [];
+    if (!lines.length) return;
+    if (!markStorySeen(player.metaSlotId, 'finalBossOpening:100', lines)) return;
+    writeStoryLines('100층 종착지', lines);
 }
 
 function getIntroMemoryChoiceDef(memoryKey) {
@@ -2122,6 +2227,13 @@ function serializeRunState() {
         shopVisitCount,
         lastEnemyJob,
         pendingShop: inShop ? false : pendingShop,
+        restockCrossroadActive: !inShop && !enemySnap && typeof restockCrossroadActive !== 'undefined' && !!restockCrossroadActive,
+        restockCrossroadContext: !inShop && !enemySnap && typeof restockCrossroadActive !== 'undefined' && restockCrossroadActive
+            ? (restockCrossroadContext || null)
+            : null,
+        resumeAfterRestockCrossroad: inShop && typeof resumeAfterRestockCrossroad !== 'undefined' && resumeAfterRestockCrossroad
+            ? resumeAfterRestockCrossroad
+            : null,
         encounterPhase: !inShop && !enemySnap && !!window._encounterPhaseActive,
         encounterScene: !inShop && !enemySnap && !!window._encounterPhaseActive ? (window._encounterPhaseScene || null) : null,
         inShop: !!inShop,
@@ -2168,6 +2280,9 @@ function loadRunFromMetaSnapshot(d) {
     lastEnemyJob = d.lastEnemyJob || '';
     pendingShop = !!d.pendingShop;
     const savedInShop = !!d.inShop;
+    if (typeof restockCrossroadActive !== 'undefined') restockCrossroadActive = !!d.restockCrossroadActive;
+    if (typeof restockCrossroadContext !== 'undefined') restockCrossroadContext = d.restockCrossroadContext || null;
+    if (typeof resumeAfterRestockCrossroad !== 'undefined') resumeAfterRestockCrossroad = d.resumeAfterRestockCrossroad || null;
     attackGcdUntil = d.attackGcdUntil || 0;
     defendingTurns = d.defendingTurns || 0;
     dodgingTurns = d.dodgingTurns || 0;
@@ -2250,6 +2365,8 @@ function loadRunFromMetaSnapshot(d) {
             rerollCost = rerollCost || 10;
             updateUi();
             renderShopItems();
+        } else if (typeof restockCrossroadActive !== 'undefined' && restockCrossroadActive && typeof renderRestockCrossroad === 'function') {
+            renderRestockCrossroad({ immediate: true });
         } else {
             pendingShop = false;
             if (d.encounterPhase) {

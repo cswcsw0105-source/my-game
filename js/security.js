@@ -86,6 +86,7 @@
         'resolveForge',
         'resolveContractAltar',
         'resolveEncounter',
+        'resolveRestockCrossroad',
     ];
 
     const internalExportNames = [
@@ -157,7 +158,6 @@
         'getUnlockedPoolItems',
         'getItemsByRarity',
         'getShopRarityChances',
-        'computeShopEquipmentPriceMultiplier',
         'applyShopRarityTuning',
         'getShopRarityBoostPrice',
         'renderShopItems',
@@ -194,6 +194,10 @@
         'buildAltarEncounterHtml',
         'buildEncounterPhaseHtml',
         'hideEncounterPhaseUI',
+        'buildRestockCrossroadHtml',
+        'renderRestockCrossroad',
+        'maybeStartRestockCrossroad',
+        'resumeRestockCrossroadContext',
         'beginFloorEncounter',
         'buildAltarEncounterOptions',
         'pushPassiveContractHistory',
