@@ -2618,6 +2618,9 @@ if (typeof window !== 'undefined') {
     global.BASE_CAMP_FLOORS = BASE_CAMP_FLOORS;
 })(typeof window !== 'undefined' ? window : globalThis);
 
+const MetaRPG = (typeof window !== 'undefined' ? window.MetaRPG : globalThis.MetaRPG);
+const BASE_CAMP_FLOORS = (typeof window !== 'undefined' ? window.BASE_CAMP_FLOORS : globalThis.BASE_CAMP_FLOORS);
+
 // ---- js/state.js ----
 // Global runtime state (single source of truth)
 let floor = 1, gold = 0, player = null, enemy = null;
@@ -4531,20 +4534,37 @@ function getIntroMemoryChoiceDef(memoryKey) {
 
 function ensurePrologueScreen() {
     let screen = document.getElementById('prologue-screen');
-    if (screen) return screen;
-    screen = document.createElement('div');
-    screen.id = 'prologue-screen';
-    screen.style.cssText =
-        'position:fixed;inset:0;z-index:12000;background:radial-gradient(circle at 50% 35%,#221510 0%,#09090d 48%,#020203 100%);color:#e8e0d8;display:flex;align-items:center;justify-content:center;padding:22px;box-sizing:border-box;';
-    document.body.appendChild(screen);
+    if (!screen) {
+        screen = document.createElement('div');
+        screen.id = 'prologue-screen';
+        screen.style.cssText =
+            'position:fixed;inset:0;z-index:12000;background:radial-gradient(circle at 50% 35%,#221510 0%,#09090d 48%,#020203 100%);color:#e8e0d8;display:flex;align-items:center;justify-content:center;padding:22px;box-sizing:border-box;';
+        document.body.appendChild(screen);
+    }
+    screen.style.display = 'flex';
     return screen;
 }
 
 function setMainUiHiddenForPrologue(hidden) {
-    const container = document.querySelector('.container');
-    if (container) container.style.display = hidden ? 'none' : '';
-    const log = document.getElementById('log');
-    if (log) log.style.display = hidden ? 'none' : log.style.display || 'block';
+    const targets = [
+        document.querySelector('.container'),
+        document.getElementById('log'),
+    ].filter(Boolean);
+    targets.forEach((el) => {
+        if (hidden) {
+            if (!Object.prototype.hasOwnProperty.call(el.dataset, 'prePrologueDisplay')) {
+                el.dataset.prePrologueDisplay = el.style.display || '';
+            }
+            el.style.display = 'none';
+            return;
+        }
+        if (Object.prototype.hasOwnProperty.call(el.dataset, 'prePrologueDisplay')) {
+            el.style.display = el.dataset.prePrologueDisplay;
+            delete el.dataset.prePrologueDisplay;
+        } else {
+            el.style.display = '';
+        }
+    });
 }
 
 function closePrologueScreen() {
@@ -4685,11 +4705,12 @@ function canCreateCharacterInCurrentFile() {
     return true;
 }
 
-function startNewCharacterPrologueFlow(memoryKey) {
+function startNewCharacterPrologueFlow() {
     if (typeof MetaRPG === 'undefined') return;
     if (!canCreateCharacterInCurrentFile()) return;
-    const directMemoryKey = getIntroMemoryChoiceDef(memoryKey) ? memoryKey : null;
-    setProloguePhase(directMemoryKey ? 'raceStory' : 'memory', { memoryKey: directMemoryKey });
+    ensurePrologueScreen();
+    setMainUiHiddenForPrologue(true);
+    setProloguePhase('memory', { memoryKey: null });
 }
 
 function confirmNewCharacterFromPrologue(memoryKey, weaponKey) {
@@ -4714,39 +4735,27 @@ function confirmNewCharacterFromPrologue(memoryKey, weaponKey) {
     initRunFromMetaSlot({ forceTutorialBattle: true });
 }
 
-function buildHubNewCharacterShortcutHtml() {
-    const choices = typeof introMemoryChoices !== 'undefined' ? Object.keys(introMemoryChoices) : [];
-    if (!choices.length) return '';
-    const buttons = choices
-        .map((key) => {
-            const c = introMemoryChoices[key];
-            const race = c ? getRaceStoryDef(c.raceKey) : null;
-            const raceName = race && race.name ? race.name : '종족';
-            const border = race && race.color ? race.color : '#6b5848';
-            return `<button type="button" onclick="startNewCharacterPrologue('${escapeJsSingleQuoteString(key)}')" style="flex:1 1 145px;background:#0d0d12;border:1px solid ${border};color:#f2e9df;padding:11px 12px;border-radius:8px;font-size:0.86em;font-weight:900;cursor:pointer;text-align:left;line-height:1.35;">
-                <span style="display:block;color:${border};font-size:0.78em;margin-bottom:3px;">${escapeHtml(raceName)}</span>
-                ${escapeHtml(c && c.label ? c.label : '프롤로그 선택')}
-            </button>`;
-        })
-        .join('');
-    return `<div id="new-character-race-shortcuts" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">${buttons}</div>`;
+function hasOpenCharacterSlot(meta) {
+    if (typeof MetaRPG === 'undefined') return true;
+    const m = meta || MetaRPG.loadMeta();
+    return !m || !Array.isArray(m.slots) || m.slots.length < MetaRPG.MAX_SLOTS;
 }
 
-function buildNewCharacterEntryHtml() {
+function buildNewAdventureStartHtml(extraClass) {
+    const className = ['new-adventure-entry', extraClass || ''].filter(Boolean).join(' ');
     return `
-        <div id="new-character-entry" style="max-width:520px;margin:0 auto 16px;text-align:center;">
-            <button id="new-character-start-btn" type="button" onclick="startNewCharacterPrologue()" style="width:100%;background:#15100d;border:1px solid #6b5848;color:#f2e9df;padding:14px 18px;border-radius:8px;font-size:0.98em;font-weight:900;cursor:pointer;">새 모험가 생성</button>
-            ${buildHubNewCharacterShortcutHtml()}
-            <p style="color:#777;font-size:0.76em;line-height:1.5;margin:8px 0 0;">시작하면 종족의 과거를 선택하고, 프롤로그 이후 무기로 직업을 확정합니다.</p>
+        <div id="new-adventure-entry" class="${className}">
+            <button id="new-adventure-start-btn" class="new-adventure-start-btn" type="button" onclick="startNewCharacterPrologue()">새로운 모험 시작</button>
         </div>`;
 }
 
 function ensureHubCreateEntryRendered() {
     const startArea = document.getElementById('start-area');
     if (!startArea) return;
-    if (startArea.querySelector('#new-character-start-btn')) return;
+    if (startArea.querySelector('#new-adventure-start-btn')) return;
+    if (!hasOpenCharacterSlot()) return;
     const fallback = document.createElement('div');
-    fallback.innerHTML = buildNewCharacterEntryHtml();
+    fallback.innerHTML = buildNewAdventureStartHtml('new-adventure-entry-fallback');
     const entry = fallback.firstElementChild;
     if (entry) startArea.appendChild(entry);
 }
@@ -4779,9 +4788,13 @@ function showPreGameScreen() {
             if (sn && sn.floor) slotSnapHints.push(`<b>${esc(s.name)}</b> ${sn.floor}층`);
         });
     }
+    const canStartNewAdventure = hasOpenCharacterSlot(m);
     const slotRows =
         m.slots.length === 0
-            ? `<p style="color:#888;font-size:0.85em;">저장된 캐릭터가 없습니다. 아래에서 <b>새 모험가</b>를 만들어 주세요.</p>`
+            ? `<div class="empty-character-slot">
+                <p style="color:#888;font-size:0.85em;margin:0 0 12px;">저장된 캐릭터가 없습니다. 아래에서 <b>새 모험가</b>를 만들어 주세요.</p>
+                ${canStartNewAdventure ? buildNewAdventureStartHtml('new-adventure-entry-empty') : ''}
+            </div>`
             : m.slots
                   .map((s) => {
                       MetaRPG.recalcTechBonus(s);
@@ -4834,7 +4847,8 @@ function showPreGameScreen() {
         }
         saveFileBar = `<div style="margin-bottom:14px;padding:12px;background:#0d0d12;border:1px solid #333;border-radius:10px;"><div style="color:#f1c40f;font-weight:700;margin-bottom:8px;font-size:0.9em;">💾 저장 파일 (최대 3)</div><div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">${parts.join('')}</div><p style="color:#666;font-size:0.72em;margin:8px 0 0;line-height:1.45;">다른 파일을 불러오려면 위 버튼을 누르세요. 모든 파일이 가득 차면 새 캐릭터 생성 시 <b>비울 파일</b>을 묻습니다.</p></div>`;
     }
-    const newCharacterEntryHtml = buildNewCharacterEntryHtml();
+    const newCharacterEntryHtml =
+        m.slots.length > 0 && canStartNewAdventure ? buildNewAdventureStartHtml('new-adventure-entry-secondary') : '';
     document.getElementById('start-area').style.display = 'block';
     document.getElementById('battle-area').style.display = 'none';
     document.getElementById('shop-area').style.display = 'none';
@@ -4923,8 +4937,8 @@ window.reincarnateFromHub = function reincarnateFromHub(slotId) {
     }
 };
 
-window.startNewCharacterPrologue = function startNewCharacterPrologue(memoryKey) {
-    startNewCharacterPrologueFlow(memoryKey);
+window.startNewCharacterPrologue = function startNewCharacterPrologue() {
+    startNewCharacterPrologueFlow();
 };
 
 window.choosePrologueMemory = function choosePrologueMemory(memoryKey) {
