@@ -2,9 +2,20 @@
 function openShop() {
     setCombatProcessing(false);
     shopVisitCount++;
-    document.getElementById('battle-area').style.display='none';
-    document.getElementById('shop-area').style.display='block';
-    rerollCost=10; updateUi(); renderShopItems();
+    rerollCost = 10;
+    transitionMainView(() => {
+        const battle = document.getElementById('battle-area');
+        const shop = document.getElementById('shop-area');
+        const encounter = document.getElementById('encounter-phase');
+        if (encounter) {
+            encounter.style.display = 'none';
+            encounter.replaceChildren();
+        }
+        if (battle) battle.style.display = 'none';
+        if (shop) shop.style.display = 'block';
+        updateUi();
+        renderShopItems();
+    });
 }
 
 function renderShopLeaveButtons() {
@@ -34,9 +45,19 @@ window.leaveShopTrainHere = function leaveShopTrainHere() {
 };
 
 window.nextFloor = () => {
-    document.getElementById('shop-area').style.display='none';
-    document.getElementById('battle-area').style.display='block';
-    beginFloorEncounter();
+    const crossroadContext = typeof resumeAfterRestockCrossroad !== 'undefined'
+        ? resumeAfterRestockCrossroad
+        : null;
+    resumeAfterRestockCrossroad = null;
+    transitionMainView(() => {
+        document.getElementById('shop-area').style.display='none';
+        document.getElementById('battle-area').style.display='block';
+        if (crossroadContext && typeof resumeRestockCrossroadContext === 'function') {
+            resumeRestockCrossroadContext(crossroadContext, { immediate: true });
+        } else {
+            beginFloorEncounter({ immediate: true });
+        }
+    });
 };
 
 function getUnlockedPoolItems() {
@@ -124,17 +145,6 @@ function getShopRarityChances() {
     return { legendary, epic, rare, common };
 }
 
-function computeShopEquipmentPriceMultiplier(it) {
-    if (!it || it.type === 'relic' || it.type === 'merc_shop_direct' || it.type === 'merc_shop_fund') return 1;
-    const v = typeof it.value === 'number' ? it.value : 0;
-    const d = typeof it.def === 'number' ? it.def : 0;
-    const c = typeof it.critBonus === 'number' ? it.critBonus : 0;
-    const cm = typeof it.critMult === 'number' ? it.critMult : 0;
-    const ls = typeof it.lifesteal === 'number' ? it.lifesteal : 0;
-    const m = 1 + v * 0.006 + d * 0.032 + c * 0.011 + cm * 12 + ls * 16;
-    return Math.min(4.2, Math.max(0.88, m));
-}
-
 function applyShopRarityTuning(baseItem) {
     if (!baseItem) return baseItem;
     if (baseItem.type === 'relic' || baseItem.type === 'potion' || baseItem.type === 'merc_shop_direct' || baseItem.type === 'merc_shop_fund') {
@@ -154,11 +164,7 @@ function applyShopRarityTuning(baseItem) {
     if (typeof applyOfficialStatsToEquipmentItem === 'function') {
         applyOfficialStatsToEquipmentItem(tuned, { rebuildDesc: true });
     }
-    const basePrice = Math.max(1, safeNum(tuned.price, 1));
-    tuned.price = Math.max(1, Math.round(basePrice * computeShopEquipmentPriceMultiplier(tuned)));
     tuned.desc = formatShopItemDesc(tuned.desc);
-    if (baseItem.divinityGainBonus != null) tuned.divinityGainBonus = baseItem.divinityGainBonus;
-    if (baseItem.prayerBonus != null) tuned.prayerBonus = baseItem.prayerBonus;
     return tuned;
 }
 
@@ -452,7 +458,6 @@ window.renderShopLeaveButtons = renderShopLeaveButtons;
 window.getUnlockedPoolItems = getUnlockedPoolItems;
 window.getItemsByRarity = getItemsByRarity;
 window.getShopRarityChances = getShopRarityChances;
-window.computeShopEquipmentPriceMultiplier = computeShopEquipmentPriceMultiplier;
 window.applyShopRarityTuning = applyShopRarityTuning;
 window.getShopRarityBoostPrice = getShopRarityBoostPrice;
 window.renderShopItems = renderShopItems;

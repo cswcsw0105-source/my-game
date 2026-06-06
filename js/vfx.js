@@ -1,59 +1,29 @@
 // VFX/animation module (stage 1 split)
-function showDmgFloat(dmg, isCrit, isPlayer) {
-    const battleArea = document.getElementById('battle-area');
-    if (!battleArea) return;
-    const el = document.createElement('div');
-    el.style.cssText = `position:absolute;font-weight:900;font-size:${isCrit?'3.2em':'1.4em'};color:${isPlayer?'#ff4757':isCrit?'#f1c40f':'#2ed573'};text-shadow:0 0 16px ${isCrit?'#f1c40f':'transparent'};pointer-events:none;z-index:999;left:${isPlayer?'10%':'55%'};top:25%;animation:dmgFloat 1s ease forwards;`;
-    el.innerText = `${isCrit?'💥':''}${dmg}`;
-    battleArea.style.position = 'relative';
-    battleArea.appendChild(el);
-    setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 1000);
+function getCombatTargetCard(side) {
+    return document.getElementById(side === 'player' ? 'player-card' : 'enemy-card');
 }
-function triggerCritEffect() {
-    const s = document.querySelector('.screen');
-    if (s) {
-        s.classList.add('crit-flash');
-        s.classList.add('crit-blackout');
-        setTimeout(() => s.classList.remove('crit-blackout'), 150);
-        setTimeout(() => s.classList.remove('crit-flash'), 500);
+
+function onceAnimationEnd(el, done) {
+    if (!el) {
+        if (typeof done === 'function') done();
+        return;
     }
+    const finish = (event) => {
+        if (event && event.target !== el) return;
+        el.removeEventListener('animationend', finish);
+        if (typeof done === 'function') done();
+    };
+    el.addEventListener('animationend', finish);
 }
-function triggerShakeEffect() {
-    const e = document.getElementById('e-hp');
-    if (e) { e.classList.add('shake'); setTimeout(() => e.classList.remove('shake'), 400); }
+
+function animateClass(el, className) {
+    if (!el || !className) return;
+    el.classList.remove(className);
+    void el.offsetWidth;
+    el.classList.add(className);
+    onceAnimationEnd(el, () => el.classList.remove(className));
 }
-function triggerScreenShakeHeavy() {
-    const s = document.querySelector('.screen');
-    if (s) {
-        s.classList.add('heavy-shake');
-        setTimeout(() => s.classList.remove('heavy-shake'), 220);
-    }
-}
-function triggerScreenShakeBoss() {
-    const s = document.querySelector('.screen');
-    if (!s) return;
-    s.classList.add('shake');
-    setTimeout(() => s.classList.remove('shake'), 800);
-}
-function triggerBossDim() {
-    const s = document.querySelector('.screen');
-    if (!s) return;
-    s.style.position = 'relative';
-    s.classList.add('boss-dimming');
-    setTimeout(() => s.classList.remove('boss-dimming'), 320);
-}
-function triggerGuardAura() {
-    const c = document.getElementById('player-card');
-    if (!c) return;
-    c.classList.add('guard-aura');
-    setTimeout(() => c.classList.remove('guard-aura'), 320);
-}
-function triggerDodgeMove(side) {
-    const c = document.getElementById(side === 'player' ? 'player-card' : 'enemy-card');
-    if (!c) return;
-    c.classList.add('dodge-move');
-    setTimeout(() => c.classList.remove('dodge-move'), 180);
-}
+
 function ensureCombatFxLayer() {
     const ba = document.getElementById('battle-area');
     if (!ba) return null;
@@ -62,13 +32,14 @@ function ensureCombatFxLayer() {
         layer = document.createElement('div');
         layer.id = 'combat-fx-layer';
         layer.className = 'combat-fx-layer';
-        ba.style.position = 'relative';
+        ba.classList.add('combat-stage');
         ba.appendChild(layer);
     }
     return layer;
 }
+
 function getCardCenter(side) {
-    const card = document.getElementById(side === 'player' ? 'player-card' : 'enemy-card');
+    const card = getCombatTargetCard(side);
     const ba = document.getElementById('battle-area');
     if (!card || !ba) return null;
     const cr = card.getBoundingClientRect();
@@ -78,183 +49,184 @@ function getCardCenter(side) {
         y: cr.top + cr.height / 2 - br.top,
     };
 }
+
+function placeFxNode(el, point) {
+    el.style.left = `${point.x}px`;
+    el.style.top = `${point.y}px`;
+}
+
+function spawnFxNode(className, point, opts) {
+    const layer = ensureCombatFxLayer();
+    if (!layer || !point) return Promise.resolve(null);
+    const el = document.createElement('div');
+    el.className = className;
+    placeFxNode(el, point);
+    if (opts && opts.vars) {
+        Object.keys(opts.vars).forEach((key) => el.style.setProperty(key, opts.vars[key]));
+    }
+    if (opts && opts.text != null) el.textContent = opts.text;
+    layer.appendChild(el);
+    return new Promise((resolve) => {
+        onceAnimationEnd(el, () => {
+            if (el.parentNode) el.remove();
+            resolve(el);
+        });
+    });
+}
+
+function triggerScreenShake(kind) {
+    const stage = document.getElementById('battle-area') || document.querySelector('.screen');
+    if (!stage) return;
+    const cls = kind === 'boss' ? 'combat-shake-boss' : kind === 'heavy' ? 'combat-shake-heavy' : 'combat-shake-light';
+    animateClass(stage, cls);
+}
+
+function triggerHitFlash(side) {
+    const card = getCombatTargetCard(side);
+    if (!card) return;
+    animateClass(card, 'hit-flash');
+}
+
+function showDmgFloat(dmg, isCrit, isPlayer) {
+    const targetSide = isPlayer ? 'player' : 'enemy';
+    const point = getCardCenter(targetSide);
+    if (!point) return;
+    const cls = ['floating-damage', isPlayer ? 'floating-damage-player' : 'floating-damage-enemy'];
+    if (isCrit) cls.push('floating-damage-crit');
+    triggerHitFlash(targetSide);
+    const numericDmg = Number(dmg);
+    const maxHp = typeof getEffectiveMaxHp === 'function' ? getEffectiveMaxHp() : 0;
+    if (isCrit || (isPlayer && Number.isFinite(numericDmg) && maxHp > 0 && numericDmg >= maxHp * 0.18)) {
+        triggerScreenShakeHeavy();
+    }
+    spawnFxNode(cls.join(' '), { x: point.x, y: point.y - 34 }, { text: `${isCrit ? 'CRIT ' : ''}${dmg}` });
+}
+
+function triggerCritEffect() {
+    const s = document.querySelector('.screen');
+    if (!s) return;
+    animateClass(s, 'crit-flash');
+    animateClass(s, 'crit-blackout');
+}
+
+function triggerShakeEffect() {
+    triggerScreenShake('light');
+}
+
+function triggerScreenShakeHeavy() {
+    triggerScreenShake('heavy');
+}
+
+function triggerScreenShakeBoss() {
+    triggerScreenShake('boss');
+}
+
+function triggerBossDim() {
+    const s = document.querySelector('.screen');
+    if (!s) return;
+    animateClass(s, 'boss-dimming');
+}
+
+function triggerGuardAura() {
+    const c = getCombatTargetCard('player');
+    if (!c) return;
+    animateClass(c, 'guard-aura');
+}
+
+function triggerDodgeMove(side) {
+    const c = getCombatTargetCard(side === 'enemy' ? 'enemy' : 'player');
+    if (!c) return;
+    animateClass(c, 'dodge-move');
+}
+
 function normalizeCombatArchetype(jobName) {
     const n = String(jobName || '');
-    if (n.includes('마법사') || n.includes('위저드') || n.includes('Mage')) return 'mage';
+    if (n.includes('마법사') || n.includes('위저드') || n.includes('Mage') || n.includes('성직자')) return 'mage';
     if (n.includes('헌터') || n.includes('암살자') || n.includes('궁수') || n.includes('Hunter')) return 'hunter';
-    if (n.includes('버서커') || n.includes('워리어') || n.includes('Berserker')) return 'berserker';
+    if (n.includes('버서커') || n.includes('워리어') || n.includes('나이트') || n.includes('Berserker')) return 'berserker';
     return 'berserker';
 }
+
 function playMageBoltVfx(fromSide, toSide) {
-    const layer = ensureCombatFxLayer();
     const from = getCardCenter(fromSide);
     const to = getCardCenter(toSide);
-    if (!layer || !from || !to) return Promise.resolve();
-    return new Promise((resolve) => {
-        const bolt = document.createElement('div');
-        bolt.className = 'mage-bolt';
-        bolt.style.left = `${from.x - 6}px`;
-        bolt.style.top = `${from.y - 6}px`;
-        bolt.style.transition = 'transform 0.4s ease-out, opacity 0.4s ease-out';
-        layer.appendChild(bolt);
-        requestAnimationFrame(() => {
-            bolt.style.transform = `translate(${to.x - from.x}px, ${to.y - from.y}px)`;
-            bolt.style.opacity = '0.35';
-        });
-        setTimeout(() => {
-            if (bolt.parentNode) bolt.parentNode.removeChild(bolt);
-            const ex = document.createElement('div');
-            ex.className = 'mage-explosion';
-            ex.style.left = `${to.x}px`;
-            ex.style.top = `${to.y}px`;
-            layer.appendChild(ex);
-            setTimeout(() => {
-                if (ex.parentNode) ex.parentNode.removeChild(ex);
-                resolve();
-            }, 430);
-        }, 400);
-    });
+    if (!from || !to) return Promise.resolve();
+    return spawnFxNode('mage-bolt', from, {
+        vars: {
+            '--fx-dx': `${to.x - from.x}px`,
+            '--fx-dy': `${to.y - from.y}px`,
+        },
+    }).then(() => spawnFxNode('mage-explosion', to));
 }
+
 function playBerserkerChargeVfx(fromSide, toSide) {
-    const layer = ensureCombatFxLayer();
     const to = getCardCenter(toSide);
-    if (!layer || !to) return Promise.resolve();
-    return new Promise((resolve) => {
-        const slash = document.createElement('div');
-        slash.className = 'slash-effect';
-        slash.style.left = `${to.x}px`;
-        slash.style.top = `${to.y}px`;
-        layer.appendChild(slash);
-        triggerScreenShakeHeavy();
-        setTimeout(() => {
-            if (slash.parentNode) slash.parentNode.removeChild(slash);
-            resolve();
-        }, 120);
-    });
-}
-function playHunterStrikeVfx(fromSide, toSide) {
-    const layer = ensureCombatFxLayer();
-    const to = getCardCenter(toSide);
-    if (!layer || !to) return Promise.resolve();
-    return new Promise((resolve) => {
-        const slash = document.createElement('div');
-        slash.className = 'slash-effect';
-        slash.style.left = `${to.x + 10}px`;
-        slash.style.top = `${to.y + 2}px`;
-        layer.appendChild(slash);
-        triggerScreenShakeHeavy();
-        setTimeout(() => {
-            if (slash.parentNode) slash.parentNode.removeChild(slash);
-            resolve();
-        }, 120);
-    });
-}
-function playMagicBurstVfx(targetSide) {
-    const layer = ensureCombatFxLayer();
-    const to = getCardCenter(targetSide);
-    if (!layer || !to) return Promise.resolve();
-    return new Promise((resolve) => {
-        const burst = document.createElement('div');
-        burst.className = 'magic-burst';
-        burst.style.left = `${to.x}px`;
-        burst.style.top = `${to.y}px`;
-        layer.appendChild(burst);
-        const particles = [];
-        for (let i = 0; i < 14; i++) {
-            const p = document.createElement('div');
-            p.className = 'magic-particle';
-            p.style.left = `${to.x}px`;
-            p.style.top = `${to.y}px`;
-            const ang = (Math.PI * 2 * i) / 14;
-            const dist = 36 + Math.random() * 52;
-            p.style.transition = 'transform 0.36s ease-out, opacity 0.36s ease-out';
-            layer.appendChild(p);
-            particles.push({ el: p, dx: Math.cos(ang) * dist, dy: Math.sin(ang) * dist });
-        }
-        requestAnimationFrame(() => {
-            particles.forEach((x) => {
-                x.el.style.transform = `translate(${x.dx}px, ${x.dy}px) scale(0.2)`;
-                x.el.style.opacity = '0';
-            });
-        });
-        triggerScreenShakeHeavy();
-        setTimeout(() => {
-            if (burst.parentNode) burst.parentNode.removeChild(burst);
-            particles.forEach((x) => { if (x.el.parentNode) x.el.parentNode.removeChild(x.el); });
-            resolve();
-        }, 390);
-    });
-}
-function playAssassinStrikeVfx(targetSide) {
-    const layer = ensureCombatFxLayer();
-    const to = getCardCenter(targetSide);
-    if (!layer || !to) return;
-    const slash = document.createElement('div');
-    slash.className = 'assassin-strike';
-    slash.style.left = `${to.x}px`;
-    slash.style.top = `${to.y + 2}px`;
-    layer.appendChild(slash);
+    if (!to) return Promise.resolve();
     triggerScreenShakeHeavy();
-    setTimeout(() => {
-        if (slash.parentNode) slash.parentNode.removeChild(slash);
-    }, 360);
+    triggerHitFlash(toSide);
+    return spawnFxNode('slash-effect', to);
 }
+
+function playHunterStrikeVfx(fromSide, toSide) {
+    const from = getCardCenter(fromSide);
+    const to = getCardCenter(toSide);
+    if (!from || !to) return Promise.resolve();
+    triggerHitFlash(toSide);
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    return spawnFxNode('hunter-shot', from, {
+        vars: {
+            '--fx-dx': `${dx}px`,
+            '--fx-dy': `${dy}px`,
+        },
+    }).then(() => spawnFxNode('hunter-impact', to));
+}
+
+function playMagicBurstVfx(targetSide) {
+    const to = getCardCenter(targetSide);
+    if (!to) return Promise.resolve();
+    triggerScreenShakeHeavy();
+    triggerHitFlash(targetSide);
+    return spawnFxNode('magic-burst', to);
+}
+
+function playAssassinStrikeVfx(targetSide) {
+    const to = getCardCenter(targetSide);
+    if (!to) return Promise.resolve();
+    triggerScreenShakeHeavy();
+    triggerHitFlash(targetSide);
+    return spawnFxNode('assassin-strike', to);
+}
+
 function playCritGoldBurst(targetSide) {
-    const layer = ensureCombatFxLayer();
     const to = getCardCenter(targetSide);
-    if (!layer || !to) return;
-    const burst = document.createElement('div');
-    burst.className = 'crit-gold-burst';
-    burst.style.left = `${to.x}px`;
-    burst.style.top = `${to.y}px`;
-    layer.appendChild(burst);
-    setTimeout(() => {
-        if (burst.parentNode) burst.parentNode.removeChild(burst);
-    }, 330);
+    if (!to) return Promise.resolve();
+    return spawnFxNode('crit-gold-burst', to);
 }
+
 function playBossStrikeVfx(targetSide) {
-    const layer = ensureCombatFxLayer();
     const to = getCardCenter(targetSide);
-    if (!layer || !to) return Promise.resolve();
-    return new Promise((resolve) => {
-        triggerBossDim();
-        setTimeout(() => {
-            const slash = document.createElement('div');
-            slash.className = 'boss-strike';
-            slash.style.left = `${to.x}px`;
-            slash.style.top = `${to.y + 4}px`;
-            layer.appendChild(slash);
-            triggerScreenShakeBoss();
-            setTimeout(() => {
-                if (slash.parentNode) slash.parentNode.removeChild(slash);
-                resolve();
-            }, 360);
-        }, 300);
-    });
+    if (!to) return Promise.resolve();
+    triggerBossDim();
+    triggerScreenShakeBoss();
+    triggerHitFlash(targetSide);
+    return spawnFxNode('boss-strike', to);
 }
+
 function showMissFloat(targetSide) {
-    const battleArea = document.getElementById('battle-area');
     const p = getCardCenter(targetSide);
-    if (!battleArea || !p) return;
-    const el = document.createElement('div');
-    el.style.cssText =
-        `position:absolute;left:${p.x - 20}px;top:${p.y - 30}px;font-weight:900;font-size:1.05em;color:#9aa0aa;text-shadow:0 0 8px rgba(0,0,0,0.5);pointer-events:none;z-index:1300;animation:dmgFloat 0.9s ease forwards;`;
-    el.innerText = 'MISS';
-    battleArea.appendChild(el);
-    setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 920);
+    if (!p) return;
+    spawnFxNode('floating-damage floating-damage-miss', { x: p.x, y: p.y - 34 }, { text: 'MISS' });
 }
+
 function playJobAttackVfx(attackerSide, jobName) {
     const archetype = normalizeCombatArchetype(jobName);
-    if (archetype === 'mage') {
-        const targetSide = attackerSide === 'player' ? 'enemy' : 'player';
-        return playMageBoltVfx(attackerSide, targetSide).then(() => playMagicBurstVfx(targetSide));
-    }
-    if (archetype === 'hunter' && attackerSide === 'player') {
-        return playBerserkerChargeVfx(attackerSide, 'enemy');
-    }
-    if (archetype === 'hunter') return playHunterStrikeVfx(attackerSide, attackerSide === 'player' ? 'enemy' : 'player');
-    return playBerserkerChargeVfx(attackerSide, attackerSide === 'player' ? 'enemy' : 'player');
+    const targetSide = attackerSide === 'player' ? 'enemy' : 'player';
+    if (archetype === 'mage') return playMageBoltVfx(attackerSide, targetSide).then(() => playMagicBurstVfx(targetSide));
+    if (archetype === 'hunter') return playHunterStrikeVfx(attackerSide, targetSide);
+    return playBerserkerChargeVfx(attackerSide, targetSide);
 }
+
 function consumeHunterEvasionMissPenalty() {
     if (!enemy || !String(enemy.job || '').includes('헌터')) return 0;
     const turns = safeNum(enemy._hunterEvasionTurns, 0);

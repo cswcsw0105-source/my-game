@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <title>던전 · 시즌 1</title>
-    <link rel="stylesheet" href="style.css?v=s1r12">
+    <link rel="stylesheet" href="style.css?v=s1r13">
     <style>
         .auth-box { background: #2a2a2a; padding: 20px; border-radius: 8px; border: 1px solid #444; max-width: 300px; margin: 0 auto; }
         .auth-box input { width: 90%; padding: 10px; margin: 10px 0; border-radius: 4px; border: 1px solid #555; background: #111; color: white; }
@@ -152,20 +152,20 @@
                 <thead><tr><th>버전</th><th>항목</th><th>상세 내용</th></tr></thead>
                 <tbody>
                     <tr><td class="v-tag">시즌 1</td><td>종족·프롤로그·무기 선택</td><td>
-    <b>캐릭터 생성 개편:</b> 새 캐릭터는 먼저 <b>종족</b>을 선택하고, 종족별 과거 스토리와 프롤로그를 본 뒤 다급하게 집은 <b>무기</b>로 직업이 확정됩니다.<br>
-    <b>스토리 데이터 기반:</b> <code>raceStories</code>, <code>classStories</code>, <code>promotionStories</code> 구조를 추가해 층 돌파·유물 획득·전직 성공 시 선택 조합에 맞는 텍스트를 출력할 수 있게 했습니다.<br>
-    <b>튜토리얼 전투:</b> 무기 선택 직후 1층 인카운터 선택지를 건너뛰고 눈앞의 몬스터와 바로 첫 전투를 시작합니다.
+    <b>캐릭터 생성 프로세스 개편:</b> <b>종족 선택</b> → <b>프롤로그 서사</b> → <b>무기 선택</b> 흐름으로 직업 확정 방식 변경.<br>
+    <b>스토리 데이터 구조 추가:</b> <code>raceStories</code>, <code>classStories</code>, <code>promotionStories</code> 기반 선택 조합별 텍스트 출력 구조 구축.<br>
+    <b>튜토리얼 전투 연결:</b> 무기 선택 직후 1층 인카운터 생략, 첫 몬스터 전투 즉시 진입.
 </td></tr>
                     <tr><td class="v-tag">시즌 1</td><td>보안·30층 벽·성장 템포</td><td>
-    <b>클라이언트 보안:</b> 게임 런타임을 <b>IIFE 번들</b>로 캡슐화해 <code>player</code>, <code>enemy</code>, <code>floor</code>, <code>gold</code>, <code>MetaRPG</code> 등 핵심 상태가 콘솔 전역에 노출되지 않도록 정리했습니다.<br>
-    <b>30층 통곡의 벽:</b> 30층부터 몬스터 체력·공격·방어에 벽 배율과 후반 지수 성장을 적용해, 무강화 기본 플레이가 30층 부근에서 막히도록 조정했습니다.<br>
-    <b>강화 템포:</b> 베이스캠프 체력/공격/방어 강화 1단계를 약 <b>1.25층 성장분</b>으로 환산해, <b>4강화 ≈ 5층 돌파</b> 흐름이 유지되도록 재설계했습니다.<br>
-    <b>등급 밸런스:</b> 장비 예산과 희귀도 상한을 일반 1.0배, 희귀 1.5배, 영웅 2.5배, 전설 4.0배 기준으로 재조정하고 직업 초기/전직 스탯을 새 난이도에 맞췄습니다.
+    <b>클라이언트 보안 강화:</b> <b>IIFE 번들</b> 캡슐화 적용. <code>player</code>, <code>enemy</code>, <code>floor</code>, <code>gold</code>, <code>MetaRPG</code> 콘솔 전역 노출 차단.<br>
+    <b>30층 통곡의 벽 설계:</b> 30층 이후 몬스터 체력·공격·방어 벽 배율 적용. 무강화 기본 플레이 30층 부근 정체 유도.<br>
+    <b>강화 성장 템포 조정:</b> 베이스캠프 체력/공격/방어 강화 1단계 ≈ <b>1.25층 성장분</b>. <b>4강화 ≈ 5층 돌파</b> 흐름 기준화.<br>
+    <b>장비·직업 밸런스 정렬:</b> 일반 1.0배, 희귀 1.5배, 영웅 2.5배, 전설 4.5배 기준 장비 배율 정비. 직업 초기/전직 스탯 재조정.
 </td></tr>
                     <tr><td class="v-tag">시즌 1</td><td>성직자·치명 핫픽스</td><td>
-    <b>성직자:</b> 신성력 최대치를 <b>20스택</b>으로 고정하고, 저장 데이터 복구 시에도 초과 스택과 구버전 200스택 상태를 정규화합니다.<br>
-    <b>신의 가호:</b> 20스택 달성 보너스를 <b>방어+20</b>, <b>흡혈+5%</b>, 다음 공격 확정 치명으로 재조정했습니다.<br>
-    <b>치명타:</b> 치명 확률 <b>65%</b> 초과분은 1%당 치명 배율 <b>+0.05x</b>로 선형 전환하며, 최종 치명 배율은 <b>최대 5.00x</b>로 제한됩니다.
+    <b>성직자 신성력 제한:</b> 신성력 최대치 <b>20스택</b> 고정. 초과 스택 및 구버전 200스택 저장 상태 정규화.<br>
+    <b>신의 가호 재조정:</b> 20스택 달성 보너스 <b>방어+20</b>, <b>흡혈+5%</b>, 다음 공격 확정 치명으로 변경.<br>
+    <b>치명타 초과 공식 수정:</b> 치명 확률 <b>65%</b> 초과분 1%당 치명 배율 <b>+0.05x</b> 선형 전환. 최종 치명 배율 <b>최대 5.00x</b> 제한.
 </td></tr>
                     <tr><td class="v-tag">시즌 1</td><td>탐험 인카운터·패닉 런·제단</td><td>
     <b>층 진입 탐험 분기:</b> 전투 즉시 진입 대신 인카운터 페이즈 추가. 확률 분기: <b>몬스터 60%</b> · <b>보물/함정 10%</b> · <b>휴식 8%</b> · <b>수상한 제단 14%</b> (잔여 확률은 몬스터로 보정).<br>
@@ -375,6 +375,6 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <!-- ?v= 쿼리로 브라우저 캐시 무효화 (수정이 안 보일 때 강력 새로고침도 함께) -->
-    <script src="bundle.js?v=s3secure"></script>
+    <script src="bundle.js?v=s4premium"></script>
 </body>
 </html>
