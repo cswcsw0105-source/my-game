@@ -1298,10 +1298,11 @@ function canCreateCharacterInCurrentFile() {
     return true;
 }
 
-function startNewCharacterPrologueFlow() {
+function startNewCharacterPrologueFlow(memoryKey) {
     if (typeof MetaRPG === 'undefined') return;
     if (!canCreateCharacterInCurrentFile()) return;
-    setProloguePhase('memory', { memoryKey: null });
+    const directMemoryKey = getIntroMemoryChoiceDef(memoryKey) ? memoryKey : null;
+    setProloguePhase(directMemoryKey ? 'raceStory' : 'memory', { memoryKey: directMemoryKey });
 }
 
 function confirmNewCharacterFromPrologue(memoryKey, weaponKey) {
@@ -1324,6 +1325,43 @@ function confirmNewCharacterFromPrologue(memoryKey, weaponKey) {
     }
     closePrologueScreen();
     initRunFromMetaSlot({ forceTutorialBattle: true });
+}
+
+function buildHubNewCharacterShortcutHtml() {
+    const choices = typeof introMemoryChoices !== 'undefined' ? Object.keys(introMemoryChoices) : [];
+    if (!choices.length) return '';
+    const buttons = choices
+        .map((key) => {
+            const c = introMemoryChoices[key];
+            const race = c ? getRaceStoryDef(c.raceKey) : null;
+            const raceName = race && race.name ? race.name : '종족';
+            const border = race && race.color ? race.color : '#6b5848';
+            return `<button type="button" onclick="startNewCharacterPrologue('${escapeJsSingleQuoteString(key)}')" style="flex:1 1 145px;background:#0d0d12;border:1px solid ${border};color:#f2e9df;padding:11px 12px;border-radius:8px;font-size:0.86em;font-weight:900;cursor:pointer;text-align:left;line-height:1.35;">
+                <span style="display:block;color:${border};font-size:0.78em;margin-bottom:3px;">${escapeHtml(raceName)}</span>
+                ${escapeHtml(c && c.label ? c.label : '프롤로그 선택')}
+            </button>`;
+        })
+        .join('');
+    return `<div id="new-character-race-shortcuts" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">${buttons}</div>`;
+}
+
+function buildNewCharacterEntryHtml() {
+    return `
+        <div id="new-character-entry" style="max-width:520px;margin:0 auto 16px;text-align:center;">
+            <button id="new-character-start-btn" type="button" onclick="startNewCharacterPrologue()" style="width:100%;background:#15100d;border:1px solid #6b5848;color:#f2e9df;padding:14px 18px;border-radius:8px;font-size:0.98em;font-weight:900;cursor:pointer;">새 모험가 생성</button>
+            ${buildHubNewCharacterShortcutHtml()}
+            <p style="color:#777;font-size:0.76em;line-height:1.5;margin:8px 0 0;">시작하면 종족의 과거를 선택하고, 프롤로그 이후 무기로 직업을 확정합니다.</p>
+        </div>`;
+}
+
+function ensureHubCreateEntryRendered() {
+    const startArea = document.getElementById('start-area');
+    if (!startArea) return;
+    if (startArea.querySelector('#new-character-start-btn')) return;
+    const fallback = document.createElement('div');
+    fallback.innerHTML = buildNewCharacterEntryHtml();
+    const entry = fallback.firstElementChild;
+    if (entry) startArea.appendChild(entry);
 }
 
 function showPreGameScreen() {
@@ -1409,6 +1447,7 @@ function showPreGameScreen() {
         }
         saveFileBar = `<div style="margin-bottom:14px;padding:12px;background:#0d0d12;border:1px solid #333;border-radius:10px;"><div style="color:#f1c40f;font-weight:700;margin-bottom:8px;font-size:0.9em;">💾 저장 파일 (최대 3)</div><div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">${parts.join('')}</div><p style="color:#666;font-size:0.72em;margin:8px 0 0;line-height:1.45;">다른 파일을 불러오려면 위 버튼을 누르세요. 모든 파일이 가득 차면 새 캐릭터 생성 시 <b>비울 파일</b>을 묻습니다.</p></div>`;
     }
+    const newCharacterEntryHtml = buildNewCharacterEntryHtml();
     document.getElementById('start-area').style.display = 'block';
     document.getElementById('battle-area').style.display = 'none';
     document.getElementById('shop-area').style.display = 'none';
@@ -1428,10 +1467,7 @@ function showPreGameScreen() {
             <h4 style="color:#f1c40f;margin:0 0 8px 0;">💾 캐릭터 슬롯 (최대 ${typeof MetaRPG !== 'undefined' ? MetaRPG.MAX_SLOTS : 4})</h4>
             ${slotRows}
         </div>
-        <div style="max-width:520px;margin:0 auto 16px;text-align:center;">
-            <button type="button" onclick="startNewCharacterPrologue()" style="width:100%;background:#15100d;border:1px solid #6b5848;color:#f2e9df;padding:14px 18px;border-radius:8px;font-size:0.98em;font-weight:900;cursor:pointer;">새 캐릭터 시작</button>
-            <p style="color:#777;font-size:0.76em;line-height:1.5;margin:8px 0 0;">시작하면 허브를 떠나 어두운 프롤로그 화면으로 전환됩니다.</p>
-        </div>
+        ${newCharacterEntryHtml}
         <div style="max-width:560px;margin:0 auto 16px;padding:14px;background:#111;border:1px solid #333;border-radius:10px;text-align:left;">
             <h4 style="color:#f1c40f;margin:0 0 10px;text-align:center;">💾 저장 / 불러오기</h4>
             ${slotSnapHints.length ? `<p style="color:#2ed573;font-size:0.82em;margin:0 0 10px;line-height:1.45;">💾 저장된 런: ${slotSnapHints.join(' · ')} — 캐릭터 <b>이어하기</b>로 복구됩니다.</p>` : '<p style="color:#555;font-size:0.8em;margin:0 0 8px;">저장된 런 없음 — 전투 중 <b>💾 저장 후 메인</b>으로 진행을 남기세요.</p>'}
@@ -1448,6 +1484,7 @@ function showPreGameScreen() {
             String(err && err.message ? err.message : err) +
             '</span></p>';
     }
+    ensureHubCreateEntryRendered();
 }
 
 window.resumeMetaSlot = (slotId) => {
@@ -1499,8 +1536,8 @@ window.reincarnateFromHub = function reincarnateFromHub(slotId) {
     }
 };
 
-window.startNewCharacterPrologue = function startNewCharacterPrologue() {
-    startNewCharacterPrologueFlow();
+window.startNewCharacterPrologue = function startNewCharacterPrologue(memoryKey) {
+    startNewCharacterPrologueFlow(memoryKey);
 };
 
 window.choosePrologueMemory = function choosePrologueMemory(memoryKey) {
