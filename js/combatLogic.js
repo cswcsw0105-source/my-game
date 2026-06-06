@@ -855,9 +855,9 @@ function enemyTurn() {
 function winBattle() {
     setCombatProcessing(false);
     triggerBossWarning(false);
-    let baseGain;
-    if(floor<=10){baseGain=enemy.isBoss?50+floor*5:28+Math.floor(Math.random()*8)+floor*2;}
-    else{baseGain=enemy.isBoss?65+Math.floor(Math.random()*30)+floor*4:14+Math.floor(Math.random()*12)+Math.floor(floor*1.2);}
+    const baseGain = typeof computeFloorGoldReward === 'function'
+        ? computeFloorGoldReward(floor, { isBoss: !!(enemy && enemy.isBoss) })
+        : Math.max(15, 6 + Math.floor(Math.random() * 5) + floor * 3);
     let bonus=0, bonusMsg="";
     const relKey=getAffinityRelKey();
     if(!enemy.isBoss&&relations[relKey]&&relations[relKey].weak===enemy.job){bonus=Math.floor(baseGain*0.3);bonusMsg=` <b style='color:#f1c40f'>(역전 보너스 +${bonus}G!)</b>`;}

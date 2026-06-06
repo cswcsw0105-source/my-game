@@ -42,12 +42,20 @@ const BALANCE = Object.freeze({
         legendary: 4.5,
         legend: 4.5,
     },
-    equipmentBasePrice: {
-        common: 100,
-        rare: 350,
-        epic: 1200,
-        legendary: 4500,
-        legend: 4500,
+    goldReward: {
+        normalBaseMin: 6,
+        normalBaseMax: 10,
+        floorStep: 3,
+        normalMin: 15,
+        bossMultiplier: 2.4,
+        bossFlatBonus: 20,
+        bossFloorBonus: 2,
+    },
+    shopPriceByRarity: {
+        common: { base: 40, floorStep: 2 },
+        rare: { base: 120, floorStep: 5 },
+        epic: { base: 400, floorStep: 15 },
+        legendary: { base: 1500, floorStep: 50 },
     },
     equipmentFloorWeightStep: 0.005,
     equipmentFloorWeightCap: 1.45,
@@ -1027,8 +1035,84 @@ function normalizeRarityKey(rk) {
 
 function getRarityBaseGoldPrice(rk) {
     const key = normalizeRarityKey(rk);
-    const table = BALANCE.equipmentBasePrice || {};
-    return table[key] || table.common || 30;
+    return getShopPriceForRarity(key, 1);
+}
+
+function normalizeBalanceFloor(floorRef, fallback) {
+    const raw = floorRef == null ? fallback : floorRef;
+    const n = Number(raw);
+    if (Number.isFinite(n) && n > 0) return Math.floor(n);
+    const fb = Number(fallback);
+    if (Number.isFinite(fb) && fb > 0) return Math.floor(fb);
+    return 1;
+}
+
+function getShopPriceForRarity(rk, floorRef) {
+    const key = normalizeRarityKey(rk);
+    const f = normalizeBalanceFloor(floorRef, 1);
+    const table = BALANCE.shopPriceByRarity || {};
+    const spec = table[key] || table.common || { base: 40, floorStep: 2 };
+    const base = _safeNumForPrice(spec.base, 40);
+    const step = _safeNumForPrice(spec.floorStep, 2);
+    return Math.max(1, Math.floor(base + f * step));
+}
+
+function clampShopPriceToRarityOrder(rk, price, floorRef) {
+    const order = ['common', 'rare', 'epic', 'legendary'];
+    const key = normalizeRarityKey(rk);
+    const idx = order.indexOf(key);
+    if (idx < 0) return Math.max(1, Math.floor(_safeNumForPrice(price, 1)));
+    const f = normalizeBalanceFloor(floorRef, 1);
+    let out = Math.max(1, Math.floor(_safeNumForPrice(price, getShopPriceForRarity(key, f))));
+    if (idx > 0) {
+        const lowerTierPrice = getShopPriceForRarity(order[idx - 1], f);
+        out = Math.max(out, lowerTierPrice + 1);
+    }
+    if (idx < order.length - 1) {
+        const upperTierPrice = getShopPriceForRarity(order[idx + 1], f);
+        out = Math.min(out, upperTierPrice - 1);
+    }
+    return Math.max(1, out);
+}
+
+function getPriceFloorReference(it, explicitFloorRef) {
+    if (explicitFloorRef && typeof explicitFloorRef === 'object') {
+        const candidates = [
+            explicitFloorRef.shopFloor,
+            explicitFloorRef.priceFloor,
+            explicitFloorRef.currentFloor,
+            explicitFloorRef.floor,
+        ];
+        for (const raw of candidates) {
+            const n = Number(raw);
+            if (Number.isFinite(n) && n > 0) return Math.floor(n);
+        }
+    } else {
+        const n = Number(explicitFloorRef);
+        if (Number.isFinite(n) && n > 0) return Math.floor(n);
+    }
+    return getEquipmentFloorReference(it);
+}
+
+function computeFloorGoldReward(floorRef, opts) {
+    const cfg = BALANCE.goldReward || {};
+    const f = normalizeBalanceFloor(floorRef, 1);
+    const minBase = Math.floor(_safeNumForPrice(cfg.normalBaseMin, 6));
+    const maxBase = Math.max(minBase, Math.floor(_safeNumForPrice(cfg.normalBaseMax, 10)));
+    const spread = maxBase - minBase + 1;
+    const rolledBase = minBase + Math.floor(Math.random() * spread);
+    const floorStep = _safeNumForPrice(cfg.floorStep, 3);
+    const normalMin = _safeNumForPrice(cfg.normalMin, 15);
+    let gain = Math.max(normalMin, rolledBase + f * floorStep);
+    if (opts && opts.isBoss) {
+        gain = gain * _safeNumForPrice(cfg.bossMultiplier, 2.4)
+            + _safeNumForPrice(cfg.bossFlatBonus, 20)
+            + f * _safeNumForPrice(cfg.bossFloorBonus, 2);
+    }
+    if (opts && Number.isFinite(Number(opts.multiplier))) {
+        gain *= Number(opts.multiplier);
+    }
+    return Math.max(1, Math.floor(gain));
 }
 
 function getEquipmentFloorReference(it) {
@@ -1499,15 +1583,15 @@ function _hasOwnStat(it, key) {
 }
 
 /**
- * 공식 가격: 등급 기준가 × 층 가중치.
- * 층 가중치는 희귀도 역전을 막기 위해 1.45배까지만 허용한다.
+ * 공식 가격: 등급별 기준가 + 현재 층수 계수.
+ * 등급 간 가격 역전을 막기 위해 하위 등급은 상위 등급 가격 미만으로 클램프한다.
  */
-function computeEquipmentGoldPrice(it) {
-    if (!it || it.type === 'relic') return _safeNumForPrice(it && it.price, 0);
-    if (it.type === 'rune') {
-        return Math.max(1, Math.round(getRarityBaseGoldPrice(it.rarity) * getEquipmentFloorWeight(it) * 4));
-    }
-    return Math.max(1, Math.round(getRarityBaseGoldPrice(it.rarity) * getEquipmentFloorWeight(it)));
+function computeEquipmentGoldPrice(it, explicitFloorRef) {
+    if (!it) return 0;
+    const key = normalizeRarityKey(it.rarity);
+    const priceFloor = getPriceFloorReference(it, explicitFloorRef);
+    const rawPrice = getShopPriceForRarity(key, priceFloor);
+    return clampShopPriceToRarityOrder(key, rawPrice, priceFloor);
 }
 
 function _jitterWeights(base, rnd) {
@@ -1786,6 +1870,7 @@ if (typeof window !== 'undefined') {
     window.applyOfficialStatsToEquipmentItem = applyOfficialStatsToEquipmentItem;
     window.clampEquipmentItemStatsToRarityCaps = clampEquipmentItemStatsToRarityCaps;
     window.computeEquipmentGoldPrice = computeEquipmentGoldPrice;
+    window.computeFloorGoldReward = computeFloorGoldReward;
     window.RUNE_POOL_COUNT = typeof runePool !== 'undefined' ? runePool.length : 0;
 }
 

@@ -47,12 +47,20 @@ const BALANCE = Object.freeze({
         legendary: 4.5,
         legend: 4.5,
     },
-    equipmentBasePrice: {
-        common: 100,
-        rare: 350,
-        epic: 1200,
-        legendary: 4500,
-        legend: 4500,
+    goldReward: {
+        normalBaseMin: 6,
+        normalBaseMax: 10,
+        floorStep: 3,
+        normalMin: 15,
+        bossMultiplier: 2.4,
+        bossFlatBonus: 20,
+        bossFloorBonus: 2,
+    },
+    shopPriceByRarity: {
+        common: { base: 40, floorStep: 2 },
+        rare: { base: 120, floorStep: 5 },
+        epic: { base: 400, floorStep: 15 },
+        legendary: { base: 1500, floorStep: 50 },
     },
     equipmentFloorWeightStep: 0.005,
     equipmentFloorWeightCap: 1.45,
@@ -1032,8 +1040,84 @@ function normalizeRarityKey(rk) {
 
 function getRarityBaseGoldPrice(rk) {
     const key = normalizeRarityKey(rk);
-    const table = BALANCE.equipmentBasePrice || {};
-    return table[key] || table.common || 30;
+    return getShopPriceForRarity(key, 1);
+}
+
+function normalizeBalanceFloor(floorRef, fallback) {
+    const raw = floorRef == null ? fallback : floorRef;
+    const n = Number(raw);
+    if (Number.isFinite(n) && n > 0) return Math.floor(n);
+    const fb = Number(fallback);
+    if (Number.isFinite(fb) && fb > 0) return Math.floor(fb);
+    return 1;
+}
+
+function getShopPriceForRarity(rk, floorRef) {
+    const key = normalizeRarityKey(rk);
+    const f = normalizeBalanceFloor(floorRef, 1);
+    const table = BALANCE.shopPriceByRarity || {};
+    const spec = table[key] || table.common || { base: 40, floorStep: 2 };
+    const base = _safeNumForPrice(spec.base, 40);
+    const step = _safeNumForPrice(spec.floorStep, 2);
+    return Math.max(1, Math.floor(base + f * step));
+}
+
+function clampShopPriceToRarityOrder(rk, price, floorRef) {
+    const order = ['common', 'rare', 'epic', 'legendary'];
+    const key = normalizeRarityKey(rk);
+    const idx = order.indexOf(key);
+    if (idx < 0) return Math.max(1, Math.floor(_safeNumForPrice(price, 1)));
+    const f = normalizeBalanceFloor(floorRef, 1);
+    let out = Math.max(1, Math.floor(_safeNumForPrice(price, getShopPriceForRarity(key, f))));
+    if (idx > 0) {
+        const lowerTierPrice = getShopPriceForRarity(order[idx - 1], f);
+        out = Math.max(out, lowerTierPrice + 1);
+    }
+    if (idx < order.length - 1) {
+        const upperTierPrice = getShopPriceForRarity(order[idx + 1], f);
+        out = Math.min(out, upperTierPrice - 1);
+    }
+    return Math.max(1, out);
+}
+
+function getPriceFloorReference(it, explicitFloorRef) {
+    if (explicitFloorRef && typeof explicitFloorRef === 'object') {
+        const candidates = [
+            explicitFloorRef.shopFloor,
+            explicitFloorRef.priceFloor,
+            explicitFloorRef.currentFloor,
+            explicitFloorRef.floor,
+        ];
+        for (const raw of candidates) {
+            const n = Number(raw);
+            if (Number.isFinite(n) && n > 0) return Math.floor(n);
+        }
+    } else {
+        const n = Number(explicitFloorRef);
+        if (Number.isFinite(n) && n > 0) return Math.floor(n);
+    }
+    return getEquipmentFloorReference(it);
+}
+
+function computeFloorGoldReward(floorRef, opts) {
+    const cfg = BALANCE.goldReward || {};
+    const f = normalizeBalanceFloor(floorRef, 1);
+    const minBase = Math.floor(_safeNumForPrice(cfg.normalBaseMin, 6));
+    const maxBase = Math.max(minBase, Math.floor(_safeNumForPrice(cfg.normalBaseMax, 10)));
+    const spread = maxBase - minBase + 1;
+    const rolledBase = minBase + Math.floor(Math.random() * spread);
+    const floorStep = _safeNumForPrice(cfg.floorStep, 3);
+    const normalMin = _safeNumForPrice(cfg.normalMin, 15);
+    let gain = Math.max(normalMin, rolledBase + f * floorStep);
+    if (opts && opts.isBoss) {
+        gain = gain * _safeNumForPrice(cfg.bossMultiplier, 2.4)
+            + _safeNumForPrice(cfg.bossFlatBonus, 20)
+            + f * _safeNumForPrice(cfg.bossFloorBonus, 2);
+    }
+    if (opts && Number.isFinite(Number(opts.multiplier))) {
+        gain *= Number(opts.multiplier);
+    }
+    return Math.max(1, Math.floor(gain));
 }
 
 function getEquipmentFloorReference(it) {
@@ -1504,15 +1588,15 @@ function _hasOwnStat(it, key) {
 }
 
 /**
- * 공식 가격: 등급 기준가 × 층 가중치.
- * 층 가중치는 희귀도 역전을 막기 위해 1.45배까지만 허용한다.
+ * 공식 가격: 등급별 기준가 + 현재 층수 계수.
+ * 등급 간 가격 역전을 막기 위해 하위 등급은 상위 등급 가격 미만으로 클램프한다.
  */
-function computeEquipmentGoldPrice(it) {
-    if (!it || it.type === 'relic') return _safeNumForPrice(it && it.price, 0);
-    if (it.type === 'rune') {
-        return Math.max(1, Math.round(getRarityBaseGoldPrice(it.rarity) * getEquipmentFloorWeight(it) * 4));
-    }
-    return Math.max(1, Math.round(getRarityBaseGoldPrice(it.rarity) * getEquipmentFloorWeight(it)));
+function computeEquipmentGoldPrice(it, explicitFloorRef) {
+    if (!it) return 0;
+    const key = normalizeRarityKey(it.rarity);
+    const priceFloor = getPriceFloorReference(it, explicitFloorRef);
+    const rawPrice = getShopPriceForRarity(key, priceFloor);
+    return clampShopPriceToRarityOrder(key, rawPrice, priceFloor);
 }
 
 function _jitterWeights(base, rnd) {
@@ -1791,6 +1875,7 @@ if (typeof window !== 'undefined') {
     window.applyOfficialStatsToEquipmentItem = applyOfficialStatsToEquipmentItem;
     window.clampEquipmentItemStatsToRarityCaps = clampEquipmentItemStatsToRarityCaps;
     window.computeEquipmentGoldPrice = computeEquipmentGoldPrice;
+    window.computeFloorGoldReward = computeFloorGoldReward;
     window.RUNE_POOL_COUNT = typeof runePool !== 'undefined' ? runePool.length : 0;
 }
 
@@ -1816,7 +1901,6 @@ if (typeof window !== 'undefined') {
         forgeRecipes.forEach((it) => runOne(it, { forgeRecipe: true }));
     }
 })();
-
 
 // ---- rpg_v7.js ----
 /**
@@ -2534,12 +2618,6 @@ if (typeof window !== 'undefined') {
     global.BASE_CAMP_FLOORS = BASE_CAMP_FLOORS;
 })(typeof window !== 'undefined' ? window : globalThis);
 
-
-// Capture MetaRPG as a private closure binding and remove the console-facing global.
-const MetaRPG = window.MetaRPG;
-const BASE_CAMP_FLOORS = window.BASE_CAMP_FLOORS;
-try { delete window.MetaRPG; delete window.BASE_CAMP_FLOORS; } catch (err) { console.warn('[보안] MetaRPG 전역 제거 실패', err); }
-
 // ---- js/state.js ----
 // Global runtime state (single source of truth)
 let floor = 1, gold = 0, player = null, enemy = null;
@@ -2569,7 +2647,6 @@ const DIVINE_BLESSING_THRESHOLD = (typeof BALANCE !== 'undefined' && BALANCE.div
 const DIVINE_BLESSING_DEF_BONUS = (typeof BALANCE !== 'undefined' && BALANCE.divineBlessingDefBonus) || 20;
 const DIVINE_BLESSING_LIFESTEAL_BONUS =
     (typeof BALANCE !== 'undefined' && BALANCE.divineBlessingLifestealBonus) || 0.05;
-
 
 // ---- js/vfx.js ----
 // VFX/animation module (stage 1 split)
@@ -2655,10 +2732,14 @@ function triggerScreenShake(kind) {
     animateClass(stage, cls);
 }
 
-function triggerHitFlash(side) {
+function triggerHitImpact(side) {
     const card = getCombatTargetCard(side);
     if (!card) return;
-    animateClass(card, 'hit-flash');
+    animateClass(card, 'hit-impact');
+}
+
+function triggerHitFlash(side) {
+    triggerHitImpact(side);
 }
 
 function showDmgFloat(dmg, isCrit, isPlayer) {
@@ -2667,7 +2748,7 @@ function showDmgFloat(dmg, isCrit, isPlayer) {
     if (!point) return;
     const cls = ['floating-damage', isPlayer ? 'floating-damage-player' : 'floating-damage-enemy'];
     if (isCrit) cls.push('floating-damage-crit');
-    triggerHitFlash(targetSide);
+    triggerHitImpact(targetSide);
     const numericDmg = Number(dmg);
     const maxHp = typeof getEffectiveMaxHp === 'function' ? getEffectiveMaxHp() : 0;
     if (isCrit || (isPlayer && Number.isFinite(numericDmg) && maxHp > 0 && numericDmg >= maxHp * 0.18)) {
@@ -2831,7 +2912,6 @@ window.playBossStrikeVfx = playBossStrikeVfx;
 window.showMissFloat = showMissFloat;
 window.playJobAttackVfx = playJobAttackVfx;
 window.consumeHunterEvasionMissPenalty = consumeHunterEvasionMissPenalty;
-
 
 // ---- js/player.js ----
 // Player domain module (stage 3 split)
@@ -3168,7 +3248,6 @@ function getPlayerFleeBonus() {
 window.getPlayerGoldGainMult = getPlayerGoldGainMult;
 window.getPlayerFleeBonus = getPlayerFleeBonus;
 
-
 // ---- js/enemy.js ----
 // Enemy domain module (stage 3 split)
 function getEnemyScalingForFloor(floorValue) {
@@ -3304,7 +3383,6 @@ window.spawnEnemy = spawnEnemy;
 window.tryActivateFloorQuest = tryActivateFloorQuest;
 window.getEnemyScalingForFloor = getEnemyScalingForFloor;
 window.buildEnemyStatsForFloor = buildEnemyStatsForFloor;
-
 
 // ---- js/uiManager.js ----
 // UI manager module (stage 1 split)
@@ -6545,7 +6623,6 @@ window.startInfiniteMode=()=>{
 /** 사망 처리: 보존 골드·퀘스트 페널티 후 허브로 */
 // stage 4 split: moved to js/combatLogic.js
 
-
 // ---- js/encounter.js ----
 // Encounter module (stage 2 split)
 const _PANIC_RARITY_ORDER = { common: 0, rare: 1, epic: 2, legendary: 3, relic: 4 };
@@ -6906,7 +6983,10 @@ window.resolveTreasureChest = function resolveTreasureChest(openChest) {
     const roll = Math.random();
     if (roll < 0.45) {
         const goldMult = typeof getPlayerGoldGainMult === 'function' ? getPlayerGoldGainMult() : 1;
-        const gain = Math.floor((12 + Math.floor(Math.random() * 24) + Math.floor(floor * 0.8)) * goldMult);
+        const baseGain = typeof computeFloorGoldReward === 'function'
+            ? computeFloorGoldReward(floor, { multiplier: 1.1 })
+            : Math.max(15, 6 + Math.floor(Math.random() * 5) + floor * 3);
+        const gain = Math.floor(baseGain * goldMult);
         gold += gain;
         totalGoldEarned += gain;
         writeLog(`[보물] 💰 녹슨 상자에서 ${gain}G를 찾았습니다.`);
@@ -7439,7 +7519,6 @@ window.showContractAltar = showContractAltar;
 window.showRandomEncounter = showRandomEncounter;
 window.winBattleContinueFrom = winBattleContinueFrom;
 
-
 // ---- js/shop.js ----
 // Shop module (stage 2 split)
 function openShop() {
@@ -7588,10 +7667,20 @@ function getShopRarityChances() {
     return { legendary, epic, rare, common };
 }
 
+function applyGoldenBalanceShopPrice(item) {
+    if (!item) return item;
+    if (item.type === 'potion') return item;
+    if (item.type === 'merc_shop_direct' || item.type === 'merc_shop_fund') return item;
+    if (typeof computeEquipmentGoldPrice === 'function') {
+        item.price = computeEquipmentGoldPrice(item, { shopFloor: floor });
+    }
+    return item;
+}
+
 function applyShopRarityTuning(baseItem) {
     if (!baseItem) return baseItem;
     if (baseItem.type === 'relic' || baseItem.type === 'potion' || baseItem.type === 'merc_shop_direct' || baseItem.type === 'merc_shop_fund') {
-        return { ...baseItem };
+        return applyGoldenBalanceShopPrice({ ...baseItem });
     }
     if (baseItem.type === 'rune') {
         const tuned = { ...baseItem };
@@ -7599,6 +7688,7 @@ function applyShopRarityTuning(baseItem) {
         if (typeof applyOfficialStatsToEquipmentItem === 'function') {
             applyOfficialStatsToEquipmentItem(tuned, { rebuildDesc: true });
         }
+        applyGoldenBalanceShopPrice(tuned);
         tuned.desc = formatShopItemDesc(tuned.desc);
         return tuned;
     }
@@ -7607,6 +7697,7 @@ function applyShopRarityTuning(baseItem) {
     if (typeof applyOfficialStatsToEquipmentItem === 'function') {
         applyOfficialStatsToEquipmentItem(tuned, { rebuildDesc: true });
     }
+    applyGoldenBalanceShopPrice(tuned);
     tuned.desc = formatShopItemDesc(tuned.desc);
     return tuned;
 }
@@ -7649,8 +7740,12 @@ function renderShopItems(keepCurrentStock) {
     const unlockedItems=getUnlockedPoolItems(), picked=[];
     let tries=0;
     if (!keepCurrentStock && isMercenaryCaptainJob()) {
-        const pd = 95 + floor * 12;
-        const pf = 48 + floor * 6;
+        const pd = typeof computeEquipmentGoldPrice === 'function'
+            ? computeEquipmentGoldPrice({ rarity: 'epic' }, { shopFloor: floor })
+            : 400 + floor * 15;
+        const pf = typeof computeEquipmentGoldPrice === 'function'
+            ? computeEquipmentGoldPrice({ rarity: 'rare' }, { shopFloor: floor })
+            : 120 + floor * 5;
         currentShopItems.push(
             {
                 name: '직접 장비 구매 (직거래)',
@@ -7687,7 +7782,7 @@ function renderShopItems(keepCurrentStock) {
             });
             if (ar.length > 0) {
                 const relic = ar[Math.floor(Math.random() * ar.length)];
-                picked.push({ ...relic, type: 'relic', value: 0 });
+                picked.push(applyShopRarityTuning({ ...relic, type: 'relic', value: 0 }));
             }
         }
         if (unlockedItems.length > 0) {
@@ -7901,6 +7996,7 @@ window.renderShopLeaveButtons = renderShopLeaveButtons;
 window.getUnlockedPoolItems = getUnlockedPoolItems;
 window.getItemsByRarity = getItemsByRarity;
 window.getShopRarityChances = getShopRarityChances;
+window.applyGoldenBalanceShopPrice = applyGoldenBalanceShopPrice;
 window.applyShopRarityTuning = applyShopRarityTuning;
 window.getShopRarityBoostPrice = getShopRarityBoostPrice;
 window.renderShopItems = renderShopItems;
@@ -7908,7 +8004,6 @@ window.formatShopItemName = formatShopItemName;
 window.formatShopItemDesc = formatShopItemDesc;
 window.mercCaptainExclusiveItem = mercCaptainExclusiveItem;
 window.getNonMercEquipmentPool = getNonMercEquipmentPool;
-
 
 // ---- js/combatLogic.js ----
 // Combat core module (stage 4 split)
@@ -8768,9 +8863,9 @@ function enemyTurn() {
 function winBattle() {
     setCombatProcessing(false);
     triggerBossWarning(false);
-    let baseGain;
-    if(floor<=10){baseGain=enemy.isBoss?50+floor*5:28+Math.floor(Math.random()*8)+floor*2;}
-    else{baseGain=enemy.isBoss?65+Math.floor(Math.random()*30)+floor*4:14+Math.floor(Math.random()*12)+Math.floor(floor*1.2);}
+    const baseGain = typeof computeFloorGoldReward === 'function'
+        ? computeFloorGoldReward(floor, { isBoss: !!(enemy && enemy.isBoss) })
+        : Math.max(15, 6 + Math.floor(Math.random() * 5) + floor * 3);
     let bonus=0, bonusMsg="";
     const relKey=getAffinityRelKey();
     if(!enemy.isBoss&&relations[relKey]&&relations[relKey].weak===enemy.job){bonus=Math.floor(baseGain*0.3);bonusMsg=` <b style='color:#f1c40f'>(역전 보너스 +${bonus}G!)</b>`;}
@@ -8906,7 +9001,6 @@ window.buildFieldMercFromTemplate = buildFieldMercFromTemplate;
 window.getMercGachaCost = getMercGachaCost;
 window.tryMercenaryRandomEvent = tryMercenaryRandomEvent;
 
-
 // ---- js/bootstrapCore.js ----
 // Bootstrap shell (post-migration)
 (function bootstrapShellInit() {
@@ -8918,14 +9012,12 @@ window.addEventListener('load', () => {
     // All runtime logic is loaded from domain modules.
 });
 
-
 // ---- game.js ----
 // Thin controller entrypoint after modular split.
 // Core runtime lives in js/bootstrapCore.js and feature modules.
 (function gameControllerInit() {
     window.__gameControllerReady = true;
 })();
-
 
 // ---- js/security.js ----
 // Browser hardening layer. Loaded last inside bundle.js.
@@ -9025,6 +9117,7 @@ window.addEventListener('load', () => {
         'applyOfficialStatsToEquipmentItem',
         'clampEquipmentItemStatsToRarityCaps',
         'computeEquipmentGoldPrice',
+        'computeFloorGoldReward',
         'RUNE_POOL_COUNT',
         'ensurePlayerSynergyBonuses',
         'getEffectiveMaxHp',
@@ -9088,6 +9181,7 @@ window.addEventListener('load', () => {
         'getUnlockedPoolItems',
         'getItemsByRarity',
         'getShopRarityChances',
+        'applyGoldenBalanceShopPrice',
         'applyShopRarityTuning',
         'getShopRarityBoostPrice',
         'renderShopItems',

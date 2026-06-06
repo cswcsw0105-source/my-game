@@ -145,10 +145,20 @@ function getShopRarityChances() {
     return { legendary, epic, rare, common };
 }
 
+function applyGoldenBalanceShopPrice(item) {
+    if (!item) return item;
+    if (item.type === 'potion') return item;
+    if (item.type === 'merc_shop_direct' || item.type === 'merc_shop_fund') return item;
+    if (typeof computeEquipmentGoldPrice === 'function') {
+        item.price = computeEquipmentGoldPrice(item, { shopFloor: floor });
+    }
+    return item;
+}
+
 function applyShopRarityTuning(baseItem) {
     if (!baseItem) return baseItem;
     if (baseItem.type === 'relic' || baseItem.type === 'potion' || baseItem.type === 'merc_shop_direct' || baseItem.type === 'merc_shop_fund') {
-        return { ...baseItem };
+        return applyGoldenBalanceShopPrice({ ...baseItem });
     }
     if (baseItem.type === 'rune') {
         const tuned = { ...baseItem };
@@ -156,6 +166,7 @@ function applyShopRarityTuning(baseItem) {
         if (typeof applyOfficialStatsToEquipmentItem === 'function') {
             applyOfficialStatsToEquipmentItem(tuned, { rebuildDesc: true });
         }
+        applyGoldenBalanceShopPrice(tuned);
         tuned.desc = formatShopItemDesc(tuned.desc);
         return tuned;
     }
@@ -164,6 +175,7 @@ function applyShopRarityTuning(baseItem) {
     if (typeof applyOfficialStatsToEquipmentItem === 'function') {
         applyOfficialStatsToEquipmentItem(tuned, { rebuildDesc: true });
     }
+    applyGoldenBalanceShopPrice(tuned);
     tuned.desc = formatShopItemDesc(tuned.desc);
     return tuned;
 }
@@ -206,8 +218,12 @@ function renderShopItems(keepCurrentStock) {
     const unlockedItems=getUnlockedPoolItems(), picked=[];
     let tries=0;
     if (!keepCurrentStock && isMercenaryCaptainJob()) {
-        const pd = 95 + floor * 12;
-        const pf = 48 + floor * 6;
+        const pd = typeof computeEquipmentGoldPrice === 'function'
+            ? computeEquipmentGoldPrice({ rarity: 'epic' }, { shopFloor: floor })
+            : 400 + floor * 15;
+        const pf = typeof computeEquipmentGoldPrice === 'function'
+            ? computeEquipmentGoldPrice({ rarity: 'rare' }, { shopFloor: floor })
+            : 120 + floor * 5;
         currentShopItems.push(
             {
                 name: '직접 장비 구매 (직거래)',
@@ -244,7 +260,7 @@ function renderShopItems(keepCurrentStock) {
             });
             if (ar.length > 0) {
                 const relic = ar[Math.floor(Math.random() * ar.length)];
-                picked.push({ ...relic, type: 'relic', value: 0 });
+                picked.push(applyShopRarityTuning({ ...relic, type: 'relic', value: 0 }));
             }
         }
         if (unlockedItems.length > 0) {
@@ -458,6 +474,7 @@ window.renderShopLeaveButtons = renderShopLeaveButtons;
 window.getUnlockedPoolItems = getUnlockedPoolItems;
 window.getItemsByRarity = getItemsByRarity;
 window.getShopRarityChances = getShopRarityChances;
+window.applyGoldenBalanceShopPrice = applyGoldenBalanceShopPrice;
 window.applyShopRarityTuning = applyShopRarityTuning;
 window.getShopRarityBoostPrice = getShopRarityBoostPrice;
 window.renderShopItems = renderShopItems;

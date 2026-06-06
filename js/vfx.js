@@ -81,10 +81,14 @@ function triggerScreenShake(kind) {
     animateClass(stage, cls);
 }
 
-function triggerHitFlash(side) {
+function triggerHitImpact(side) {
     const card = getCombatTargetCard(side);
     if (!card) return;
-    animateClass(card, 'hit-flash');
+    animateClass(card, 'hit-impact');
+}
+
+function triggerHitFlash(side) {
+    triggerHitImpact(side);
 }
 
 function showDmgFloat(dmg, isCrit, isPlayer) {
@@ -93,7 +97,7 @@ function showDmgFloat(dmg, isCrit, isPlayer) {
     if (!point) return;
     const cls = ['floating-damage', isPlayer ? 'floating-damage-player' : 'floating-damage-enemy'];
     if (isCrit) cls.push('floating-damage-crit');
-    triggerHitFlash(targetSide);
+    triggerHitImpact(targetSide);
     const numericDmg = Number(dmg);
     const maxHp = typeof getEffectiveMaxHp === 'function' ? getEffectiveMaxHp() : 0;
     if (isCrit || (isPlayer && Number.isFinite(numericDmg) && maxHp > 0 && numericDmg >= maxHp * 0.18)) {

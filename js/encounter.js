@@ -357,7 +357,10 @@ window.resolveTreasureChest = function resolveTreasureChest(openChest) {
     const roll = Math.random();
     if (roll < 0.45) {
         const goldMult = typeof getPlayerGoldGainMult === 'function' ? getPlayerGoldGainMult() : 1;
-        const gain = Math.floor((12 + Math.floor(Math.random() * 24) + Math.floor(floor * 0.8)) * goldMult);
+        const baseGain = typeof computeFloorGoldReward === 'function'
+            ? computeFloorGoldReward(floor, { multiplier: 1.1 })
+            : Math.max(15, 6 + Math.floor(Math.random() * 5) + floor * 3);
+        const gain = Math.floor(baseGain * goldMult);
         gold += gain;
         totalGoldEarned += gain;
         writeLog(`[보물] 💰 녹슨 상자에서 ${gain}G를 찾았습니다.`);
