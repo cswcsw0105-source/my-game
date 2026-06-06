@@ -48,6 +48,10 @@ function spawnEnemy() {
         player._relicTempCrit = 0;
         player.extraAtk = 0;
         player._relicGamblerDefSub = 0;
+        player.tacticalSkillUses = {};
+        player.tacticalFocusReady = false;
+        player.tacticalParryReady = false;
+        player.tacticalBarrierReady = false;
     }
     if (player && player.relics && player.relics.includes('gambler')) {
         const pa = safeNum(player.atk, 0);

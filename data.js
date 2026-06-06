@@ -46,6 +46,7 @@ const BALANCE = Object.freeze({
         normalBaseMin: 6,
         normalBaseMax: 10,
         floorStep: 3,
+        normalMultiplier: 1.3,
         normalMin: 15,
         bossMultiplier: 2.4,
         bossFlatBonus: 20,
@@ -56,6 +57,10 @@ const BALANCE = Object.freeze({
         rare: { base: 120, floorStep: 5 },
         epic: { base: 400, floorStep: 15 },
         legendary: { base: 1500, floorStep: 50 },
+    },
+    floorGrowth: {
+        atkPerFloor: 1,
+        hpPerFloor: 5,
     },
     equipmentFloorWeightStep: 0.005,
     equipmentFloorWeightCap: 1.45,
@@ -72,6 +77,40 @@ const BALANCE = Object.freeze({
         divinityGainBonus: 0.015,
     },
 });
+
+const tacticalSkillChoices = Object.freeze({
+    parry: Object.freeze({
+        key: 'parry',
+        name: '패링',
+        type: 'defense',
+        icon: '🛡️',
+        shortDesc: '다음 피격 1회 무효화',
+        battleLog: '다음 적 공격을 한 번 무력화합니다.',
+    }),
+    focus: Object.freeze({
+        key: 'focus',
+        name: '집중 공격',
+        type: 'attack',
+        icon: '🎯',
+        shortDesc: '다음 공격 치명 확률 +60%',
+        critBonus: 60,
+        battleLog: '다음 공격의 치명타 확률이 크게 상승합니다.',
+    }),
+    barrier: Object.freeze({
+        key: 'barrier',
+        name: '방어막',
+        type: 'defense',
+        icon: '✨',
+        shortDesc: '다음 피격 1회 무효화',
+        battleLog: '붉은 마굴의 충격을 한 번 완전히 흘려냅니다.',
+    }),
+});
+
+const tacticalSkillMilestones = Object.freeze([
+    Object.freeze({ floor: 5, choices: Object.freeze(['parry', 'focus']) }),
+    Object.freeze({ floor: 15, choices: Object.freeze(['barrier', 'focus']) }),
+    Object.freeze({ floor: 30, choices: Object.freeze(['parry', 'barrier', 'focus']) }),
+]);
 
 const jobBase = {
     Warrior: { name: '워리어', hp: 300, atk: 19, def: 10, color: '#ff4757' },
@@ -1047,6 +1086,42 @@ function normalizeBalanceFloor(floorRef, fallback) {
     return 1;
 }
 
+function getFloorGrowthStep() {
+    const cfg = BALANCE.floorGrowth || {};
+    return {
+        atk: Math.max(0, Math.floor(_safeNumForPrice(cfg.atkPerFloor, 1))),
+        hp: Math.max(0, Math.floor(_safeNumForPrice(cfg.hpPerFloor, 5))),
+    };
+}
+
+function normalizeFloorGrowth(raw) {
+    const out = raw && typeof raw === 'object' ? raw : {};
+    const floors = Math.max(0, Math.floor(Number(out.floors) || 0));
+    const atk = Math.max(0, Math.floor(Number(out.atk) || 0));
+    const hp = Math.max(0, Math.floor(Number(out.hp) || 0));
+    return { floors, atk, hp };
+}
+
+function computeFloorGrowthForClears(clearCount) {
+    const floors = Math.max(0, Math.floor(Number(clearCount) || 0));
+    const step = getFloorGrowthStep();
+    return {
+        floors,
+        atk: floors * step.atk,
+        hp: floors * step.hp,
+    };
+}
+
+function getTacticalSkillDef(skillKey) {
+    const key = String(skillKey || '').trim();
+    return key ? tacticalSkillChoices[key] || null : null;
+}
+
+function getTacticalSkillMilestoneForFloor(floorRef) {
+    const f = normalizeBalanceFloor(floorRef, 1);
+    return tacticalSkillMilestones.find((m) => m && m.floor === f) || null;
+}
+
 function getShopPriceForRarity(rk, floorRef) {
     const key = normalizeRarityKey(rk);
     const f = normalizeBalanceFloor(floorRef, 1);
@@ -1103,7 +1178,8 @@ function computeFloorGoldReward(floorRef, opts) {
     const rolledBase = minBase + Math.floor(Math.random() * spread);
     const floorStep = _safeNumForPrice(cfg.floorStep, 3);
     const normalMin = _safeNumForPrice(cfg.normalMin, 15);
-    let gain = Math.max(normalMin, rolledBase + f * floorStep);
+    const normalMultiplier = _safeNumForPrice(cfg.normalMultiplier, 1);
+    let gain = Math.max(normalMin, rolledBase + f * floorStep) * normalMultiplier;
     if (opts && opts.isBoss) {
         gain = gain * _safeNumForPrice(cfg.bossMultiplier, 2.4)
             + _safeNumForPrice(cfg.bossFlatBonus, 20)
@@ -1871,6 +1947,13 @@ if (typeof window !== 'undefined') {
     window.clampEquipmentItemStatsToRarityCaps = clampEquipmentItemStatsToRarityCaps;
     window.computeEquipmentGoldPrice = computeEquipmentGoldPrice;
     window.computeFloorGoldReward = computeFloorGoldReward;
+    window.normalizeFloorGrowth = normalizeFloorGrowth;
+    window.computeFloorGrowthForClears = computeFloorGrowthForClears;
+    window.getFloorGrowthStep = getFloorGrowthStep;
+    window.tacticalSkillChoices = tacticalSkillChoices;
+    window.tacticalSkillMilestones = tacticalSkillMilestones;
+    window.getTacticalSkillDef = getTacticalSkillDef;
+    window.getTacticalSkillMilestoneForFloor = getTacticalSkillMilestoneForFloor;
     window.RUNE_POOL_COUNT = typeof runePool !== 'undefined' ? runePool.length : 0;
 }
 

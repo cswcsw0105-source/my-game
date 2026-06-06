@@ -132,6 +132,17 @@ function fullResyncPlayerCombatStatsFromMetaAndInventory() {
         acc = safeNum(rs.acc, 0) + safeNum(tb.acc, 0) + safeNum(lb.acc, 0);
     }
 
+    const fg = typeof normalizeFloorGrowth === 'function'
+        ? normalizeFloorGrowth(player.floorGrowth || slot.floorGrowth)
+        : {
+              floors: Math.max(0, Math.floor(safeNum(player.floorGrowth && player.floorGrowth.floors, 0))),
+              atk: Math.max(0, Math.floor(safeNum(player.floorGrowth && player.floorGrowth.atk, 0))),
+              hp: Math.max(0, Math.floor(safeNum(player.floorGrowth && player.floorGrowth.hp, 0))),
+          };
+    player.floorGrowth = fg;
+    atk += fg.atk;
+    maxHp += fg.hp;
+
     player.atk = atk;
     player.def = def;
     player.maxHp = maxHp;

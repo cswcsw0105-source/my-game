@@ -444,6 +444,36 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     outline-offset: 3px;
 }
 
+#prologue-screen.prologue-battle-bridge {
+    background: radial-gradient(circle at 50% 42%, #141018 0%, #050506 52%, #000 100%) !important;
+    animation: prologueBridgeBlackIn 0.32s ease-out both;
+}
+.prologue-battle-bridge-card {
+    width: min(680px, 100%);
+    padding: 24px 22px;
+    text-align: center;
+    color: #eee7dd;
+    animation: prologueBridgeTextIn 0.42s ease-out both;
+}
+.prologue-battle-bridge-card p {
+    margin: 0 0 10px;
+    color: #c8b8aa;
+    font-size: 1.02rem;
+    font-weight: 800;
+    line-height: 1.75;
+}
+.prologue-battle-bridge-card b {
+    color: #f4d58a;
+    font-size: 1.16rem;
+    font-weight: 950;
+}
+#prologue-screen.prologue-battle-bridge-out {
+    animation: prologueBridgeFadeOut 0.36s ease-in forwards;
+}
+#battle-area.tutorial-battle-fade-in {
+    animation: tutorialBattleFadeIn 0.58s ease-out both;
+}
+
 .potion-btn { background: #f1c40f !important; color: #111 !important; }
 .reroll-btn { background: #e67e22 !important; color: #fff !important; width: 100%; margin-top: 15px; }
 .patch-btn { background: #34495e !important; color: #fff !important; width: 100%; font-size: 0.9em; padding: 10px; margin: 2px 0; }
@@ -1006,6 +1036,22 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 @keyframes critBlackout {
     from { opacity: 1; }
     to { opacity: 0; }
+}
+@keyframes prologueBridgeBlackIn {
+    from { opacity: 0; filter: brightness(1.25); }
+    to { opacity: 1; filter: brightness(1); }
+}
+@keyframes prologueBridgeTextIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@keyframes prologueBridgeFadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+@keyframes tutorialBattleFadeIn {
+    from { opacity: 0; transform: translateY(10px); filter: brightness(0.82); }
+    to { opacity: 1; transform: translateY(0); filter: brightness(1); }
 }
 @keyframes bossWarning {
     0%,100% { box-shadow: none; }
