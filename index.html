@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <title>던전 · 시즌 1</title>
-    <link rel="stylesheet" href="style.css?v=s1r12">
+    <link rel="stylesheet" href="style.css?v=s1r17">
     <style>
         .auth-box { background: #2a2a2a; padding: 20px; border-radius: 8px; border: 1px solid #444; max-width: 300px; margin: 0 auto; }
         .auth-box input { width: 90%; padding: 10px; margin: 10px 0; border-radius: 4px; border: 1px solid #555; background: #111; color: white; }
@@ -18,7 +18,7 @@
         <p style="color:#9b59b6;font-size:0.9em;margin:2px 0 8px;letter-spacing:0.5px;">시즌 1</p>
         
         <div class="game-layout" id="main-layout">
-            <!-- 던전·상점 중 왼쪽: 인벤 상시 (전투 로그는 오른쪽) -->
+            <!-- 던전·상점 중 왼쪽: 인벤 상시 -->
             <div class="sidebar" id="sidebar-inventory" style="display:none;">
                 <h4 style="color:#fff;margin:0 0 8px 0;">🎒 인벤토리</h4>
                 <div id="inv-list" class="inv-list-scroll" style="font-size:0.82em; margin-top:4px; flex:1; overflow-y:auto; width:100%; text-align:left;">장비가 없습니다.</div>
@@ -40,8 +40,19 @@
 
                 <div id="battle-area" style="display:none;">
                     <div id="encounter-phase" style="display:none;"></div>
+                    <div id="battle-run-controls" class="battle-run-controls">
+                        <div class="battle-run-statline">
+                            <span>층 <b id="floor-t-battle">1</b>F</span>
+                            <span>골드 <b id="gold-t-battle">0</b>G</span>
+                            <span>포션 <b id="potion-t-battle">0</b></span>
+                        </div>
+                        <div class="battle-run-actions">
+                            <button type="button" id="battle-save-main-btn" class="battle-mini-btn battle-mini-btn-save" onclick="saveAndExitToMain()">저장 후 메인</button>
+                            <button type="button" id="battle-exit-main-btn" class="battle-mini-btn battle-mini-btn-exit" onclick="exitToMainWithoutSave()">저장 없이 메인</button>
+                        </div>
+                    </div>
                     <div id="battle-hud">
-                    <div style="display:flex; justify-content:space-around;">
+                    <div class="battle-card-row">
                         <div id="player-card" style="width:45%">
                             <h4 id="p-name" style="color: #fff;">나</h4>
                             <div class="hp-bar-outer"><div id="p-hp" class="hp-bar-inner"></div></div>
@@ -64,10 +75,12 @@
                             <span id="e-hp-t" style="font-weight:bold; color:#fff;"></span>
                             <div class="status-badge"></div>
                             <div class="stat-tag" style="cursor:default;">ATK: <span id="e-atk-val" style="color:#f1c40f;">0</span> / DEF: <span id="e-def-val" style="color:#1e90ff;">0</span></div>
+                            <div id="enemy-victory-panel" class="enemy-victory-panel" style="display:none;"></div>
                         </div>
                     </div>
-                    <div id="action-btns" style="margin-top:20px;"></div>
                     </div><!-- /battle-hud -->
+                    <div id="battle-log-strip" class="battle-log-strip"></div>
+                    <div id="action-btns" style="margin-top:16px;"></div>
                 </div>
 
                 <div id="shop-area" style="display:none;">
@@ -92,21 +105,6 @@
                     <button type="button" class="sidebar-action-btn sidebar-btn-rank" onclick="toggleRank(true)">🏆 명예의 전당 보기</button>
                     <button type="button" class="sidebar-action-btn sidebar-btn-patch" onclick="togglePatchNotes(true)">📜 패치 노트 보기</button>
                 </div>
-            </div>
-
-           <!-- 전투 로그: 전투 중에만 오른쪽에 표시 -->
-            <div class="sidebar" id="sidebar-battle" style="display:none;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                    <h4 style="color:#fff; margin:0;">📋 전투 로그</h4>
-                    <div style="font-size:0.8em; color:#888;">
-                        층: <b id="floor-t-battle" style="color:#fff;">1</b>F | 
-                        골드: <b id="gold-t-battle" style="color:#f1c40f;">0</b>G |
-                        포션: <b id="potion-t-battle" style="color:#2ed573;">0</b>
-                    </div>
-                </div>
-                <button type="button" class="sidebar-action-btn" onclick="saveAndExitToMain()" style="margin-bottom:8px;background:#1e90ff;color:#fff;border:1px solid #3498db;">💾 저장 후 메인</button>
-                <button type="button" class="sidebar-action-btn" onclick="exitToMainWithoutSave()" style="margin-bottom:8px;background:#c0392b;color:#fff;border:1px solid #922b21;">🚪 저장 없이 메인</button>
-                <div id="log-battle" class="log-battle-scroll" style="font-size:0.85em; overflow-y:auto;"></div>
             </div>
 
         </div> <!-- game-layout 닫기 -->
@@ -152,20 +150,20 @@
                 <thead><tr><th>버전</th><th>항목</th><th>상세 내용</th></tr></thead>
                 <tbody>
                     <tr><td class="v-tag">시즌 1</td><td>종족·프롤로그·무기 선택</td><td>
-    <b>캐릭터 생성 개편:</b> 새 캐릭터는 먼저 <b>종족</b>을 선택하고, 종족별 과거 스토리와 프롤로그를 본 뒤 다급하게 집은 <b>무기</b>로 직업이 확정됩니다.<br>
-    <b>스토리 데이터 기반:</b> <code>raceStories</code>, <code>classStories</code>, <code>promotionStories</code> 구조를 추가해 층 돌파·유물 획득·전직 성공 시 선택 조합에 맞는 텍스트를 출력할 수 있게 했습니다.<br>
-    <b>튜토리얼 전투:</b> 무기 선택 직후 1층 인카운터 선택지를 건너뛰고 눈앞의 몬스터와 바로 첫 전투를 시작합니다.
+    <b>생성 흐름 개편:</b> <b>종족 선택</b> → <b>프롤로그 서사</b> → <b>무기 선택</b> 순서로 직업 확정.<br>
+    <b>스토리 출력 구조 추가:</b> <code>raceStories</code>, <code>classStories</code>, <code>promotionStories</code> 기반 조합별 텍스트 분기.<br>
+    <b>초반 진입 동선 조정:</b> 무기 선택 직후 1층 인카운터 생략, 첫 몬스터 전투 즉시 진입.
 </td></tr>
                     <tr><td class="v-tag">시즌 1</td><td>보안·30층 벽·성장 템포</td><td>
-    <b>클라이언트 보안:</b> 게임 런타임을 <b>IIFE 번들</b>로 캡슐화해 <code>player</code>, <code>enemy</code>, <code>floor</code>, <code>gold</code>, <code>MetaRPG</code> 등 핵심 상태가 콘솔 전역에 노출되지 않도록 정리했습니다.<br>
-    <b>30층 통곡의 벽:</b> 30층부터 몬스터 체력·공격·방어에 벽 배율과 후반 지수 성장을 적용해, 무강화 기본 플레이가 30층 부근에서 막히도록 조정했습니다.<br>
-    <b>강화 템포:</b> 베이스캠프 체력/공격/방어 강화 1단계를 약 <b>1.25층 성장분</b>으로 환산해, <b>4강화 ≈ 5층 돌파</b> 흐름이 유지되도록 재설계했습니다.<br>
-    <b>등급 밸런스:</b> 장비 예산과 희귀도 상한을 일반 1.0배, 희귀 1.5배, 영웅 2.5배, 전설 4.0배 기준으로 재조정하고 직업 초기/전직 스탯을 새 난이도에 맞췄습니다.
+    <b>런타임 전역 노출 차단:</b> <b>IIFE 번들</b> 캡슐화 적용. <code>player</code>, <code>enemy</code>, <code>floor</code>, <code>gold</code>, <code>MetaRPG</code> 콘솔 접근 제한.<br>
+    <b>30층 성장 벽 추가:</b> 30층 이후 몬스터 체력·공격·방어 벽 배율 적용. 무강화 등반 정체 구간 추가.<br>
+    <b>영구 강화 효율 조정:</b> 베이스캠프 체력/공격/방어 1단계 ≈ <b>1.25층 성장분</b>, <b>4강화 ≈ 5층 돌파</b> 기준 적용.<br>
+    <b>장비·직업 수치 조정:</b> 일반 1.0배, 희귀 1.5배, 영웅 2.5배, 전설 4.5배 기준 장비 배율 정비. 직업 초기/전직 스탯 조정.
 </td></tr>
                     <tr><td class="v-tag">시즌 1</td><td>성직자·치명 핫픽스</td><td>
-    <b>성직자:</b> 신성력 최대치를 <b>20스택</b>으로 고정하고, 저장 데이터 복구 시에도 초과 스택과 구버전 200스택 상태를 정규화합니다.<br>
-    <b>신의 가호:</b> 20스택 달성 보너스를 <b>방어+20</b>, <b>흡혈+5%</b>, 다음 공격 확정 치명으로 재조정했습니다.<br>
-    <b>치명타:</b> 치명 확률 <b>65%</b> 초과분은 1%당 치명 배율 <b>+0.05x</b>로 선형 전환하며, 최종 치명 배율은 <b>최대 5.00x</b>로 제한됩니다.
+    <b>신성력 상한 제한:</b> 성직자 신성력 최대치 <b>20스택</b> 고정. 초과 스택 및 구버전 200스택 저장값 보정.<br>
+    <b>신의 가호 보너스 조정:</b> 20스택 달성 시 <b>방어+20</b>, <b>흡혈+5%</b>, 다음 공격 확정 치명 적용.<br>
+    <b>치명 초과 전환식 수정:</b> 치명 확률 <b>65%</b> 초과분 1%당 치명 배율 <b>+0.05x</b> 전환. 최종 치명 배율 <b>5.00x</b> 상한 제한.
 </td></tr>
                     <tr><td class="v-tag">시즌 1</td><td>탐험 인카운터·패닉 런·제단</td><td>
     <b>층 진입 탐험 분기:</b> 전투 즉시 진입 대신 인카운터 페이즈 추가. 확률 분기: <b>몬스터 60%</b> · <b>보물/함정 10%</b> · <b>휴식 8%</b> · <b>수상한 제단 14%</b> (잔여 확률은 몬스터로 보정).<br>
@@ -375,6 +373,6 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <!-- ?v= 쿼리로 브라우저 캐시 무효화 (수정이 안 보일 때 강력 새로고침도 함께) -->
-    <script src="bundle.js?v=s3secure"></script>
+    <script src="bundle.js?v=s9minimalvictory"></script>
 </body>
 </html>

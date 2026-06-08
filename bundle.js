@@ -33,21 +33,89 @@ const BALANCE = Object.freeze({
     divineBlessingLifestealBonus: 0.05,
 
     enemyWallFloor: 30,
-    enemyPreWallGrowth: 1.055,
-    enemyPostWallGrowth: 1.065,
-    enemyWallHpMult: 2.2,
-    enemyWallAtkMult: 2.0,
-    enemyWallDefMult: 2.1,
+    enemyPreWallGrowth: 1.058,
+    enemyPostWallGrowth: 1.067,
+    enemyWallHpMult: 1.5,
+    enemyWallAtkMult: 1.35,
+    enemyWallDefMult: 2.18,
     upgradeFloorEquivalent: 1.25,
 
     rarityPower: {
-        common: 1,
-        rare: 1.5,
-        epic: 2.5,
-        legendary: 4,
-        legend: 4,
+        common: 1.15,
+        rare: 1.85,
+        epic: 3.4,
+        legendary: 7,
+        legend: 7,
+    },
+    goldReward: {
+        normalBaseMin: 6,
+        normalBaseMax: 10,
+        floorStep: 3,
+        normalMultiplier: 1.3,
+        normalMin: 15,
+        bossMultiplier: 2.4,
+        bossFlatBonus: 20,
+        bossFloorBonus: 2,
+    },
+    shopPriceByRarity: {
+        common: { base: 40, floorStep: 2 },
+        rare: { base: 120, floorStep: 5 },
+        epic: { base: 400, floorStep: 15 },
+        legendary: { base: 1500, floorStep: 50 },
+    },
+    floorGrowth: {
+        atkPerFloor: 1,
+        hpPerFloor: 5,
+    },
+    equipmentFloorWeightStep: 0.005,
+    equipmentFloorWeightCap: 1.65,
+    equipmentBaseStats: {
+        weaponAtk: 14,
+        ringAtk: 11,
+        armorHp: 72,
+        armorDef: 10,
+        hybridDef: 4,
+        crit: 5,
+        critMult: 0.08,
+        lifesteal: 0.03,
+        prayerBonus: 1,
+        divinityGainBonus: 0.015,
     },
 });
+
+const tacticalSkillChoices = Object.freeze({
+    parry: Object.freeze({
+        key: 'parry',
+        name: '패링',
+        type: 'defense',
+        icon: '🛡️',
+        shortDesc: '다음 피격 1회 무효화',
+        battleLog: '다음 적 공격을 한 번 무력화합니다.',
+    }),
+    focus: Object.freeze({
+        key: 'focus',
+        name: '집중 공격',
+        type: 'attack',
+        icon: '🎯',
+        shortDesc: '다음 공격 치명 확률 +60%',
+        critBonus: 60,
+        battleLog: '다음 공격의 치명타 확률이 크게 상승합니다.',
+    }),
+    barrier: Object.freeze({
+        key: 'barrier',
+        name: '방어막',
+        type: 'defense',
+        icon: '✨',
+        shortDesc: '다음 피격 1회 무효화',
+        battleLog: '붉은 마굴의 충격을 한 번 완전히 흘려냅니다.',
+    }),
+});
+
+const tacticalSkillMilestones = Object.freeze([
+    Object.freeze({ floor: 5, choices: Object.freeze(['parry', 'focus']) }),
+    Object.freeze({ floor: 15, choices: Object.freeze(['barrier', 'focus']) }),
+    Object.freeze({ floor: 30, choices: Object.freeze(['parry', 'barrier', 'focus']) }),
+]);
 
 const jobBase = {
     Warrior: { name: '워리어', hp: 300, atk: 19, def: 10, color: '#ff4757' },
@@ -57,29 +125,57 @@ const jobBase = {
     MercenaryCaptain: { name: '용병단장', hp: 210, atk: 5, def: 5, color: '#e67e22' },
 };
 
-const introPrologueLines = Object.freeze([
-    '당신은 과거에 엄청난 사건들이 가득했던 존재였습니다. 지금은 어떤 일인지 과거의 일이 하나도 기억나지 않습니다.. 그리고 현재 당신의 앞에는 몬스터가 침을 흘리며 당신을 쳐다보고 있습니다! 당신의 옆에는 금방이라도 부셔질 것 같은 무기들이 널부러져 있습니다. 뭔가 많이 떨어져 있지만 시간이 별로 없습니다! 무엇을 집겠습니까?',
-]);
+const introPrologueText = Object.freeze({
+    memoryPrompt:
+        '정신을 차리려 눈을 감자, 기억의 파편들이 스쳐 지나갑니다. 당신이 기억하는 마지막 기억은 무엇입니까?',
+    dangerPrompt:
+        '당신은 과거에 엄청난 사건들이 가득했던 존재였습니다. 지금은 어떤 일인지 과거의 일이 하나도 기억나지 않습니다.. 그리고 현재 당신의 앞에는 몬스터가 침을 흘리며 당신을 쳐다보고 있습니다!',
+    weaponPrompt:
+        '옆에는 금방이라도 부셔질 것 같은 무기들이 널부러져 있습니다. 시간이 별로 없습니다. 무엇을 집겠습니까?',
+});
+
+const introMemoryChoices = Object.freeze({
+    betrayed_heroes: {
+        key: 'betrayed_heroes',
+        label: '나를 배신한 동료들의 차가운 눈빛',
+        raceKey: 'human',
+        baseJobKey: 'Warrior',
+    },
+    demon_lord_mockery: {
+        key: 'demon_lord_mockery',
+        label: '나를 멸시하던 마왕의 비웃음',
+        raceKey: 'demon',
+        baseJobKey: 'Wizard',
+    },
+    burning_tribe: {
+        key: 'burning_tribe',
+        label: '불타오르던 고향 부족의 불길',
+        raceKey: 'beastkin',
+        baseJobKey: 'Hunter',
+    },
+});
 
 const raceStories = Object.freeze({
     human: {
         key: 'human',
         name: '인간',
         color: '#f1c40f',
-        summary: '배신당한 옛 용사 파티원',
+        summary: '배신당한 자',
         past:
-            '과거 용사 파티의 일원이었으나, 마지막 원정에서 동료들에게 배신당해 마굴 아래로 던져진 인간.',
+            '인간 용사와 왕에게 이용당한 끝에 토사구팽당하고, 복수심만 남긴 채 마굴 아래로 떨어진 인간.',
         fragments: {
             runStart: [
-                '희미한 기억 속에서 누군가 당신을 용사라고 불렀다. 하지만 지금 손에 남은 것은 피와 먼지뿐이다.',
+                '왕의 깃발 아래에서 들었던 환호가 아직 귓가에 남아 있다. 마지막에 돌아온 것은 축복이 아니라 처형 명령이었다.',
+                '당신을 용사라 부르던 인간들은 전쟁이 끝나자 가장 먼저 당신의 이름을 지웠다.',
             ],
             floorMilestones: {
-                5: ['무너진 회랑의 문양이 낯익다. 이곳은 과거 당신이 봉인했던 마굴의 바깥층일지도 모른다.'],
-                10: ['검은 제단 앞에서 배신자의 웃음소리가 짧게 스친다. 이름은 아직 떠오르지 않는다.'],
-                30: ['마굴의 벽이 심장처럼 뛰기 시작한다. 당신을 이곳에 던진 자들이 이 아래를 두려워했던 이유가 있다.'],
+                5: ['녹슨 검날에 왕실 문장이 비친다. 당신은 그 문장을 지키기 위해 너무 많은 피를 흘렸다.'],
+                10: ['인간 용사의 얼굴이 떠오른다. 그는 당신의 어깨를 두드린 뒤, 같은 손으로 등을 밀었다.'],
+                20: ['왕의 명령서는 불타 사라졌지만 문장은 기억난다. “영웅은 전쟁 뒤에 가장 위험하다.”'],
+                30: ['마굴의 문이 닫히던 순간, 인간 왕은 눈을 피하지 않았다. 당신의 복수는 아직 시작도 하지 않았다.'],
             },
             relic: {
-                default: '유물이 손에 닿자 용사 파티의 맹세가 조각난 목소리로 되살아난다.',
+                default: '유물이 손에 닿자 왕궁의 맹세문이 피 묻은 조롱처럼 되살아난다.',
             },
         },
     },
@@ -87,20 +183,22 @@ const raceStories = Object.freeze({
         key: 'demon',
         name: '마족',
         color: '#e74c3c',
-        summary: '기억을 잃은 전 마왕군',
+        summary: '추방당한 군주',
         past:
-            '과거 마왕군에 속했으나 알 수 없는 이유로 군단을 배신했고, 기억을 잃은 채 감옥 같은 마굴에 떨어진 마족.',
+            '마계의 군주였으나 흑막의 계략으로 권좌와 힘을 빼앗기고, 최하층 던전으로 추방당한 마족.',
         fragments: {
             runStart: [
-                '몬스터의 침 냄새보다 먼저 익숙한 마기가 코끝을 찌른다. 이곳은 감옥이면서, 한때 당신의 진영이었다.',
+                '마기가 당신을 알아보고 낮게 떨린다. 그러나 그것은 복종이 아니라, 폐위된 군주를 향한 조롱에 가깝다.',
+                '왕좌의 감촉은 사라졌지만 빼앗긴 힘의 공백은 아직 심장 한가운데 남아 있다.',
             ],
             floorMilestones: {
-                5: ['벽의 발톱 자국을 읽을 수 있다. 누군가 이 통로를 마왕군의 언어로 봉쇄했다.'],
-                10: ['당신의 배신을 저주하는 듯한 낡은 군기가 천장에 걸려 있다.'],
-                30: ['심층의 마기가 당신을 주인으로 착각했다가 곧바로 적으로 인식한다.'],
+                5: ['벽에 새겨진 봉인문은 당신의 군단 문법을 흉내 냈다. 진짜 명령권자는 따로 있었다.'],
+                10: ['무너진 군기가 발밑에서 바스러진다. 부하들은 배신한 것이 아니라 누군가에게 조종당했다.'],
+                20: ['마계의 법정이 떠오른다. 당신의 죄명은 반역, 판결문에는 조력자의 인장이 희미하게 찍혀 있었다.'],
+                30: ['심층의 마기가 무릎 꿇으려다 멈춘다. 당신은 아직 군주지만, 왕관은 다른 손에 있다.'],
             },
             relic: {
-                default: '유물 안쪽에서 마왕군의 명령 체계가 반응한다. 당신은 이 물건의 사용법을 알고 있었다.',
+                default: '유물 안쪽에서 잃어버린 왕권의 명령 체계가 반응한다. 당신은 이것을 빼앗긴 적이 있다.',
             },
         },
     },
@@ -108,23 +206,185 @@ const raceStories = Object.freeze({
         key: 'beastkin',
         name: '수인',
         color: '#2ed573',
-        summary: '봉인된 사냥 부족의 생존자',
+        summary: '짓밟힌 생존자',
         past:
-            '마굴의 길목을 지키던 사냥 부족 출신. 부족이 몰살되던 밤의 기억은 사라졌지만, 몸은 아직 사냥법을 기억한다.',
+            '전쟁의 참화 속에서 부족을 잃고, 살아남기 위해 힘을 갈망하며 마굴로 숨어 들어온 수인.',
         fragments: {
             runStart: [
-                '발밑의 진동과 숨소리만으로도 적의 거리를 알 수 있다. 기억은 사라졌지만 본능은 남았다.',
+                '발밑의 진동이 전장을 떠올리게 한다. 부족의 울음소리는 사라졌지만 살아남으라는 본능만은 남았다.',
+                '당신은 도망친 것이 아니다. 언젠가 되돌아가기 위해 더 깊은 어둠으로 숨은 것이다.',
             ],
             floorMilestones: {
-                5: ['낡은 함정의 배치가 당신의 부족 방식과 닮아 있다. 누군가 오래전에 이곳에서 싸웠다.'],
-                10: ['피 냄새 사이로 익숙한 약초 향이 섞인다. 잊었던 사냥터의 기억이 아주 잠깐 열린다.'],
-                30: ['심층의 포효가 뼈를 울린다. 당신의 부족이 끝까지 막으려 했던 것이 이 아래에 있다.'],
+                5: ['부서진 뼈장식이 흙 속에 묻혀 있다. 부족의 전사들이 여기까지 밀려왔던 흔적이다.'],
+                10: ['피 냄새 사이로 익숙한 약초 향이 섞인다. 치료받지 못한 아이들의 숨소리가 잠깐 들린다.'],
+                20: ['전쟁을 일으킨 자들은 힘을 숭배했다. 당신은 그들의 언어로 대답하기 위해 이를 악문다.'],
+                30: ['심층의 포효가 뼈를 울린다. 부족을 짓밟은 힘의 근원이 이 아래에서 아직 살아 있다.'],
             },
             relic: {
-                default: '유물이 손에 닿자 잃어버린 부족의 사냥 노래가 귓가에 맴돈다.',
+                default: '유물이 손에 닿자 잃어버린 부족의 사냥 노래가 낮은 장송곡처럼 맴돈다.',
             },
         },
     },
+});
+
+const storyData = Object.freeze({
+    playerStateDefaults: Object.freeze({
+        corruption: 0,
+        purification: 0,
+    }),
+    routeTitles: Object.freeze({
+        neutral: null,
+        corruption: '마력을 탐하는 자',
+        purification: '진실을 가르는 자',
+    }),
+    endingTitles: Object.freeze({
+        demonKing: '마왕의 그릇',
+        hero: '환각을 깨뜨린 용사',
+    }),
+    choiceImpacts: Object.freeze({
+        trust_helper: Object.freeze({
+            corruption: 1,
+            purification: 0,
+            label: '조력자 신뢰',
+        }),
+        embrace_dark_power: Object.freeze({
+            corruption: 2,
+            purification: 0,
+            label: '어둠의 힘 수용',
+        }),
+        doubt_helper: Object.freeze({
+            corruption: 0,
+            purification: 1,
+            label: '조력자 의심',
+        }),
+        resist_hallucination: Object.freeze({
+            corruption: 0,
+            purification: 2,
+            label: '환각 저항',
+        }),
+    }),
+    milestones: Object.freeze({
+        30: Object.freeze({
+            key: 'bossLastWords30',
+            title: '30층 보스의 유언',
+            trigger: 'inner_monologue',
+            lines: Object.freeze([
+                '그 검을... 더는 고치지 마라... 조력자의 꼭두각시 녀석...',
+                '쓰러진 보스의 목소리는 저주가 아니라 경고에 가까웠다.',
+                '조력자가 말해 주지 않은 무언가가, 이 마굴의 중층부터 모습을 드러내기 시작한다.',
+            ]),
+        }),
+    }),
+    routeMilestones: Object.freeze([31, 40, 50, 60, 70, 80]),
+    routes: Object.freeze({
+        neutral: Object.freeze({
+            title: null,
+            milestones: Object.freeze({
+                31: Object.freeze([
+                    '30층 너머의 공기는 달라졌다. 조력자의 말과 보스의 유언이 머릿속에서 서로를 밀어낸다.',
+                    '아직 무엇도 확신할 수 없다. 다만 이제부터의 등반은 단순한 생존이 아니다.',
+                ]),
+                40: Object.freeze([
+                    '길은 위로 이어지지만, 기억은 계속 아래로 가라앉는다.',
+                    '복수와 의심 사이에서 당신의 손은 아직 어느 쪽도 완전히 붙잡지 못했다.',
+                ]),
+                50: Object.freeze([
+                    '마굴의 중층 끝에서 조력자의 조언은 더 친절해지고, 몬스터들의 눈빛은 더 인간적으로 변한다.',
+                    '어느 쪽이 거짓인지 판단하기에는 아직 피 냄새가 너무 짙다.',
+                ]),
+                60: Object.freeze([
+                    '심층의 문이 열릴수록 조력자의 목소리는 가까워지고, 보스들의 경고는 선명해진다.',
+                    '당신은 아직 선택하지 않았다. 그래서 마굴은 더 많은 환영을 준비한다.',
+                ]),
+                70: Object.freeze([
+                    '유물은 힘을 주지만 동시에 질문을 남긴다. 이 힘은 회복인가, 계승인가.',
+                ]),
+                80: Object.freeze([
+                    '심층의 마지막 봉인이 흔들린다. 이제 중립은 오래 버틸 수 없는 자세가 되었다.',
+                ]),
+            }),
+        }),
+        corruption: Object.freeze({
+            title: '마력을 탐하는 자',
+            milestones: Object.freeze({
+                31: Object.freeze([
+                    '조력자는 낮게 웃으며 말한다. “잘했다. 이제야 네게 어울리는 힘을 받아들이기 시작했군.”',
+                    '보스의 경고는 비겁한 패자의 변명처럼 들린다. 복수에는 더 많은 마력이 필요하다.',
+                ]),
+                40: Object.freeze([
+                    '조력자의 칭찬은 점점 달콤해진다. “너를 버린 자들이 이 모습을 보면 무릎 꿇을 것이다.”',
+                    '당신은 그 장면을 상상한다. 왕의 얼굴, 용사의 떨리는 손, 그리고 당신의 검 끝.',
+                ]),
+                50: Object.freeze([
+                    '몬스터의 비명이 짧게 끊길 때마다 마굴은 더 선명한 힘으로 답한다.',
+                    '죄책감은 약자의 언어다. 당신을 버린 세계에는 약속보다 공포가 더 잘 통한다.',
+                ]),
+                60: Object.freeze([
+                    '조력자는 말한다. “망설이지 마라. 이곳의 모든 피는 네 왕관을 위한 제물이다.”',
+                    '당신은 부정하지 않는다. 손에 감긴 마력은 이제 낯설지 않다.',
+                ]),
+                70: Object.freeze([
+                    '심층의 마력은 당신을 두려워하지 않는다. 오히려 오래 기다린 주인처럼 살갗에 스며든다.',
+                    '복수는 목표가 아니라 의식이 되어 간다.',
+                ]),
+                80: Object.freeze([
+                    '마굴의 마지막 봉인이 당신의 심장 박동에 맞춰 열린다.',
+                    '조력자는 속삭인다. “곧 완성된다. 네 분노가 곧 왕좌가 될 것이다.”',
+                ]),
+            }),
+        }),
+        purification: Object.freeze({
+            title: '진실을 가르는 자',
+            milestones: Object.freeze({
+                31: Object.freeze([
+                    '보스의 눈은 죽기 직전까지 당신이 아니라 조력자의 그림자를 보고 있었다.',
+                    '당신은 처음으로 검을 내려다본다. 이 무기는 적을 베는 도구인가, 누군가의 명령을 수행하는 사슬인가.',
+                ]),
+                40: Object.freeze([
+                    '벽의 그림자는 공격하지 않는다. 그 안에는 도망치다 쓰러진 몬스터들의 기억이 남아 있다.',
+                    '당신은 그들의 눈망울에서 슬픔을 본다. 괴물이라는 말만으로 지워지지 않는 감정이다.',
+                ]),
+                50: Object.freeze([
+                    '조력자의 설명은 완벽하지만, 완벽하기 때문에 더 수상하다.',
+                    '이 마굴의 적들은 모두 당신을 막으려 한다. 죽이려는 것이 아니라, 멈추게 하려는 것처럼.',
+                ]),
+                60: Object.freeze([
+                    '환각이 왕관과 복수를 보여 줄수록 당신은 그 뒤의 빈틈을 찾는다.',
+                    '분노는 아직 뜨겁지만, 이제 그것을 쥔 손은 조력자의 것이 아니다.',
+                ]),
+                70: Object.freeze([
+                    '몬스터 하나가 쓰러지기 전 아주 작게 고개를 젓는다. 당신은 그 뜻을 이해해 버렸다.',
+                    '이 등반이 구원이 아니라 학살이라면, 진짜 적은 꼭대기가 아니라 곁에 있다.',
+                ]),
+                80: Object.freeze([
+                    '심층의 마지막 문 앞에서 조력자의 목소리가 처음으로 갈라진다.',
+                    '당신은 환각을 베어 낸다. 남은 것은 복수보다 무거운 진실이다.',
+                ]),
+            }),
+        }),
+    }),
+    endings: Object.freeze({
+        demonKing: Object.freeze({
+            key: 'endingDemonKing',
+            title: '마왕화 엔딩 분기',
+            battleTitle: '마왕 계승식',
+            lines: Object.freeze([
+                '조력자는 더 이상 인간의 얼굴을 유지하지 않는다. 그는 무릎을 꿇고 당신을 올려다본다.',
+                '“훌륭하다. 네 분노와 욕망은 마왕의 그릇으로 손색이 없다.”',
+                '부서진 왕관이 허공에서 맞물린다. 최종전은 처단이 아니라 계승식으로 변한다.',
+            ]),
+        }),
+        hero: Object.freeze({
+            key: 'endingHero',
+            title: '용사화 엔딩 분기',
+            battleTitle: '환각 파쇄',
+            lines: Object.freeze([
+                '조력자가 펼친 환각이 왕관과 복수를 속삭인다. 당신은 그 모든 장면을 검등으로 깨뜨린다.',
+                '“나는 네가 만든 마왕이 아니다. 무고한 자들의 피값을 치르게 하러 왔다.”',
+                '진짜 악마가 모습을 드러낸다. 당신의 칼끝은 더 이상 복수심이 아니라 죗값을 향한다.',
+            ]),
+        }),
+    }),
 });
 
 const introWeaponChoices = Object.freeze({
@@ -256,6 +516,96 @@ const promotionStories = Object.freeze({
             30: ['통곡의 벽 앞에서 신성력이 흔들린다. 믿음이 아니라 선택을 시험하는 빛이다.'],
         },
     },
+});
+
+const floorStories = Object.freeze({
+    bands: [
+        {
+            key: 'middle_doubt',
+            title: '중층 - 의구심',
+            from: 31,
+            to: 50,
+            cadence: 4,
+            lines: [
+                '베이스캠프의 조력자는 위로 갈수록 기억이 선명해질 거라고 했다. 하지만 벽에 남은 흔적은 그 말을 비웃듯 반대로 이어진다.',
+                '돌바닥에 새겨진 표식이 낯익다. 당신이 도망친 흔적이 아니라, 누군가 당신을 이쪽으로 몰아넣은 흔적이다.',
+                '조력자가 건네준 지도와 기억 속 통로가 조금씩 어긋난다. 지도는 항상 더 위험한 방으로 당신을 인도하고 있었다.',
+                '잃어버린 목소리 하나가 돌아온다. “그를 믿지 마.” 누구의 경고였는지는 아직 떠오르지 않는다.',
+                '상층으로 오를수록 몬스터는 흉폭해지지만, 그보다 더 불편한 것은 조력자가 지나치게 많은 것을 알고 있다는 사실이다.',
+            ],
+        },
+        {
+            key: 'deep_truth',
+            title: '심층 - 진실',
+            from: 51,
+            to: 80,
+            cadence: 5,
+            lines: [
+                '유물의 표면에 조력자의 인장이 떠오른다. 그는 처음부터 이 물건들이 어디에 있는지 알고 있었다.',
+                '기억의 조각이 맞물린다. 당신은 유물을 모으는 사람이 아니라, 유물을 봉인하던 사람이었다.',
+                '베이스캠프에서 들었던 조언들이 하나의 명령문처럼 다시 들린다. 그는 당신을 돕는 척하며 봉인을 풀게 만들고 있었다.',
+                '심층의 문들은 당신의 피가 아니라 조력자가 준 표식에 반응한다. 열쇠는 당신이 아니라 그가 쥐고 있었다.',
+                '유물이 하나씩 모일수록 마굴의 심장은 더 크게 뛴다. 당신이 강해지는 만큼, 오래된 배신도 완성되어 간다.',
+                '기억 속에서 조력자의 얼굴이 선명해진다. 그는 구조자가 아니었다. 마지막 순간 당신의 등을 민 손이었다.',
+            ],
+        },
+        {
+            key: 'summit_eve',
+            title: '꼭대기 - 결전 전야',
+            from: 81,
+            to: 99,
+            cadence: 4,
+            lines: [
+                '모든 기억이 돌아온다. 처음 깨어났을 때 등 뒤에 흩어져 있던 파괴된 장비들은 쓰레기가 아니라, 원래 당신의 무기였다.',
+                '낡은 검, 망치, 지팡이, 활. 무엇을 집었든 그 잔해는 모두 한때 당신의 손에 맞춰져 있었다.',
+                '조력자는 당신의 무기를 부수고 기억을 가둔 뒤, 빈손의 당신에게 다시 무기를 고르게 했다. 선택은 자유가 아니라 실험이었다.',
+                '꼭대기로 이어지는 계단마다 배신의 장면이 또렷해진다. 이제 필요한 것은 해명이 아니라 처단이다.',
+                '마굴 전체가 떨린다. 유물은 봉인을 풀었고, 당신은 기억을 되찾았다. 남은 것은 배신자의 이름을 부르는 일뿐이다.',
+            ],
+        },
+    ],
+    milestones: {
+        31: ['30층의 벽을 넘자 공기가 달라진다. 조력자가 말한 “안전한 길”은 이곳 어디에도 보이지 않는다.'],
+        35: ['베이스캠프에서 들었던 농담과 같은 문장이 벽의 낡은 경고문에 새겨져 있다. 그는 이곳을 처음 보는 사람이 아니었다.'],
+        40: ['기억 속 누군가가 유물을 부수라고 외친다. 하지만 조력자는 늘 유물을 모으라고만 했다.'],
+        45: ['손바닥에 남은 오래된 상처가 지도의 붉은 표시와 겹친다. 당신은 이미 이 길을 한 번 올라갔었다.'],
+        50: ['중층의 끝에서 의심은 확신이 된다. 조력자의 설명은 너무 깔끔했고, 당신의 기억은 너무 피투성이였다.'],
+        51: ['심층의 첫 문이 열린다. 문에 새겨진 이름은 몬스터의 것이 아니라 조력자의 것이다.'],
+        55: ['유물 조각이 조력자의 목소리로 속삭인다. “조금만 더 모으면 된다.” 도움의 말이 아니라 조종의 명령이다.'],
+        60: ['심연의 보스가 쓰러진 자리에서 오래된 봉인문이 뜯겨 나간다. 당신이 이긴 것이 아니라, 누군가가 기다리던 문이 열린 것이다.'],
+        65: ['기억의 조각 속 조력자는 당신에게 칼을 겨누지 않았다. 그는 웃으며 당신의 무기를 등 뒤에서 부쉈다.'],
+        70: ['마굴의 심장은 당신이 들고 온 유물에 반응한다. 조력자는 당신을 전사로 만든 것이 아니라 운반책으로 만들었다.'],
+        75: ['베이스캠프의 불빛이 멀어질수록 거짓말은 선명해진다. 이제 돌아가도 그는 같은 미소로 다음 유물을 요구할 것이다.'],
+        80: ['심층의 마지막 봉인이 풀린다. 조력자가 원한 것은 당신의 생존이 아니라, 당신만 열 수 있는 문이었다.'],
+        81: ['꼭대기의 계단 앞에서 기억이 완전히 열린다. 당신은 패배자가 아니라 봉인을 지키던 마지막 수문장이었다.'],
+        85: ['등 뒤의 부서진 장비들이 하나의 형상을 이룬다. 그것들은 모두 원래 당신의 무기였고, 그가 산산조각 낸 증거였다.'],
+        90: ['바람 없는 통로에서 배신자의 이름이 울린다. 이제 그 이름은 공포가 아니라 목표다.'],
+        95: ['정상에 가까워질수록 몬스터들은 물러서지 않는다. 그들은 조력자를 지키는 것이 아니라, 풀려난 재앙을 두려워하고 있다.'],
+        99: ['마지막 문 앞에서 당신은 모든 선택을 다시 떠올린다. 이번에는 누가 무기를 고르게 만들었는지 알고 있다.'],
+        100: ['종착지의 문이 열린다. 베이스캠프의 조력자가 그 안에서 기다리고 있다. 더 이상 조력자라는 이름은 필요 없다.'],
+    },
+    relicClues: {
+        deep_truth: [
+            '유물 안쪽에 조력자의 봉인이 남아 있다. 그는 당신보다 먼저 이 유물들을 만졌고, 당신이 가져오기를 기다렸다.',
+            '기억의 조각이 유물에 비친다. 조력자는 “회복”이라는 말로 봉인 해제를 숨겼다.',
+            '유물은 당신을 강하게 만드는 동시에 꼭대기의 잠금을 푼다. 조력자는 두 결과를 모두 알고 있었다.',
+            '유물 속 목소리가 말한다. “모으지 마라.” 하지만 그 경고는 조력자의 주문에 눌려 아주 늦게 들려왔다.',
+        ],
+        summit_eve: [
+            '유물이 더 이상 조력자의 말을 흉내 내지 않는다. 이제 그것은 당신의 원래 사명을 기억하고 있다.',
+            '유물의 빛이 부서진 장비의 잔상을 비춘다. 당신은 처음부터 무기를 잃은 것이 아니라 빼앗긴 것이었다.',
+            '마지막 조각이 맞춰진다. 조력자가 원한 최종 열쇠는 유물이 아니라, 기억을 되찾은 당신 자신이다.',
+        ],
+        default: [
+            '유물이 차갑게 떨린다. 이 힘은 선물이 아니라 오래전에 당신이 봉인했던 경고다.',
+        ],
+    },
+    finalBossOpening: [
+        '100층. 종착지의 방 한가운데, 베이스캠프의 조력자가 익숙한 미소로 서 있다.',
+        '그는 당신이 모아 온 유물들을 바라보며 고개를 끄덕인다. “마침내 다 가져왔군.”',
+        '모든 기억이 완성된다. 그는 당신을 구한 자가 아니라, 당신을 배신하고 무기를 부순 뒤 기억을 봉인한 자였다.',
+        '조력자의 그림자가 거대한 형상으로 부풀어 오른다. 이제 마지막 전투가 시작된다.',
+    ],
 });
 
 /** 시작 시 동료 1명: 워리어/헌터/마법사 (고용 아이템 없음) — v6.6.3 기본 성장 상향 */
@@ -759,6 +1109,36 @@ const equipmentPool = [
  */
 const synergyRules = [
     {
+        id: 'syn_role_offense_blade',
+        name: '전투 공명',
+        fromTag: 'role_offense',
+        needCount: 2,
+        bonus: { atk: 18, crit: 4 },
+        effectDesc: '공격형 2개: 공격+18, 치명+4%',
+        detailDesc:
+            '공격형 장비가 동시에 2개 이상 장착되면 발동합니다. 무기·공격 반지·공격 룬 빌드의 화력을 끌어올립니다.',
+    },
+    {
+        id: 'syn_role_guard',
+        name: '수호 공명',
+        fromTag: 'role_defense',
+        needCount: 2,
+        bonus: { hp: 70, def: 10 },
+        effectDesc: '방어형 2개: 체력+70, 방어+10',
+        detailDesc:
+            '방어형 장비가 동시에 2개 이상 장착되면 발동합니다. 갑옷·방패·수호 룬 중심의 생존력을 보강합니다.',
+    },
+    {
+        id: 'syn_role_utility',
+        name: '풍요 공명',
+        fromTag: 'role_utility',
+        needCount: 2,
+        bonus: { hp: 35, critMult: 0.08 },
+        effectDesc: '유틸형 2개: 체력+35, 치명배율+8%',
+        detailDesc:
+            '유틸형 장비가 동시에 2개 이상 장착되면 발동합니다. 골드·흡혈·포션 보조 장비를 전투 가치로 이어 줍니다.',
+    },
+    {
         id: 'syn_common_echo',
         name: '잔향 공명',
         fromTag: 'rarity_common',
@@ -830,21 +1210,28 @@ function buildEquipmentStatParts(it) {
         if (typeof it.value === 'number' && it.value) parts.push(`공격(+${it.value})`);
         if (typeof it.hpBonus === 'number' && it.hpBonus) parts.push(`체력(+${it.hpBonus})`);
         if (typeof it.def === 'number' && it.def !== 0) parts.push(it.def > 0 ? `방어(+${it.def})` : `방어(${it.def})`);
+        if (typeof it.damageReduction === 'number') parts.push(`피해 감소(+${Math.round(it.damageReduction * 100)}%)`);
         if (typeof it.critBonus === 'number') parts.push(`치명(+${it.critBonus}%)`);
         if (typeof it.critMult === 'number') parts.push(`치명 배율(+${Math.round(it.critMult * 100)}%)`);
         if (typeof it.lifesteal === 'number') parts.push(`흡혈(${Math.round(it.lifesteal * 100)}%)`);
         if (typeof it.goldGainBonus === 'number') parts.push(`골드 획득(+${Math.round(it.goldGainBonus * 100)}%)`);
+        if (typeof it.potionHealBonus === 'number') parts.push(`포션 회복(+${Math.round(it.potionHealBonus * 100)}%)`);
         if (typeof it.fleeBonus === 'number') parts.push(`도주 완화(${Math.round(it.fleeBonus * 100)}%)`);
         return parts;
     }
     if ((it.type === 'atk' || it.type === 'ring') && typeof it.value === 'number') parts.push(`공격(+${it.value})`);
     if (it.type === 'hp' && typeof it.value === 'number') parts.push(`체력(+${it.value})`);
+    if (typeof it.hpBonus === 'number' && it.hpBonus) parts.push(`체력(+${it.hpBonus})`);
     if (typeof it.def === 'number' && it.def !== 0) {
         parts.push(it.def > 0 ? `방어(+${it.def})` : `방어(${it.def})`);
     }
+    if (typeof it.damageReduction === 'number') parts.push(`피해 감소(+${Math.round(it.damageReduction * 100)}%)`);
     if (typeof it.critBonus === 'number') parts.push(`치명(+${it.critBonus}%)`);
     if (typeof it.critMult === 'number') parts.push(`치명 배율(+${Math.round(it.critMult * 100)}%)`);
     if (typeof it.lifesteal === 'number') parts.push(`흡혈(${Math.round(it.lifesteal * 100)}%)`);
+    if (typeof it.goldGainBonus === 'number') parts.push(`골드 획득(+${Math.round(it.goldGainBonus * 100)}%)`);
+    if (typeof it.potionHealBonus === 'number') parts.push(`포션 회복(+${Math.round(it.potionHealBonus * 100)}%)`);
+    if (typeof it.fleeBonus === 'number') parts.push(`도주 완화(${Math.round(it.fleeBonus * 100)}%)`);
     if (typeof it.divinityGainBonus === 'number') parts.push(`신성 획득(+${Math.round(it.divinityGainBonus * 100)}%)`);
     return parts;
 }
@@ -882,11 +1269,291 @@ function rebuildEquipmentDesc(it, opts) {
 }
 
 function getRarityPowerMultiplier(rk) {
-    const key = String(rk || 'common').toLowerCase();
+    const key = normalizeRarityKey(rk);
     return (BALANCE.rarityPower && BALANCE.rarityPower[key]) || BALANCE.rarityPower.common;
 }
 
-/** 등급별 총 예산(pt): 일반 1x, 희귀 1.5x, 영웅 2.5x, 전설 4x */
+function normalizeRarityKey(rk) {
+    const key = String(rk || 'common').toLowerCase();
+    if (key === 'legend') return 'legendary';
+    if (key === 'rare' || key === 'epic' || key === 'legendary') return key;
+    return 'common';
+}
+
+function getRarityBaseGoldPrice(rk) {
+    const key = normalizeRarityKey(rk);
+    return getShopPriceForRarity(key, 1);
+}
+
+function normalizeBalanceFloor(floorRef, fallback) {
+    const raw = floorRef == null ? fallback : floorRef;
+    const n = Number(raw);
+    if (Number.isFinite(n) && n > 0) return Math.floor(n);
+    const fb = Number(fallback);
+    if (Number.isFinite(fb) && fb > 0) return Math.floor(fb);
+    return 1;
+}
+
+function getFloorGrowthStep() {
+    const cfg = BALANCE.floorGrowth || {};
+    return {
+        atk: Math.max(0, Math.floor(_safeNumForPrice(cfg.atkPerFloor, 1))),
+        hp: Math.max(0, Math.floor(_safeNumForPrice(cfg.hpPerFloor, 5))),
+    };
+}
+
+function normalizeFloorGrowth(raw) {
+    const out = raw && typeof raw === 'object' ? raw : {};
+    const floors = Math.max(0, Math.floor(Number(out.floors) || 0));
+    const atk = Math.max(0, Math.floor(Number(out.atk) || 0));
+    const hp = Math.max(0, Math.floor(Number(out.hp) || 0));
+    return { floors, atk, hp };
+}
+
+function computeFloorGrowthForClears(clearCount) {
+    const floors = Math.max(0, Math.floor(Number(clearCount) || 0));
+    const step = getFloorGrowthStep();
+    return {
+        floors,
+        atk: floors * step.atk,
+        hp: floors * step.hp,
+    };
+}
+
+function getTacticalSkillDef(skillKey) {
+    const key = String(skillKey || '').trim();
+    return key ? tacticalSkillChoices[key] || null : null;
+}
+
+function getTacticalSkillMilestoneForFloor(floorRef) {
+    const f = normalizeBalanceFloor(floorRef, 1);
+    return tacticalSkillMilestones.find((m) => m && m.floor === f) || null;
+}
+
+function createDefaultPlayerState() {
+    const d = storyData && storyData.playerStateDefaults ? storyData.playerStateDefaults : {};
+    return {
+        corruption: Math.max(0, Math.floor(Number(d.corruption) || 0)),
+        purification: Math.max(0, Math.floor(Number(d.purification) || 0)),
+    };
+}
+
+function normalizePlayerState(raw) {
+    const src = raw && typeof raw === 'object' ? raw : {};
+    return {
+        corruption: Math.max(0, Math.floor(Number(src.corruption) || 0)),
+        purification: Math.max(0, Math.floor(Number(src.purification) || 0)),
+    };
+}
+
+function getStoryRouteKey(playerStateRef) {
+    const st = normalizePlayerState(playerStateRef);
+    if (st.corruption > st.purification) return 'corruption';
+    if (st.purification > st.corruption) return 'purification';
+    return 'neutral';
+}
+
+function getStoryEndingKey(playerStateRef) {
+    return getStoryRouteKey(playerStateRef) === 'purification' ? 'hero' : 'demonKing';
+}
+
+function getStoryTitleForState(playerStateRef, floorRef) {
+    const f = normalizeBalanceFloor(floorRef, 1);
+    const route = getStoryRouteKey(playerStateRef);
+    if (f >= 31 && f < 100) {
+        return (storyData.routeTitles && storyData.routeTitles[route]) || null;
+    }
+    if (f >= 100) {
+        const endingKey = getStoryEndingKey(playerStateRef);
+        return (storyData.endingTitles && storyData.endingTitles[endingKey]) || null;
+    }
+    return null;
+}
+
+function getStoryChoiceImpact(choiceKey) {
+    const key = String(choiceKey || '').trim();
+    if (!key || !storyData.choiceImpacts || !storyData.choiceImpacts[key]) return null;
+    const raw = storyData.choiceImpacts[key];
+    return Object.freeze({
+        corruption: Math.max(0, Math.floor(Number(raw.corruption) || 0)),
+        purification: Math.max(0, Math.floor(Number(raw.purification) || 0)),
+        label: raw.label || key,
+    });
+}
+
+function getRouteMilestoneFloor(floorRef) {
+    const f = normalizeBalanceFloor(floorRef, 1);
+    const milestones = Array.isArray(storyData.routeMilestones) ? storyData.routeMilestones : [];
+    if (milestones.includes(f)) return f;
+    return null;
+}
+
+function getStoryMilestoneDef(floorRef, playerStateRef) {
+    const f = normalizeBalanceFloor(floorRef, 1);
+    if (storyData.milestones && storyData.milestones[f]) {
+        const def = storyData.milestones[f];
+        return {
+            key: def.key || `common:${f}`,
+            route: 'common',
+            title: def.title || `${f}층 기억`,
+            trigger: def.trigger || null,
+            lines: Array.isArray(def.lines) ? Array.from(def.lines) : [],
+            titleOverride: null,
+        };
+    }
+    if (f >= 31 && f <= 80) {
+        const route = getStoryRouteKey(playerStateRef);
+        const milestoneFloor = getRouteMilestoneFloor(f);
+        if (!milestoneFloor) return null;
+        const routeData = storyData.routes && storyData.routes[route] ? storyData.routes[route] : storyData.routes.neutral;
+        const lines =
+            routeData && routeData.milestones && routeData.milestones[milestoneFloor]
+                ? Array.from(routeData.milestones[milestoneFloor])
+                : [];
+        if (!lines.length) return null;
+        return {
+            key: `${route}:${milestoneFloor}`,
+            route,
+            title: routeData.title ? `${milestoneFloor}층 · ${routeData.title}` : `${milestoneFloor}층 갈림길`,
+            trigger: 'route_monologue',
+            lines,
+            titleOverride: routeData.title || null,
+        };
+    }
+    if (f === 100) {
+        const endingKey = getStoryEndingKey(playerStateRef);
+        const ending = storyData.endings && storyData.endings[endingKey] ? storyData.endings[endingKey] : null;
+        if (!ending) return null;
+        return {
+            key: ending.key || `ending:${endingKey}`,
+            route: endingKey,
+            title: ending.title || '최종 대면',
+            trigger: 'ending_branch',
+            lines: Array.isArray(ending.lines) ? Array.from(ending.lines) : [],
+            titleOverride: (storyData.endingTitles && storyData.endingTitles[endingKey]) || null,
+            battleTitle: ending.battleTitle || null,
+        };
+    }
+    return null;
+}
+
+function getShopPriceForRarity(rk, floorRef) {
+    const key = normalizeRarityKey(rk);
+    const f = normalizeBalanceFloor(floorRef, 1);
+    const table = BALANCE.shopPriceByRarity || {};
+    const spec = table[key] || table.common || { base: 40, floorStep: 2 };
+    const base = _safeNumForPrice(spec.base, 40);
+    const step = _safeNumForPrice(spec.floorStep, 2);
+    return Math.max(1, Math.floor(base + f * step));
+}
+
+function clampShopPriceToRarityOrder(rk, price, floorRef) {
+    const order = ['common', 'rare', 'epic', 'legendary'];
+    const key = normalizeRarityKey(rk);
+    const idx = order.indexOf(key);
+    if (idx < 0) return Math.max(1, Math.floor(_safeNumForPrice(price, 1)));
+    const f = normalizeBalanceFloor(floorRef, 1);
+    let out = Math.max(1, Math.floor(_safeNumForPrice(price, getShopPriceForRarity(key, f))));
+    if (idx > 0) {
+        const lowerTierPrice = getShopPriceForRarity(order[idx - 1], f);
+        out = Math.max(out, lowerTierPrice + 1);
+    }
+    if (idx < order.length - 1) {
+        const upperTierPrice = getShopPriceForRarity(order[idx + 1], f);
+        out = Math.min(out, upperTierPrice - 1);
+    }
+    return Math.max(1, out);
+}
+
+function getPriceFloorReference(it, explicitFloorRef) {
+    if (explicitFloorRef && typeof explicitFloorRef === 'object') {
+        const candidates = [
+            explicitFloorRef.shopFloor,
+            explicitFloorRef.priceFloor,
+            explicitFloorRef.currentFloor,
+            explicitFloorRef.floor,
+        ];
+        for (const raw of candidates) {
+            const n = Number(raw);
+            if (Number.isFinite(n) && n > 0) return Math.floor(n);
+        }
+    } else {
+        const n = Number(explicitFloorRef);
+        if (Number.isFinite(n) && n > 0) return Math.floor(n);
+    }
+    return getEquipmentFloorReference(it);
+}
+
+function computeFloorGoldReward(floorRef, opts) {
+    const cfg = BALANCE.goldReward || {};
+    const f = normalizeBalanceFloor(floorRef, 1);
+    const minBase = Math.floor(_safeNumForPrice(cfg.normalBaseMin, 6));
+    const maxBase = Math.max(minBase, Math.floor(_safeNumForPrice(cfg.normalBaseMax, 10)));
+    const spread = maxBase - minBase + 1;
+    const rolledBase = minBase + Math.floor(Math.random() * spread);
+    const floorStep = _safeNumForPrice(cfg.floorStep, 3);
+    const normalMin = _safeNumForPrice(cfg.normalMin, 15);
+    const normalMultiplier = _safeNumForPrice(cfg.normalMultiplier, 1);
+    let gain = Math.max(normalMin, rolledBase + f * floorStep) * normalMultiplier;
+    if (opts && opts.isBoss) {
+        gain = gain * _safeNumForPrice(cfg.bossMultiplier, 2.4)
+            + _safeNumForPrice(cfg.bossFlatBonus, 20)
+            + f * _safeNumForPrice(cfg.bossFloorBonus, 2);
+    }
+    if (opts && Number.isFinite(Number(opts.multiplier))) {
+        gain *= Number(opts.multiplier);
+    }
+    return Math.max(1, Math.floor(gain));
+}
+
+function getEquipmentFloorReference(it) {
+    if (!it) return 1;
+    const candidates = [it.unlockFloor, it.floorUnlock, it.requiredFloor, it.minFloor, it.floor];
+    for (const raw of candidates) {
+        const n = Number(raw);
+        if (Number.isFinite(n) && n > 0) return Math.floor(n);
+    }
+    return 1;
+}
+
+function getEquipmentFloorWeight(it) {
+    const floorRef = getEquipmentFloorReference(it);
+    const step = _safeNumForPrice(BALANCE.equipmentFloorWeightStep, 0.005);
+    const cap = _safeNumForPrice(BALANCE.equipmentFloorWeightCap, 1.45);
+    const raw = 1 + Math.max(0, floorRef - 1) * step;
+    return Math.min(cap, Math.max(1, raw));
+}
+
+function getEquipmentPowerScale(it) {
+    return getRarityPowerMultiplier(it && it.rarity) * getEquipmentFloorWeight(it);
+}
+
+function buildStableEquipmentEffectId(it) {
+    const raw = `${String((it && it.name) || 'legendary').trim()}|${String((it && it.type) || 'gear')}`;
+    let h = 2166136261;
+    for (let i = 0; i < raw.length; i++) {
+        h ^= raw.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+    }
+    return `legendary_${(h >>> 0).toString(36)}`;
+}
+
+function ensureLegendaryUniqueEffectPlaceholder(it) {
+    if (!it || normalizeRarityKey(it.rarity) !== 'legendary' || it.type === 'rune' || it.type === 'relic') {
+        if (it && normalizeRarityKey(it.rarity) !== 'legendary') {
+            delete it.uniqueEffectId;
+            delete it.effectDescription;
+        }
+        return it;
+    }
+    if (!it.uniqueEffectId) it.uniqueEffectId = buildStableEquipmentEffectId(it);
+    if (!it.effectDescription) {
+        it.effectDescription = '전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다.';
+    }
+    return it;
+}
+
+/** 등급별 총 예산(pt): 일반 1x, 희귀 1.5x, 영웅 2.5x, 전설 4.5x */
 const BASE_EQUIPMENT_BUDGET = 48;
 const BUDGET_BY_RARITY = {
     common: Math.round(BASE_EQUIPMENT_BUDGET * getRarityPowerMultiplier('common')),
@@ -1292,31 +1959,341 @@ function _safeNumForPrice(v, fb) {
     return Number.isFinite(n) ? n : fb;
 }
 
-/**
- * 스탯 총합(STAT_COST_X100) + 희귀도 계수로 골드 가격 산출 — 상점·해금·드랍 공통.
- */
-function computeEquipmentGoldPrice(it) {
-    if (!it || it.type === 'relic') return _safeNumForPrice(it && it.price, 0);
-    if (it.type === 'rune') {
-        const rk = String(it.rarity || 'common').toLowerCase();
-        const fixed = { common: 300, rare: 800, epic: 1500, legendary: 3000, legend: 3000 };
-        return fixed[rk] ?? 300;
+function _roundScaledStat(v, minValue) {
+    const min = minValue == null ? 0 : minValue;
+    return Math.max(min, Math.round(Number.isFinite(v) ? v : 0));
+}
+
+function _fixedDecimals(v, digits) {
+    const n = Number(v);
+    return Number((Number.isFinite(n) ? n : 0).toFixed(digits));
+}
+
+function _hasOwnStat(it, key) {
+    return !!it && Object.prototype.hasOwnProperty.call(it, key);
+}
+
+const EQUIPMENT_ROLE_LABELS = Object.freeze({
+    offense: '공격형',
+    defense: '방어형',
+    utility: '유틸형',
+});
+
+const EQUIPMENT_ROLE_TAGS = Object.freeze({
+    offense: ['role_offense', 'synergy_blade'],
+    defense: ['role_defense', 'synergy_guard'],
+    utility: ['role_utility', 'synergy_utility'],
+});
+
+const LEGACY_CONCEPT_TAGS = new Set(['blade', 'heavy', 'precision', 'arcane', 'blood']);
+
+function getEquipmentRoleLabel(role) {
+    return EQUIPMENT_ROLE_LABELS[role] || EQUIPMENT_ROLE_LABELS.offense;
+}
+
+function detectEquipmentRole(it) {
+    if (!it) return 'offense';
+    const explicit = String(it.itemRole || it.equipmentRole || '').toLowerCase();
+    if (explicit === 'offense' || explicit === 'defense' || explicit === 'utility') return explicit;
+    const n = String(it.name || '');
+    const t = String(it.type || '');
+    const weaponRx =
+        /검|도끼|창|활|화살|단검|너클|철퇴|지팡이|보주|시위|석궁|쇠뇌|표창|비수|독침|대검|양날검|마력봉|주문봉|파열|파멸|폭풍|번개|천둥|화염|냉기|얼음|심연|혼돈|전쟁|광전|분노|전사의|전장|맹렬|처형|암살|급소|저격|추적|조준|눈|렌즈|망원경/;
+    const defenseRx =
+        /갑옷|갑주|흉갑|갑옷|방패|방어|수호|성역|철벽|요새|불멸|판금|비늘|짚신|장화|부츠|로브|망토|가죽|외피|장갑|투구|각반|벨트|버클|붕대|갑피|철판|대지|암석|바위|심장|성배|성기사|세계수|결계|수호진/;
+    const utilityRx =
+        /풍요|도둑|황금|행운|상인|매매|거래|동전|보물|회복|포션|치유|허브|흡혈|피의|피\b|혈|뱀파이어|생명|에센스|계약|맹세|도피|이탈|공허|바람의 은빛|도주|탈출|재생/;
+    if (t === 'rune') {
+        if (/방어|수호|대지|심장|결계|방패|철벽/.test(n)) return 'defense';
+        if (/공격|파열|불꽃|번개|심연|화염|냉기|폭풍/.test(n)) return 'offense';
+        return 'utility';
     }
-    const C = STAT_COST_X100;
-    let pt = 0;
-    if (it.type === 'hp') pt += C.hp * Math.max(0, _safeNumForPrice(it.value, 0));
-    else if (it.type === 'atk' || it.type === 'ring') pt += C.atk * Math.max(0, _safeNumForPrice(it.value, 0));
-    pt += C.def * Math.max(0, _safeNumForPrice(it.def, 0));
-    pt += C.crit * Math.max(0, _safeNumForPrice(it.critBonus, 0));
-    pt += C.cm * Math.max(0, _safeNumForPrice(it.critMult, 0) * 100);
-    pt += C.ls * Math.max(0, _safeNumForPrice(it.lifesteal, 0) * 100);
-    const rk = String(it.rarity || 'common').toLowerCase();
-    const tier = { common: 1, rare: 1.1, epic: 1.26, legendary: 1.42, legend: 1.42 }[rk] || 1;
-    const prayer = _safeNumForPrice(it.prayerBonus, 0) * 400;
-    const div = _safeNumForPrice(it.divinityGainBonus, 0) * 5200;
-    const regen = it.regenPotion ? 1600 : 0;
-    const base = 14 + (pt / 100) * 0.34 * tier + prayer + div + regen;
-    return Math.max(8, Math.floor(base));
+    const hasWeaponConcept = weaponRx.test(n);
+    const hasDefenseConcept = defenseRx.test(n);
+    const hasUtilityConcept = utilityRx.test(n);
+    if (t === 'hp') {
+        if (hasUtilityConcept && /회복|포션|치유|허브|흡혈|피의|피\b|혈|뱀파이어|생명|에센스|계약|맹세|재생|세계수/.test(n)) {
+            return 'utility';
+        }
+        return 'defense';
+    }
+    if (t === 'ring') {
+        if (hasUtilityConcept) return 'utility';
+        if (hasDefenseConcept) return 'defense';
+        return 'offense';
+    }
+    if (t === 'atk') {
+        if (hasUtilityConcept && !hasWeaponConcept) return 'utility';
+        return 'offense';
+    }
+    if (hasUtilityConcept) return 'utility';
+    if (hasDefenseConcept) return 'defense';
+    if (hasWeaponConcept) return 'offense';
+    return 'offense';
+}
+
+function normalizeEquipmentTagsForRole(it, role) {
+    if (!it) return;
+    const rk = normalizeRarityKey(it.rarity);
+    const base = Array.isArray(it.tags) ? it.tags : [];
+    const kept = base
+        .map((t) => String(t || '').trim())
+        .filter((t) => {
+            if (!t) return false;
+            if (LEGACY_CONCEPT_TAGS.has(t)) return false;
+            if (/^role_/i.test(t) || /^synergy_/i.test(t)) return false;
+            if (/^rarity_/i.test(t) || /^type_/i.test(t)) return false;
+            return true;
+        });
+    it.tags = Array.from(
+        new Set([
+            ...kept,
+            `rarity_${rk}`,
+            `type_${String(it.type || 'gear')}`,
+            ...(EQUIPMENT_ROLE_TAGS[role] || EQUIPMENT_ROLE_TAGS.offense),
+        ])
+    );
+    it.itemRole = role;
+    it.itemRoleLabel = getEquipmentRoleLabel(role);
+}
+
+function clearEquipmentGeneratedStats(it) {
+    [
+        'value',
+        'hpBonus',
+        'def',
+        'critBonus',
+        'critMult',
+        'lifesteal',
+        'goldGainBonus',
+        'fleeBonus',
+        'damageReduction',
+        'potionHealBonus',
+        'divinityGainBonus',
+        'prayerBonus',
+        'regenPotion',
+        'penalty',
+    ].forEach((key) => {
+        delete it[key];
+    });
+}
+
+function stripStatsOutsideRole(it, role) {
+    if (!it) return it;
+    const r = role || detectEquipmentRole(it);
+    if (r === 'offense') {
+        delete it.hpBonus;
+        delete it.def;
+        delete it.damageReduction;
+        delete it.lifesteal;
+        delete it.goldGainBonus;
+        delete it.fleeBonus;
+        delete it.potionHealBonus;
+        delete it.divinityGainBonus;
+        delete it.prayerBonus;
+        delete it.regenPotion;
+        if (it.type === 'hp') delete it.value;
+    } else if (r === 'defense') {
+        if (it.type !== 'hp') delete it.value;
+        delete it.critBonus;
+        delete it.critMult;
+        delete it.lifesteal;
+        delete it.goldGainBonus;
+        delete it.fleeBonus;
+        delete it.potionHealBonus;
+        delete it.divinityGainBonus;
+        delete it.prayerBonus;
+        delete it.regenPotion;
+        delete it.penalty;
+    } else {
+        delete it.value;
+        delete it.hpBonus;
+        delete it.def;
+        delete it.damageReduction;
+        delete it.critBonus;
+        delete it.critMult;
+        delete it.divinityGainBonus;
+        delete it.prayerBonus;
+        delete it.penalty;
+    }
+    return it;
+}
+
+function getEquipmentQualityMultiplier(it, rnd) {
+    const roll = typeof rnd === 'function' ? rnd() : 0.5;
+    const name = String((it && it.name) || '');
+    let q = 0.74 + roll * 0.68;
+    if (/명품|왕|제국|전설|영광|천공|태양|세계수|불멸|심연|파멸|용왕|전쟁신/.test(name)) q += 0.14;
+    if (/낡은|녹슨|부서진|조각난|작은|마른|짚신|유리|끈|못|파편/.test(name)) q -= 0.14;
+    return Math.max(0.62, Math.min(1.55, q));
+}
+
+function getRoleScale(it, rnd) {
+    return getRarityPowerMultiplier(it && it.rarity) * getEquipmentFloorWeight(it) * getEquipmentQualityMultiplier(it, rnd);
+}
+
+function assignOffenseStats(it, scale, rnd) {
+    const rk = normalizeRarityKey(it.rarity);
+    const name = String(it.name || '');
+    const mainBase = it.type === 'ring' ? 9 : it.type === 'rune' ? 8 : 13;
+    it.value = _roundScaledStat(mainBase * scale * (0.88 + rnd() * 0.24), 1);
+    const wantsCrit = /치명|급소|암살|약점|눈|렌즈|망원경|독수리|표식|조준|예리|날카|심연|그림자|처형/.test(name);
+    const wantsCritMult = /마도|폭풍|천공|별|번개|천둥|혼돈|보주|지팡이|파멸|마력|각성|심판|왕관/.test(name);
+    if (rk !== 'common' || wantsCrit || rnd() > 0.42) {
+        it.critBonus = _roundScaledStat((rk === 'legendary' ? 3.4 : rk === 'epic' ? 2.5 : rk === 'rare' ? 1.55 : 0.85) * scale, 1);
+    }
+    if (rk === 'legendary' || rk === 'epic' || wantsCritMult || rnd() > 0.55) {
+        it.critMult = _fixedDecimals((rk === 'legendary' ? 0.028 : rk === 'epic' ? 0.022 : 0.015) * scale, 2);
+    }
+}
+
+function assignDefenseStats(it, scale, rnd) {
+    const rk = normalizeRarityKey(it.rarity);
+    const hp = _roundScaledStat(54 * scale * (0.9 + rnd() * 0.24), 1);
+    if (it.type === 'hp') it.value = hp;
+    else it.hpBonus = hp;
+    it.def = _roundScaledStat(7.5 * scale * (0.82 + rnd() * 0.36), 1);
+    const reductionBase = rk === 'legendary' ? 0.024 : rk === 'epic' ? 0.019 : rk === 'rare' ? 0.014 : 0.009;
+    it.damageReduction = _fixedDecimals(Math.min(0.18, Math.max(0.01, reductionBase * scale)), 3);
+}
+
+function assignUtilityStats(it, scale, rnd) {
+    const rk = normalizeRarityKey(it.rarity);
+    const name = String(it.name || '');
+    const wantsGold = /풍요|황금|행운|도둑|상인|매매|거래|동전|보물|유산|잔광/.test(name);
+    const wantsLifesteal = /흡혈|피의|피\b|혈|뱀파이어|에센스|계약|맹세|생명|심장/.test(name);
+    const wantsPotion = /회복|포션|치유|허브|세계수|재생|불사조/.test(name);
+    const wantsFlee = /도피|이탈|공허|바람|도주|탈출/.test(name);
+    const picks = [];
+    if (wantsGold) picks.push('gold');
+    if (wantsLifesteal) picks.push('lifesteal');
+    if (wantsPotion) picks.push('potion');
+    if (wantsFlee) picks.push('flee');
+    if (!picks.length) {
+        const order = ['gold', 'lifesteal', 'potion', 'flee'];
+        picks.push(order[Math.floor(rnd() * order.length)]);
+    }
+    if ((rk === 'epic' || rk === 'legendary') && picks.length < 2) {
+        const extra = ['gold', 'lifesteal', 'potion', 'flee'].find((x) => !picks.includes(x));
+        if (extra) picks.push(extra);
+    }
+    if (rk === 'legendary' && picks.length < 3) {
+        const extra = ['gold', 'lifesteal', 'potion', 'flee'].find((x) => !picks.includes(x));
+        if (extra) picks.push(extra);
+    }
+    const mult = 0.8 + rnd() * 0.32;
+    if (picks.includes('gold')) {
+        it.goldGainBonus = _fixedDecimals(Math.min(0.35, Math.max(0.025, 0.018 * scale * mult)), 3);
+    }
+    if (picks.includes('lifesteal')) {
+        it.lifesteal = _fixedDecimals(Math.min(0.3, Math.max(0.025, 0.016 * scale * mult)), 3);
+    }
+    if (picks.includes('potion')) {
+        it.potionHealBonus = _fixedDecimals(Math.min(0.45, Math.max(0.08, 0.03 * scale * mult)), 3);
+    }
+    if (picks.includes('flee')) {
+        it.fleeBonus = _fixedDecimals(Math.min(0.3, Math.max(0.05, 0.02 * scale * mult)), 3);
+    }
+}
+
+function applyRoleBoundStatsToEquipmentItem(it) {
+    const role = detectEquipmentRole(it);
+    const seed = _budgetHashSeed(`${String(it.name || '')}|${String(it.type || '')}|${normalizeRarityKey(it.rarity)}|${getEquipmentFloorReference(it)}|role`);
+    const rnd = _budgetMulberry32(seed);
+    clearEquipmentGeneratedStats(it);
+    const scale = getRoleScale(it, rnd);
+    if (role === 'defense') assignDefenseStats(it, scale, rnd);
+    else if (role === 'utility') assignUtilityStats(it, scale, rnd);
+    else assignOffenseStats(it, scale, rnd);
+    normalizeEquipmentTagsForRole(it, role);
+    stripStatsOutsideRole(it, role);
+    return it;
+}
+
+function computeEquipmentStatValueScore(it) {
+    if (!it) return 0;
+    const hpValue = (it.type === 'hp' ? safeNumberForStatScore(it.value) : 0) + safeNumberForStatScore(it.hpBonus);
+    const atkValue = (it.type === 'atk' || it.type === 'ring' || it.type === 'rune') ? safeNumberForStatScore(it.value) : 0;
+    return (
+        atkValue * 1.55 +
+        hpValue * 0.23 +
+        Math.max(0, safeNumberForStatScore(it.def)) * 2.4 +
+        Math.max(0, safeNumberForStatScore(it.critBonus)) * 4.8 +
+        Math.max(0, safeNumberForStatScore(it.critMult)) * 100 * 2.8 +
+        Math.max(0, safeNumberForStatScore(it.damageReduction)) * 100 * 6.8 +
+        Math.max(0, safeNumberForStatScore(it.lifesteal)) * 100 * 4.5 +
+        Math.max(0, safeNumberForStatScore(it.goldGainBonus)) * 100 * 3.7 +
+        Math.max(0, safeNumberForStatScore(it.potionHealBonus)) * 100 * 2.8 +
+        Math.max(0, safeNumberForStatScore(it.fleeBonus)) * 100 * 1.8
+    );
+}
+
+function safeNumberForStatScore(v) {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+}
+
+function _ensureMinPercentStat(it, key, minValue, digits) {
+    if (!it) return;
+    const cur = Number(it[key]);
+    const safe = Number.isFinite(cur) ? cur : 0;
+    it[key] = _fixedDecimals(Math.max(safe, minValue), digits);
+}
+
+function _ensureMinFlatStat(it, key, minValue) {
+    if (!it) return;
+    const cur = Number(it[key]);
+    const safe = Number.isFinite(cur) ? cur : 0;
+    it[key] = Math.max(Math.floor(safe), minValue);
+}
+
+function applyHighRarityMeritStats(it) {
+    if (!it || it.type === 'relic' || it.type === 'merc') return it;
+    const rk = normalizeRarityKey(it.rarity);
+    if (rk !== 'epic' && rk !== 'legendary') return it;
+    const isLegendary = rk === 'legendary';
+    const role = detectEquipmentRole(it);
+    if (role === 'offense') {
+        _ensureMinFlatStat(it, 'critBonus', isLegendary ? 16 : 10);
+        if (isLegendary) _ensureMinPercentStat(it, 'critMult', 0.22, 2);
+    } else if (role === 'defense') {
+        _ensureMinPercentStat(it, 'damageReduction', isLegendary ? 0.1 : 0.055, 3);
+    } else {
+        if (!it.goldGainBonus && !it.lifesteal && !it.potionHealBonus && !it.fleeBonus) {
+            it.goldGainBonus = isLegendary ? 0.22 : 0.14;
+        }
+    }
+    stripStatsOutsideRole(it, role);
+    return it;
+}
+
+/**
+ * 공식 가격: 등급별 기준가 + 현재 층수 계수.
+ * 등급 간 가격 역전을 막기 위해 하위 등급은 상위 등급 가격 미만으로 클램프한다.
+ */
+function computeEquipmentGoldPrice(it, explicitFloorRef) {
+    if (!it) return 0;
+    const key = normalizeRarityKey(it.rarity);
+    const priceFloor = getPriceFloorReference(it, explicitFloorRef);
+    const basePrice = getShopPriceForRarity(key, priceFloor);
+    const statScore = computeEquipmentStatValueScore(it);
+    const baselineScore = {
+        common: 10,
+        rare: 42,
+        epic: 85,
+        legendary: 170,
+    }[key] || 10;
+    const rarityCoeff = {
+        common: 3,
+        rare: 2,
+        epic: 1.2,
+        legendary: 0.72,
+    }[key] || 3;
+    const floorCoeff = rarityCoeff + Math.min(1.4, Math.max(1, priceFloor) * 0.035);
+    const rolePremium = it.itemRole === 'utility' ? 1.08 : it.itemRole === 'defense' ? 1.03 : 1;
+    const premiumScore = Math.max(0, statScore - baselineScore);
+    const rawPrice = basePrice + Math.round((premiumScore * floorCoeff + statScore * 0.22) * rolePremium);
+    return clampShopPriceToRarityOrder(key, rawPrice, priceFloor);
 }
 
 function _jitterWeights(base, rnd) {
@@ -1506,27 +2483,17 @@ function _allocateBudgetToStats(Bx, ch, rnd, rarityKey, it) {
 }
 
 /**
- * 비유물 장비: 데이터 수치 통과 + 클램프·가격·설명 갱신. (무기/반지=공격·유틸, 갑옷=체력·방어 테이블 유지)
- * 룬은 등급 고정가. 유물·relic 등급 제외.
+ * 비유물 장비 공식화:
+ * 기본 수치 × 등급 배율 × 층 가중치로 무기·방어구·반지를 전부 재계산한다.
  */
 function applyOfficialStatsToEquipmentItem(it, opts) {
     if (!it) return it;
     const o = opts || {};
     if (it.type === 'relic' || String(it.rarity || '').toLowerCase() === 'relic') return it;
-
-    if (it.tags && it.tags.includes('synergy_priest')) {
-        clampEquipmentItemStatsToRarityCaps(it);
-        it.price = computeEquipmentGoldPrice(it);
-        if (o.rebuildDesc !== false) rebuildEquipmentDesc(it, o);
-        return it;
-    }
-
-    /** 통과형: 무기·반지=공격 계열, 갑옷=체력·방어 계열로 데이터 수치 유지(랜덤 재배분 없음). */
-    if (it.type === 'rune') {
-        it.price = computeEquipmentGoldPrice(it);
-        it._officialStatApplied = true;
-        if (o.rebuildDesc !== false) rebuildEquipmentDesc(it, o);
-        return it;
+    if (!['atk', 'hp', 'ring', 'rune'].includes(String(it.type || ''))) return it;
+    if (o.floorUnlockKey != null) {
+        const floorRef = Number(o.floorUnlockKey);
+        if (Number.isFinite(floorRef) && floorRef > 0) it.unlockFloor = Math.floor(floorRef);
     }
 
     delete it.itemConceptKey;
@@ -1534,33 +2501,58 @@ function applyOfficialStatsToEquipmentItem(it, opts) {
     delete it._itemConceptLabelKo;
     delete it._keywordThemeLabelKo;
 
+    applyRoleBoundStatsToEquipmentItem(it);
+    applyHighRarityMeritStats(it);
     it._officialStatApplied = true;
     clampEquipmentItemStatsToRarityCaps(it);
-    if (o.forgeRecipe) {
-        it.price = 0;
-    } else {
-        it.price = computeEquipmentGoldPrice(it);
-    }
+    ensureLegendaryUniqueEffectPlaceholder(it);
+    it.price = computeEquipmentGoldPrice(
+        it,
+        o.floorUnlockKey != null ? { priceFloor: Number(o.floorUnlockKey) } : undefined,
+    );
     if (o.rebuildDesc !== false) rebuildEquipmentDesc(it, o);
     return it;
 }
 
 /** 저장 데이터·구버전 보정: 등급 상한으로 장비 수치 클램프 후 설명 갱신 */
 function clampEquipmentItemStatsToRarityCaps(it) {
-    if (!it || it.type === 'relic' || it.type === 'merc' || it.type === 'rune') return it;
-    const rk = String(it.rarity || 'common').toLowerCase();
+    if (!it || it.type === 'relic' || it.type === 'merc') return it;
+    if (!['atk', 'hp', 'ring', 'rune'].includes(String(it.type || ''))) return it;
+    const role = detectEquipmentRole(it);
+    stripStatsOutsideRole(it, role);
+    normalizeEquipmentTagsForRole(it, role);
+    const rk = normalizeRarityKey(it.rarity);
     const M = _statMaxForRarity(rk);
     if (typeof it.value === 'number') {
         if (it.type === 'hp') it.value = Math.max(1, Math.min(M.hp, it.value));
         else if (it.type === 'atk' || it.type === 'ring') it.value = Math.max(1, Math.min(M.atk, it.value));
+        else if (it.type === 'rune') it.value = Math.max(1, Math.min(M.atk, it.value));
+    }
+    if (typeof it.hpBonus === 'number') {
+        it.hpBonus = Math.max(1, Math.min(M.hp, it.hpBonus));
     }
     if (typeof it.def === 'number') {
-        const negCap = rk === 'legendary' || rk === 'legend' ? -22 : -16;
-        it.def = Math.min(M.def, Math.max(negCap, it.def));
+        it.def = Math.min(M.def, Math.max(0, it.def));
     }
     if (typeof it.critBonus === 'number') it.critBonus = Math.min(M.crit, Math.max(0, it.critBonus));
     if (typeof it.critMult === 'number') it.critMult = Math.min(M.cm / 100, Math.max(0, it.critMult));
     if (typeof it.lifesteal === 'number') it.lifesteal = Math.min(M.ls / 100, Math.max(0, it.lifesteal));
+    if (typeof it.damageReduction === 'number') {
+        const reductionCap = rk === 'legendary' ? 0.2 : rk === 'epic' ? 0.13 : rk === 'rare' ? 0.075 : 0.04;
+        it.damageReduction = Math.min(reductionCap, Math.max(0, it.damageReduction));
+    }
+    if (typeof it.goldGainBonus === 'number') {
+        const goldCap = rk === 'legendary' ? 0.35 : rk === 'epic' ? 0.22 : rk === 'rare' ? 0.08 : 0.04;
+        it.goldGainBonus = Math.min(goldCap, Math.max(0, it.goldGainBonus));
+    }
+    if (typeof it.potionHealBonus === 'number') {
+        const potionCap = rk === 'legendary' ? 0.5 : rk === 'epic' ? 0.32 : rk === 'rare' ? 0.2 : 0.12;
+        it.potionHealBonus = Math.min(potionCap, Math.max(0, it.potionHealBonus));
+    }
+    if (typeof it.fleeBonus === 'number') {
+        const fleeCap = rk === 'legendary' ? 0.3 : rk === 'epic' ? 0.18 : rk === 'rare' ? 0.12 : 0.07;
+        it.fleeBonus = Math.min(fleeCap, Math.max(0, it.fleeBonus));
+    }
     return it;
 }
 
@@ -1568,6 +2560,22 @@ if (typeof window !== 'undefined') {
     window.applyOfficialStatsToEquipmentItem = applyOfficialStatsToEquipmentItem;
     window.clampEquipmentItemStatsToRarityCaps = clampEquipmentItemStatsToRarityCaps;
     window.computeEquipmentGoldPrice = computeEquipmentGoldPrice;
+    window.computeFloorGoldReward = computeFloorGoldReward;
+    window.normalizeFloorGrowth = normalizeFloorGrowth;
+    window.computeFloorGrowthForClears = computeFloorGrowthForClears;
+    window.getFloorGrowthStep = getFloorGrowthStep;
+    window.tacticalSkillChoices = tacticalSkillChoices;
+    window.tacticalSkillMilestones = tacticalSkillMilestones;
+    window.getTacticalSkillDef = getTacticalSkillDef;
+    window.getTacticalSkillMilestoneForFloor = getTacticalSkillMilestoneForFloor;
+    window.storyData = storyData;
+    window.createDefaultPlayerState = createDefaultPlayerState;
+    window.normalizePlayerState = normalizePlayerState;
+    window.getStoryRouteKey = getStoryRouteKey;
+    window.getStoryEndingKey = getStoryEndingKey;
+    window.getStoryTitleForState = getStoryTitleForState;
+    window.getStoryChoiceImpact = getStoryChoiceImpact;
+    window.getStoryMilestoneDef = getStoryMilestoneDef;
     window.RUNE_POOL_COUNT = typeof runePool !== 'undefined' ? runePool.length : 0;
 }
 
@@ -1593,7 +2601,6 @@ if (typeof window !== 'undefined') {
         forgeRecipes.forEach((it) => runOne(it, { forgeRecipe: true }));
     }
 })();
-
 
 // ---- rpg_v7.js ----
 /**
@@ -1655,8 +2662,66 @@ if (typeof window !== 'undefined') {
         if (!s.rebirthStatBonus) s.rebirthStatBonus = { hp: 0, atk: 0, def: 0, acc: 0 };
         if (!s.rebirthPctBonus) s.rebirthPctBonus = { atkPct: 0, defPct: 0, critMultPct: 0 };
         if (s.bestFloor == null) s.bestFloor = 1;
+        s.floorGrowth = normalizeSlotFloorGrowth(s.floorGrowth);
+        s.playerState = normalizeSlotPlayerState(s.playerState);
+        s.tacticalSkills = uniqueStringArray(s.tacticalSkills);
+        s.tacticalSkillMilestonesClaimed = uniqueNumberArray(s.tacticalSkillMilestonesClaimed);
+        s.promotionHistory = uniqueStringArray(s.promotionHistory);
+        s.rescuedItems = normalizeRescuedItems(s.rescuedItems);
         /** A/B 라인 고정 제거 — 테크는 직업 내 노드 자유 조합 */
         if (s.techLine === 'A' || s.techLine === 'B') s.techLine = null;
+    }
+
+    function normalizeSlotFloorGrowth(raw) {
+        if (typeof normalizeFloorGrowth === 'function') return normalizeFloorGrowth(raw);
+        const src = raw && typeof raw === 'object' ? raw : {};
+        return {
+            floors: Math.max(0, Math.floor(Number(src.floors) || 0)),
+            atk: Math.max(0, Math.floor(Number(src.atk) || 0)),
+            hp: Math.max(0, Math.floor(Number(src.hp) || 0)),
+        };
+    }
+
+    function normalizeSlotPlayerState(raw) {
+        if (typeof normalizePlayerState === 'function') return normalizePlayerState(raw);
+        const src = raw && typeof raw === 'object' ? raw : {};
+        return {
+            corruption: Math.max(0, Math.floor(Number(src.corruption) || 0)),
+            purification: Math.max(0, Math.floor(Number(src.purification) || 0)),
+        };
+    }
+
+    function uniqueStringArray(raw) {
+        const arr = Array.isArray(raw) ? raw : [];
+        return Array.from(new Set(arr.map((x) => String(x || '').trim()).filter(Boolean)));
+    }
+
+    function uniqueNumberArray(raw) {
+        const arr = Array.isArray(raw) ? raw : [];
+        return Array.from(
+            new Set(
+                arr
+                    .map((x) => Math.floor(Number(x) || 0))
+                    .filter((x) => Number.isFinite(x) && x > 0)
+            )
+        );
+    }
+
+    function normalizeRescuedItems(raw) {
+        const arr = Array.isArray(raw) ? raw : [];
+        return arr
+            .filter((it) => it && typeof it === 'object' && ['atk', 'hp', 'ring', 'rune'].includes(String(it.type || '')))
+            .slice(0, 12)
+            .map((it) => {
+                try {
+                    const copy = JSON.parse(JSON.stringify(it));
+                    if (copy.type === 'merc') return null;
+                    return copy;
+                } catch (e) {
+                    return null;
+                }
+            })
+            .filter(Boolean);
     }
 
     function loadMeta() {
@@ -1968,6 +3033,11 @@ if (typeof window !== 'undefined') {
         slot.extraPerma = { hp: 0, atk: 0, def: 0, acc: 0 };
         slot.metaPenalty = { hp: 0, atk: 0, def: 0, acc: 0 };
         slot.questFlags = {};
+        slot.floorGrowth = normalizeSlotFloorGrowth(null);
+        slot.playerState = normalizeSlotPlayerState(null);
+        slot.tacticalSkills = [];
+        slot.tacticalSkillMilestonesClaimed = [];
+        slot.rescuedItems = [];
         slot.rebirthStatBonus = slot.rebirthStatBonus || { hp: 0, atk: 0, def: 0, acc: 0 };
         slot.rebirthPctBonus = slot.rebirthPctBonus || { atkPct: 0, defPct: 0, critMultPct: 0 };
         slot.rebirthPctBonus.atkPct += 10;
@@ -1984,6 +3054,16 @@ if (typeof window !== 'undefined') {
         const opt = options && typeof options === 'object' ? options : {};
         const raceKey =
             opt.raceKey && typeof raceStories !== 'undefined' && raceStories[opt.raceKey] ? opt.raceKey : null;
+        const memoryKey =
+            opt.memoryKey && typeof introMemoryChoices !== 'undefined' && introMemoryChoices[opt.memoryKey]
+                ? opt.memoryKey
+                : null;
+        const originBaseJobKey =
+            opt.originBaseJobKey && typeof jobBase !== 'undefined' && jobBase[opt.originBaseJobKey]
+                ? opt.originBaseJobKey
+                : memoryKey && typeof introMemoryChoices !== 'undefined'
+                  ? introMemoryChoices[memoryKey].baseJobKey
+                  : jobKey;
         const weaponKey =
             opt.weaponKey && typeof introWeaponChoices !== 'undefined' && introWeaponChoices[opt.weaponKey]
                 ? opt.weaponKey
@@ -1999,10 +3079,13 @@ if (typeof window !== 'undefined') {
             name: name || '무명',
             jobKey,
             raceKey,
+            memoryKey,
+            originBaseJobKey,
             introWeaponKey: weaponKey,
             classKey,
             currentPromotion: null,
             promotionHistory: [],
+            playerState: normalizeSlotPlayerState(opt.playerState),
             storyFlags: {},
             storyLog: [],
             techLine: null,
@@ -2018,6 +3101,10 @@ if (typeof window !== 'undefined') {
             rebirthStatBonus: { hp: 0, atk: 0, def: 0, acc: 0 },
             rebirthPctBonus: { atkPct: 0, defPct: 0, critMultPct: 0 },
             bestFloor: 1,
+            floorGrowth: normalizeSlotFloorGrowth(null),
+            tacticalSkills: [],
+            tacticalSkillMilestonesClaimed: [],
+            rescuedItems: [],
         };
         recalcTechBonus(slot);
         m.slots.push(slot);
@@ -2172,10 +3259,60 @@ if (typeof window !== 'undefined') {
         saveMeta(m);
     }
 
+    function syncRunProgress(slotId, progress) {
+        const m = loadMeta();
+        const slot = m.slots.find((s) => s.id === slotId);
+        if (!slot) return null;
+        const p = progress && typeof progress === 'object' ? progress : {};
+        if (p.floorGrowth) slot.floorGrowth = normalizeSlotFloorGrowth(p.floorGrowth);
+        if (p.playerState) slot.playerState = normalizeSlotPlayerState(p.playerState);
+        if (Array.isArray(p.tacticalSkills)) slot.tacticalSkills = uniqueStringArray(p.tacticalSkills);
+        if (Array.isArray(p.tacticalSkillMilestonesClaimed)) {
+            slot.tacticalSkillMilestonesClaimed = uniqueNumberArray(p.tacticalSkillMilestonesClaimed);
+        }
+        if (p.currentPromotion) {
+            slot.currentPromotion = String(p.currentPromotion);
+            slot.promotionHistory = uniqueStringArray([...(slot.promotionHistory || []), slot.currentPromotion]);
+        }
+        saveMeta(m);
+        return slot;
+    }
+
+    function grantTacticalSkillToSlot(slotId, skillKey, milestoneFloor) {
+        const key = String(skillKey || '').trim();
+        if (!key) return { ok: false, msg: '스킬 없음' };
+        if (typeof getTacticalSkillDef === 'function' && !getTacticalSkillDef(key)) {
+            return { ok: false, msg: '정의되지 않은 스킬' };
+        }
+        const m = loadMeta();
+        const slot = m.slots.find((s) => s.id === slotId);
+        if (!slot) return { ok: false, msg: '슬롯 없음' };
+        slot.tacticalSkills = uniqueStringArray([...(slot.tacticalSkills || []), key]);
+        const mf = Math.floor(Number(milestoneFloor) || 0);
+        if (mf > 0) {
+            slot.tacticalSkillMilestonesClaimed = uniqueNumberArray([...(slot.tacticalSkillMilestonesClaimed || []), mf]);
+        }
+        saveMeta(m);
+        return { ok: true, skillKey: key, skills: slot.tacticalSkills };
+    }
+
     function setRunSnapshot(slotId, obj) {
         const m = loadMeta();
         const slot = m.slots.find((s) => s.id === slotId);
         if (!slot) return;
+        if (obj && obj.player) {
+            const p = obj.player;
+            if (p.floorGrowth) slot.floorGrowth = normalizeSlotFloorGrowth(p.floorGrowth);
+            if (p.playerState) slot.playerState = normalizeSlotPlayerState(p.playerState);
+            if (Array.isArray(p.tacticalSkills)) slot.tacticalSkills = uniqueStringArray(p.tacticalSkills);
+            if (Array.isArray(p.tacticalSkillMilestonesClaimed)) {
+                slot.tacticalSkillMilestonesClaimed = uniqueNumberArray(p.tacticalSkillMilestonesClaimed);
+            }
+            if (p.currentPromotion) {
+                slot.currentPromotion = String(p.currentPromotion);
+                slot.promotionHistory = uniqueStringArray([...(slot.promotionHistory || []), slot.currentPromotion]);
+            }
+        }
         slot.runSnapshot = obj;
         saveMeta(m);
     }
@@ -2188,6 +3325,22 @@ if (typeof window !== 'undefined') {
         saveMeta(m);
     }
 
+    function preserveRescueInventory(slotId, items) {
+        const m = loadMeta();
+        const slot = m.slots.find((s) => s.id === slotId);
+        if (!slot) return 0;
+        slot.rescuedItems = normalizeRescuedItems(items);
+        slot.runSnapshot = null;
+        slot.runCheckpointMeta = { level: Math.max(1, slot.level || 1), exp: Math.max(0, slot.exp || 0) };
+        saveMeta(m);
+        return slot.rescuedItems.length;
+    }
+
+    function getRescuedItems(slotId) {
+        const slot = getSlotById(slotId);
+        return slot ? normalizeRescuedItems(slot.rescuedItems) : [];
+    }
+
     /** 저장 런 스냅샷 제거 + 런 체크포인트·메타 레벨·EXP 초기화 (저장 삭제 확정 시) */
     function wipeSavedRunAndResetMetaLevel(slotId) {
         const m = loadMeta();
@@ -2197,6 +3350,10 @@ if (typeof window !== 'undefined') {
         slot.runCheckpointMeta = { level: 1, exp: 0 };
         slot.level = 1;
         slot.exp = 0;
+        slot.floorGrowth = normalizeSlotFloorGrowth(null);
+        slot.tacticalSkills = [];
+        slot.tacticalSkillMilestonesClaimed = [];
+        slot.rescuedItems = [];
         recalcTechBonus(slot);
         saveMeta(m);
     }
@@ -2264,8 +3421,12 @@ if (typeof window !== 'undefined') {
         applyReincarnation,
         markRunCheckpoint,
         revertRunToCheckpoint,
+        syncRunProgress,
+        grantTacticalSkillToSlot,
         setRunSnapshot,
         clearRunSnapshot,
+        preserveRescueInventory,
+        getRescuedItems,
         wipeSavedRunAndResetMetaLevel,
         getRunSnapshot,
         commitTechPurchase,
@@ -2299,15 +3460,15 @@ if (typeof window !== 'undefined') {
     global.BASE_CAMP_FLOORS = BASE_CAMP_FLOORS;
 })(typeof window !== 'undefined' ? window : globalThis);
 
-
-// Capture MetaRPG as a private closure binding and remove the console-facing global.
-const MetaRPG = window.MetaRPG;
-const BASE_CAMP_FLOORS = window.BASE_CAMP_FLOORS;
-try { delete window.MetaRPG; delete window.BASE_CAMP_FLOORS; } catch (err) { console.warn('[보안] MetaRPG 전역 제거 실패', err); }
+const MetaRPG = (typeof window !== 'undefined' ? window.MetaRPG : globalThis.MetaRPG);
+const BASE_CAMP_FLOORS = (typeof window !== 'undefined' ? window.BASE_CAMP_FLOORS : globalThis.BASE_CAMP_FLOORS);
 
 // ---- js/state.js ----
 // Global runtime state (single source of truth)
 let floor = 1, gold = 0, player = null, enemy = null;
+let playerState = typeof createDefaultPlayerState === 'function'
+    ? createDefaultPlayerState()
+    : { corruption: 0, purification: 0 };
 let defendingTurns = 0, dodgingTurns = 0, shieldedTurns = 0;
 let regenTurns = 0, regenAmount = 0;
 let isProcessing = false;
@@ -2335,64 +3496,33 @@ const DIVINE_BLESSING_DEF_BONUS = (typeof BALANCE !== 'undefined' && BALANCE.div
 const DIVINE_BLESSING_LIFESTEAL_BONUS =
     (typeof BALANCE !== 'undefined' && BALANCE.divineBlessingLifestealBonus) || 0.05;
 
-
 // ---- js/vfx.js ----
 // VFX/animation module (stage 1 split)
-function showDmgFloat(dmg, isCrit, isPlayer) {
-    const battleArea = document.getElementById('battle-area');
-    if (!battleArea) return;
-    const el = document.createElement('div');
-    el.style.cssText = `position:absolute;font-weight:900;font-size:${isCrit?'3.2em':'1.4em'};color:${isPlayer?'#ff4757':isCrit?'#f1c40f':'#2ed573'};text-shadow:0 0 16px ${isCrit?'#f1c40f':'transparent'};pointer-events:none;z-index:999;left:${isPlayer?'10%':'55%'};top:25%;animation:dmgFloat 1s ease forwards;`;
-    el.innerText = `${isCrit?'💥':''}${dmg}`;
-    battleArea.style.position = 'relative';
-    battleArea.appendChild(el);
-    setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 1000);
+function getCombatTargetCard(side) {
+    return document.getElementById(side === 'player' ? 'player-card' : 'enemy-card');
 }
-function triggerCritEffect() {
-    const s = document.querySelector('.screen');
-    if (s) {
-        s.classList.add('crit-flash');
-        s.classList.add('crit-blackout');
-        setTimeout(() => s.classList.remove('crit-blackout'), 150);
-        setTimeout(() => s.classList.remove('crit-flash'), 500);
+
+function onceAnimationEnd(el, done) {
+    if (!el) {
+        if (typeof done === 'function') done();
+        return;
     }
+    const finish = (event) => {
+        if (event && event.target !== el) return;
+        el.removeEventListener('animationend', finish);
+        if (typeof done === 'function') done();
+    };
+    el.addEventListener('animationend', finish);
 }
-function triggerShakeEffect() {
-    const e = document.getElementById('e-hp');
-    if (e) { e.classList.add('shake'); setTimeout(() => e.classList.remove('shake'), 400); }
+
+function animateClass(el, className) {
+    if (!el || !className) return;
+    el.classList.remove(className);
+    void el.offsetWidth;
+    el.classList.add(className);
+    onceAnimationEnd(el, () => el.classList.remove(className));
 }
-function triggerScreenShakeHeavy() {
-    const s = document.querySelector('.screen');
-    if (s) {
-        s.classList.add('heavy-shake');
-        setTimeout(() => s.classList.remove('heavy-shake'), 220);
-    }
-}
-function triggerScreenShakeBoss() {
-    const s = document.querySelector('.screen');
-    if (!s) return;
-    s.classList.add('shake');
-    setTimeout(() => s.classList.remove('shake'), 800);
-}
-function triggerBossDim() {
-    const s = document.querySelector('.screen');
-    if (!s) return;
-    s.style.position = 'relative';
-    s.classList.add('boss-dimming');
-    setTimeout(() => s.classList.remove('boss-dimming'), 320);
-}
-function triggerGuardAura() {
-    const c = document.getElementById('player-card');
-    if (!c) return;
-    c.classList.add('guard-aura');
-    setTimeout(() => c.classList.remove('guard-aura'), 320);
-}
-function triggerDodgeMove(side) {
-    const c = document.getElementById(side === 'player' ? 'player-card' : 'enemy-card');
-    if (!c) return;
-    c.classList.add('dodge-move');
-    setTimeout(() => c.classList.remove('dodge-move'), 180);
-}
+
 function ensureCombatFxLayer() {
     const ba = document.getElementById('battle-area');
     if (!ba) return null;
@@ -2401,13 +3531,14 @@ function ensureCombatFxLayer() {
         layer = document.createElement('div');
         layer.id = 'combat-fx-layer';
         layer.className = 'combat-fx-layer';
-        ba.style.position = 'relative';
+        ba.classList.add('combat-stage');
         ba.appendChild(layer);
     }
     return layer;
 }
+
 function getCardCenter(side) {
-    const card = document.getElementById(side === 'player' ? 'player-card' : 'enemy-card');
+    const card = getCombatTargetCard(side);
     const ba = document.getElementById('battle-area');
     if (!card || !ba) return null;
     const cr = card.getBoundingClientRect();
@@ -2417,183 +3548,181 @@ function getCardCenter(side) {
         y: cr.top + cr.height / 2 - br.top,
     };
 }
+
+function placeFxNode(el, point) {
+    el.style.left = `${point.x}px`;
+    el.style.top = `${point.y}px`;
+}
+
+function spawnFxNode(className, point, opts) {
+    const layer = ensureCombatFxLayer();
+    if (!layer || !point) return Promise.resolve(null);
+    const el = document.createElement('div');
+    el.className = className;
+    placeFxNode(el, point);
+    if (opts && opts.vars) {
+        Object.keys(opts.vars).forEach((key) => el.style.setProperty(key, opts.vars[key]));
+    }
+    if (opts && opts.text != null) el.textContent = opts.text;
+    layer.appendChild(el);
+    return new Promise((resolve) => {
+        onceAnimationEnd(el, () => {
+            if (el.parentNode) el.remove();
+            resolve(el);
+        });
+    });
+}
+
+function triggerScreenShake(kind) {
+    const stage = document.getElementById('battle-area') || document.querySelector('.screen');
+    if (!stage) return;
+    const cls = kind === 'boss' ? 'combat-shake-boss' : kind === 'heavy' ? 'combat-shake-heavy' : 'combat-shake-light';
+    animateClass(stage, cls);
+}
+
+function triggerHitImpact(side) {
+    const card = getCombatTargetCard(side);
+    if (!card) return;
+    animateClass(card, 'hit-impact');
+}
+
+function triggerHitFlash(side) {
+    triggerHitImpact(side);
+}
+
+function showDmgFloat(dmg, isCrit, isPlayer) {
+    const targetSide = isPlayer ? 'player' : 'enemy';
+    const point = getCardCenter(targetSide);
+    if (!point) return;
+    const cls = ['floating-damage', isPlayer ? 'floating-damage-player' : 'floating-damage-enemy'];
+    if (isCrit) cls.push('floating-damage-crit');
+    triggerHitImpact(targetSide);
+    const numericDmg = Number(dmg);
+    const maxHp = typeof getEffectiveMaxHp === 'function' ? getEffectiveMaxHp() : 0;
+    if (isCrit || (isPlayer && Number.isFinite(numericDmg) && maxHp > 0 && numericDmg >= maxHp * 0.18)) {
+        triggerScreenShakeHeavy();
+    }
+    spawnFxNode(cls.join(' '), { x: point.x, y: point.y - 34 }, { text: `${isCrit ? 'CRIT ' : ''}${dmg}` });
+}
+
+function triggerCritEffect() {
+    const s = document.querySelector('.screen');
+    if (!s) return;
+    animateClass(s, 'crit-flash');
+    animateClass(s, 'crit-blackout');
+}
+
+function triggerShakeEffect() {
+    triggerScreenShake('light');
+}
+
+function triggerScreenShakeHeavy() {
+    triggerScreenShake('heavy');
+}
+
+function triggerScreenShakeBoss() {
+    triggerScreenShake('boss');
+}
+
+function triggerBossDim() {
+    const s = document.querySelector('.screen');
+    if (!s) return;
+    animateClass(s, 'boss-dimming');
+}
+
+function triggerGuardAura() {
+    const c = getCombatTargetCard('player');
+    if (!c) return;
+    animateClass(c, 'guard-aura');
+}
+
+function triggerDodgeMove(side) {
+    const c = getCombatTargetCard(side === 'enemy' ? 'enemy' : 'player');
+    if (!c) return;
+    animateClass(c, 'dodge-move');
+}
+
 function normalizeCombatArchetype(jobName) {
     const n = String(jobName || '');
-    if (n.includes('마법사') || n.includes('위저드') || n.includes('Mage')) return 'mage';
+    if (n.includes('마법사') || n.includes('위저드') || n.includes('Mage') || n.includes('성직자')) return 'mage';
     if (n.includes('헌터') || n.includes('암살자') || n.includes('궁수') || n.includes('Hunter')) return 'hunter';
-    if (n.includes('버서커') || n.includes('워리어') || n.includes('Berserker')) return 'berserker';
+    if (n.includes('버서커') || n.includes('워리어') || n.includes('나이트') || n.includes('Berserker')) return 'berserker';
     return 'berserker';
 }
+
 function playMageBoltVfx(fromSide, toSide) {
-    const layer = ensureCombatFxLayer();
     const from = getCardCenter(fromSide);
     const to = getCardCenter(toSide);
-    if (!layer || !from || !to) return Promise.resolve();
-    return new Promise((resolve) => {
-        const bolt = document.createElement('div');
-        bolt.className = 'mage-bolt';
-        bolt.style.left = `${from.x - 6}px`;
-        bolt.style.top = `${from.y - 6}px`;
-        bolt.style.transition = 'transform 0.4s ease-out, opacity 0.4s ease-out';
-        layer.appendChild(bolt);
-        requestAnimationFrame(() => {
-            bolt.style.transform = `translate(${to.x - from.x}px, ${to.y - from.y}px)`;
-            bolt.style.opacity = '0.35';
-        });
-        setTimeout(() => {
-            if (bolt.parentNode) bolt.parentNode.removeChild(bolt);
-            const ex = document.createElement('div');
-            ex.className = 'mage-explosion';
-            ex.style.left = `${to.x}px`;
-            ex.style.top = `${to.y}px`;
-            layer.appendChild(ex);
-            setTimeout(() => {
-                if (ex.parentNode) ex.parentNode.removeChild(ex);
-                resolve();
-            }, 430);
-        }, 400);
-    });
+    if (!from || !to) return Promise.resolve();
+    return spawnFxNode('mage-bolt', from, {
+        vars: {
+            '--fx-dx': `${to.x - from.x}px`,
+            '--fx-dy': `${to.y - from.y}px`,
+        },
+    }).then(() => spawnFxNode('mage-explosion', to));
 }
+
 function playBerserkerChargeVfx(fromSide, toSide) {
-    const layer = ensureCombatFxLayer();
     const to = getCardCenter(toSide);
-    if (!layer || !to) return Promise.resolve();
-    return new Promise((resolve) => {
-        const slash = document.createElement('div');
-        slash.className = 'slash-effect';
-        slash.style.left = `${to.x}px`;
-        slash.style.top = `${to.y}px`;
-        layer.appendChild(slash);
-        triggerScreenShakeHeavy();
-        setTimeout(() => {
-            if (slash.parentNode) slash.parentNode.removeChild(slash);
-            resolve();
-        }, 120);
-    });
+    if (!to) return Promise.resolve();
+    return spawnFxNode('slash-effect', to);
 }
+
 function playHunterStrikeVfx(fromSide, toSide) {
-    const layer = ensureCombatFxLayer();
+    const from = getCardCenter(fromSide);
     const to = getCardCenter(toSide);
-    if (!layer || !to) return Promise.resolve();
-    return new Promise((resolve) => {
-        const slash = document.createElement('div');
-        slash.className = 'slash-effect';
-        slash.style.left = `${to.x + 10}px`;
-        slash.style.top = `${to.y + 2}px`;
-        layer.appendChild(slash);
-        triggerScreenShakeHeavy();
-        setTimeout(() => {
-            if (slash.parentNode) slash.parentNode.removeChild(slash);
-            resolve();
-        }, 120);
-    });
+    if (!from || !to) return Promise.resolve();
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    return spawnFxNode('hunter-shot', from, {
+        vars: {
+            '--fx-dx': `${dx}px`,
+            '--fx-dy': `${dy}px`,
+        },
+    }).then(() => spawnFxNode('hunter-impact', to));
 }
+
 function playMagicBurstVfx(targetSide) {
-    const layer = ensureCombatFxLayer();
     const to = getCardCenter(targetSide);
-    if (!layer || !to) return Promise.resolve();
-    return new Promise((resolve) => {
-        const burst = document.createElement('div');
-        burst.className = 'magic-burst';
-        burst.style.left = `${to.x}px`;
-        burst.style.top = `${to.y}px`;
-        layer.appendChild(burst);
-        const particles = [];
-        for (let i = 0; i < 14; i++) {
-            const p = document.createElement('div');
-            p.className = 'magic-particle';
-            p.style.left = `${to.x}px`;
-            p.style.top = `${to.y}px`;
-            const ang = (Math.PI * 2 * i) / 14;
-            const dist = 36 + Math.random() * 52;
-            p.style.transition = 'transform 0.36s ease-out, opacity 0.36s ease-out';
-            layer.appendChild(p);
-            particles.push({ el: p, dx: Math.cos(ang) * dist, dy: Math.sin(ang) * dist });
-        }
-        requestAnimationFrame(() => {
-            particles.forEach((x) => {
-                x.el.style.transform = `translate(${x.dx}px, ${x.dy}px) scale(0.2)`;
-                x.el.style.opacity = '0';
-            });
-        });
-        triggerScreenShakeHeavy();
-        setTimeout(() => {
-            if (burst.parentNode) burst.parentNode.removeChild(burst);
-            particles.forEach((x) => { if (x.el.parentNode) x.el.parentNode.removeChild(x.el); });
-            resolve();
-        }, 390);
-    });
+    if (!to) return Promise.resolve();
+    return spawnFxNode('magic-burst', to);
 }
+
 function playAssassinStrikeVfx(targetSide) {
-    const layer = ensureCombatFxLayer();
     const to = getCardCenter(targetSide);
-    if (!layer || !to) return;
-    const slash = document.createElement('div');
-    slash.className = 'assassin-strike';
-    slash.style.left = `${to.x}px`;
-    slash.style.top = `${to.y + 2}px`;
-    layer.appendChild(slash);
-    triggerScreenShakeHeavy();
-    setTimeout(() => {
-        if (slash.parentNode) slash.parentNode.removeChild(slash);
-    }, 360);
+    if (!to) return Promise.resolve();
+    return spawnFxNode('assassin-strike', to);
 }
+
 function playCritGoldBurst(targetSide) {
-    const layer = ensureCombatFxLayer();
     const to = getCardCenter(targetSide);
-    if (!layer || !to) return;
-    const burst = document.createElement('div');
-    burst.className = 'crit-gold-burst';
-    burst.style.left = `${to.x}px`;
-    burst.style.top = `${to.y}px`;
-    layer.appendChild(burst);
-    setTimeout(() => {
-        if (burst.parentNode) burst.parentNode.removeChild(burst);
-    }, 330);
+    if (!to) return Promise.resolve();
+    return spawnFxNode('crit-gold-burst', to);
 }
+
 function playBossStrikeVfx(targetSide) {
-    const layer = ensureCombatFxLayer();
     const to = getCardCenter(targetSide);
-    if (!layer || !to) return Promise.resolve();
-    return new Promise((resolve) => {
-        triggerBossDim();
-        setTimeout(() => {
-            const slash = document.createElement('div');
-            slash.className = 'boss-strike';
-            slash.style.left = `${to.x}px`;
-            slash.style.top = `${to.y + 4}px`;
-            layer.appendChild(slash);
-            triggerScreenShakeBoss();
-            setTimeout(() => {
-                if (slash.parentNode) slash.parentNode.removeChild(slash);
-                resolve();
-            }, 360);
-        }, 300);
-    });
+    if (!to) return Promise.resolve();
+    triggerBossDim();
+    triggerScreenShakeBoss();
+    triggerHitFlash(targetSide);
+    return spawnFxNode('boss-strike', to);
 }
+
 function showMissFloat(targetSide) {
-    const battleArea = document.getElementById('battle-area');
     const p = getCardCenter(targetSide);
-    if (!battleArea || !p) return;
-    const el = document.createElement('div');
-    el.style.cssText =
-        `position:absolute;left:${p.x - 20}px;top:${p.y - 30}px;font-weight:900;font-size:1.05em;color:#9aa0aa;text-shadow:0 0 8px rgba(0,0,0,0.5);pointer-events:none;z-index:1300;animation:dmgFloat 0.9s ease forwards;`;
-    el.innerText = 'MISS';
-    battleArea.appendChild(el);
-    setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 920);
+    if (!p) return;
+    spawnFxNode('floating-damage floating-damage-miss', { x: p.x, y: p.y - 34 }, { text: 'MISS' });
 }
+
 function playJobAttackVfx(attackerSide, jobName) {
     const archetype = normalizeCombatArchetype(jobName);
-    if (archetype === 'mage') {
-        const targetSide = attackerSide === 'player' ? 'enemy' : 'player';
-        return playMageBoltVfx(attackerSide, targetSide).then(() => playMagicBurstVfx(targetSide));
-    }
-    if (archetype === 'hunter' && attackerSide === 'player') {
-        return playBerserkerChargeVfx(attackerSide, 'enemy');
-    }
-    if (archetype === 'hunter') return playHunterStrikeVfx(attackerSide, attackerSide === 'player' ? 'enemy' : 'player');
-    return playBerserkerChargeVfx(attackerSide, attackerSide === 'player' ? 'enemy' : 'player');
+    const targetSide = attackerSide === 'player' ? 'enemy' : 'player';
+    if (archetype === 'mage') return playMageBoltVfx(attackerSide, targetSide).then(() => playMagicBurstVfx(targetSide));
+    if (archetype === 'hunter') return playHunterStrikeVfx(attackerSide, targetSide);
+    return playBerserkerChargeVfx(attackerSide, targetSide);
 }
+
 function consumeHunterEvasionMissPenalty() {
     if (!enemy || !String(enemy.job || '').includes('헌터')) return 0;
     const turns = safeNum(enemy._hunterEvasionTurns, 0);
@@ -2624,7 +3753,6 @@ window.playBossStrikeVfx = playBossStrikeVfx;
 window.showMissFloat = showMissFloat;
 window.playJobAttackVfx = playJobAttackVfx;
 window.consumeHunterEvasionMissPenalty = consumeHunterEvasionMissPenalty;
-
 
 // ---- js/player.js ----
 // Player domain module (stage 3 split)
@@ -2704,6 +3832,8 @@ function applyOwnedEquipmentItemBonuses(it) {
         if (it.lifesteal) player.lifesteal = safeNum(player.lifesteal, 0) + safeNum(it.lifesteal, 0);
         if (it.critBonus) player.crit = safeNum(player.crit, 1) + safeNum(it.critBonus, 0);
         if (it.critMult) player.critMult = safeNum(player.critMult, 1.8) + safeNum(it.critMult, 0);
+        if (it.damageReduction) player.damageReduction = safeNum(player.damageReduction, 0) + safeNum(it.damageReduction, 0);
+        if (it.potionHealBonus) player.potionHealBonus = safeNum(player.potionHealBonus, 0) + safeNum(it.potionHealBonus, 0);
         if (it.regenPotion) player.hasRegenPotion = true;
         return;
     }
@@ -2715,10 +3845,17 @@ function applyOwnedEquipmentItemBonuses(it) {
         player.maxHp = Math.max(1, safeNum(player.maxHp, 1) + add);
         player.curHp = safeNum(player.curHp, 0) + add;
     }
+    if (it.type !== 'rune' && typeof it.hpBonus === 'number' && it.hpBonus) {
+        const add = safeNum(it.hpBonus, 0);
+        player.maxHp = Math.max(1, safeNum(player.maxHp, 1) + add);
+        player.curHp = safeNum(player.curHp, 0) + add;
+    }
     if (it.def) player.extraDef = safeNum(player.extraDef, 0) + safeNum(it.def, 0);
     if (it.lifesteal) player.lifesteal = safeNum(player.lifesteal, 0) + safeNum(it.lifesteal, 0);
     if (it.critBonus) player.crit = safeNum(player.crit, 1) + safeNum(it.critBonus, 0);
     if (it.critMult) player.critMult = safeNum(player.critMult, 1.8) + safeNum(it.critMult, 0);
+    if (it.damageReduction) player.damageReduction = safeNum(player.damageReduction, 0) + safeNum(it.damageReduction, 0);
+    if (it.potionHealBonus) player.potionHealBonus = safeNum(player.potionHealBonus, 0) + safeNum(it.potionHealBonus, 0);
     if (it.penalty && it.penalty[player.name]) {
         player.acc -= safeNum(it.penalty[player.name], 0);
     }
@@ -2761,6 +3898,17 @@ function fullResyncPlayerCombatStatsFromMetaAndInventory() {
         acc = safeNum(rs.acc, 0) + safeNum(tb.acc, 0) + safeNum(lb.acc, 0);
     }
 
+    const fg = typeof normalizeFloorGrowth === 'function'
+        ? normalizeFloorGrowth(player.floorGrowth || slot.floorGrowth)
+        : {
+              floors: Math.max(0, Math.floor(safeNum(player.floorGrowth && player.floorGrowth.floors, 0))),
+              atk: Math.max(0, Math.floor(safeNum(player.floorGrowth && player.floorGrowth.atk, 0))),
+              hp: Math.max(0, Math.floor(safeNum(player.floorGrowth && player.floorGrowth.hp, 0))),
+          };
+    player.floorGrowth = fg;
+    atk += fg.atk;
+    maxHp += fg.hp;
+
     player.atk = atk;
     player.def = def;
     player.maxHp = maxHp;
@@ -2771,6 +3919,8 @@ function fullResyncPlayerCombatStatsFromMetaAndInventory() {
     player.lifesteal = 0;
     player.extraDef = 0;
     player.extraAtk = 0;
+    player.damageReduction = 0;
+    player.potionHealBonus = 0;
 
     applyRebirthPctBonusToPlayer(slot);
 
@@ -2799,6 +3949,14 @@ function getLifestealOverflowAtk() {
     const r = safeNum(player && player.lifesteal, 0);
     if (r <= LIFESTEAL_SOFT_CAP) return 0;
     return Math.floor((r - LIFESTEAL_SOFT_CAP) * 100);
+}
+
+function getPlayerDamageReduction() {
+    return Math.min(0.55, Math.max(0, safeNum(player && player.damageReduction, 0)));
+}
+
+function getPlayerPotionHealMultiplier() {
+    return 1 + Math.min(0.8, Math.max(0, safeNum(player && player.potionHealBonus, 0)));
 }
 
 function isPriestJob() {
@@ -2927,6 +4085,8 @@ window.fullResyncPlayerCombatStatsFromMetaAndInventory = fullResyncPlayerCombatS
 window.getCritInfo = getCritInfo;
 window.getLifestealEffective = getLifestealEffective;
 window.getLifestealOverflowAtk = getLifestealOverflowAtk;
+window.getPlayerDamageReduction = getPlayerDamageReduction;
+window.getPlayerPotionHealMultiplier = getPlayerPotionHealMultiplier;
 window.isPriestJob = isPriestJob;
 window.isPriestBlessed = isPriestBlessed;
 window.isChosenPriest = isChosenPriest;
@@ -2940,27 +4100,26 @@ window.addDivinePower = addDivinePower;
 window.getEffectiveAttackPower = getEffectiveAttackPower;
 window.getTotalPlayerDefenseForHit = getTotalPlayerDefenseForHit;
 
-function sumRuneBonuses(field) {
+function sumOwnedItemBonuses(field) {
     if (!player || !Array.isArray(player.items)) return 0;
     let s = 0;
     for (const it of player.items) {
-        if (it && it.type === 'rune' && typeof it[field] === 'number') s += safeNum(it[field], 0);
+        if (it && it.type !== 'merc' && typeof it[field] === 'number') s += safeNum(it[field], 0);
     }
     return s;
 }
 
 function getPlayerGoldGainMult() {
-    return 1 + sumRuneBonuses('goldGainBonus');
+    return 1 + sumOwnedItemBonuses('goldGainBonus');
 }
 
 /** 패닉 도주 시 층 하락 완화 확률(합산, 상한 55%) */
 function getPlayerFleeBonus() {
-    return Math.min(0.55, sumRuneBonuses('fleeBonus'));
+    return Math.min(0.55, sumOwnedItemBonuses('fleeBonus'));
 }
 
 window.getPlayerGoldGainMult = getPlayerGoldGainMult;
 window.getPlayerFleeBonus = getPlayerFleeBonus;
-
 
 // ---- js/enemy.js ----
 // Enemy domain module (stage 3 split)
@@ -2995,6 +4154,8 @@ function buildEnemyStatsForFloor(floorValue, isBoss) {
 
 function spawnEnemy() {
     setCombatProcessing(false);
+    window._victoryState = null;
+    window._victoryContinueFn = null;
     if (pendingShop) { pendingShop=false; return openShop(); }
     window._encounterPhaseActive = false;
     hideEncounterPhaseUI();
@@ -3013,6 +4174,10 @@ function spawnEnemy() {
         player._relicTempCrit = 0;
         player.extraAtk = 0;
         player._relicGamblerDefSub = 0;
+        player.tacticalSkillUses = {};
+        player.tacticalFocusReady = false;
+        player.tacticalParryReady = false;
+        player.tacticalBarrierReady = false;
     }
     if (player && player.relics && player.relics.includes('gambler')) {
         const pa = safeNum(player.atk, 0);
@@ -3039,8 +4204,9 @@ function spawnEnemy() {
         const bossHp = stats.hp;
         const bossAtk = stats.atk;
         const bossDef = stats.def;
-        enemy={name:`👑 [보스] ${floor}층 군주`,job:'보스',hp:bossHp,curHp:bossHp,atk:bossAtk,def:bossDef,isBoss:true,turnCount:1,bossCharge:false,weakPoint:false,_aiGuardedTurns:0,_hunterEvasionTurns:0};
-        writeLog(`🚨 경고: ${floor}층의 지배자가 나타났습니다!`);
+        if (floor === 100 && typeof emitFinalBossOpeningStory === 'function') emitFinalBossOpeningStory();
+        enemy={name:floor === 100 ? '👑 [최종보스] 배신한 조력자' : `👑 [보스] ${floor}층 군주`,job:'보스',hp:bossHp,curHp:bossHp,atk:bossAtk,def:bossDef,isBoss:true,turnCount:1,bossCharge:false,weakPoint:false,_aiGuardedTurns:0,_hunterEvasionTurns:0};
+        writeLog(floor === 100 ? '🚨 최종전: 배신한 조력자가 본모습을 드러냈습니다!' : `🚨 경고: ${floor}층의 지배자가 나타났습니다!`);
     } else {
         const eJobs=['워리어','헌터','마법사'];
         let rj=eJobs[Math.floor(Math.random()*eJobs.length)];
@@ -3097,13 +4263,161 @@ window.tryActivateFloorQuest = tryActivateFloorQuest;
 window.getEnemyScalingForFloor = getEnemyScalingForFloor;
 window.buildEnemyStatsForFloor = buildEnemyStatsForFloor;
 
-
 // ---- js/uiManager.js ----
 // UI manager module (stage 1 split)
+const BASE_JOB_TITLE_NAMES = Object.freeze({
+    Warrior: '워리어',
+    Hunter: '헌터',
+    Wizard: '마법사',
+    '워리어': '워리어',
+    '헌터': '헌터',
+    '마법사': '마법사',
+});
+
+function getBaseJobTitleNameFromKeys() {
+    for (let i = 0; i < arguments.length; i++) {
+        const raw = arguments[i];
+        if (!raw) continue;
+        const key = String(raw);
+        if (BASE_JOB_TITLE_NAMES[key]) return BASE_JOB_TITLE_NAMES[key];
+        if (typeof jobBase !== 'undefined' && jobBase[key] && BASE_JOB_TITLE_NAMES[jobBase[key].name]) {
+            return BASE_JOB_TITLE_NAMES[jobBase[key].name];
+        }
+    }
+    return '모험가';
+}
+
+function getDynamicCharacterTitleForFloor(floorRef, entity) {
+    const f = Math.max(1, Math.floor(safeNum(floorRef, 1)));
+    if (f <= 10) return '기억을 잃은 자';
+    if (f <= 30) return '과거를 더듬는 자';
+    const storyTitle = typeof getStoryTitleForState === 'function'
+        ? getStoryTitleForState(entity && entity.playerState, f)
+        : null;
+    if (storyTitle) return storyTitle;
+    const baseName = getBaseJobTitleNameFromKeys(
+        entity && entity.originBaseJobKey,
+        entity && entity.baseJob,
+        entity && entity.jobKey,
+        entity && entity.classKey,
+        entity && entity.name
+    );
+    if (f <= 50) return `기억의 파편을 쥔 ${baseName}`;
+    const promotion = entity && entity.currentPromotion ? String(entity.currentPromotion) : '';
+    if (promotion) return `운명을 자각한 ${promotion}`;
+    return '운명을 자각한 자';
+}
+
+function getPlayerClassDisplayName() {
+    if (!player) return '기억을 잃은 자';
+    return getDynamicCharacterTitleForFloor(floor, player);
+}
+
+function getSlotClassDisplayName(slot) {
+    if (!slot) return '기억을 잃은 자';
+    const snapFloor = slot.runSnapshot && slot.runSnapshot.floor ? slot.runSnapshot.floor : null;
+    const refFloor = snapFloor || slot.bestFloor || 1;
+    return getDynamicCharacterTitleForFloor(refFloor, slot);
+}
+
+function hasPendingVictoryAdvance() {
+    return !!(window._victoryState && window._victoryContinueFn);
+}
+
+function setEnemyVictoryMode(active) {
+    const card = document.getElementById('enemy-card');
+    if (!card) return;
+    const panel = document.getElementById('enemy-victory-panel');
+    Array.from(card.children).forEach((child) => {
+        if (child === panel) return;
+        child.style.display = active ? 'none' : '';
+    });
+    if (panel) panel.style.display = active ? 'block' : 'none';
+    card.classList.toggle('enemy-card-victory', !!active);
+}
+
+function renderEnemyVictoryPanel() {
+    const state = window._victoryState || {};
+    const panel = document.getElementById('enemy-victory-panel');
+    if (!panel) return;
+    setEnemyVictoryMode(true);
+    const goldGain = Math.max(0, Math.floor(safeNum(state.goldGain, 0)));
+    const expGain = Math.max(0, Math.floor(safeNum(state.expGain, 0)));
+    const rewardRows = [
+        `<span class="victory-reward-gold">💰 +${goldGain}G 획득</span>`,
+        expGain > 0 ? `<span>✦ EXP +${expGain}</span>` : '',
+        state.defeatedBoss ? '<span>👑 보스 격파 보상 반영</span>' : '',
+    ].filter(Boolean).join('');
+    panel.innerHTML = `
+        <div class="victory-title">VICTORY</div>
+        <div class="victory-subtitle">승리!</div>
+        <div class="victory-reward-line">${rewardRows}</div>
+        <div class="victory-reward-note">전리품 정산 완료</div>`;
+}
+
+function renderVictoryActionButton(div) {
+    div.innerHTML = '';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'next-floor-btn';
+    btn.innerText = '➔ 다음 층으로 올라가기';
+    btn.onclick = () => continuePendingVictoryAdvance(btn);
+    div.appendChild(btn);
+}
+
+function showVictoryRewardAndAwaitContinue(payload, continueFn) {
+    const p = payload && typeof payload === 'object' ? payload : {};
+    window._victoryState = {
+        clearedFloor: Math.max(1, Math.floor(safeNum(p.clearedFloor, floor))),
+        goldGain: Math.max(0, Math.floor(safeNum(p.goldGain, 0))),
+        expGain: Math.max(0, Math.floor(safeNum(p.expGain, 0))),
+        defeatedBoss: !!p.defeatedBoss,
+        continuing: false,
+    };
+    window._victoryContinueFn = typeof continueFn === 'function' ? continueFn : null;
+    renderEnemyVictoryPanel();
+    updatePrologueBattleControls();
+    updateUi();
+    renderActions();
+}
+
+function continuePendingVictoryAdvance(btn) {
+    if (!hasPendingVictoryAdvance()) return;
+    const state = window._victoryState;
+    if (state.continuing) return;
+    state.continuing = true;
+    if (btn) {
+        btn.disabled = true;
+        btn.classList.add('next-floor-btn--loading');
+        btn.innerText = '등반 중...';
+    }
+    const battle = document.getElementById('battle-area');
+    if (battle) battle.classList.add('battle-climb-fade');
+    const continueFn = window._victoryContinueFn;
+    setTimeout(() => {
+        window._victoryState = null;
+        window._victoryContinueFn = null;
+        setEnemyVictoryMode(false);
+        updatePrologueBattleControls();
+        if (typeof continueFn === 'function') continueFn();
+        setTimeout(() => {
+            if (battle) battle.classList.remove('battle-climb-fade');
+        }, 320);
+    }, 260);
+}
+
 function renderActions() {
     const div = document.getElementById('action-btns');
     if (!div) return;
+    if (hasPendingVictoryAdvance()) {
+        renderVictoryActionButton(div);
+        return;
+    }
     if (!enemy || window._encounterPhaseActive) {
+        div.innerHTML = '';
+        return;
+    }
+    if (safeNum(enemy.curHp, 0) <= 0) {
         div.innerHTML = '';
         return;
     }
@@ -3144,6 +4458,30 @@ function renderActions() {
         prayBtn.onclick = () => useAction('기도');
         div.appendChild(prayBtn);
     }
+
+    const tacticalKeys = uniqueTacticalSkillKeys(player.tacticalSkills);
+    tacticalKeys.forEach((key) => {
+        const def = typeof getTacticalSkillDef === 'function' ? getTacticalSkillDef(key) : null;
+        if (!def) return;
+        const used = !!(player.tacticalSkillUses && player.tacticalSkillUses[key]);
+        const alreadyReady =
+            (key === 'focus' && player.tacticalFocusReady) ||
+            (key === 'parry' && player.tacticalParryReady) ||
+            (key === 'barrier' && player.tacticalBarrierReady);
+        const tBtn = document.createElement('button');
+        tBtn.className = 'tactical-action-btn';
+        tBtn.style.background = def.type === 'attack' ? '#7c3aed' : '#0f766e';
+        tBtn.style.color = '#fff';
+        tBtn.innerText = `${def.icon || '✦'} ${def.name}`;
+        tBtn.title = def.shortDesc || def.name;
+        tBtn.disabled = used || alreadyReady;
+        if (tBtn.disabled) {
+            tBtn.style.opacity = '0.5';
+            tBtn.style.cursor = 'not-allowed';
+        }
+        tBtn.onclick = () => useAction(`전술:${key}`);
+        div.appendChild(tBtn);
+    });
 
     if (isMercenaryCaptainJob() && player.mercCooldownTurns > 0 && (!player.fieldMerc || player.fieldMerc.mercHp <= 0)) {
         const cost = getMercGoldSkipCost();
@@ -3187,7 +4525,6 @@ function renderActions() {
 function renderPassiveContractHistoryPanels() {
     const targets = [
         { sidebarId: 'sidebar-normal', panelId: 'passive-history-normal' },
-        { sidebarId: 'sidebar-battle', panelId: 'passive-history-battle' },
     ];
     const rows = (player && Array.isArray(player.passiveContractHistory) ? player.passiveContractHistory : [])
         .slice(0, 12)
@@ -3264,7 +4601,7 @@ function updateUi() {
         document.getElementById('p-hp').style.width = `${Math.max(0, (mCur / mMax) * 100)}%`;
         document.getElementById('p-hp-t').innerText = `어그로 ${mCur} / ${mMax}`;
         if (summLine) {
-            summLine.innerHTML = `<span style="color:#e67e22;">🎖️ 후열 · 지휘</span> <b>${player.name}</b> <span style="color:#888;">| HP ${pCur}/${pMax} · 악성 ${Math.round(getMercGachaBadChance() * 100)}% · 지원 ${getMercGachaCost()}G</span>`;
+            summLine.innerHTML = `<span style="color:#e67e22;">🎖️ 후열 · 지휘</span> <b>${escapeHtml(getPlayerClassDisplayName())}</b> <span style="color:#888;">| HP ${pCur}/${pMax} · 악성 ${Math.round(getMercGachaBadChance() * 100)}% · 지원 ${getMercGachaCost()}G</span>`;
         }
         document.getElementById('p-atk-val').textContent = String(getMercEffectiveAttackPower());
         document.getElementById('p-def-val').textContent = String(safeNum(fm.mercBonusDef, 0));
@@ -3276,7 +4613,7 @@ function updateUi() {
         if (lsMain) lsMain.textContent = `${Math.round(safeNum(fm.mercBonusLifesteal, 0) * 100)}%`;
         if (lsNote) lsNote.textContent = '용병 장비 흡혈 (전열)';
     } else {
-        document.getElementById('p-name').innerText = player.name;
+        document.getElementById('p-name').innerText = getPlayerClassDisplayName();
         document.getElementById('p-hp').style.width = `${Math.max(0, (pCur / pMax) * 100)}%`;
         document.getElementById('p-hp-t').innerText = `${pCur} / ${pMax}`;
         if (summLine) {
@@ -3284,7 +4621,7 @@ function updateUi() {
             const synStatus = buildSynergyStatusHtml();
             const lvTxt = player.runLevel ? ` · Lv.${player.runLevel}` : '';
             if (isMercenaryCaptainJob()) {
-                summLine.innerHTML = `<span style="color:#e67e22;">🎖️ 지휘관 ${player.name}</span> <span style="color:#888;">| HP ${pCur}/${pMax}${lvTxt} · 전열 없음${player.mercCooldownTurns > 0 ? ` · 재가동 ${player.mercCooldownTurns}T` : ''}${synHint}</span>${synStatus}`;
+                summLine.innerHTML = `<span style="color:#e67e22;">🎖️ 지휘관 ${escapeHtml(getPlayerClassDisplayName())}</span> <span style="color:#888;">| HP ${pCur}/${pMax}${lvTxt} · 전열 없음${player.mercCooldownTurns > 0 ? ` · 재가동 ${player.mercCooldownTurns}T` : ''}${synHint}</span>${synStatus}`;
             } else if (player.summon && player.summon.name) {
                 if (player.name === '소환사' && floor < 100) {
                     summLine.innerHTML = `<span style="color:#a55eea;">소환:</span> ${player.summon.name} <span style="color:#ff4757;font-weight:800;">(잠김: 100층)</span>${synHint}${synStatus}`;
@@ -3296,8 +4633,8 @@ function updateUi() {
                 const dp = formatDivinePowerForDisplay(safeNum(player.divinePower, 0));
                 const gm = safeNum(player.divineGainMult, 1);
                 const st = player.priestBlessed ? '✨ 신의 가호' : '·';
-                summLine.innerHTML = `<span style="color:#888;font-size:0.85em;"><b>${player.name}</b>${lvTxt} · <span style="color:#f1c40f;">✨ 신성력 ${dp}/${DIVINE_POWER_MAX}</span> · 획득×${gm.toFixed(2)} · ${st}${synHint}</span>${synStatus}`;
-            } else summLine.innerHTML = `<span style="color:#888;font-size:0.85em;"><b>${player.name}</b>${lvTxt}${synHint}</span>${synStatus}`;
+                summLine.innerHTML = `<span style="color:#888;font-size:0.85em;"><b>${escapeHtml(getPlayerClassDisplayName())}</b>${lvTxt} · <span style="color:#f1c40f;">✨ 신성력 ${dp}/${DIVINE_POWER_MAX}</span> · 획득×${gm.toFixed(2)} · ${st}${synHint}</span>${synStatus}`;
+            } else summLine.innerHTML = `<span style="color:#888;font-size:0.85em;"><b>${escapeHtml(getPlayerClassDisplayName())}</b>${lvTxt}${synHint}</span>${synStatus}`;
         }
         document.getElementById('p-atk-val').textContent = String(getEffectiveAttackPower());
         document.getElementById('p-def-val').textContent = String(getTotalPlayerDefenseForHit());
@@ -3316,6 +4653,18 @@ function updateUi() {
         if (player.unlockedSkill && floor >= 20) ultLine.innerHTML = `<span style="color:#9b59b6;">궁극기</span> [${safeNum(player.ultStack, 0)}/${Math.max(1, safeNum(player.ultMaxStack, 1))}]`;
         else ultLine.innerHTML = '';
     }
+    ['floor-t-battle','gold-t-battle','potion-t-battle'].forEach((id,i)=>{const el=document.getElementById(id);if(el)el.innerText=[floor,g,pots][i];});
+    ['floor-t','gold-t','potion-t'].forEach((id,i)=>{const el=document.getElementById(id);if(el)el.innerText=[floor,g,pots][i];});
+    const sh=document.getElementById('shop-hp-t'), sg=document.getElementById('shop-gold-t');
+    if(sh)sh.innerText=`${pCur}/${pMax}`;
+    if(sg)sg.innerText=String(g);
+    if (hasPendingVictoryAdvance()) {
+        renderEnemyVictoryPanel();
+        renderInventoryPanel();
+        renderPassiveContractHistoryPanels();
+        return;
+    }
+    setEnemyVictoryMode(false);
     const enemyNameEl = document.getElementById('e-name');
     if (enemyNameEl) {
         const hint = window._enemyThinkingHint ? `<div style="color:#ffb3b3;font-size:0.72em;font-weight:600;margin-top:3px;">${escapeHtml(window._enemyThinkingHint)}</div>` : '';
@@ -3325,11 +4674,6 @@ function updateUi() {
     document.getElementById('e-hp-t').innerText=`${eCur} / ${eHp}`;
     document.getElementById('e-atk-val').innerText=String(safeNum(enemy.atk, 0));
     document.getElementById('e-def-val').innerText=String(safeNum(enemy.def, 0));
-    ['floor-t-battle','gold-t-battle','potion-t-battle'].forEach((id,i)=>{const el=document.getElementById(id);if(el)el.innerText=[floor,g,pots][i];});
-    ['floor-t','gold-t','potion-t'].forEach((id,i)=>{const el=document.getElementById(id);if(el)el.innerText=[floor,g,pots][i];});
-    const sh=document.getElementById('shop-hp-t'), sg=document.getElementById('shop-gold-t');
-    if(sh)sh.innerText=`${pCur}/${pMax}`;
-    if(sg)sg.innerText=String(g);
     renderInventoryPanel();
     renderPassiveContractHistoryPanels();
 }
@@ -3338,16 +4682,30 @@ function writeLog(msg) {
     if (!Array.isArray(window._combatLogHistory)) window._combatLogHistory = [];
     window._combatLogHistory.unshift(String(msg));
     if (window._combatLogHistory.length > 220) window._combatLogHistory.length = 220;
-    const bs=document.getElementById('sidebar-battle'), isBattle=bs&&bs.style.display==='flex';
+    renderSlimBattleLog();
     const p=`<p style="margin:4px 0;border-bottom:1px solid #333;padding-bottom:4px;">${msg}</p>`;
-    if(isBattle){const bl=document.getElementById('log-battle');if(bl)bl.innerHTML=p+bl.innerHTML;}
-    else{const l=document.getElementById('log');if(l)l.innerHTML=p+l.innerHTML;}
+    const battle = document.getElementById('battle-area');
+    const isBattle = battle && battle.style.display === 'block';
+    if(!isBattle){const l=document.getElementById('log');if(l)l.innerHTML=p+l.innerHTML;}
+}
+
+function renderSlimBattleLog() {
+    const strip = document.getElementById('battle-log-strip');
+    if (!strip) return;
+    const rows = (Array.isArray(window._combatLogHistory) ? window._combatLogHistory : [])
+        .slice(0, 3)
+        .map((msg) => `<div class="battle-log-line">${msg}</div>`)
+        .join('');
+    strip.innerHTML = rows || '<div class="battle-log-line battle-log-line-empty">전투 기록 대기</div>';
 }
 
 window.renderActions = renderActions;
 window.renderPassiveContractHistoryPanels = renderPassiveContractHistoryPanels;
 window.updateUi = updateUi;
 window.writeLog = writeLog;
+window.checkStoryMilestone = checkStoryMilestone;
+window.applyStoryChoiceImpact = applyStoryChoiceImpact;
+window.adjustPlayerStoryState = adjustPlayerStoryState;
 // ===== migrated from bootstrapCore.js =====
 /** 시즌 1 (베타) — 최초 1회 전체 진행 데이터 초기화 */
 (function applySeason1BetaWipeOnce() {
@@ -3592,6 +4950,231 @@ function safeNum(v, fallback = 0) {
     const n = Number(v);
     return Number.isFinite(n) ? n : fallback;
 }
+
+function normalizePlayerFloorGrowth(raw) {
+    if (typeof normalizeFloorGrowth === 'function') return normalizeFloorGrowth(raw);
+    const src = raw && typeof raw === 'object' ? raw : {};
+    return {
+        floors: Math.max(0, Math.floor(safeNum(src.floors, 0))),
+        atk: Math.max(0, Math.floor(safeNum(src.atk, 0))),
+        hp: Math.max(0, Math.floor(safeNum(src.hp, 0))),
+    };
+}
+
+function uniqueTacticalSkillKeys(raw) {
+    const arr = Array.isArray(raw) ? raw : [];
+    const out = [];
+    arr.forEach((x) => {
+        const key = String(x || '').trim();
+        if (!key || out.includes(key)) return;
+        if (typeof getTacticalSkillDef === 'function' && !getTacticalSkillDef(key)) return;
+        out.push(key);
+    });
+    return out;
+}
+
+function uniqueClaimedTacticalMilestones(raw) {
+    const arr = Array.isArray(raw) ? raw : [];
+    return Array.from(
+        new Set(
+            arr
+                .map((x) => Math.floor(safeNum(x, 0)))
+                .filter((x) => Number.isFinite(x) && x > 0)
+        )
+    );
+}
+
+function ensurePlayerRunProgressFields(slot) {
+    if (!player) return;
+    let growth = normalizePlayerFloorGrowth(player.floorGrowth || (slot && slot.floorGrowth));
+    if ((!growth.floors || (!growth.atk && !growth.hp)) && floor > 1 && typeof computeFloorGrowthForClears === 'function') {
+        growth = computeFloorGrowthForClears(Math.max(0, floor - 1));
+    }
+    player.floorGrowth = growth;
+    player.tacticalSkills = uniqueTacticalSkillKeys([
+        ...(slot && Array.isArray(slot.tacticalSkills) ? slot.tacticalSkills : []),
+        ...(Array.isArray(player.tacticalSkills) ? player.tacticalSkills : []),
+    ]);
+    player.tacticalSkillMilestonesClaimed = uniqueClaimedTacticalMilestones([
+        ...(slot && Array.isArray(slot.tacticalSkillMilestonesClaimed) ? slot.tacticalSkillMilestonesClaimed : []),
+        ...(Array.isArray(player.tacticalSkillMilestonesClaimed) ? player.tacticalSkillMilestonesClaimed : []),
+    ]);
+    if (!player.tacticalSkillUses || typeof player.tacticalSkillUses !== 'object') player.tacticalSkillUses = {};
+    player.tacticalFocusReady = !!player.tacticalFocusReady;
+    player.tacticalParryReady = !!player.tacticalParryReady;
+    player.tacticalBarrierReady = !!player.tacticalBarrierReady;
+    ensurePlayerStoryState(slot);
+}
+
+function normalizeUiPlayerState(raw) {
+    if (typeof normalizePlayerState === 'function') return normalizePlayerState(raw);
+    const src = raw && typeof raw === 'object' ? raw : {};
+    return {
+        corruption: Math.max(0, Math.floor(safeNum(src.corruption, 0))),
+        purification: Math.max(0, Math.floor(safeNum(src.purification, 0))),
+    };
+}
+
+function ensurePlayerStoryState(slot) {
+    const fromPlayer = player && player.playerState ? player.playerState : null;
+    const fromSlot = slot && slot.playerState ? slot.playerState : null;
+    const merged = normalizeUiPlayerState(fromPlayer || fromSlot || playerState);
+    playerState = merged;
+    if (player) {
+        player.playerState = merged;
+        const title = typeof getStoryTitleForState === 'function' ? getStoryTitleForState(merged, floor) : null;
+        if (title) player.storyTitle = title;
+        else delete player.storyTitle;
+    }
+    return merged;
+}
+
+function syncPlayerStoryStateToMeta() {
+    if (!player || !player.metaSlotId || typeof MetaRPG === 'undefined' || typeof MetaRPG.syncRunProgress !== 'function') return;
+    ensurePlayerStoryState(player.metaSlotId && typeof MetaRPG.getSlotById === 'function' ? MetaRPG.getSlotById(player.metaSlotId) : null);
+    MetaRPG.syncRunProgress(player.metaSlotId, {
+        playerState: player.playerState,
+    });
+}
+
+function adjustPlayerStoryState(delta, reason) {
+    if (!player) return null;
+    const d = delta && typeof delta === 'object' ? delta : {};
+    const cur = ensurePlayerStoryState(player.metaSlotId && typeof MetaRPG !== 'undefined' ? MetaRPG.getSlotById(player.metaSlotId) : null);
+    const next = normalizeUiPlayerState({
+        corruption: cur.corruption + Math.max(0, Math.floor(safeNum(d.corruption, 0))),
+        purification: cur.purification + Math.max(0, Math.floor(safeNum(d.purification, 0))),
+    });
+    playerState = next;
+    player.playerState = next;
+    syncPlayerStoryStateToMeta();
+    const label = reason ? ` — ${escapeHtml(String(reason))}` : '';
+    writeLog(
+        `[운명] 타락 ${next.corruption} / 정화 ${next.purification}${label ? `<span style="color:#888;">${label}</span>` : ''}`
+    );
+    updateUi();
+    return next;
+}
+
+function applyStoryChoiceImpact(choiceKey) {
+    const impact = typeof getStoryChoiceImpact === 'function' ? getStoryChoiceImpact(choiceKey) : null;
+    if (!impact) return null;
+    return adjustPlayerStoryState(impact, impact.label || choiceKey);
+}
+
+function syncPlayerRunProgressToMeta() {
+    if (!player || !player.metaSlotId || typeof MetaRPG === 'undefined' || typeof MetaRPG.syncRunProgress !== 'function') return;
+    ensurePlayerStoryState(MetaRPG.getSlotById(player.metaSlotId));
+    MetaRPG.syncRunProgress(player.metaSlotId, {
+        floorGrowth: player.floorGrowth,
+        playerState: player.playerState,
+        tacticalSkills: player.tacticalSkills,
+        tacticalSkillMilestonesClaimed: player.tacticalSkillMilestonesClaimed,
+        currentPromotion: player.currentPromotion || null,
+    });
+}
+
+function applyFloorGrowthRewardForClear(clearedFloor) {
+    if (!player) return;
+    ensurePlayerRunProgressFields(player.metaSlotId && typeof MetaRPG !== 'undefined' ? MetaRPG.getSlotById(player.metaSlotId) : null);
+    const step = typeof getFloorGrowthStep === 'function' ? getFloorGrowthStep() : { atk: 1, hp: 5 };
+    const atkGain = Math.max(0, Math.floor(safeNum(step.atk, 1)));
+    const hpGain = Math.max(0, Math.floor(safeNum(step.hp, 5)));
+    if (atkGain <= 0 && hpGain <= 0) return;
+    player.floorGrowth = normalizePlayerFloorGrowth(player.floorGrowth);
+    player.floorGrowth.floors += 1;
+    player.floorGrowth.atk += atkGain;
+    player.floorGrowth.hp += hpGain;
+    player.atk = Math.max(1, safeNum(player.atk, 1) + atkGain);
+    player.maxHp = Math.max(1, safeNum(player.maxHp, 1) + hpGain);
+    player.curHp = Math.min(getEffectiveMaxHp(), safeNum(player.curHp, 0) + hpGain);
+    writeLog(
+        `[성장] ${clearedFloor}층 생존 보너스 — 공격 +${atkGain}, 최대 체력 +${hpGain} <span style="color:#888;">(누적 공격 +${player.floorGrowth.atk}, 체력 +${player.floorGrowth.hp})</span>`
+    );
+    syncPlayerRunProgressToMeta();
+}
+
+function getPendingTacticalSkillMilestone(clearedFloor) {
+    if (!player || typeof getTacticalSkillMilestoneForFloor !== 'function') return null;
+    ensurePlayerRunProgressFields(player.metaSlotId && typeof MetaRPG !== 'undefined' ? MetaRPG.getSlotById(player.metaSlotId) : null);
+    const milestone = getTacticalSkillMilestoneForFloor(clearedFloor);
+    if (!milestone) return null;
+    const claimed = uniqueClaimedTacticalMilestones(player.tacticalSkillMilestonesClaimed);
+    if (claimed.includes(milestone.floor)) return null;
+    const owned = uniqueTacticalSkillKeys(player.tacticalSkills);
+    const choices = (Array.isArray(milestone.choices) ? milestone.choices : []).filter((key) => {
+        if (owned.includes(key)) return false;
+        return typeof getTacticalSkillDef !== 'function' ? true : !!getTacticalSkillDef(key);
+    });
+    if (!choices.length) {
+        player.tacticalSkillMilestonesClaimed = uniqueClaimedTacticalMilestones([...claimed, milestone.floor]);
+        syncPlayerRunProgressToMeta();
+        return null;
+    }
+    return { floor: milestone.floor, choices };
+}
+
+function renderTacticalSkillRewardOverlay(milestone, onDone) {
+    const existing = document.getElementById('tactical-skill-reward-overlay');
+    if (existing) existing.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'tactical-skill-reward-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.style.cssText =
+        'position:fixed;inset:0;background:rgba(0,0,0,0.86);z-index:10085;display:flex;align-items:center;justify-content:center;padding:16px;';
+    const rows = milestone.choices
+        .map((key) => {
+            const def = typeof getTacticalSkillDef === 'function' ? getTacticalSkillDef(key) : null;
+            const icon = def && def.icon ? def.icon : '✦';
+            const name = def && def.name ? def.name : key;
+            const desc = def && def.shortDesc ? def.shortDesc : '전술 스킬';
+            return `<button type="button" class="tactical-skill-choice" data-skill-key="${escapeHtmlAttr(
+                key
+            )}" style="width:100%;background:#141722;border:1px solid #46506a;color:#e8edf7;border-radius:8px;padding:13px 14px;margin-top:10px;text-align:left;cursor:pointer;font-weight:800;line-height:1.45;">
+                <span style="font-size:1.05em;color:#f1c40f;">${icon} ${escapeHtml(name)}</span>
+                <span style="display:block;color:#94a3b8;font-size:0.82em;font-weight:600;margin-top:4px;">${escapeHtml(desc)}</span>
+            </button>`;
+        })
+        .join('');
+    overlay.innerHTML = `
+        <div style="max-width:460px;width:100%;background:#10131d;border:1px solid #f1c40f;border-radius:10px;padding:20px;box-shadow:0 18px 60px rgba(0,0,0,0.58);">
+            <div style="color:#f1c40f;font-weight:900;font-size:1.05em;margin-bottom:6px;">전술 각성 · ${milestone.floor}층 돌파</div>
+            <p style="color:#9aa4b2;font-size:0.86em;line-height:1.55;margin:0 0 8px;">다음 전투부터 사용할 전술 스킬 하나를 선택하세요.</p>
+            ${rows}
+        </div>`;
+    overlay.querySelectorAll('.tactical-skill-choice').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const key = btn.getAttribute('data-skill-key');
+            const def = typeof getTacticalSkillDef === 'function' ? getTacticalSkillDef(key) : null;
+            player.tacticalSkills = uniqueTacticalSkillKeys([...(player.tacticalSkills || []), key]);
+            player.tacticalSkillMilestonesClaimed = uniqueClaimedTacticalMilestones([
+                ...(player.tacticalSkillMilestonesClaimed || []),
+                milestone.floor,
+            ]);
+            if (player.metaSlotId && typeof MetaRPG !== 'undefined' && typeof MetaRPG.grantTacticalSkillToSlot === 'function') {
+                MetaRPG.grantTacticalSkillToSlot(player.metaSlotId, key, milestone.floor);
+            }
+            syncPlayerRunProgressToMeta();
+            overlay.remove();
+            writeLog(`[전술] <b>${escapeHtml(def && def.name ? def.name : key)}</b> 습득 — ${escapeHtml(def && def.shortDesc ? def.shortDesc : '전술 확장')}`);
+            updateUi();
+            renderActions();
+            if (typeof onDone === 'function') setTimeout(onDone, 180);
+        });
+    });
+    document.body.appendChild(overlay);
+}
+
+function maybeOfferTacticalSkillReward(clearedFloor, onDone) {
+    const milestone = getPendingTacticalSkillMilestone(clearedFloor);
+    if (!milestone) {
+        if (typeof onDone === 'function') onDone();
+        return false;
+    }
+    renderTacticalSkillRewardOverlay(milestone, onDone);
+    return true;
+}
 /** 장착 시너지 보너스 캐시 — 회복 상한·UI 등에서 동일 값 사용 */
 // stage 3 split: moved to js/player.js
 function getPermaStats() {
@@ -3650,19 +5233,74 @@ function saveUnlockedFloor(f, job) {
     if (!unlocked.includes(f)) { unlocked.push(f); localStorage.setItem(key, JSON.stringify(unlocked)); }
 }
 
+function updatePrologueBattleControls() {
+    const locked = !!(player && player.prologueLocked);
+    const victoryLocked = hasPendingVictoryAdvance();
+    const saveBtn = document.getElementById('battle-save-main-btn');
+    const exitBtn = document.getElementById('battle-exit-main-btn');
+    if (saveBtn) saveBtn.style.display = locked || victoryLocked ? 'none' : '';
+    if (exitBtn) exitBtn.style.display = locked || victoryLocked ? 'none' : '';
+}
+
 function enterBattleLayout() {
     document.getElementById('sidebar-normal').style.display = 'none';
     const invSb = document.getElementById('sidebar-inventory');
     if (invSb) invSb.style.display = 'flex';
-    document.getElementById('sidebar-battle').style.display = 'flex';
     document.getElementById('log').style.display = 'none';
+    updatePrologueBattleControls();
 }
 function exitBattleLayout() {
     document.getElementById('sidebar-normal').style.display = 'flex';
     const invSb = document.getElementById('sidebar-inventory');
     if (invSb) invSb.style.display = 'none';
-    document.getElementById('sidebar-battle').style.display = 'none';
     document.getElementById('log').style.display = 'block';
+    updatePrologueBattleControls();
+}
+
+let mainViewTransitionQueue = Promise.resolve();
+
+function waitForElementTransition(el) {
+    return new Promise((resolve) => {
+        if (!el) {
+            resolve();
+            return;
+        }
+        const onEnd = (event) => {
+            if (event && event.target !== el) return;
+            el.removeEventListener('transitionend', onEnd);
+            resolve();
+        };
+        el.addEventListener('transitionend', onEnd);
+    });
+}
+
+function cleanupTransientViewDom() {
+    const fx = document.getElementById('combat-fx-layer');
+    if (fx) fx.replaceChildren();
+    document.querySelectorAll('.floating-damage').forEach((el) => el.remove());
+    const ep = document.getElementById('encounter-phase');
+    if (ep && ep.style.display === 'none') ep.replaceChildren();
+}
+
+function transitionMainView(renderFn) {
+    const host = document.getElementById('main-screen') || document.querySelector('.screen');
+    if (!host || typeof renderFn !== 'function') {
+        if (typeof renderFn === 'function') renderFn();
+        return Promise.resolve();
+    }
+    mainViewTransitionQueue = mainViewTransitionQueue.then(async () => {
+        host.classList.add('screen-transitioning');
+        void host.offsetWidth;
+        host.classList.add('screen-fade-out');
+        await waitForElementTransition(host);
+        cleanupTransientViewDom();
+        renderFn();
+        host.classList.remove('screen-fade-out');
+        await waitForElementTransition(host);
+        host.classList.remove('screen-transitioning');
+        cleanupTransientViewDom();
+    });
+    return mainViewTransitionQueue;
 }
 
 /** 시너지 커스텀 툴팁: 터치/클릭으로 열고, 바깥 클릭 시 닫음 (PC는 @media hover로 마우스 호버도 유지) */
@@ -4036,6 +5674,49 @@ function getPromotionStoryDef(promotionKey) {
     return promotionStories[promotionKey] || null;
 }
 
+function getGlobalFloorStoryBand(f) {
+    if (typeof floorStories === 'undefined' || !Array.isArray(floorStories.bands)) return null;
+    const floorNum = Math.max(1, Math.floor(safeNum(f, 1)));
+    return floorStories.bands.find((band) => floorNum >= band.from && floorNum <= band.to) || null;
+}
+
+function getGlobalFloorStoryDef(f) {
+    if (typeof floorStories === 'undefined') return null;
+    const floorNum = Math.max(1, Math.floor(safeNum(f, 1)));
+    const band = getGlobalFloorStoryBand(floorNum);
+    const exactLines = floorStories.milestones && floorStories.milestones[floorNum]
+        ? floorStories.milestones[floorNum]
+        : [];
+    const bandLines = [];
+    if (band && Array.isArray(band.lines) && band.lines.length) {
+        const cadence = Math.max(1, Math.floor(safeNum(band.cadence, 1)));
+        const index = Math.min(band.lines.length - 1, Math.floor((floorNum - band.from) / cadence));
+        bandLines.push(band.lines[Math.max(0, index)]);
+    }
+    const lines = [...bandLines, ...exactLines].filter(Boolean);
+    if (!lines.length) return null;
+    return {
+        key: band ? `${band.key}:${floorNum}` : `milestone:${floorNum}`,
+        title: band ? `${floorNum}층 ${band.title}` : `${floorNum}층 기억`,
+        lines,
+    };
+}
+
+function getRelicStoryClueLines(relicKey) {
+    if (typeof floorStories === 'undefined' || !floorStories.relicClues) return [];
+    const f = Math.max(1, Math.floor(safeNum(floor, 1)));
+    if (f < 51) return [];
+    const band = getGlobalFloorStoryBand(f);
+    const key = band && band.key === 'summit_eve' ? 'summit_eve' : 'deep_truth';
+    let pool = floorStories.relicClues[key];
+    if (!Array.isArray(pool) || !pool.length) pool = floorStories.relicClues.default || [];
+    if (!Array.isArray(pool) || !pool.length) return [];
+    const seed = `${relicKey || 'relic'}:${f}`;
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+    return [pool[hash % pool.length]];
+}
+
 function writeStoryLines(title, lines) {
     const arr = Array.isArray(lines) ? lines.filter(Boolean) : [];
     if (!arr.length) return;
@@ -4064,6 +5745,36 @@ function markStorySeen(slotId, flag, lines) {
     return true;
 }
 
+function checkStoryMilestone(f) {
+    if (!player || !player.metaSlotId || typeof MetaRPG === 'undefined') return false;
+    const floorNum = Math.max(1, Math.floor(safeNum(f, 1)));
+    const slot = MetaRPG.getSlotById(player.metaSlotId);
+    if (!slot) return false;
+    const st = ensurePlayerStoryState(slot);
+    const def = typeof getStoryMilestoneDef === 'function' ? getStoryMilestoneDef(floorNum, st) : null;
+    if (!def || !Array.isArray(def.lines) || !def.lines.length) return false;
+    const flag = `storyData:${floorNum}:${def.key || def.route || 'common'}`;
+    if (!markStorySeen(slot.id, flag, def.lines)) return false;
+    if (def.trigger === 'inner_monologue') {
+        player.storyMonologueUnlocked = true;
+    }
+    if (def.titleOverride) {
+        player.storyTitle = def.titleOverride;
+    } else {
+        const title = typeof getStoryTitleForState === 'function' ? getStoryTitleForState(st, floorNum) : null;
+        if (title) player.storyTitle = title;
+    }
+    syncPlayerStoryStateToMeta();
+    writeStoryLines(def.title || `${floorNum}층 기억`, def.lines);
+    if (def.trigger === 'inner_monologue') {
+        writeLog('<span style="color:#9b59b6;font-weight:800;">[독백]</span> 내면 독백 분기 시스템 활성화.');
+    }
+    if (def.titleOverride) {
+        writeLog(`<span style="color:#f1c40f;font-weight:800;">[타이틀]</span> ${escapeHtml(def.titleOverride)}로 변화.`);
+    }
+    return true;
+}
+
 function emitRunStartStory(slot) {
     if (!slot) return;
     const race = getRaceStoryDef(slot.raceKey);
@@ -4086,14 +5797,17 @@ function emitFloorStory(f) {
     const race = getRaceStoryDef(slot.raceKey);
     const cls = getClassStoryDef(slot.classKey);
     const promo = getPromotionStoryDef(player.name);
+    const globalStory = getGlobalFloorStoryDef(f);
     const lines = [
+        ...((globalStory && globalStory.lines) || []),
         ...((race && race.fragments && race.fragments.floorMilestones && race.fragments.floorMilestones[f]) || []),
         ...((cls && cls.floorMilestones && cls.floorMilestones[f]) || []),
         ...((promo && promo.floorMilestones && promo.floorMilestones[f]) || []),
     ];
     if (!lines.length) return;
-    if (!markStorySeen(slot.id, `floor:${f}:${slot.raceKey || 'none'}:${slot.classKey || slot.jobKey}:${player.name}`, lines)) return;
-    writeStoryLines(`${f}층 기억`, lines);
+    const globalKey = globalStory ? globalStory.key : 'personal';
+    if (!markStorySeen(slot.id, `floor:${f}:${globalKey}:${slot.raceKey || 'none'}:${slot.classKey || slot.jobKey}:${player.name}`, lines)) return;
+    writeStoryLines(globalStory ? globalStory.title : `${f}층 기억`, lines);
 }
 
 function emitPromotionStory(promotionName) {
@@ -4114,78 +5828,265 @@ function emitRelicStory(it) {
     const relicKey = it.effect || it.name || 'unknown';
     const raceRelic = race && race.fragments && race.fragments.relic;
     const classRelic = cls && cls.relic;
+    const storyBand = getGlobalFloorStoryBand(floor);
     const lines = [
+        ...getRelicStoryClueLines(relicKey),
         (raceRelic && (raceRelic[relicKey] || raceRelic.default)) || '',
         (classRelic && (classRelic[relicKey] || classRelic.default)) || '',
     ].filter(Boolean);
     if (!lines.length) return;
-    if (!markStorySeen(slot.id, `relic:${relicKey}`, lines)) return;
+    if (!markStorySeen(slot.id, `relic:${relicKey}:${storyBand ? storyBand.key : 'early'}`, lines)) return;
     writeStoryLines('유물 기억', lines);
 }
 
-function buildRaceChoiceCards() {
-    const keys = typeof raceStories !== 'undefined' ? Object.keys(raceStories) : [];
-    if (!keys.length) return '<p style="color:#888;">선택 가능한 종족 데이터가 없습니다.</p>';
-    return keys
-        .map((key) => {
-            const race = raceStories[key];
-            return `<div onclick="chooseOriginRace('${escapeJsSingleQuoteString(key)}')" style="background:#121217;border:2px solid ${race.color || '#888'};border-radius:10px;padding:14px;text-align:left;cursor:pointer;min-height:132px;">
-            <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:8px;">
-                <div style="color:${race.color || '#f1c40f'};font-weight:900;font-size:1.05em;">${escapeHtml(race.name)}</div>
-                <div style="color:#777;font-size:0.72em;">종족 선택</div>
-            </div>
-            <div style="color:#ddd;font-size:0.84em;font-weight:700;margin-bottom:7px;">${escapeHtml(race.summary || '')}</div>
-            <div style="color:#888;font-size:0.78em;line-height:1.45;">${escapeHtml(race.past || '')}</div>
-        </div>`;
-        })
-        .join('');
+function emitFinalBossOpeningStory() {
+    if (!player || !player.metaSlotId || typeof MetaRPG === 'undefined') return;
+    if (Math.floor(safeNum(floor, 1)) !== 100) return;
+    const lines = typeof floorStories !== 'undefined' && Array.isArray(floorStories.finalBossOpening)
+        ? floorStories.finalBossOpening
+        : [];
+    if (lines.length && markStorySeen(player.metaSlotId, 'finalBossOpening:100', lines)) {
+        writeStoryLines('100층 종착지', lines);
+    }
+    checkStoryMilestone(100);
 }
 
-function renderOriginPrologue(raceKey) {
-    const race = getRaceStoryDef(raceKey);
-    if (!race) return showPreGameScreen();
-    const weaponKeys = typeof introWeaponChoices !== 'undefined' ? Object.keys(introWeaponChoices) : [];
-    const prologue = typeof introPrologueLines !== 'undefined' ? introPrologueLines : [];
-    const weaponCards = weaponKeys
-        .map((key) => {
-            const w = introWeaponChoices[key];
-            const job = jobBase[w.jobKey] || { name: w.className || '직업', color: w.color || '#888' };
-            return `<button type="button" onclick="chooseIntroWeapon('${escapeJsSingleQuoteString(raceKey)}','${escapeJsSingleQuoteString(key)}')" style="text-align:left;background:#111923;border:1px solid ${w.color || job.color};border-radius:10px;padding:13px 14px;cursor:pointer;color:#e0e0e0;">
-                <span style="display:block;color:${w.color || job.color};font-weight:900;font-size:0.98em;">${escapeHtml(w.label)}</span>
-                <span style="display:block;color:#aaa;font-size:0.78em;margin-top:4px;">${escapeHtml(w.className || job.name)} · ${escapeHtml(job.name)}</span>
-                <span style="display:block;color:#777;font-size:0.76em;line-height:1.45;margin-top:7px;">${escapeHtml(w.desc || '')}</span>
-            </button>`;
-        })
-        .join('');
-    const area = document.getElementById('start-area');
-    if (!area) return;
-    area.style.display = 'block';
-    document.getElementById('battle-area').style.display = 'none';
-    document.getElementById('shop-area').style.display = 'none';
-    area.innerHTML = `
-        <div style="max-width:680px;margin:0 auto;text-align:left;">
-            <button type="button" onclick="returnToOriginRaceChoice()" style="background:#333;color:#ddd;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;margin-bottom:12px;">← 돌아가기</button>
-            <div style="background:#101014;border:1px solid ${race.color || '#555'};border-radius:12px;padding:18px;margin-bottom:14px;">
-                <div style="color:${race.color || '#f1c40f'};font-weight:900;font-size:1.1em;margin-bottom:6px;">${escapeHtml(race.name)} — ${escapeHtml(race.summary || '')}</div>
-                <div style="color:#999;font-size:0.84em;line-height:1.55;">${escapeHtml(race.past || '')}</div>
-            </div>
-            <div style="background:#17110f;border:1px solid #5a3424;border-radius:12px;padding:18px;margin-bottom:14px;">
-                ${prologue.map((line) => `<p style="color:#f0ddd0;font-size:0.96em;line-height:1.7;margin:0;">${escapeHtml(line)}</p>`).join('')}
-            </div>
-            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;">
-                ${weaponCards}
-            </div>
+function getIntroMemoryChoiceDef(memoryKey) {
+    if (typeof introMemoryChoices === 'undefined') return null;
+    return introMemoryChoices[memoryKey] || null;
+}
+
+function ensurePrologueScreen() {
+    let screen = document.getElementById('prologue-screen');
+    if (!screen) {
+        screen = document.createElement('div');
+        screen.id = 'prologue-screen';
+        screen.style.cssText =
+            'position:fixed;inset:0;z-index:12000;background:radial-gradient(circle at 50% 35%,#221510 0%,#09090d 48%,#020203 100%);color:#e8e0d8;display:flex;align-items:center;justify-content:center;padding:22px;box-sizing:border-box;';
+        document.body.appendChild(screen);
+    }
+    screen.style.display = 'flex';
+    return screen;
+}
+
+function setMainUiHiddenForPrologue(hidden) {
+    const targets = [
+        document.querySelector('.container'),
+        document.getElementById('log'),
+    ].filter(Boolean);
+    targets.forEach((el) => {
+        if (hidden) {
+            if (!Object.prototype.hasOwnProperty.call(el.dataset, 'prePrologueDisplay')) {
+                el.dataset.prePrologueDisplay = el.style.display || '';
+            }
+            el.style.display = 'none';
+            return;
+        }
+        if (Object.prototype.hasOwnProperty.call(el.dataset, 'prePrologueDisplay')) {
+            el.style.display = el.dataset.prePrologueDisplay;
+            delete el.dataset.prePrologueDisplay;
+        } else {
+            el.style.display = '';
+        }
+    });
+}
+
+function closePrologueScreen() {
+    const screen = document.getElementById('prologue-screen');
+    if (screen) screen.remove();
+    setMainUiHiddenForPrologue(false);
+}
+
+function waitForPrologueDelay(ms) {
+    return new Promise((resolve) => setTimeout(resolve, Math.max(0, ms || 0)));
+}
+
+function applyTutorialBattleFadeIn() {
+    const battle = document.getElementById('battle-area');
+    if (!battle) return;
+    battle.classList.remove('tutorial-battle-fade-in');
+    void battle.offsetWidth;
+    battle.classList.add('tutorial-battle-fade-in');
+    setTimeout(() => {
+        if (battle) battle.classList.remove('tutorial-battle-fade-in');
+    }, 720);
+}
+
+async function playPrologueBattleBridge(startRunFn) {
+    const screen = ensurePrologueScreen();
+    setMainUiHiddenForPrologue(true);
+    screen.classList.remove('prologue-battle-bridge-out');
+    screen.classList.add('prologue-battle-bridge');
+    screen.innerHTML = `
+        <div class="prologue-battle-bridge-card">
+            <p>동굴 저편에서 침을 흘리는 괴수의 발자국 소리가 다가옵니다...</p>
+            <b>첫 번째 생존 전투 시작.</b>
+        </div>`;
+    await waitForPrologueDelay(1000);
+    setMainUiHiddenForPrologue(false);
+    const ok = typeof startRunFn === 'function' ? startRunFn() : true;
+    applyTutorialBattleFadeIn();
+    screen.classList.add('prologue-battle-bridge-out');
+    await waitForPrologueDelay(360);
+    if (screen && screen.parentNode) screen.remove();
+    setMainUiHiddenForPrologue(false);
+    return ok;
+}
+
+function buildPrologueChoiceButton(label, handler, tone) {
+    const border = tone || '#6b5848';
+    return `<button type="button" onclick="${handler}" style="width:100%;background:rgba(5,7,10,0.72);border:1px solid ${border};color:#f2ece6;padding:14px 16px;border-radius:6px;text-align:left;font-size:0.95em;font-weight:800;line-height:1.45;cursor:pointer;box-shadow:0 0 0 1px rgba(255,255,255,0.02) inset;">${escapeHtml(label)}</button>`;
+}
+
+let currentPhase = 'memory';
+let selectedPrologueMemoryKey = null;
+
+function setProloguePhase(nextPhase, payload) {
+    currentPhase = nextPhase || 'memory';
+    if (payload && Object.prototype.hasOwnProperty.call(payload, 'memoryKey')) {
+        selectedPrologueMemoryKey = payload.memoryKey || null;
+    }
+    renderProloguePhase();
+}
+
+function buildProloguePanelHtml({ eyebrow, text, actionsHtml, mutedText }) {
+    return `
+        <div style="width:min(700px,100%);">
+            ${eyebrow ? `<div style="color:#8f8278;font-size:0.78em;letter-spacing:0;margin-bottom:12px;">${escapeHtml(eyebrow)}</div>` : ''}
+            ${mutedText ? `<p style="font-size:0.9em;line-height:1.65;margin:0 0 18px;color:#8f8278;">${escapeHtml(mutedText)}</p>` : ''}
+            <p class="prologue-fade-text" style="font-size:1.1em;line-height:1.88;margin:0 0 26px;color:#efe6dc;font-weight:800;animation:prologueFadeIn 520ms ease-out both;">${escapeHtml(text || '')}</p>
+            ${actionsHtml ? `<div style="display:flex;flex-direction:column;gap:11px;animation:prologueFadeIn 520ms ease-out 140ms both;">${actionsHtml}</div>` : ''}
         </div>`;
 }
 
-function confirmNewCharacterFromOrigin(raceKey, weaponKey) {
+function renderProloguePhase() {
+    const screen = ensurePrologueScreen();
+    setMainUiHiddenForPrologue(true);
+    if (!document.getElementById('prologue-fade-style')) {
+        const style = document.createElement('style');
+        style.id = 'prologue-fade-style';
+        style.textContent = '@keyframes prologueFadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}';
+        document.head.appendChild(style);
+    }
+
+    if (currentPhase === 'memory') {
+        selectedPrologueMemoryKey = null;
+        const text = typeof introPrologueText !== 'undefined' ? introPrologueText.memoryPrompt : '';
+        const choices = typeof introMemoryChoices !== 'undefined' ? Object.keys(introMemoryChoices) : [];
+        const actionsHtml = choices
+            .map((key) => {
+                const c = introMemoryChoices[key];
+                const race = getRaceStoryDef(c.raceKey);
+                return buildPrologueChoiceButton(
+                    c.label,
+                    `choosePrologueMemory('${escapeJsSingleQuoteString(key)}')`,
+                    race && race.color ? race.color : '#6b5848'
+                );
+            })
+            .join('');
+        screen.innerHTML = buildProloguePanelHtml({ text, actionsHtml });
+        return;
+    }
+
+    const memory = getIntroMemoryChoiceDef(selectedPrologueMemoryKey);
+    const race = memory ? getRaceStoryDef(memory.raceKey) : null;
+    if (!memory || !race) {
+        currentPhase = 'memory';
+        selectedPrologueMemoryKey = null;
+        renderProloguePhase();
+        return;
+    }
+
+    if (currentPhase === 'raceStory') {
+        const actionsHtml = buildPrologueChoiceButton('눈을 뜬다', 'advanceProloguePhase()', race.color || '#6b5848');
+        screen.innerHTML = buildProloguePanelHtml({
+            text: race.past,
+            actionsHtml,
+        });
+        return;
+    }
+
+    if (currentPhase === 'danger') {
+        const text = typeof introPrologueText !== 'undefined' ? introPrologueText.dangerPrompt : '';
+        const actionsHtml = buildPrologueChoiceButton('주변의 무기를 살핀다', 'advanceProloguePhase()', '#9b6a4a');
+        screen.innerHTML = buildProloguePanelHtml({ text, actionsHtml });
+        return;
+    }
+
+    if (currentPhase === 'weapon') {
+        const text = typeof introPrologueText !== 'undefined' ? introPrologueText.weaponPrompt : '';
+        const weaponKeys = typeof introWeaponChoices !== 'undefined' ? Object.keys(introWeaponChoices) : [];
+        const actionsHtml = weaponKeys
+            .map((key) => {
+                const w = introWeaponChoices[key];
+                return buildPrologueChoiceButton(
+                    w.label,
+                    `chooseIntroWeapon('${escapeJsSingleQuoteString(selectedPrologueMemoryKey)}','${escapeJsSingleQuoteString(key)}')`,
+                    w.color || '#6b5848'
+                );
+            })
+            .join('');
+        screen.innerHTML = buildProloguePanelHtml({ text, actionsHtml });
+    }
+}
+
+function canCreateCharacterInCurrentFile() {
+    if (typeof MetaRPG === 'undefined') return false;
+    const m = MetaRPG.loadMeta();
+    if (m.slots.length < MetaRPG.MAX_SLOTS) return true;
+    const n = MetaRPG.getSaveFileSlotCount ? MetaRPG.getSaveFileSlotCount() : 3;
+    for (let fi = 0; fi < n; fi++) {
+        const pm = MetaRPG.peekMetaAtFileIndex(fi);
+        if (pm && pm.slots && pm.slots.length < MetaRPG.MAX_SLOTS) {
+            if (
+                confirm(
+                    `이 저장 파일의 캐릭터 슬롯이 가득 찼습니다.\n저장 파일 ${fi + 1}번에는 빈 슬롯이 있습니다.\n해당 파일로 전환할까요?`
+                )
+            ) {
+                MetaRPG.setActiveSaveFileIndex(fi);
+                showPreGameScreen();
+            }
+            return false;
+        }
+    }
+    const ans = prompt(
+        `모든 저장 파일에서 캐릭터 슬롯이 가득 찼습니다.\n비우고 새로 만들 저장 파일 번호를 입력하세요 (1~${n}).\n※ 해당 파일의 메타·캐릭터 데이터가 삭제됩니다. 취소하려면 취소를 누르세요.`
+    );
+    if (ans == null) return false;
+    const num = parseInt(String(ans).trim(), 10);
+    if (!Number.isFinite(num) || num < 1 || num > n) {
+        alert('1~' + n + ' 사이 숫자를 입력해 주세요.');
+        return false;
+    }
+    const idx = num - 1;
+    if (!confirm(`저장 파일 ${num}번을 완전히 비우고 새 캐릭터를 만듭니다. 계속할까요?`)) return false;
+    MetaRPG.clearSaveFile(idx);
+    MetaRPG.setActiveSaveFileIndex(idx);
+    return true;
+}
+
+function startNewCharacterPrologueFlow() {
     if (typeof MetaRPG === 'undefined') return;
-    const race = getRaceStoryDef(raceKey);
+    if (!canCreateCharacterInCurrentFile()) return;
+    ensurePrologueScreen();
+    setMainUiHiddenForPrologue(true);
+    setProloguePhase('memory', { memoryKey: null });
+}
+
+let prologueBattleBridgeActive = false;
+
+async function confirmNewCharacterFromPrologue(memoryKey, weaponKey) {
+    if (typeof MetaRPG === 'undefined') return;
+    if (prologueBattleBridgeActive) return;
+    const memory = getIntroMemoryChoiceDef(memoryKey);
+    const race = memory ? getRaceStoryDef(memory.raceKey) : null;
     const weapon = getIntroWeaponDef(weaponKey);
-    if (!race || !weapon) return showPreGameScreen();
-    const name = prompt('캐릭터 이름을 입력하세요 (비우면 무명):', race.name + ' 생존자');
-    const r = MetaRPG.createCharacter(name || '무명', weapon.jobKey, {
-        raceKey,
+    if (!memory || !race || !weapon) return setProloguePhase('memory', { memoryKey: null });
+    const className = weapon.className || (jobBase[weapon.jobKey] && jobBase[weapon.jobKey].name) || '생존자';
+    const r = MetaRPG.createCharacter(`${race.name} ${className}`, weapon.jobKey, {
+        raceKey: memory.raceKey,
+        memoryKey,
+        originBaseJobKey: memory.baseJobKey,
         weaponKey,
         classKey: weapon.classKey,
     });
@@ -4193,10 +6094,43 @@ function confirmNewCharacterFromOrigin(raceKey, weaponKey) {
         alert(r.msg || '생성 실패');
         return;
     }
-    initRunFromMetaSlot({ forceTutorialBattle: true });
+    prologueBattleBridgeActive = true;
+    try {
+        await playPrologueBattleBridge(() => initRunFromMetaSlot({ forceTutorialBattle: true }));
+    } finally {
+        prologueBattleBridgeActive = false;
+    }
+}
+
+function hasOpenCharacterSlot(meta) {
+    if (typeof MetaRPG === 'undefined') return true;
+    const m = meta || MetaRPG.loadMeta();
+    return !m || !Array.isArray(m.slots) || m.slots.length < MetaRPG.MAX_SLOTS;
+}
+
+function buildNewAdventureStartHtml(extraClass) {
+    const className = ['new-adventure-entry', extraClass || ''].filter(Boolean).join(' ');
+    return `
+        <div id="new-adventure-entry" class="${className}">
+            <button id="new-adventure-start-btn" class="new-adventure-start-btn" type="button" onclick="startNewCharacterPrologue()">새로운 모험 시작</button>
+        </div>`;
+}
+
+function ensureHubCreateEntryRendered() {
+    const startArea = document.getElementById('start-area');
+    if (!startArea) return;
+    if (startArea.querySelector('#new-adventure-start-btn')) return;
+    if (!hasOpenCharacterSlot()) return;
+    const fallback = document.createElement('div');
+    fallback.innerHTML = buildNewAdventureStartHtml('new-adventure-entry-fallback');
+    const entry = fallback.firstElementChild;
+    if (entry) startArea.appendChild(entry);
 }
 
 function showPreGameScreen() {
+    const lingeringPrologue = document.getElementById('prologue-screen');
+    if (lingeringPrologue) lingeringPrologue.remove();
+    setMainUiHiddenForPrologue(false);
     exitBattleLayout();
     migrateGlobalPermaIntoSlotOnce();
     if (typeof MetaRPG !== 'undefined') {
@@ -4218,22 +6152,30 @@ function showPreGameScreen() {
     if (typeof MetaRPG !== 'undefined') {
         m.slots.forEach((s) => {
             const sn = MetaRPG.getRunSnapshot(s.id);
-            if (sn && sn.floor) slotSnapHints.push(`<b>${esc(s.name)}</b> ${sn.floor}층`);
+            if (sn && sn.floor) slotSnapHints.push(`<b>${escapeHtml(getSlotClassDisplayName(s))}</b> ${sn.floor}층`);
         });
     }
+    const canStartNewAdventure = hasOpenCharacterSlot(m);
     const slotRows =
         m.slots.length === 0
-            ? `<p style="color:#888;font-size:0.85em;">저장된 캐릭터가 없습니다. 아래에서 <b>새 모험가</b>를 만들어 주세요.</p>`
+            ? `<div class="empty-character-slot">
+                <p style="color:#888;font-size:0.85em;margin:0 0 12px;">저장된 캐릭터가 없습니다. 아래에서 <b>새 모험가</b>를 만들어 주세요.</p>
+                ${canStartNewAdventure ? buildNewAdventureStartHtml('new-adventure-entry-empty') : ''}
+            </div>`
             : m.slots
                   .map((s) => {
                       MetaRPG.recalcTechBonus(s);
                       const jb = jobBase[s.jobKey] || { name: '?', color: '#888' };
+                      const jobDisplayName = getSlotClassDisplayName(s);
                       const race = getRaceStoryDef(s.raceKey);
                       const weapon = getIntroWeaponDef(s.introWeaponKey);
                       const cls = getClassStoryDef(s.classKey);
                       const techFree = '테크 자유';
                       const rct = s.reincarnationCount || 0;
                       const gen = rct + 1;
+                      const rescuedCount = Array.isArray(s.rescuedItems) ? s.rescuedItems.length : 0;
+                      const rescueBadge =
+                          rescuedCount > 0 ? ` · 구조 장비 <b style="color:#2ed573;">${rescuedCount}</b>개 보존` : '';
                       const rebCost = MetaRPG.getRebirthGoldCost(s);
                       const rebNeedFloor = MetaRPG.getRebirthMinFloor ? MetaRPG.getRebirthMinFloor() : 500;
                       const bestFloor = Math.max(1, s.bestFloor || 1);
@@ -4247,8 +6189,8 @@ function showPreGameScreen() {
                               : '';
                       return `<div style="background:#111;border:1px solid #444;border-radius:10px;padding:12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
                         <div style="text-align:left;">
-                            <div style="color:#f1c40f;font-weight:700;">${esc(s.name)} ${gen > 1 ? `<span style="color:#aaa;font-size:0.85em;">(인생 ${gen}회차)</span>` : ''}</div>
-                            <div style="color:#888;font-size:0.78em;">${race ? `종족 ${race.name} · ` : ''}${weapon ? `무기 ${weapon.label} · ` : ''}직업 ${jb.name}${cls ? `(${cls.name})` : ''} · ${lifeBadge}${techFree} · 메타 Lv.${s.level || 1} · 최고 ${bestFloor}층 · 환생 ${rct}/3</div>
+                            <div style="color:#f1c40f;font-weight:700;">${escapeHtml(jobDisplayName)} ${gen > 1 ? `<span style="color:#aaa;font-size:0.85em;">(인생 ${gen}회차)</span>` : ''}</div>
+                            <div style="color:#888;font-size:0.78em;">${race ? `종족 ${race.name} · ` : ''}${weapon ? `무기 ${weapon.label} · ` : ''}직업 ${escapeHtml(jobDisplayName)}${cls ? `(${cls.name})` : ''} · ${lifeBadge}${techFree} · 메타 Lv.${s.level || 1} · 최고 ${bestFloor}층 · 환생 ${rct}/3${rescueBadge}</div>
                             <div style="color:#666;font-size:0.72em;">환생 조건: ${rebNeedFloor}층 이상 도달 + 골드 필요</div>
                         </div>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
@@ -4276,7 +6218,8 @@ function showPreGameScreen() {
         }
         saveFileBar = `<div style="margin-bottom:14px;padding:12px;background:#0d0d12;border:1px solid #333;border-radius:10px;"><div style="color:#f1c40f;font-weight:700;margin-bottom:8px;font-size:0.9em;">💾 저장 파일 (최대 3)</div><div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">${parts.join('')}</div><p style="color:#666;font-size:0.72em;margin:8px 0 0;line-height:1.45;">다른 파일을 불러오려면 위 버튼을 누르세요. 모든 파일이 가득 차면 새 캐릭터 생성 시 <b>비울 파일</b>을 묻습니다.</p></div>`;
     }
-    const newCharGrid = buildRaceChoiceCards();
+    const newCharacterEntryHtml =
+        m.slots.length > 0 && canStartNewAdventure ? buildNewAdventureStartHtml('new-adventure-entry-secondary') : '';
     document.getElementById('start-area').style.display = 'block';
     document.getElementById('battle-area').style.display = 'none';
     document.getElementById('shop-area').style.display = 'none';
@@ -4296,10 +6239,7 @@ function showPreGameScreen() {
             <h4 style="color:#f1c40f;margin:0 0 8px 0;">💾 캐릭터 슬롯 (최대 ${typeof MetaRPG !== 'undefined' ? MetaRPG.MAX_SLOTS : 4})</h4>
             ${slotRows}
         </div>
-        <h4 style="color:#aaa;font-size:0.9em;margin:12px 0;">새 생존자 — 먼저 <b>종족</b>을 고르면, 프롤로그에서 급히 집을 무기로 직업이 결정됩니다.</h4>
-        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;max-width:520px;margin-left:auto;margin-right:auto;">
-            ${newCharGrid}
-            </div>
+        ${newCharacterEntryHtml}
         <div style="max-width:560px;margin:0 auto 16px;padding:14px;background:#111;border:1px solid #333;border-radius:10px;text-align:left;">
             <h4 style="color:#f1c40f;margin:0 0 10px;text-align:center;">💾 저장 / 불러오기</h4>
             ${slotSnapHints.length ? `<p style="color:#2ed573;font-size:0.82em;margin:0 0 10px;line-height:1.45;">💾 저장된 런: ${slotSnapHints.join(' · ')} — 캐릭터 <b>이어하기</b>로 복구됩니다.</p>` : '<p style="color:#555;font-size:0.8em;margin:0 0 8px;">저장된 런 없음 — 전투 중 <b>💾 저장 후 메인</b>으로 진행을 남기세요.</p>'}
@@ -4316,6 +6256,7 @@ function showPreGameScreen() {
             String(err && err.message ? err.message : err) +
             '</span></p>';
     }
+    ensureHubCreateEntryRendered();
 }
 
 window.resumeMetaSlot = (slotId) => {
@@ -4367,16 +6308,26 @@ window.reincarnateFromHub = function reincarnateFromHub(slotId) {
     }
 };
 
-window.returnToOriginRaceChoice = function returnToOriginRaceChoice() {
-    showPreGameScreen();
+window.startNewCharacterPrologue = function startNewCharacterPrologue() {
+    startNewCharacterPrologueFlow();
 };
 
-window.chooseOriginRace = function chooseOriginRace(raceKey) {
-    renderOriginPrologue(raceKey);
+window.choosePrologueMemory = function choosePrologueMemory(memoryKey) {
+    setProloguePhase('raceStory', { memoryKey });
 };
 
-window.chooseIntroWeapon = function chooseIntroWeapon(raceKey, weaponKey) {
-    confirmNewCharacterFromOrigin(raceKey, weaponKey);
+window.advanceProloguePhase = function advanceProloguePhase() {
+    if (currentPhase === 'raceStory') {
+        setProloguePhase('danger', { memoryKey: selectedPrologueMemoryKey });
+        return;
+    }
+    if (currentPhase === 'danger') {
+        setProloguePhase('weapon', { memoryKey: selectedPrologueMemoryKey });
+    }
+};
+
+window.chooseIntroWeapon = function chooseIntroWeapon(memoryKey, weaponKey) {
+    return confirmNewCharacterFromPrologue(memoryKey, weaponKey);
 };
 
 window.openTechLinePicker = (jobKey) => {
@@ -4493,10 +6444,17 @@ function initRunFromMetaSlot(options) {
     const lv = slot.level || 1;
     const lb = MetaRPG.getLevelRuntimeBonus(lv);
     const rs = slot.rebirthStatBonus || { hp: 0, atk: 0, def: 0, acc: 0 };
-    const baseHp = job.hp + tb.hp + lb.hp + (rs.hp || 0);
-    const baseAtk = job.atk + tb.atk + lb.atk + (rs.atk || 0);
+    const fg = normalizePlayerFloorGrowth(slot.floorGrowth);
+    const baseHp = job.hp + tb.hp + lb.hp + (rs.hp || 0) + fg.hp;
+    const baseAtk = job.atk + tb.atk + lb.atk + (rs.atk || 0) + fg.atk;
     const baseDef = job.def + tb.def + lb.def + (rs.def || 0);
     const baseAcc = tb.acc + lb.acc + (rs.acc || 0);
+    const rescuedItems = typeof MetaRPG.getRescuedItems === 'function' ? MetaRPG.getRescuedItems(slot.id) : [];
+    rescuedItems.forEach((it) => {
+        if (!it || it.type === 'merc') return;
+        if (typeof applyOfficialStatsToEquipmentItem === 'function') applyOfficialStatsToEquipmentItem(it, { rebuildDesc: true });
+        else if (typeof clampEquipmentItemStatsToRarityCaps === 'function') clampEquipmentItemStatsToRarityCaps(it);
+    });
     clearSummonRunStorage();
     player = {
         ...job,
@@ -4518,7 +6476,7 @@ function initRunFromMetaSlot(options) {
         metaSlotId: slot.id,
         runLevel: lv,
         runExp: slot.exp || 0,
-        items: [],
+        items: rescuedItems,
         relics: [],
         extraAtk: 0,
         _relicGamblerDefSub: 0,
@@ -4531,9 +6489,13 @@ function initRunFromMetaSlot(options) {
         hasRegenPotion: false,
         baseJob: job.name,
         raceKey: slot.raceKey || null,
+        memoryKey: slot.memoryKey || null,
+        originBaseJobKey: slot.originBaseJobKey || jb,
         classKey: slot.classKey || jb,
         introWeaponKey: slot.introWeaponKey || null,
         currentPromotion: slot.currentPromotion || null,
+        tutorialBattleActive: !!opt.forceTutorialBattle,
+        prologueLocked: !!opt.forceTutorialBattle,
         evolved: false,
         shieldEmpowered: false,
         summon: null,
@@ -4553,14 +6515,28 @@ function initRunFromMetaSlot(options) {
         mercInventory: [],
         activeQuest: null,
         farmingStay: false,
+        floorGrowth: fg,
+        playerState: normalizeUiPlayerState(slot.playerState),
+        tacticalSkills: uniqueTacticalSkillKeys(slot.tacticalSkills),
+        tacticalSkillMilestonesClaimed: uniqueClaimedTacticalMilestones(slot.tacticalSkillMilestonesClaimed),
+        tacticalSkillUses: {},
+        tacticalFocusReady: false,
+        tacticalParryReady: false,
+        tacticalBarrierReady: false,
         shopRarityBoost: 0,
         freeShopCoupon: false,
         passiveContractHistory: [],
         hunterExposeStacks: 0,
         hunterExposeReady: false,
     };
+    ensurePlayerRunProgressFields(slot);
     markPlayedJob(job.name);
-    applyRebirthPctBonusToPlayer(slot);
+    if (player.items.length && typeof fullResyncPlayerCombatStatsFromMetaAndInventory === 'function') {
+        fullResyncPlayerCombatStatsFromMetaAndInventory();
+        player.curHp = typeof getEffectiveMaxHp === 'function' ? getEffectiveMaxHp() : player.maxHp;
+    } else {
+        applyRebirthPctBonusToPlayer(slot);
+    }
     recalcPlayerDivineGainMult();
     floor = 1;
     gold = 0;
@@ -4569,10 +6545,14 @@ function initRunFromMetaSlot(options) {
     shopVisitCount = 0;
     document.getElementById('start-area').style.display = 'none';
     document.getElementById('battle-area').style.display = 'block';
-    document.getElementById('log-battle').innerHTML = '';
+    const battleLog = document.getElementById('battle-log-strip');
+    if (battleLog) battleLog.innerHTML = '';
     enterBattleLayout();
     loadCollection();
     emitRunStartStory(slot);
+    if (player.items.length) {
+        writeLog(`[구조] 베이스캠프에 보존된 장비 ${player.items.length}개를 장착한 채 1층부터 재등반합니다.`);
+    }
     if (jb === 'MercenaryCaptain') {
         MetaRPG.markRunCheckpoint(slot.id);
         showMercCompanionPicker();
@@ -4907,6 +6887,7 @@ window.evolve = (idx) => {
 
 function checkFloorUnlock(f) {
     const baseJob = player.baseJob;
+    checkStoryMilestone(f);
     emitFloorStory(f);
     try { maybeUnlockEvolutionItemsFromBasePlay(f); } catch (e) { /* ignore */ }
     if (f%10===0 && floorUnlocks[f]) {
@@ -4942,10 +6923,10 @@ function renderCombatLogsFromSnapshotRows(rows) {
     const html = arr
         .map((msg) => `<p style="margin:4px 0;border-bottom:1px solid #333;padding-bottom:4px;">${msg}</p>`)
         .join('');
-    const b = document.getElementById('log-battle');
     const n = document.getElementById('log');
-    if (b) b.innerHTML = html;
     if (n) n.innerHTML = html;
+    window._combatLogHistory = arr.slice(0, 220);
+    renderSlimBattleLog();
 }
 
 function showMercEvolutionChoice(onDone) {
@@ -5050,13 +7031,17 @@ function proceedWinBattleNextFloor() {
     failActiveQuestIfLeavingFloor();
     const clearedFloor = floor;
     floor++;
+    applyFloorGrowthRewardForClear(clearedFloor);
     checkFloorUnlock(clearedFloor);
     if (player && player.metaSlotId && typeof MetaRPG !== 'undefined' && MetaRPG.updateBestFloor) MetaRPG.updateBestFloor(player.metaSlotId, clearedFloor);
-    if (isMercenaryCaptainJob() && clearedFloor >= 19 && clearedFloor <= 30 && !player.mercEvolutionChosen) {
-        setTimeout(() => showMercEvolutionChoice(() => winBattleContinueFrom(clearedFloor)), 450);
-        return;
-    }
-    winBattleContinueFrom(clearedFloor);
+    const continueAfterRewards = () => {
+        if (isMercenaryCaptainJob() && clearedFloor >= 19 && clearedFloor <= 30 && !player.mercEvolutionChosen) {
+            setTimeout(() => showMercEvolutionChoice(() => winBattleContinueFrom(clearedFloor)), 450);
+            return;
+        }
+        winBattleContinueFrom(clearedFloor);
+    };
+    maybeOfferTacticalSkillReward(clearedFloor, continueAfterRewards);
 }
 
 function serializeRunState() {
@@ -5081,6 +7066,13 @@ function serializeRunState() {
         shopVisitCount,
         lastEnemyJob,
         pendingShop: inShop ? false : pendingShop,
+        restockCrossroadActive: !inShop && !enemySnap && typeof restockCrossroadActive !== 'undefined' && !!restockCrossroadActive,
+        restockCrossroadContext: !inShop && !enemySnap && typeof restockCrossroadActive !== 'undefined' && restockCrossroadActive
+            ? (restockCrossroadContext || null)
+            : null,
+        resumeAfterRestockCrossroad: inShop && typeof resumeAfterRestockCrossroad !== 'undefined' && resumeAfterRestockCrossroad
+            ? resumeAfterRestockCrossroad
+            : null,
         encounterPhase: !inShop && !enemySnap && !!window._encounterPhaseActive,
         encounterScene: !inShop && !enemySnap && !!window._encounterPhaseActive ? (window._encounterPhaseScene || null) : null,
         inShop: !!inShop,
@@ -5127,6 +7119,9 @@ function loadRunFromMetaSnapshot(d) {
     lastEnemyJob = d.lastEnemyJob || '';
     pendingShop = !!d.pendingShop;
     const savedInShop = !!d.inShop;
+    if (typeof restockCrossroadActive !== 'undefined') restockCrossroadActive = !!d.restockCrossroadActive;
+    if (typeof restockCrossroadContext !== 'undefined') restockCrossroadContext = d.restockCrossroadContext || null;
+    if (typeof resumeAfterRestockCrossroad !== 'undefined') resumeAfterRestockCrossroad = d.resumeAfterRestockCrossroad || null;
     attackGcdUntil = d.attackGcdUntil || 0;
     defendingTurns = d.defendingTurns || 0;
     dodgingTurns = d.dodgingTurns || 0;
@@ -5143,11 +7138,14 @@ function loadRunFromMetaSnapshot(d) {
             const storySlot = MetaRPG.getSlotById(player.metaSlotId);
             if (storySlot) {
                 player.raceKey = player.raceKey || storySlot.raceKey || null;
+                player.memoryKey = player.memoryKey || storySlot.memoryKey || null;
+                player.originBaseJobKey = player.originBaseJobKey || storySlot.originBaseJobKey || storySlot.jobKey || null;
                 player.classKey = player.classKey || storySlot.classKey || storySlot.jobKey || null;
                 player.introWeaponKey = player.introWeaponKey || storySlot.introWeaponKey || null;
                 player.currentPromotion = player.currentPromotion || storySlot.currentPromotion || null;
             }
         }
+        ensurePlayerRunProgressFields(player.metaSlotId && typeof MetaRPG !== 'undefined' ? MetaRPG.getSlotById(player.metaSlotId) : null);
     }
     if (player && player.divinePower == null) player.divinePower = 0;
     if (player && player.divineGainMult == null) player.divineGainMult = 1;
@@ -5207,6 +7205,8 @@ function loadRunFromMetaSnapshot(d) {
             rerollCost = rerollCost || 10;
             updateUi();
             renderShopItems();
+        } else if (typeof restockCrossroadActive !== 'undefined' && restockCrossroadActive && typeof renderRestockCrossroad === 'function') {
+            renderRestockCrossroad({ immediate: true });
         } else {
             pendingShop = false;
             if (d.encounterPhase) {
@@ -5736,6 +7736,8 @@ function removeOwnedItemEffects(it) {
         if (it.lifesteal) player.lifesteal = Math.max(0, safeNum(player.lifesteal, 0) - safeNum(it.lifesteal, 0));
         if (it.critBonus) player.crit = Math.max(1, safeNum(player.crit, 1) - safeNum(it.critBonus, 0));
         if (it.critMult) player.critMult = Math.max(1.8, safeNum(player.critMult, 1.8) - safeNum(it.critMult, 0));
+        if (it.damageReduction) player.damageReduction = Math.max(0, safeNum(player.damageReduction, 0) - safeNum(it.damageReduction, 0));
+        if (it.potionHealBonus) player.potionHealBonus = Math.max(0, safeNum(player.potionHealBonus, 0) - safeNum(it.potionHealBonus, 0));
         const hasRegen = (player.items || []).some((x) => x !== it && x && x.regenPotion);
         player.hasRegenPotion = !!hasRegen;
         recalcPlayerDivineGainMult();
@@ -5746,10 +7748,16 @@ function removeOwnedItemEffects(it) {
         player.maxHp = Math.max(1, safeNum(player.maxHp, 1) - safeNum(it.value, 0));
         player.curHp = Math.min(getEffectiveMaxHp(), safeNum(player.curHp, 0));
     }
+    if (it.type !== 'rune' && typeof it.hpBonus === 'number' && it.hpBonus) {
+        player.maxHp = Math.max(1, safeNum(player.maxHp, 1) - safeNum(it.hpBonus, 0));
+        player.curHp = Math.min(getEffectiveMaxHp(), safeNum(player.curHp, 0));
+    }
     if (it.def) player.extraDef = Math.max(0, safeNum(player.extraDef, 0) - safeNum(it.def, 0));
     if (it.lifesteal) player.lifesteal = Math.max(0, safeNum(player.lifesteal, 0) - safeNum(it.lifesteal, 0));
     if (it.critBonus) player.crit = Math.max(1, safeNum(player.crit, 1) - safeNum(it.critBonus, 0));
     if (it.critMult) player.critMult = Math.max(1.8, safeNum(player.critMult, 1.8) - safeNum(it.critMult, 0));
+    if (it.damageReduction) player.damageReduction = Math.max(0, safeNum(player.damageReduction, 0) - safeNum(it.damageReduction, 0));
+    if (it.potionHealBonus) player.potionHealBonus = Math.max(0, safeNum(player.potionHealBonus, 0) - safeNum(it.potionHealBonus, 0));
     if (it.penalty && it.penalty[player.name]) player.acc += safeNum(it.penalty[player.name], 0);
     const hasRegen = (player.items || []).some((x) => x !== it && x && x.regenPotion);
     player.hasRegenPotion = !!hasRegen;
@@ -5972,15 +7980,6 @@ function renderInventoryPanel() {
     const invList = document.getElementById('inv-list');
     if (!invList || !player) return;
     const hasMercGear = isMercenaryCaptainJob() && player.mercInventory && player.mercInventory.length > 0;
-    const hasItems =
-        (player.items || []).length > 0 ||
-        (player.relics || []).length > 0 ||
-        (player.bonusSkills || []).length > 0 ||
-        hasMercGear;
-    if (!hasItems) {
-        invList.innerHTML = '<div style="color:#555;text-align:center;padding:12px;">장비가 없습니다.</div>';
-        return;
-    }
     const rl = {
         legendary: { label: 'LEGENDARY', color: '#e74c3c', bg: '#2d1a1a' },
         epic: { label: 'EPIC', color: '#a55eea', bg: '#1e1a2d' },
@@ -6020,34 +8019,56 @@ function renderInventoryPanel() {
         html += `</div>`;
     }
     const ro = { legendary: 0, epic: 1, rare: 2, common: 3 };
-    const slots = [
-        { kind: 'weapon', label: '⚔️ 무기', color: '#ffb347' },
-        { kind: 'armor', label: '🛡️ 갑옷', color: '#74b9ff' },
-        { kind: 'ring', label: '💍 반지', color: '#9b59b6' },
-        { kind: 'rune', label: '🔮 룬', color: '#00cec9' },
+    const slotDefs = [
+        { kind: 'rune', icon: '🔮', label: '각인 룬 슬롯', color: '#00cec9', hint: '최대 1개' },
+        { kind: 'armor', icon: '🛡️', label: '갑옷 슬롯', color: '#74b9ff', hint: '최대 2개' },
+        { kind: 'ring', icon: '💍', label: '반지 슬롯', color: '#9b59b6', hint: '최대 3개' },
+        { kind: 'weapon', icon: '⚔️', label: '무기 슬롯', color: '#ffb347', hint: '최대 2개' },
     ];
-    slots.forEach((sdef) => {
-        const slotItems = (player.items || []).filter((it) => getEquipSlotKind(it) === sdef.kind);
-        if (!slotItems.length) return;
-        html += `<div style="margin-bottom:12px;"><div style="background:#111;color:${sdef.color};font-size:0.76em;font-weight:900;padding:3px 8px;border-radius:4px;display:inline-block;margin-bottom:6px;">${sdef.label} (${slotItems.length}/${getEquipSlotLimit(sdef.kind)})</div>`;
-        const rg = { legendary: [], epic: [], rare: [], common: [] };
-        slotItems.sort((a, b) => (ro[a.rarity] || 3) - (ro[b.rarity] || 3)).forEach((it) => {
-            (rg[it.rarity] || rg.common).push(it);
-        });
-        Object.entries(rg).forEach(([rarity, items]) => {
-            if (!items.length) return;
-            const { label, color, bg } = rl[rarity];
-            html += `<div style="margin:6px 0 8px;"><div style="background:${bg};color:${color};font-size:0.7em;font-weight:700;padding:3px 8px;border-radius:4px;display:inline-block;margin-bottom:6px;">${label}</div>`;
-            items.forEach((it) => {
-                ensureOwnedItemUid(it);
-                const bp = Math.max(0, safeNum(it._buyPrice != null ? it._buyPrice : it.price, 0));
-                const rf = Math.floor(bp * 0.5);
-                html += `<div class="inv-equip-card" style="padding:8px 10px;background:#111;border-radius:6px;margin-bottom:4px;border-left:3px solid ${color};"><div class="inv-equip-inner" style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div><div style="color:${color};font-weight:700;font-size:0.9em;">${formatShopItemName(it.name)}</div>${getEquipSlotLineHtml(it)}<div style="color:#666;font-size:0.78em;margin-top:3px;line-height:1.4;">${formatShopItemDesc(it.desc)}</div><div style="color:#888;font-size:0.72em;margin-top:4px;">판매가: <b style="color:#f1c40f;">${rf}G</b></div></div><button type="button" onclick="sellItemByUid('${escapeJsSingleQuoteString(it._uid)}')" style="background:#553322;color:#ffd7a8;border:1px solid #996633;border-radius:8px;padding:6px 10px;font-size:0.75em;font-weight:800;cursor:pointer;">판매</button></div></div>`;
-            });
-            html += `</div>`;
-        });
-        html += `</div>`;
+    html += `<div class="inventory-slot-board">`;
+    slotDefs.forEach((sdef) => {
+        const limit = getEquipSlotLimit(sdef.kind);
+        const slotItems = (player.items || [])
+            .filter((it) => getEquipSlotKind(it) === sdef.kind)
+            .sort((a, b) => (ro[a.rarity] || 3) - (ro[b.rarity] || 3));
+        const cellCount = Math.max(limit, slotItems.length);
+        html += `<section class="inventory-slot-section" style="--slot-accent:${sdef.color};">
+            <div class="inventory-slot-header">
+                <span class="inventory-slot-title">${sdef.icon} ${sdef.label}</span>
+                <span class="inventory-slot-count">${slotItems.length}/${limit}</span>
+            </div>
+            <div class="inventory-slot-hint">${sdef.hint}</div>
+            <div class="inventory-slot-grid">`;
+        for (let i = 0; i < cellCount; i++) {
+            const it = slotItems[i];
+            if (!it) {
+                html += `<div class="inventory-slot-cell inventory-slot-cell-empty">
+                    <span class="inventory-empty-mark">+</span>
+                    <span>비어 있음</span>
+                </div>`;
+                continue;
+            }
+            ensureOwnedItemUid(it);
+            const rarity = it.rarity || 'common';
+            const rarityInfo = rl[rarity] || rl.common;
+            const bp = Math.max(0, safeNum(it._buyPrice != null ? it._buyPrice : it.price, 0));
+            const rf = Math.floor(bp * 0.5);
+            html += `<div class="inventory-slot-cell inventory-slot-cell-filled" style="--rarity-color:${rarityInfo.color};">
+                <div class="inventory-item-top">
+                    <span class="inventory-item-rarity" style="background:${rarityInfo.bg};color:${rarityInfo.color};">${rarityInfo.label}</span>
+                    <button type="button" class="inventory-sell-btn" onclick="sellItemByUid('${escapeJsSingleQuoteString(it._uid)}')">판매</button>
+                </div>
+                <div class="inventory-item-name">${formatShopItemName(it.name)}</div>
+                <div class="inventory-item-desc">${formatShopItemDesc(it.desc)}</div>
+                <div class="inventory-item-price">판매가 <b>${rf}G</b></div>
+            </div>`;
+        }
+        html += `</div></section>`;
     });
+    html += `</div>`;
+    if (!html.trim()) {
+        html = '<div style="color:#555;text-align:center;padding:12px;">장비가 없습니다.</div>';
+    }
     invList.innerHTML = html;
 }
 
@@ -6076,7 +8097,6 @@ window.startInfiniteMode=()=>{
 /** 사망 처리: 보존 골드·퀘스트 페널티 후 허브로 */
 // stage 4 split: moved to js/combatLogic.js
 
-
 // ---- js/encounter.js ----
 // Encounter module (stage 2 split)
 const _PANIC_RARITY_ORDER = { common: 0, rare: 1, epic: 2, legendary: 3, relic: 4 };
@@ -6086,6 +8106,34 @@ const ENCOUNTER_SCENE_WEIGHTS = {
     rest: 8,
     altar: 14,
 };
+let restockCrossroadActive = false;
+let restockCrossroadContext = null;
+let resumeAfterRestockCrossroad = null;
+
+function isBossFloorNumber(floorValue) {
+    const floorNum = Math.max(1, Math.floor(safeNum(floorValue, 1)));
+    return floorNum % 10 === 0;
+}
+
+function startBossFloorCombat(opts) {
+    pendingShop = false;
+    restockCrossroadActive = false;
+    restockCrossroadContext = null;
+    resumeAfterRestockCrossroad = null;
+    window._encounterPhaseActive = false;
+    window._encounterPhaseScene = null;
+    window._pendingEncounterCombatMod = null;
+    const enterBoss = () => {
+        const shop = document.getElementById('shop-area');
+        const battle = document.getElementById('battle-area');
+        if (shop) shop.style.display = 'none';
+        if (battle) battle.style.display = 'block';
+        hideEncounterPhaseUI();
+        spawnEnemy();
+    };
+    if (opts && opts.immediate) enterBoss();
+    else transitionMainView(enterBoss);
+}
 
 function rollEncounterSceneType() {
     const r = Math.random() * 100;
@@ -6183,41 +8231,159 @@ function buildEncounterPhaseHtml(sceneType) {
     return buildMonsterEncounterHtml();
 }
 
+function isRestockCrossroadFloor(f) {
+    const floorNum = Math.max(1, Math.floor(safeNum(f, 1)));
+    return floorNum > 1 && floorNum % 3 === 0 && !isBossFloorNumber(floorNum);
+}
+
+function hasSeenRestockCrossroad(f) {
+    if (!player) return true;
+    const floorNum = Math.max(1, Math.floor(safeNum(f, 1)));
+    return Array.isArray(player._restockCrossroadsSeen) && player._restockCrossroadsSeen.includes(floorNum);
+}
+
+function markRestockCrossroadSeen(f) {
+    if (!player) return;
+    const floorNum = Math.max(1, Math.floor(safeNum(f, 1)));
+    if (!Array.isArray(player._restockCrossroadsSeen)) player._restockCrossroadsSeen = [];
+    if (!player._restockCrossroadsSeen.includes(floorNum)) player._restockCrossroadsSeen.push(floorNum);
+    if (player._restockCrossroadsSeen.length > 40) player._restockCrossroadsSeen = player._restockCrossroadsSeen.slice(-40);
+}
+
+function buildRestockCrossroadHtml() {
+    return `
+<div class="restock-crossroad-card">
+  <p class="restock-crossroad-kicker">${floor}층 재정비 분기점</p>
+  <h2 class="restock-crossroad-title">희미한 등불</h2>
+  <p class="restock-crossroad-copy">저 멀리 희미한 등불과 함께 조력자의 상점이 보입니다. 몬스터들의 기운도 강해지고 있습니다. 당신은 어떻게 하겠습니까?</p>
+  <div class="restock-crossroad-actions">
+    <button type="button" class="restock-crossroad-btn restock-crossroad-btn--shop" onclick="resolveRestockCrossroad('shop')">상점에 진입하여 재정비한다</button>
+    <button type="button" class="restock-crossroad-btn restock-crossroad-btn--climb" onclick="resolveRestockCrossroad('climb')">상점을 무시하고 계속 등반한다</button>
+  </div>
+</div>`;
+}
+
 function hideEncounterPhaseUI() {
     const ep = document.getElementById('encounter-phase');
     const hud = document.getElementById('battle-hud');
-    if (ep) ep.style.display = 'none';
+    if (ep) {
+        ep.style.display = 'none';
+        ep.replaceChildren();
+    }
     if (hud) hud.style.display = 'block';
 }
 
-function beginFloorEncounter() {
+function renderRestockCrossroad(opts) {
     setCombatProcessing(false);
+    restockCrossroadActive = true;
+    window._encounterPhaseActive = false;
+    window._encounterPhaseScene = null;
+    window._pendingEncounterCombatMod = null;
+    enemy = null;
+    const renderCrossroad = () => {
+        const ep = document.getElementById('encounter-phase');
+        const hud = document.getElementById('battle-hud');
+        if (ep) {
+            ep.replaceChildren();
+            ep.style.display = 'block';
+            ep.insertAdjacentHTML('beforeend', buildRestockCrossroadHtml());
+        }
+        if (hud) hud.style.display = 'none';
+        updateUi();
+        renderActions();
+    };
+    if (opts && opts.immediate) renderCrossroad();
+    else transitionMainView(renderCrossroad);
+}
+
+function maybeStartRestockCrossroad(clearedFloor, flowKind, extraContext) {
+    if (isBossFloorNumber(floor)) return false;
+    if (!player || !isRestockCrossroadFloor(floor) || hasSeenRestockCrossroad(floor)) return false;
+    markRestockCrossroadSeen(floor);
+    restockCrossroadContext = {
+        clearedFloor: Math.max(1, Math.floor(safeNum(clearedFloor, floor - 1))),
+        flowKind: flowKind || 'encounter',
+        defeatedBoss: !!(extraContext && extraContext.defeatedBoss),
+    };
+    renderRestockCrossroad();
+    return true;
+}
+
+function resumeRestockCrossroadContext(context, opts) {
+    const ctx = context || {};
+    if (ctx.flowKind === 'battle') {
+        winBattleContinueFrom(ctx.clearedFloor, {
+            skipCrossroad: true,
+            immediate: !!(opts && opts.immediate),
+            defeatedBoss: !!ctx.defeatedBoss,
+        });
+        return;
+    }
+    beginFloorEncounter(opts && opts.immediate ? { immediate: true } : undefined);
+}
+
+window.resolveRestockCrossroad = function resolveRestockCrossroad(choice) {
+    if (!player || !restockCrossroadActive) return;
+    const context = restockCrossroadContext || {
+        clearedFloor: Math.max(1, floor - 1),
+        flowKind: 'encounter',
+        defeatedBoss: false,
+    };
+    restockCrossroadActive = false;
+    restockCrossroadContext = null;
+    if (choice === 'shop') {
+        resumeAfterRestockCrossroad = context;
+        writeLog('[분기점] 조력자의 상점에 들러 재정비하기로 했습니다.');
+        openShop();
+        return;
+    }
+    writeLog('[분기점] 상점을 지나치고 위험한 등반을 계속합니다.');
+    resumeRestockCrossroadContext(context);
+};
+
+function beginFloorEncounter(opts) {
+    setCombatProcessing(false);
+    if (isBossFloorNumber(floor)) {
+        startBossFloorCombat(opts);
+        return;
+    }
     if (pendingShop) {
         spawnEnemy();
+        return;
+    }
+    if (restockCrossroadActive) {
+        renderRestockCrossroad(opts);
         return;
     }
     const scene = window._encounterPhaseScene || rollEncounterSceneType();
     window._encounterPhaseScene = scene;
     window._encounterPhaseActive = true;
     enemy = null;
-    const ep = document.getElementById('encounter-phase');
-    const hud = document.getElementById('battle-hud');
-    if (ep) {
-        ep.style.display = 'block';
-        ep.innerHTML = buildEncounterPhaseHtml(scene);
-    }
-    if (hud) hud.style.display = 'none';
-    updateUi();
-    renderActions();
+    const renderEncounter = () => {
+        const ep = document.getElementById('encounter-phase');
+        const hud = document.getElementById('battle-hud');
+        if (ep) {
+            ep.replaceChildren();
+            ep.style.display = 'block';
+            ep.insertAdjacentHTML('beforeend', buildEncounterPhaseHtml(scene));
+        }
+        if (hud) hud.style.display = 'none';
+        updateUi();
+        renderActions();
+    };
+    if (opts && opts.immediate) renderEncounter();
+    else transitionMainView(renderEncounter);
 }
 
 window.enterCombatFromEncounter = function enterCombatFromEncounter() {
     if (!player) return;
     window._encounterPhaseActive = false;
     window._encounterPhaseScene = null;
-    hideEncounterPhaseUI();
     window._pendingEncounterCombatMod = null;
-    spawnEnemy();
+    transitionMainView(() => {
+        hideEncounterPhaseUI();
+        spawnEnemy();
+    });
 };
 
 window.ambushEncounterEnemy = function ambushEncounterEnemy() {
@@ -6225,7 +8391,6 @@ window.ambushEncounterEnemy = function ambushEncounterEnemy() {
     const success = Math.random() < 0.5;
     window._encounterPhaseActive = false;
     window._encounterPhaseScene = null;
-    hideEncounterPhaseUI();
     if (success) {
         window._pendingEncounterCombatMod = { enemyHpMul: 0.8 };
         writeLog('[기습] ✅ 적의 허를 찔렀습니다! 적 체력이 20% 깎인 상태로 전투를 시작합니다.');
@@ -6236,7 +8401,10 @@ window.ambushEncounterEnemy = function ambushEncounterEnemy() {
         player.curHp = Math.max(1, safeNum(player.curHp, 1) - dmg);
         writeLog(`[기습] ❌ 발각되었습니다! 허둥지둥 물러나며 체력 ${dmg}를 잃었습니다.`);
     }
-    spawnEnemy();
+    transitionMainView(() => {
+        hideEncounterPhaseUI();
+        spawnEnemy();
+    });
 };
 
 window.openPanicRunSacrificeModal = function openPanicRunSacrificeModal() {
@@ -6319,7 +8487,10 @@ window.resolveTreasureChest = function resolveTreasureChest(openChest) {
     const roll = Math.random();
     if (roll < 0.45) {
         const goldMult = typeof getPlayerGoldGainMult === 'function' ? getPlayerGoldGainMult() : 1;
-        const gain = Math.floor((12 + Math.floor(Math.random() * 24) + Math.floor(floor * 0.8)) * goldMult);
+        const baseGain = typeof computeFloorGoldReward === 'function'
+            ? computeFloorGoldReward(floor, { multiplier: 1.1 })
+            : Math.max(15, 6 + Math.floor(Math.random() * 5) + floor * 3);
+        const gain = Math.floor(baseGain * goldMult);
         gold += gain;
         totalGoldEarned += gain;
         writeLog(`[보물] 💰 녹슨 상자에서 ${gain}G를 찾았습니다.`);
@@ -6444,7 +8615,6 @@ window.skipAltarOption = function skipAltarOption() {
 function advanceFloorAfterNonCombatEncounter() {
     if (!player) return;
     window._encounterPhaseActive = false;
-    hideEncounterPhaseUI();
     failActiveQuestIfLeavingFloor();
     const prevFloor = floor;
     floor++;
@@ -6456,7 +8626,7 @@ function advanceFloorAfterNonCombatEncounter() {
         setTimeout(() => showMercEvolutionChoice(() => beginFloorEncounter()), 300);
         return;
     }
-    if (floor > 1 && floor % 3 === 0) pendingShop = true;
+    if (maybeStartRestockCrossroad(prevFloor, 'encounter')) return;
     beginFloorEncounter();
 }
 
@@ -6559,7 +8729,7 @@ window.resolveStatSwap = (idx) => {
     if (idx >= 0) window._statSwapEvents[idx].action();
     else writeLog(`[이벤트층] 변화를 거부했습니다.`);
     updateUi();
-    if (floor > 1 && floor % 3 === 0) pendingShop = true;
+    if (maybeStartRestockCrossroad(Math.max(1, floor - 1), 'encounter')) return;
     beginFloorEncounter();
 };
 
@@ -6575,7 +8745,7 @@ function showSkillEvent() {
 
     if (bonusSkills.length === 0) {
         writeLog(`[이벤트층] 이미 모든 보너스 스킬을 보유하고 있습니다!`);
-        if (floor > 1 && floor % 3 === 0) pendingShop = true;
+        if (maybeStartRestockCrossroad(Math.max(1, floor - 1), 'encounter')) return;
         beginFloorEncounter(); return;
     }
 
@@ -6611,7 +8781,7 @@ window.resolveSkillEvent = (idx) => {
         showUnlockPopup('✨ 스킬 각성!', `<b style="color:#9b59b6">${skill.name}</b><br>${skill.desc}`, '#9b59b6');
     } else writeLog(`[이벤트층] 각성을 거부했습니다.`);
     updateUi();
-    if (floor > 1 && floor % 3 === 0) pendingShop = true;
+    if (maybeStartRestockCrossroad(Math.max(1, floor - 1), 'encounter')) return;
     beginFloorEncounter();
 };
 
@@ -6693,7 +8863,7 @@ window.resolveForge = (idx) => {
         }
     }
     updateUi();
-    if (floor > 1 && floor % 3 === 0) pendingShop = true;
+    if (maybeStartRestockCrossroad(Math.max(1, floor - 1), 'encounter')) return;
     beginFloorEncounter();
 };
 
@@ -6802,11 +8972,17 @@ window.resolveEncounter = (idx) => {
     const event = window._currentEncounter;
     document.body.removeChild(window._encounterOverlay);
     event.choices[idx].action(); updateUi();
-    if (floor>1&&floor%3===0) pendingShop=true;
+    if (maybeStartRestockCrossroad(Math.max(1, floor - 1), 'encounter')) return;
     beginFloorEncounter();
 };
 
-function winBattleContinueFrom(clearedFloor) {
+function winBattleContinueFrom(clearedFloor, opts) {
+    const defeatedBoss = opts && typeof opts.defeatedBoss === 'boolean' ? opts.defeatedBoss : !!(enemy && enemy.isBoss);
+    if (isBossFloorNumber(floor)) {
+        beginFloorEncounter(opts && opts.immediate ? { immediate: true } : undefined);
+        return;
+    }
+    if (!(opts && opts.skipCrossroad) && maybeStartRestockCrossroad(clearedFloor, 'battle', { defeatedBoss })) return;
     if (floor === 15 && player.name === '소환사' && !localStorage.getItem('summon_altar_done')) {
         setTimeout(() => showContractAltar(), 500);
         return;
@@ -6815,19 +8991,17 @@ function winBattleContinueFrom(clearedFloor) {
         setTimeout(() => showEventFloor(), 500);
         return;
     }
-    if (clearedFloor > 5 && !enemy.isBoss && Math.random() < 0.15) {
+    if (clearedFloor > 5 && !defeatedBoss && Math.random() < 0.15) {
         if (clearedFloor === 10 && !player.evolved) setTimeout(() => checkEvolution(), 300);
         setTimeout(() => showRandomEncounter(), 500);
         return;
     }
     if (clearedFloor === 10 && !player.evolved) {
-        if (floor > 1 && floor % 3 === 0) pendingShop = true;
-        beginFloorEncounter();
+        beginFloorEncounter(opts && opts.immediate ? { immediate: true } : undefined);
         setTimeout(() => checkEvolution(), 300);
         return;
     }
-    if (floor > 1 && floor % 3 === 0) pendingShop = true;
-    beginFloorEncounter();
+    beginFloorEncounter(opts && opts.immediate ? { immediate: true } : undefined);
 }
 
 window.rollEncounterSceneType = rollEncounterSceneType;
@@ -6839,6 +9013,10 @@ window.buildRestEncounterHtml = buildRestEncounterHtml;
 window.buildAltarEncounterHtml = buildAltarEncounterHtml;
 window.buildEncounterPhaseHtml = buildEncounterPhaseHtml;
 window.hideEncounterPhaseUI = hideEncounterPhaseUI;
+window.buildRestockCrossroadHtml = buildRestockCrossroadHtml;
+window.renderRestockCrossroad = renderRestockCrossroad;
+window.maybeStartRestockCrossroad = maybeStartRestockCrossroad;
+window.resumeRestockCrossroadContext = resumeRestockCrossroadContext;
 window.beginFloorEncounter = beginFloorEncounter;
 window.buildAltarEncounterOptions = buildAltarEncounterOptions;
 window.pushPassiveContractHistory = pushPassiveContractHistory;
@@ -6849,15 +9027,25 @@ window.showContractAltar = showContractAltar;
 window.showRandomEncounter = showRandomEncounter;
 window.winBattleContinueFrom = winBattleContinueFrom;
 
-
 // ---- js/shop.js ----
 // Shop module (stage 2 split)
 function openShop() {
     setCombatProcessing(false);
     shopVisitCount++;
-    document.getElementById('battle-area').style.display='none';
-    document.getElementById('shop-area').style.display='block';
-    rerollCost=10; updateUi(); renderShopItems();
+    rerollCost = 10;
+    transitionMainView(() => {
+        const battle = document.getElementById('battle-area');
+        const shop = document.getElementById('shop-area');
+        const encounter = document.getElementById('encounter-phase');
+        if (encounter) {
+            encounter.style.display = 'none';
+            encounter.replaceChildren();
+        }
+        if (battle) battle.style.display = 'none';
+        if (shop) shop.style.display = 'block';
+        updateUi();
+        renderShopItems();
+    });
 }
 
 function renderShopLeaveButtons() {
@@ -6887,9 +9075,19 @@ window.leaveShopTrainHere = function leaveShopTrainHere() {
 };
 
 window.nextFloor = () => {
-    document.getElementById('shop-area').style.display='none';
-    document.getElementById('battle-area').style.display='block';
-    beginFloorEncounter();
+    const crossroadContext = typeof resumeAfterRestockCrossroad !== 'undefined'
+        ? resumeAfterRestockCrossroad
+        : null;
+    resumeAfterRestockCrossroad = null;
+    transitionMainView(() => {
+        document.getElementById('shop-area').style.display='none';
+        document.getElementById('battle-area').style.display='block';
+        if (crossroadContext && typeof resumeRestockCrossroadContext === 'function') {
+            resumeRestockCrossroadContext(crossroadContext, { immediate: true });
+        } else {
+            beginFloorEncounter({ immediate: true });
+        }
+    });
 };
 
 function getUnlockedPoolItems() {
@@ -6977,21 +9175,20 @@ function getShopRarityChances() {
     return { legendary, epic, rare, common };
 }
 
-function computeShopEquipmentPriceMultiplier(it) {
-    if (!it || it.type === 'relic' || it.type === 'merc_shop_direct' || it.type === 'merc_shop_fund') return 1;
-    const v = typeof it.value === 'number' ? it.value : 0;
-    const d = typeof it.def === 'number' ? it.def : 0;
-    const c = typeof it.critBonus === 'number' ? it.critBonus : 0;
-    const cm = typeof it.critMult === 'number' ? it.critMult : 0;
-    const ls = typeof it.lifesteal === 'number' ? it.lifesteal : 0;
-    const m = 1 + v * 0.006 + d * 0.032 + c * 0.011 + cm * 12 + ls * 16;
-    return Math.min(4.2, Math.max(0.88, m));
+function applyGoldenBalanceShopPrice(item) {
+    if (!item) return item;
+    if (item.type === 'potion') return item;
+    if (item.type === 'merc_shop_direct' || item.type === 'merc_shop_fund') return item;
+    if (typeof computeEquipmentGoldPrice === 'function') {
+        item.price = computeEquipmentGoldPrice(item, { shopFloor: floor });
+    }
+    return item;
 }
 
 function applyShopRarityTuning(baseItem) {
     if (!baseItem) return baseItem;
     if (baseItem.type === 'relic' || baseItem.type === 'potion' || baseItem.type === 'merc_shop_direct' || baseItem.type === 'merc_shop_fund') {
-        return { ...baseItem };
+        return applyGoldenBalanceShopPrice({ ...baseItem });
     }
     if (baseItem.type === 'rune') {
         const tuned = { ...baseItem };
@@ -6999,6 +9196,7 @@ function applyShopRarityTuning(baseItem) {
         if (typeof applyOfficialStatsToEquipmentItem === 'function') {
             applyOfficialStatsToEquipmentItem(tuned, { rebuildDesc: true });
         }
+        applyGoldenBalanceShopPrice(tuned);
         tuned.desc = formatShopItemDesc(tuned.desc);
         return tuned;
     }
@@ -7007,12 +9205,92 @@ function applyShopRarityTuning(baseItem) {
     if (typeof applyOfficialStatsToEquipmentItem === 'function') {
         applyOfficialStatsToEquipmentItem(tuned, { rebuildDesc: true });
     }
-    const basePrice = Math.max(1, safeNum(tuned.price, 1));
-    tuned.price = Math.max(1, Math.round(basePrice * computeShopEquipmentPriceMultiplier(tuned)));
+    applyGoldenBalanceShopPrice(tuned);
     tuned.desc = formatShopItemDesc(tuned.desc);
-    if (baseItem.divinityGainBonus != null) tuned.divinityGainBonus = baseItem.divinityGainBonus;
-    if (baseItem.prayerBonus != null) tuned.prayerBonus = baseItem.prayerBonus;
     return tuned;
+}
+
+function isShopEquipmentForDedupe(it) {
+    return !!it && ['atk', 'hp', 'ring', 'rune'].includes(String(it.type || ''));
+}
+
+function getShopSynergyFingerprint(it) {
+    const rawTags = Array.isArray(it && it.tags) ? it.tags : [];
+    const tags = rawTags
+        .map((t) => String(t || '').trim())
+        .filter((t) => t && !/^rarity_/i.test(t) && !/^type_/i.test(t))
+        .sort();
+    return tags.length ? tags.join('+') : 'none';
+}
+
+function getShopSemanticStats(it) {
+    const type = String((it && it.type) || '');
+    return {
+        atk: type === 'atk' || type === 'ring' || type === 'rune' ? Math.max(0, safeNum(it.value, 0)) : 0,
+        hp: type === 'hp' ? Math.max(0, safeNum(it.value, 0)) : Math.max(0, safeNum(it.hpBonus, 0)),
+        def: safeNum(it.def, 0),
+        crit: Math.max(0, safeNum(it.critBonus, 0)),
+        critMult: Math.max(0, Number(safeNum(it.critMult, 0).toFixed ? safeNum(it.critMult, 0).toFixed(3) : safeNum(it.critMult, 0))),
+        lifesteal: Math.max(0, Number(safeNum(it.lifesteal, 0).toFixed ? safeNum(it.lifesteal, 0).toFixed(3) : safeNum(it.lifesteal, 0))),
+        damageReduction: Math.max(0, Number(safeNum(it.damageReduction, 0).toFixed ? safeNum(it.damageReduction, 0).toFixed(3) : safeNum(it.damageReduction, 0))),
+        potionHeal: Math.max(0, Number(safeNum(it.potionHealBonus, 0).toFixed ? safeNum(it.potionHealBonus, 0).toFixed(3) : safeNum(it.potionHealBonus, 0))),
+        prayer: Math.max(0, safeNum(it.prayerBonus, 0)),
+        divinity: Math.max(0, Number(safeNum(it.divinityGainBonus, 0).toFixed ? safeNum(it.divinityGainBonus, 0).toFixed(3) : safeNum(it.divinityGainBonus, 0))),
+        gold: Math.max(0, Number(safeNum(it.goldGainBonus, 0).toFixed ? safeNum(it.goldGainBonus, 0).toFixed(3) : safeNum(it.goldGainBonus, 0))),
+        flee: Math.max(0, Number(safeNum(it.fleeBonus, 0).toFixed ? safeNum(it.fleeBonus, 0).toFixed(3) : safeNum(it.fleeBonus, 0))),
+    };
+}
+
+function getShopPrimaryStatRole(it) {
+    const explicit = String((it && it.itemRole) || '').toLowerCase();
+    if (explicit === 'offense' || explicit === 'defense' || explicit === 'utility') return explicit;
+    const s = getShopSemanticStats(it);
+    if (s.hp > 0 || s.def > 0 || s.damageReduction > 0) return 'durability';
+    if (s.atk > 0) return 'attack';
+    if (s.crit > 0 || s.critMult > 0) return 'critical';
+    if (s.lifesteal > 0) return 'sustain';
+    if (s.gold > 0 || s.flee > 0 || s.potionHeal > 0) return 'utility';
+    if (s.prayer > 0 || s.divinity > 0) return 'divine';
+    return String(it && it.type ? it.type : 'misc');
+}
+
+function getShopFamilyKey(it) {
+    const rarity = typeof normalizeRarityKey === 'function'
+        ? normalizeRarityKey(it && it.rarity)
+        : String((it && it.rarity) || 'common').toLowerCase();
+    return `${rarity}|${getShopSynergyFingerprint(it)}`;
+}
+
+function getShopStatSignature(it) {
+    const s = getShopSemanticStats(it);
+    return ['atk', 'hp', 'def', 'crit', 'critMult', 'lifesteal', 'damageReduction', 'potionHeal', 'prayer', 'divinity', 'gold', 'flee']
+        .map((k) => `${k}:${s[k]}`)
+        .join('|');
+}
+
+function hasShopTwinEquipmentConflict(candidate, stock) {
+    if (!isShopEquipmentForDedupe(candidate)) return false;
+    const family = getShopFamilyKey(candidate);
+    const role = getShopPrimaryStatRole(candidate);
+    const sig = getShopStatSignature(candidate);
+    return (stock || []).some((it) => {
+        if (!isShopEquipmentForDedupe(it)) return false;
+        if (getShopFamilyKey(it) !== family) return false;
+        return getShopPrimaryStatRole(it) === role || getShopStatSignature(it) === sig;
+    });
+}
+
+function tryPushDistinctShopItem(target, rawItem, opts) {
+    const options = opts || {};
+    if (!rawItem) return false;
+    const tuned = applyShopRarityTuning({ ...rawItem });
+    const stock = [...(options.stock || currentShopItems || []), ...(target || [])];
+    if (stock.some((p) => p && p.name === tuned.name)) return false;
+    if (!options.allowOwned && player && Array.isArray(player.items) && player.items.some((x) => x && x.name === tuned.name)) return false;
+    if (hasShopTwinEquipmentConflict(tuned, stock)) return false;
+    if (options.prepend) target.unshift(tuned);
+    else target.push(tuned);
+    return true;
 }
 
 function getShopRarityBoostPrice() {
@@ -7053,8 +9331,12 @@ function renderShopItems(keepCurrentStock) {
     const unlockedItems=getUnlockedPoolItems(), picked=[];
     let tries=0;
     if (!keepCurrentStock && isMercenaryCaptainJob()) {
-        const pd = 95 + floor * 12;
-        const pf = 48 + floor * 6;
+        const pd = typeof computeEquipmentGoldPrice === 'function'
+            ? computeEquipmentGoldPrice({ rarity: 'epic' }, { shopFloor: floor })
+            : 400 + floor * 15;
+        const pf = typeof computeEquipmentGoldPrice === 'function'
+            ? computeEquipmentGoldPrice({ rarity: 'rare' }, { shopFloor: floor })
+            : 120 + floor * 5;
         currentShopItems.push(
             {
                 name: '직접 장비 구매 (직거래)',
@@ -7075,11 +9357,7 @@ function renderShopItems(keepCurrentStock) {
         if (runeMerc.length) {
             const shuffled = [...runeMerc].sort(() => Math.random() - 0.5);
             for (const raw of shuffled) {
-                const tuned = applyShopRarityTuning({ ...raw });
-                if (currentShopItems.some((p) => p && p.name === tuned.name)) continue;
-                if (player.items.some((x) => x && x.name === tuned.name)) continue;
-                currentShopItems.push(tuned);
-                break;
+                if (tryPushDistinctShopItem(currentShopItems, raw, { stock: [] })) break;
             }
         }
     } else if (!keepCurrentStock) {
@@ -7091,36 +9369,33 @@ function renderShopItems(keepCurrentStock) {
             });
             if (ar.length > 0) {
                 const relic = ar[Math.floor(Math.random() * ar.length)];
-                picked.push({ ...relic, type: 'relic', value: 0 });
+                tryPushDistinctShopItem(picked, { ...relic, type: 'relic', value: 0 }, { stock: currentShopItems, allowOwned: true });
             }
         }
         if (unlockedItems.length > 0) {
             const ru = unlockedItems[Math.floor(Math.random() * unlockedItems.length)];
-            if (!player.items.some((i) => i.name === ru.name) && !picked.some((p) => p.name === ru.name)) picked.push(applyShopRarityTuning(ru));
+            tryPushDistinctShopItem(picked, ru, { stock: currentShopItems });
         }
-        while (picked.length < 4 && tries < 70) {
-        tries++;
+        while (picked.length < 4 && tries < 180) {
+            tries++;
             const pool = getItemsByRarity();
             if (!pool.length) continue;
             const item = pool[Math.floor(Math.random() * pool.length)];
-            if (picked.some((i) => i.name === item.name)) continue;
             if (item.onlyFor) {
                 const allowed = Array.isArray(item.onlyFor) ? item.onlyFor : [item.onlyFor];
                 if (!allowed.includes(player.name) && !allowed.includes(player.baseJob)) continue;
             }
-            picked.push(applyShopRarityTuning(item));
-    }
+            tryPushDistinctShopItem(picked, item, { stock: currentShopItems });
+        }
         /** 풀에 생성 장비가 매우 많아 랜덤만으로는 룬이 거의 안 나옴 → 매 상점에 룬 1칸 확정 */
         const runeOnly = getNonMercEquipmentPool().filter((i) => i && i.type === 'rune');
         if (runeOnly.length && !picked.some((p) => p && p.type === 'rune')) {
             const shuffled = [...runeOnly].sort(() => Math.random() - 0.5);
             for (const raw of shuffled) {
-                const tuned = applyShopRarityTuning({ ...raw });
-                if (picked.some((p) => p.name === tuned.name)) continue;
-                if (player.items.some((x) => x && x.name === tuned.name)) continue;
-                picked.unshift(tuned);
-                while (picked.length > 4) picked.pop();
-                break;
+                if (tryPushDistinctShopItem(picked, raw, { stock: currentShopItems, prepend: true })) {
+                    while (picked.length > 4) picked.pop();
+                    break;
+                }
             }
         }
     currentShopItems.push(...picked);
@@ -7279,14 +9554,19 @@ window.buyItem = (event, idx) => {
                 }
                 if (it.def) player.extraDef += it.def;
                 if (it.lifesteal) player.lifesteal = (player.lifesteal || 0) + it.lifesteal;
+                if (it.damageReduction) player.damageReduction = (player.damageReduction || 0) + it.damageReduction;
+                if (it.potionHealBonus) player.potionHealBonus = (player.potionHealBonus || 0) + it.potionHealBonus;
                 if (it.regenPotion) player.hasRegenPotion = true;
                 if (it.critBonus) player.crit = (player.crit || 1) + it.critBonus;
                 if (it.critMult) player.critMult = (player.critMult || 1.8) + it.critMult;
             } else {
                 if(it.type==='atk'||it.type==='ring')player.atk+=it.value;
                 if(it.type==='hp'){player.maxHp+=it.value;player.curHp+=it.value;}
+                if(typeof it.hpBonus === 'number' && it.hpBonus){player.maxHp+=it.hpBonus;player.curHp+=it.hpBonus;}
                 if(it.def)player.extraDef+=it.def;
                 if(it.lifesteal)player.lifesteal=(player.lifesteal||0)+it.lifesteal;
+                if(it.damageReduction)player.damageReduction=(player.damageReduction||0)+it.damageReduction;
+                if(it.potionHealBonus)player.potionHealBonus=(player.potionHealBonus||0)+it.potionHealBonus;
                 if(it.regenPotion)player.hasRegenPotion=true;
                 if(it.critBonus)player.crit=(player.crit||1)+it.critBonus;
                 if(it.critMult)player.critMult=(player.critMult||1.8)+it.critMult;
@@ -7305,7 +9585,7 @@ window.renderShopLeaveButtons = renderShopLeaveButtons;
 window.getUnlockedPoolItems = getUnlockedPoolItems;
 window.getItemsByRarity = getItemsByRarity;
 window.getShopRarityChances = getShopRarityChances;
-window.computeShopEquipmentPriceMultiplier = computeShopEquipmentPriceMultiplier;
+window.applyGoldenBalanceShopPrice = applyGoldenBalanceShopPrice;
 window.applyShopRarityTuning = applyShopRarityTuning;
 window.getShopRarityBoostPrice = getShopRarityBoostPrice;
 window.renderShopItems = renderShopItems;
@@ -7313,7 +9593,6 @@ window.formatShopItemName = formatShopItemName;
 window.formatShopItemDesc = formatShopItemDesc;
 window.mercCaptainExclusiveItem = mercCaptainExclusiveItem;
 window.getNonMercEquipmentPool = getNonMercEquipmentPool;
-
 
 // ---- js/combatLogic.js ----
 // Combat core module (stage 4 split)
@@ -7726,6 +10005,35 @@ function applySummonDarkTurnStart() {
     return false;
 }
 
+function useTacticalSkillAction(skillKey) {
+    if (!player || !enemy) return false;
+    const key = String(skillKey || '').trim();
+    const owned = Array.isArray(player.tacticalSkills) ? player.tacticalSkills : [];
+    const def = typeof getTacticalSkillDef === 'function' ? getTacticalSkillDef(key) : null;
+    if (!key || !def || !owned.includes(key)) {
+        writeLog('[전술] 아직 배운 전술 스킬이 아닙니다.');
+        return false;
+    }
+    player.tacticalSkillUses = player.tacticalSkillUses && typeof player.tacticalSkillUses === 'object'
+        ? player.tacticalSkillUses
+        : {};
+    if (player.tacticalSkillUses[key]) {
+        writeLog('[전술] 이 전투에서 이미 사용한 스킬입니다.');
+        return false;
+    }
+    if (key === 'focus' && player.tacticalFocusReady) return false;
+    if (key === 'parry' && player.tacticalParryReady) return false;
+    if (key === 'barrier' && player.tacticalBarrierReady) return false;
+    player.tacticalSkillUses[key] = 1;
+    if (key === 'focus') player.tacticalFocusReady = true;
+    if (key === 'parry') player.tacticalParryReady = true;
+    if (key === 'barrier') player.tacticalBarrierReady = true;
+    writeLog(`[전술] <b>${def.icon || '✦'} ${def.name}</b> — ${def.battleLog || def.shortDesc || '전술 준비 완료'}`);
+    updateUi();
+    renderActions();
+    return true;
+}
+
 window.useAction = async (type) => {
     if (isProcessing) return;
     setCombatProcessing(true);
@@ -7741,6 +10049,16 @@ window.useAction = async (type) => {
         return;
     }
     if (player) ensurePlayerSynergyBonuses();
+
+    if (String(type || '').startsWith('전술:')) {
+        const key = String(type).split(':')[1] || '';
+        if (!useTacticalSkillAction(key)) {
+            setCombatProcessing(false);
+            return;
+        }
+        queueEnemyTurnWithPacing();
+        return;
+    }
 
     if (type==='공격') {
         await playJobAttackVfx('player', player.name || player.baseJob);
@@ -7800,6 +10118,12 @@ window.useAction = async (type) => {
             if(critInfo.isBerserkCrit){effectMsg+="<b style='color:#ff4757'>🔥 분노!</b> ";}
             const mercCritMode=isMercenaryCaptainJob()&&player.fieldMerc&&player.fieldMerc.mercHp>0;
             if(mercCritMode){effectiveCrit=getMercEffectiveCritForMercAttack();}
+            if (player.tacticalFocusReady) {
+                const focusDef = typeof getTacticalSkillDef === 'function' ? getTacticalSkillDef('focus') : null;
+                effectiveCrit = Math.min(100, effectiveCrit + safeNum(focusDef && focusDef.critBonus, 60));
+                player.tacticalFocusReady = false;
+                effectMsg += "<b style='color:#a78bfa'>🎯 집중 공격!</b> ";
+            }
             let relicAtkMult=1;
             if(player.relics&&player.relics.includes('execute')&&enemy.curHp<=enemy.hp*0.35){relicAtkMult*=1.8;effectMsg+="<b style='color:#e74c3c'>💀 집행!</b> ";}
             if(player.relics&&player.relics.includes('berserk_crit')&&player.maxHp&&player.curHp<=player.maxHp*0.35){relicAtkMult*=1.45;effectMsg+="<b style='color:#ff4757'>🔥 격노 심장!</b> ";}
@@ -7873,7 +10197,7 @@ window.useAction = async (type) => {
                 player.critMult = safeNum(player.critMult, 1.8) + 0.03;
                 writeLog(`[유물] 💚 혈반지 흡수! 회복 ${kh}, 치명 배율 +3%`);
             }
-        } else { writeLog(`[빗나감] 공격 실패!`); triggerDodgeMove('enemy'); showMissFloat('enemy'); }
+        } else { writeLog(`[빗나감] 공격 실패!`); showMissFloat('enemy'); }
         updateUi(); renderActions();
         if(enemy.curHp<=0) return winBattle();
 
@@ -7962,22 +10286,26 @@ window.usePotion = () => {
     if(player.potions<=0) return writeLog("포션이 없습니다!");
     if(potionUsedThisTurn) return writeLog("이번 턴에 이미 포션을 사용했습니다!");
     player.potions--; potionUsedThisTurn=true;
+    const potionHealMult = typeof getPlayerPotionHealMultiplier === 'function'
+        ? getPlayerPotionHealMultiplier()
+        : 1;
+    const potionHeal = (maxHp, ratio) => Math.max(1, Math.floor(maxHp * ratio * potionHealMult));
     if (isMercenaryCaptainJob() && player.fieldMerc && player.fieldMerc.mercHp > 0) {
         if (player.hasRegenPotion) {
             player.mercRegenTurns = 2;
-            player.mercRegenAmount = Math.floor(player.fieldMerc.mercMaxHp * 0.22);
+            player.mercRegenAmount = potionHeal(player.fieldMerc.mercMaxHp, 0.22);
             writeLog(`[포션] 🧪 용병에게 서서히 회복! (2턴간 매 적 턴 전 ${player.mercRegenAmount})`);
         } else {
-            const h = Math.floor(player.fieldMerc.mercMaxHp * 0.38);
+            const h = potionHeal(player.fieldMerc.mercMaxHp, 0.38);
             player.fieldMerc.mercHp = Math.min(player.fieldMerc.mercMaxHp, player.fieldMerc.mercHp + h);
             writeLog(`[포션] 🧪 용병 체력 ${h} 회복! (${player.fieldMerc.mercHp}/${player.fieldMerc.mercMaxHp})`);
         }
     } else if (isMercenaryCaptainJob()) {
-        const h = Math.floor(getEffectiveMaxHp() * 0.12);
+        const h = potionHeal(getEffectiveMaxHp(), 0.12);
         player.curHp = Math.min(getEffectiveMaxHp(), player.curHp + h);
         writeLog(`[포션] 🧪 단장 긴급 체력 ${h} (동료 없음·최소 회복)`);
-    } else if(player.hasRegenPotion){regenTurns=2;regenAmount=Math.floor(getEffectiveMaxHp()*0.25);writeLog(`[포션] 🧪 서서히 회복! (2턴간 매 턴 ${regenAmount})`);}
-    else{const h=Math.floor(getEffectiveMaxHp()*0.35);player.curHp=Math.min(getEffectiveMaxHp(),player.curHp+h);writeLog(`[포션] 🧪 즉시 체력 ${h} 회복!`);}
+    } else if(player.hasRegenPotion){regenTurns=2;regenAmount=potionHeal(getEffectiveMaxHp(),0.25);writeLog(`[포션] 🧪 서서히 회복! (2턴간 매 턴 ${regenAmount})`);}
+    else{const h=potionHeal(getEffectiveMaxHp(),0.35);player.curHp=Math.min(getEffectiveMaxHp(),player.curHp+h);writeLog(`[포션] 🧪 즉시 체력 ${h} 회복!`);}
     updateUi(); renderActions();
 };
 
@@ -8073,7 +10401,7 @@ function enemyTurn() {
             dodgingTurns--;
             if(Math.random()*100<75){
                 writeLog(`[회피 성공] 💨 적의 공격을 피했습니다!`); hitLanded=false;
-                triggerDodgeMove('player'); showMissFloat('player');
+                showMissFloat('player');
                 if(player.relics&&player.relics.includes('dodge_counter')){const cd=Math.max(1,Math.floor(player.atk*0.9)-Math.floor(enemy.def*0.6));enemy.curHp-=cd;writeLog(`[유물] 🗡️ 그림자 반격! ${cd} 피해!`);showDmgFloat(cd,false,false);if(enemy.curHp<=0){setTimeout(()=>winBattle(),100);return;}}
             } else writeLog(`[회피 실패] 피하지 못했습니다!`);
         }
@@ -8094,54 +10422,81 @@ function enemyTurn() {
                     triggerCritEffect();
                     playCritGoldBurst('player');
                 }
-                if(shieldedTurns>0){dmg=Math.floor(dmg*0.5);shieldedTurns--;writeLog(`[방어막] ✨ 피해 50% 감소! (${dmg} 입음)`); triggerGuardAura(); if(player.relics&&player.relics.includes('barrier_reflect')){const rd=Math.floor(dmg*0.45);enemy.curHp-=rd;const heal=Math.floor(getEffectiveMaxHp()*0.05);player.curHp=Math.min(getEffectiveMaxHp(),player.curHp+heal);writeLog(`[유물] 🔮 마력 방벽: 반사 ${rd}, 회복 ${heal}`);if(enemy.curHp<=0){setTimeout(()=>winBattle(),100);}}}
+                let tacticalNullified = false;
+                if (player.tacticalParryReady) {
+                    player.tacticalParryReady = false;
+                    tacticalNullified = true;
+                    dmg = 0;
+                    writeLog('[전술] 🛡️ 패링 성공 — 이번 피격을 무효화했습니다.');
+                    triggerGuardAura();
+                    showMissFloat('player');
+                } else if (player.tacticalBarrierReady) {
+                    player.tacticalBarrierReady = false;
+                    tacticalNullified = true;
+                    dmg = 0;
+                    writeLog('[전술] ✨ 방어막 발동 — 이번 피격을 완전히 흘렸습니다.');
+                    triggerGuardAura();
+                    showMissFloat('player');
+                } else if(shieldedTurns>0){dmg=Math.floor(dmg*0.5);shieldedTurns--;writeLog(`[방어막] ✨ 피해 50% 감소! (${dmg} 입음)`); triggerGuardAura(); if(player.relics&&player.relics.includes('barrier_reflect')){const rd=Math.floor(dmg*0.45);enemy.curHp-=rd;const heal=Math.floor(getEffectiveMaxHp()*0.05);player.curHp=Math.min(getEffectiveMaxHp(),player.curHp+heal);writeLog(`[유물] 🔮 마력 방벽: 반사 ${rd}, 회복 ${heal}`);if(enemy.curHp<=0){setTimeout(()=>winBattle(),100);}}}
                 else if(defendingTurns>0){dmg=Math.floor(dmg*0.4);defendingTurns--;writeLog(`[철벽 방어] 🛡️ 피해 60% 감소! (${dmg} 입음)`); triggerGuardAura();}
                 else writeLog(`[피격] 적의 공격! ${dmg} 데미지.`);
-                if (player.summon && player.summon.id === 'golem') {
-                    dmg = Math.max(1, Math.floor(dmg * 0.90));
-                    writeLog(`[소환] 🪨 골렘이 피해를 줄였습니다! (${dmg})`);
-                }
-                if (player.prayerVulnerableHits && player.prayerVulnerableHits > 0) {
-                    dmg = Math.max(1, Math.floor(dmg * 2));
-                    player.prayerVulnerableHits = 0;
-                    writeLog('[기도 반동] ⚠️ 기도의 반동으로 이번 피격 피해가 2배가 되었습니다.');
-                }
-                if (isMercenaryCaptainJob() && player.fieldMerc && player.fieldMerc.mercHp > 0) {
-                    player.fieldMerc.mercHp -= dmg;
-                    writeLog(`[어그로] 용병이 맞았다! ${dmg} (용병 ${Math.max(0, player.fieldMerc.mercHp)}/${player.fieldMerc.mercMaxHp})`);
-                    showDmgFloat(dmg, false, true);
-                    if (player.fieldMerc.mercHp <= 0) {
-                        if (player.fieldMerc.mercItems && player.fieldMerc.mercItems.length) {
-                            player.mercInventory = [...player.fieldMerc.mercItems];
-                        }
-                        player.fieldMerc = null;
-                        player.mercCooldownTurns = 3;
-                        player.mercReviveAt90Percent = true;
-                        player._mercCooldownSkipOnce = true;
-                        writeLog(`💀 용병 전멸! 재소환까지 ${player.mercCooldownTurns}턴 (또는 🪙 긴급 재가동)`);
+                if (!tacticalNullified) {
+                    if (player.summon && player.summon.id === 'golem') {
+                        dmg = Math.max(1, Math.floor(dmg * 0.90));
+                        writeLog(`[소환] 🪨 골렘이 피해를 줄였습니다! (${dmg})`);
                     }
-                } else {
-                player.curHp-=dmg; showDmgFloat(dmg,false,true);
-                if (String(enemy.job || '').includes('헌터')) {
-                    if (player.hunterExposeReady) {
-                        const bonusFixed = Math.max(1, Math.floor(getEffectiveMaxHp() * 0.1));
-                        player.curHp = Math.max(0, player.curHp - bonusFixed);
-                        player.hunterExposeReady = false;
-                        player.hunterExposeStacks = 0;
-                        playAssassinStrikeVfx('player');
-                        writeLog(`[헌터] 🎯 약점 공격 발동! 추가 고정 피해 ${bonusFixed}`);
+                    if (player.prayerVulnerableHits && player.prayerVulnerableHits > 0) {
+                        dmg = Math.max(1, Math.floor(dmg * 2));
+                        player.prayerVulnerableHits = 0;
+                        writeLog('[기도 반동] ⚠️ 기도의 반동으로 이번 피격 피해가 2배가 되었습니다.');
+                    }
+                    const gearReduction = typeof getPlayerDamageReduction === 'function'
+                        ? getPlayerDamageReduction()
+                        : 0;
+                    if (gearReduction > 0 && dmg > 0) {
+                        const beforeReduction = dmg;
+                        dmg = Math.max(1, Math.floor(dmg * (1 - gearReduction)));
+                        if (beforeReduction !== dmg) {
+                            writeLog(`[장비] 피해 감소 ${Math.round(gearReduction * 100)}% 적용 (${beforeReduction} → ${dmg})`);
+                        }
+                    }
+                    if (isMercenaryCaptainJob() && player.fieldMerc && player.fieldMerc.mercHp > 0) {
+                        player.fieldMerc.mercHp -= dmg;
+                        writeLog(`[어그로] 용병이 맞았다! ${dmg} (용병 ${Math.max(0, player.fieldMerc.mercHp)}/${player.fieldMerc.mercMaxHp})`);
+                        showDmgFloat(dmg, false, true);
+                        if (player.fieldMerc.mercHp <= 0) {
+                            if (player.fieldMerc.mercItems && player.fieldMerc.mercItems.length) {
+                                player.mercInventory = [...player.fieldMerc.mercItems];
+                            }
+                            player.fieldMerc = null;
+                            player.mercCooldownTurns = 3;
+                            player.mercReviveAt90Percent = true;
+                            player._mercCooldownSkipOnce = true;
+                            writeLog(`💀 용병 전멸! 재소환까지 ${player.mercCooldownTurns}턴 (또는 🪙 긴급 재가동)`);
+                        }
                     } else {
-                        player.hunterExposeStacks = Math.max(0, safeNum(player.hunterExposeStacks, 0)) + 1;
-                        const cur = Math.min(3, player.hunterExposeStacks);
-                        writeLog(`[헌터] 약점을 간파합니다... (${cur}/3)`);
-                        if (player.hunterExposeStacks >= 3) {
-                            player.hunterExposeReady = true;
-                            writeLog('[헌터] 다음 타격은 치명적인 약점 공격으로 강화됩니다!');
+                        player.curHp-=dmg; showDmgFloat(dmg,false,true);
+                        if (String(enemy.job || '').includes('헌터')) {
+                            if (player.hunterExposeReady) {
+                                const bonusFixed = Math.max(1, Math.floor(getEffectiveMaxHp() * 0.1));
+                                player.curHp = Math.max(0, player.curHp - bonusFixed);
+                                player.hunterExposeReady = false;
+                                player.hunterExposeStacks = 0;
+                                playAssassinStrikeVfx('player');
+                                writeLog(`[헌터] 🎯 약점 공격 발동! 추가 고정 피해 ${bonusFixed}`);
+                            } else {
+                                player.hunterExposeStacks = Math.max(0, safeNum(player.hunterExposeStacks, 0)) + 1;
+                                const cur = Math.min(3, player.hunterExposeStacks);
+                                writeLog(`[헌터] 약점을 간파합니다... (${cur}/3)`);
+                                if (player.hunterExposeStacks >= 3) {
+                                    player.hunterExposeReady = true;
+                                    writeLog('[헌터] 다음 타격은 치명적인 약점 공격으로 강화됩니다!');
+                                }
+                            }
                         }
                     }
                 }
-                }
-            } else { writeLog(`[럭키] 적의 공격이 빗나갔습니다!`); triggerDodgeMove('player'); showMissFloat('player'); }
+            } else { writeLog(`[럭키] 적의 공격이 빗나갔습니다!`); showMissFloat('player'); }
         }
         if (isMercenaryCaptainJob() && player.mercCooldownTurns > 0) {
             if (player._mercCooldownSkipOnce) {
@@ -8173,9 +10528,9 @@ function enemyTurn() {
 function winBattle() {
     setCombatProcessing(false);
     triggerBossWarning(false);
-    let baseGain;
-    if(floor<=10){baseGain=enemy.isBoss?50+floor*5:28+Math.floor(Math.random()*8)+floor*2;}
-    else{baseGain=enemy.isBoss?65+Math.floor(Math.random()*30)+floor*4:14+Math.floor(Math.random()*12)+Math.floor(floor*1.2);}
+    const baseGain = typeof computeFloorGoldReward === 'function'
+        ? computeFloorGoldReward(floor, { isBoss: !!(enemy && enemy.isBoss) })
+        : Math.max(15, 6 + Math.floor(Math.random() * 5) + floor * 3);
     let bonus=0, bonusMsg="";
     const relKey=getAffinityRelKey();
     if(!enemy.isBoss&&relations[relKey]&&relations[relKey].weak===enemy.job){bonus=Math.floor(baseGain*0.3);bonusMsg=` <b style='color:#f1c40f'>(역전 보너스 +${bonus}G!)</b>`;}
@@ -8184,6 +10539,12 @@ function winBattle() {
     gold+=gain; totalGoldEarned+=gain;
     { const _em = getEffectiveMaxHp(); player.curHp = Math.min(_em, player.curHp + Math.floor(_em * 0.15)); }
     writeLog(`[승리] ${gain}G 획득 및 체력 소량 회복.${bonusMsg}`);
+    if (player.tutorialBattleActive) {
+        player.tutorialBattleActive = false;
+        player.prologueLocked = false;
+        writeLog('[튜토리얼] 첫 전투를 넘겼습니다. 이제 마굴을 오르며 잃어버린 기억을 추적합니다.');
+        if (typeof updatePrologueBattleControls === 'function') updatePrologueBattleControls();
+    }
     const expGain = 8 + Math.floor(floor * 0.85) + (enemy.isBoss ? 28 : 0);
     if (player.metaSlotId && typeof MetaRPG !== 'undefined') {
         const r = MetaRPG.addExpToSlot(player.metaSlotId, expGain);
@@ -8195,29 +10556,51 @@ function winBattle() {
         }
     }
     processFloorQuestOnVictory();
-    if (floor % 100 === 0 && floor >= 100 && enemy.isBoss) return milestoneCenturyFloor();
-    if (floor > 20 && player.farmingStay) proceedWinBattleFarmContinue();
-    else proceedWinBattleNextFloor();
+    const defeatedBoss = !!(enemy && enemy.isBoss);
+    const continueAfterVictory = () => {
+        if (floor % 100 === 0 && floor >= 100 && defeatedBoss) return milestoneCenturyFloor();
+        if (floor > 20 && player.farmingStay) proceedWinBattleFarmContinue();
+        else proceedWinBattleNextFloor();
+    };
+    if (typeof showVictoryRewardAndAwaitContinue === 'function') {
+        showVictoryRewardAndAwaitContinue(
+            {
+                clearedFloor: floor,
+                goldGain: gain,
+                expGain,
+                defeatedBoss,
+            },
+            continueAfterVictory
+        );
+    } else {
+        continueAfterVictory();
+    }
 }
 
 function dungeonClear() {
     triggerBossWarning(false);
     const sg=Math.floor(totalGoldEarned*0.1), ps=getSavedGold();
+    const clearTitle = typeof getPlayerClassDisplayName === 'function' ? getPlayerClassDisplayName() : player.name;
     localStorage.setItem('saved_gold',ps+sg); exitBattleLayout();
     document.getElementById('battle-area').style.display='none';
-    document.querySelector('.screen').innerHTML=`<div style="text-align:center;padding:40px 20px;"><h2 style="color:#f1c40f;font-size:2em;">🏆 던전 클리어!</h2><p style="color:#e0e0e0;font-size:1.1em;margin:15px 0;"><b style="color:#f1c40f;">${player.name}</b>이(가) 100층을 정복했습니다!</p><p style="color:#2ed573;font-size:0.95em;margin-bottom:5px;">💰 보존 골드: <b>${sg}G</b></p><div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:20px;"><button onclick="startInfiniteMode()" style="background:#9b59b6;color:#fff;padding:14px 24px;font-size:1em;font-weight:700;">♾️ 무한모드 도전</button><button onclick="location.reload()" style="background:#f1c40f;color:#111;padding:14px 24px;font-size:1em;font-weight:700;">🏠 메인으로</button></div></div>`;
-    writeLog(`🏆 ${player.name}이(가) 100층을 클리어했습니다!!!`);
+    document.querySelector('.screen').innerHTML=`<div style="text-align:center;padding:40px 20px;"><h2 style="color:#f1c40f;font-size:2em;">🏆 던전 클리어!</h2><p style="color:#e0e0e0;font-size:1.1em;margin:15px 0;"><b style="color:#f1c40f;">${escapeHtml(clearTitle)}</b>이(가) 100층을 정복했습니다!</p><p style="color:#2ed573;font-size:0.95em;margin-bottom:5px;">💰 보존 골드: <b>${sg}G</b></p><div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:20px;"><button onclick="startInfiniteMode()" style="background:#9b59b6;color:#fff;padding:14px 24px;font-size:1em;font-weight:700;">♾️ 무한모드 도전</button><button onclick="location.reload()" style="background:#f1c40f;color:#111;padding:14px 24px;font-size:1em;font-weight:700;">🏠 메인으로</button></div></div>`;
+    writeLog(`🏆 ${escapeHtml(clearTitle)}이(가) 100층을 클리어했습니다!!!`);
 }
 
 function gameOver() {
     setCombatProcessing(false);
     triggerBossWarning(false);
     window.__deathApplied = false;
-    const sg = Math.floor(totalGoldEarned * 0.1);
+    const carriedGold = Math.max(0, Math.floor(safeNum(gold, 0)));
+    const sg = Math.floor(carriedGold * 0.2);
+    const lostGold = Math.max(0, carriedGold - sg);
     const slotId = player && player.metaSlotId;
     const enName = enemy ? enemy.name : '알 수 없는 적';
     const fl = floor;
-    window.__deathCtx = { sg, slotId, floor: fl, enemyName: enName };
+    const rescuedItems = player && Array.isArray(player.items)
+        ? player.items.filter((it) => it && it.type !== 'merc' && getEquipSlotKind(it))
+        : [];
+    window.__deathCtx = { sg, lostGold, slotId, floor: fl, enemyName: enName, rescuedItemCount: rescuedItems.length };
 
     exitBattleLayout();
     document.getElementById('battle-area').style.display = 'none';
@@ -8245,10 +10628,19 @@ window.finalizeGameOverDeath = function finalizeGameOverDeath() {
     window.__deathApplied = true;
     const d = window.__deathCtx || {};
     const sg = d.sg != null ? d.sg : 0;
+    const lostGold = d.lostGold != null ? d.lostGold : Math.max(0, Math.floor(safeNum(gold, 0)) - sg);
     const slotId = d.slotId;
     const fl = d.floor != null ? d.floor : floor;
     const enName = d.enemyName || '알 수 없는 적';
+    let rescuedItemCount = d.rescuedItemCount != null ? d.rescuedItemCount : 0;
     if (typeof MetaRPG !== 'undefined') {
+        if (slotId) {
+            if (typeof MetaRPG.preserveRescueInventory === 'function') {
+                rescuedItemCount = MetaRPG.preserveRescueInventory(slotId, player && player.items);
+            } else if (typeof MetaRPG.clearRunSnapshot === 'function') {
+                MetaRPG.clearRunSnapshot(slotId);
+            }
+        }
         MetaRPG.addSavedGold(sg);
         if (slotId) {
             const qdef = MetaRPG.FLOOR_QUESTS[fl];
@@ -8262,8 +10654,21 @@ window.finalizeGameOverDeath = function finalizeGameOverDeath() {
         const ps = getSavedGold();
         localStorage.setItem('saved_gold', ps + sg);
     }
-    writeLog(`💀 ${fl}층에서 ${enName}에게 패배했습니다. 허브로 복귀합니다.`);
-    returnToHubFromRun(false);
+    writeLog(
+        `💀 ${fl}층에서 ${enName}에게 패배했습니다. 구조대가 베이스캠프로 회수했습니다. ` +
+            `장비 ${rescuedItemCount}개 보존, 골드 ${lostGold}G 손실, ${sg}G 회수.`
+    );
+    if (typeof MetaRPG !== 'undefined' && slotId) MetaRPG.setActiveSlot(slotId);
+    player = null;
+    enemy = null;
+    floor = 1;
+    gold = 0;
+    totalGoldEarned = 0;
+    pendingShop = false;
+    exitBattleLayout();
+    document.getElementById('battle-area').style.display = 'none';
+    document.getElementById('shop-area').style.display = 'none';
+    showPreGameScreen();
 };
 
 window.setCombatProcessing = setCombatProcessing;
@@ -8287,7 +10692,6 @@ window.buildFieldMercFromTemplate = buildFieldMercFromTemplate;
 window.getMercGachaCost = getMercGachaCost;
 window.tryMercenaryRandomEvent = tryMercenaryRandomEvent;
 
-
 // ---- js/bootstrapCore.js ----
 // Bootstrap shell (post-migration)
 (function bootstrapShellInit() {
@@ -8299,7 +10703,6 @@ window.addEventListener('load', () => {
     // All runtime logic is loaded from domain modules.
 });
 
-
 // ---- game.js ----
 // Thin controller entrypoint after modular split.
 // Core runtime lives in js/bootstrapCore.js and feature modules.
@@ -8307,12 +10710,12 @@ window.addEventListener('load', () => {
     window.__gameControllerReady = true;
 })();
 
-
 // ---- js/security.js ----
 // Browser hardening layer. Loaded last inside bundle.js.
 (function installDungeonClientHardening() {
     const protectedStateNames = [
         'player',
+        'playerState',
         'enemy',
         'floor',
         'gold',
@@ -8336,8 +10739,9 @@ window.addEventListener('load', () => {
         'switchActiveSaveFile',
         'requestDeleteSaveFile',
         'reincarnateFromHub',
-        'returnToOriginRaceChoice',
-        'chooseOriginRace',
+        'startNewCharacterPrologue',
+        'choosePrologueMemory',
+        'advanceProloguePhase',
         'chooseIntroWeapon',
         'openTechLinePicker',
         'deleteRunSnapshotForSlot',
@@ -8396,6 +10800,10 @@ window.addEventListener('load', () => {
         'resolveForge',
         'resolveContractAltar',
         'resolveEncounter',
+        'resolveRestockCrossroad',
+        'checkStoryMilestone',
+        'applyStoryChoiceImpact',
+        'adjustPlayerStoryState',
     ];
 
     const internalExportNames = [
@@ -8404,6 +10812,22 @@ window.addEventListener('load', () => {
         'applyOfficialStatsToEquipmentItem',
         'clampEquipmentItemStatsToRarityCaps',
         'computeEquipmentGoldPrice',
+        'computeFloorGoldReward',
+        'normalizeFloorGrowth',
+        'computeFloorGrowthForClears',
+        'getFloorGrowthStep',
+        'tacticalSkillChoices',
+        'tacticalSkillMilestones',
+        'getTacticalSkillDef',
+        'getTacticalSkillMilestoneForFloor',
+        'storyData',
+        'createDefaultPlayerState',
+        'normalizePlayerState',
+        'getStoryRouteKey',
+        'getStoryEndingKey',
+        'getStoryTitleForState',
+        'getStoryChoiceImpact',
+        'getStoryMilestoneDef',
         'RUNE_POOL_COUNT',
         'ensurePlayerSynergyBonuses',
         'getEffectiveMaxHp',
@@ -8419,6 +10843,8 @@ window.addEventListener('load', () => {
         'getCritInfo',
         'getLifestealEffective',
         'getLifestealOverflowAtk',
+        'getPlayerDamageReduction',
+        'getPlayerPotionHealMultiplier',
         'isPriestJob',
         'isPriestBlessed',
         'isChosenPriest',
@@ -8467,7 +10893,7 @@ window.addEventListener('load', () => {
         'getUnlockedPoolItems',
         'getItemsByRarity',
         'getShopRarityChances',
-        'computeShopEquipmentPriceMultiplier',
+        'applyGoldenBalanceShopPrice',
         'applyShopRarityTuning',
         'getShopRarityBoostPrice',
         'renderShopItems',
@@ -8504,6 +10930,10 @@ window.addEventListener('load', () => {
         'buildAltarEncounterHtml',
         'buildEncounterPhaseHtml',
         'hideEncounterPhaseUI',
+        'buildRestockCrossroadHtml',
+        'renderRestockCrossroad',
+        'maybeStartRestockCrossroad',
+        'resumeRestockCrossroadContext',
         'beginFloorEncounter',
         'buildAltarEncounterOptions',
         'pushPassiveContractHistory',

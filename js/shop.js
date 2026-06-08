@@ -2,9 +2,20 @@
 function openShop() {
     setCombatProcessing(false);
     shopVisitCount++;
-    document.getElementById('battle-area').style.display='none';
-    document.getElementById('shop-area').style.display='block';
-    rerollCost=10; updateUi(); renderShopItems();
+    rerollCost = 10;
+    transitionMainView(() => {
+        const battle = document.getElementById('battle-area');
+        const shop = document.getElementById('shop-area');
+        const encounter = document.getElementById('encounter-phase');
+        if (encounter) {
+            encounter.style.display = 'none';
+            encounter.replaceChildren();
+        }
+        if (battle) battle.style.display = 'none';
+        if (shop) shop.style.display = 'block';
+        updateUi();
+        renderShopItems();
+    });
 }
 
 function renderShopLeaveButtons() {
@@ -34,9 +45,19 @@ window.leaveShopTrainHere = function leaveShopTrainHere() {
 };
 
 window.nextFloor = () => {
-    document.getElementById('shop-area').style.display='none';
-    document.getElementById('battle-area').style.display='block';
-    beginFloorEncounter();
+    const crossroadContext = typeof resumeAfterRestockCrossroad !== 'undefined'
+        ? resumeAfterRestockCrossroad
+        : null;
+    resumeAfterRestockCrossroad = null;
+    transitionMainView(() => {
+        document.getElementById('shop-area').style.display='none';
+        document.getElementById('battle-area').style.display='block';
+        if (crossroadContext && typeof resumeRestockCrossroadContext === 'function') {
+            resumeRestockCrossroadContext(crossroadContext, { immediate: true });
+        } else {
+            beginFloorEncounter({ immediate: true });
+        }
+    });
 };
 
 function getUnlockedPoolItems() {
@@ -124,21 +145,20 @@ function getShopRarityChances() {
     return { legendary, epic, rare, common };
 }
 
-function computeShopEquipmentPriceMultiplier(it) {
-    if (!it || it.type === 'relic' || it.type === 'merc_shop_direct' || it.type === 'merc_shop_fund') return 1;
-    const v = typeof it.value === 'number' ? it.value : 0;
-    const d = typeof it.def === 'number' ? it.def : 0;
-    const c = typeof it.critBonus === 'number' ? it.critBonus : 0;
-    const cm = typeof it.critMult === 'number' ? it.critMult : 0;
-    const ls = typeof it.lifesteal === 'number' ? it.lifesteal : 0;
-    const m = 1 + v * 0.006 + d * 0.032 + c * 0.011 + cm * 12 + ls * 16;
-    return Math.min(4.2, Math.max(0.88, m));
+function applyGoldenBalanceShopPrice(item) {
+    if (!item) return item;
+    if (item.type === 'potion') return item;
+    if (item.type === 'merc_shop_direct' || item.type === 'merc_shop_fund') return item;
+    if (typeof computeEquipmentGoldPrice === 'function') {
+        item.price = computeEquipmentGoldPrice(item, { shopFloor: floor });
+    }
+    return item;
 }
 
 function applyShopRarityTuning(baseItem) {
     if (!baseItem) return baseItem;
     if (baseItem.type === 'relic' || baseItem.type === 'potion' || baseItem.type === 'merc_shop_direct' || baseItem.type === 'merc_shop_fund') {
-        return { ...baseItem };
+        return applyGoldenBalanceShopPrice({ ...baseItem });
     }
     if (baseItem.type === 'rune') {
         const tuned = { ...baseItem };
@@ -146,6 +166,7 @@ function applyShopRarityTuning(baseItem) {
         if (typeof applyOfficialStatsToEquipmentItem === 'function') {
             applyOfficialStatsToEquipmentItem(tuned, { rebuildDesc: true });
         }
+        applyGoldenBalanceShopPrice(tuned);
         tuned.desc = formatShopItemDesc(tuned.desc);
         return tuned;
     }
@@ -154,12 +175,92 @@ function applyShopRarityTuning(baseItem) {
     if (typeof applyOfficialStatsToEquipmentItem === 'function') {
         applyOfficialStatsToEquipmentItem(tuned, { rebuildDesc: true });
     }
-    const basePrice = Math.max(1, safeNum(tuned.price, 1));
-    tuned.price = Math.max(1, Math.round(basePrice * computeShopEquipmentPriceMultiplier(tuned)));
+    applyGoldenBalanceShopPrice(tuned);
     tuned.desc = formatShopItemDesc(tuned.desc);
-    if (baseItem.divinityGainBonus != null) tuned.divinityGainBonus = baseItem.divinityGainBonus;
-    if (baseItem.prayerBonus != null) tuned.prayerBonus = baseItem.prayerBonus;
     return tuned;
+}
+
+function isShopEquipmentForDedupe(it) {
+    return !!it && ['atk', 'hp', 'ring', 'rune'].includes(String(it.type || ''));
+}
+
+function getShopSynergyFingerprint(it) {
+    const rawTags = Array.isArray(it && it.tags) ? it.tags : [];
+    const tags = rawTags
+        .map((t) => String(t || '').trim())
+        .filter((t) => t && !/^rarity_/i.test(t) && !/^type_/i.test(t))
+        .sort();
+    return tags.length ? tags.join('+') : 'none';
+}
+
+function getShopSemanticStats(it) {
+    const type = String((it && it.type) || '');
+    return {
+        atk: type === 'atk' || type === 'ring' || type === 'rune' ? Math.max(0, safeNum(it.value, 0)) : 0,
+        hp: type === 'hp' ? Math.max(0, safeNum(it.value, 0)) : Math.max(0, safeNum(it.hpBonus, 0)),
+        def: safeNum(it.def, 0),
+        crit: Math.max(0, safeNum(it.critBonus, 0)),
+        critMult: Math.max(0, Number(safeNum(it.critMult, 0).toFixed ? safeNum(it.critMult, 0).toFixed(3) : safeNum(it.critMult, 0))),
+        lifesteal: Math.max(0, Number(safeNum(it.lifesteal, 0).toFixed ? safeNum(it.lifesteal, 0).toFixed(3) : safeNum(it.lifesteal, 0))),
+        damageReduction: Math.max(0, Number(safeNum(it.damageReduction, 0).toFixed ? safeNum(it.damageReduction, 0).toFixed(3) : safeNum(it.damageReduction, 0))),
+        potionHeal: Math.max(0, Number(safeNum(it.potionHealBonus, 0).toFixed ? safeNum(it.potionHealBonus, 0).toFixed(3) : safeNum(it.potionHealBonus, 0))),
+        prayer: Math.max(0, safeNum(it.prayerBonus, 0)),
+        divinity: Math.max(0, Number(safeNum(it.divinityGainBonus, 0).toFixed ? safeNum(it.divinityGainBonus, 0).toFixed(3) : safeNum(it.divinityGainBonus, 0))),
+        gold: Math.max(0, Number(safeNum(it.goldGainBonus, 0).toFixed ? safeNum(it.goldGainBonus, 0).toFixed(3) : safeNum(it.goldGainBonus, 0))),
+        flee: Math.max(0, Number(safeNum(it.fleeBonus, 0).toFixed ? safeNum(it.fleeBonus, 0).toFixed(3) : safeNum(it.fleeBonus, 0))),
+    };
+}
+
+function getShopPrimaryStatRole(it) {
+    const explicit = String((it && it.itemRole) || '').toLowerCase();
+    if (explicit === 'offense' || explicit === 'defense' || explicit === 'utility') return explicit;
+    const s = getShopSemanticStats(it);
+    if (s.hp > 0 || s.def > 0 || s.damageReduction > 0) return 'durability';
+    if (s.atk > 0) return 'attack';
+    if (s.crit > 0 || s.critMult > 0) return 'critical';
+    if (s.lifesteal > 0) return 'sustain';
+    if (s.gold > 0 || s.flee > 0 || s.potionHeal > 0) return 'utility';
+    if (s.prayer > 0 || s.divinity > 0) return 'divine';
+    return String(it && it.type ? it.type : 'misc');
+}
+
+function getShopFamilyKey(it) {
+    const rarity = typeof normalizeRarityKey === 'function'
+        ? normalizeRarityKey(it && it.rarity)
+        : String((it && it.rarity) || 'common').toLowerCase();
+    return `${rarity}|${getShopSynergyFingerprint(it)}`;
+}
+
+function getShopStatSignature(it) {
+    const s = getShopSemanticStats(it);
+    return ['atk', 'hp', 'def', 'crit', 'critMult', 'lifesteal', 'damageReduction', 'potionHeal', 'prayer', 'divinity', 'gold', 'flee']
+        .map((k) => `${k}:${s[k]}`)
+        .join('|');
+}
+
+function hasShopTwinEquipmentConflict(candidate, stock) {
+    if (!isShopEquipmentForDedupe(candidate)) return false;
+    const family = getShopFamilyKey(candidate);
+    const role = getShopPrimaryStatRole(candidate);
+    const sig = getShopStatSignature(candidate);
+    return (stock || []).some((it) => {
+        if (!isShopEquipmentForDedupe(it)) return false;
+        if (getShopFamilyKey(it) !== family) return false;
+        return getShopPrimaryStatRole(it) === role || getShopStatSignature(it) === sig;
+    });
+}
+
+function tryPushDistinctShopItem(target, rawItem, opts) {
+    const options = opts || {};
+    if (!rawItem) return false;
+    const tuned = applyShopRarityTuning({ ...rawItem });
+    const stock = [...(options.stock || currentShopItems || []), ...(target || [])];
+    if (stock.some((p) => p && p.name === tuned.name)) return false;
+    if (!options.allowOwned && player && Array.isArray(player.items) && player.items.some((x) => x && x.name === tuned.name)) return false;
+    if (hasShopTwinEquipmentConflict(tuned, stock)) return false;
+    if (options.prepend) target.unshift(tuned);
+    else target.push(tuned);
+    return true;
 }
 
 function getShopRarityBoostPrice() {
@@ -200,8 +301,12 @@ function renderShopItems(keepCurrentStock) {
     const unlockedItems=getUnlockedPoolItems(), picked=[];
     let tries=0;
     if (!keepCurrentStock && isMercenaryCaptainJob()) {
-        const pd = 95 + floor * 12;
-        const pf = 48 + floor * 6;
+        const pd = typeof computeEquipmentGoldPrice === 'function'
+            ? computeEquipmentGoldPrice({ rarity: 'epic' }, { shopFloor: floor })
+            : 400 + floor * 15;
+        const pf = typeof computeEquipmentGoldPrice === 'function'
+            ? computeEquipmentGoldPrice({ rarity: 'rare' }, { shopFloor: floor })
+            : 120 + floor * 5;
         currentShopItems.push(
             {
                 name: '직접 장비 구매 (직거래)',
@@ -222,11 +327,7 @@ function renderShopItems(keepCurrentStock) {
         if (runeMerc.length) {
             const shuffled = [...runeMerc].sort(() => Math.random() - 0.5);
             for (const raw of shuffled) {
-                const tuned = applyShopRarityTuning({ ...raw });
-                if (currentShopItems.some((p) => p && p.name === tuned.name)) continue;
-                if (player.items.some((x) => x && x.name === tuned.name)) continue;
-                currentShopItems.push(tuned);
-                break;
+                if (tryPushDistinctShopItem(currentShopItems, raw, { stock: [] })) break;
             }
         }
     } else if (!keepCurrentStock) {
@@ -238,36 +339,33 @@ function renderShopItems(keepCurrentStock) {
             });
             if (ar.length > 0) {
                 const relic = ar[Math.floor(Math.random() * ar.length)];
-                picked.push({ ...relic, type: 'relic', value: 0 });
+                tryPushDistinctShopItem(picked, { ...relic, type: 'relic', value: 0 }, { stock: currentShopItems, allowOwned: true });
             }
         }
         if (unlockedItems.length > 0) {
             const ru = unlockedItems[Math.floor(Math.random() * unlockedItems.length)];
-            if (!player.items.some((i) => i.name === ru.name) && !picked.some((p) => p.name === ru.name)) picked.push(applyShopRarityTuning(ru));
+            tryPushDistinctShopItem(picked, ru, { stock: currentShopItems });
         }
-        while (picked.length < 4 && tries < 70) {
-        tries++;
+        while (picked.length < 4 && tries < 180) {
+            tries++;
             const pool = getItemsByRarity();
             if (!pool.length) continue;
             const item = pool[Math.floor(Math.random() * pool.length)];
-            if (picked.some((i) => i.name === item.name)) continue;
             if (item.onlyFor) {
                 const allowed = Array.isArray(item.onlyFor) ? item.onlyFor : [item.onlyFor];
                 if (!allowed.includes(player.name) && !allowed.includes(player.baseJob)) continue;
             }
-            picked.push(applyShopRarityTuning(item));
-    }
+            tryPushDistinctShopItem(picked, item, { stock: currentShopItems });
+        }
         /** 풀에 생성 장비가 매우 많아 랜덤만으로는 룬이 거의 안 나옴 → 매 상점에 룬 1칸 확정 */
         const runeOnly = getNonMercEquipmentPool().filter((i) => i && i.type === 'rune');
         if (runeOnly.length && !picked.some((p) => p && p.type === 'rune')) {
             const shuffled = [...runeOnly].sort(() => Math.random() - 0.5);
             for (const raw of shuffled) {
-                const tuned = applyShopRarityTuning({ ...raw });
-                if (picked.some((p) => p.name === tuned.name)) continue;
-                if (player.items.some((x) => x && x.name === tuned.name)) continue;
-                picked.unshift(tuned);
-                while (picked.length > 4) picked.pop();
-                break;
+                if (tryPushDistinctShopItem(picked, raw, { stock: currentShopItems, prepend: true })) {
+                    while (picked.length > 4) picked.pop();
+                    break;
+                }
             }
         }
     currentShopItems.push(...picked);
@@ -426,14 +524,19 @@ window.buyItem = (event, idx) => {
                 }
                 if (it.def) player.extraDef += it.def;
                 if (it.lifesteal) player.lifesteal = (player.lifesteal || 0) + it.lifesteal;
+                if (it.damageReduction) player.damageReduction = (player.damageReduction || 0) + it.damageReduction;
+                if (it.potionHealBonus) player.potionHealBonus = (player.potionHealBonus || 0) + it.potionHealBonus;
                 if (it.regenPotion) player.hasRegenPotion = true;
                 if (it.critBonus) player.crit = (player.crit || 1) + it.critBonus;
                 if (it.critMult) player.critMult = (player.critMult || 1.8) + it.critMult;
             } else {
                 if(it.type==='atk'||it.type==='ring')player.atk+=it.value;
                 if(it.type==='hp'){player.maxHp+=it.value;player.curHp+=it.value;}
+                if(typeof it.hpBonus === 'number' && it.hpBonus){player.maxHp+=it.hpBonus;player.curHp+=it.hpBonus;}
                 if(it.def)player.extraDef+=it.def;
                 if(it.lifesteal)player.lifesteal=(player.lifesteal||0)+it.lifesteal;
+                if(it.damageReduction)player.damageReduction=(player.damageReduction||0)+it.damageReduction;
+                if(it.potionHealBonus)player.potionHealBonus=(player.potionHealBonus||0)+it.potionHealBonus;
                 if(it.regenPotion)player.hasRegenPotion=true;
                 if(it.critBonus)player.crit=(player.crit||1)+it.critBonus;
                 if(it.critMult)player.critMult=(player.critMult||1.8)+it.critMult;
@@ -452,7 +555,7 @@ window.renderShopLeaveButtons = renderShopLeaveButtons;
 window.getUnlockedPoolItems = getUnlockedPoolItems;
 window.getItemsByRarity = getItemsByRarity;
 window.getShopRarityChances = getShopRarityChances;
-window.computeShopEquipmentPriceMultiplier = computeShopEquipmentPriceMultiplier;
+window.applyGoldenBalanceShopPrice = applyGoldenBalanceShopPrice;
 window.applyShopRarityTuning = applyShopRarityTuning;
 window.getShopRarityBoostPrice = getShopRarityBoostPrice;
 window.renderShopItems = renderShopItems;

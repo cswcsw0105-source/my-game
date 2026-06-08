@@ -6,6 +6,34 @@ const ENCOUNTER_SCENE_WEIGHTS = {
     rest: 8,
     altar: 14,
 };
+let restockCrossroadActive = false;
+let restockCrossroadContext = null;
+let resumeAfterRestockCrossroad = null;
+
+function isBossFloorNumber(floorValue) {
+    const floorNum = Math.max(1, Math.floor(safeNum(floorValue, 1)));
+    return floorNum % 10 === 0;
+}
+
+function startBossFloorCombat(opts) {
+    pendingShop = false;
+    restockCrossroadActive = false;
+    restockCrossroadContext = null;
+    resumeAfterRestockCrossroad = null;
+    window._encounterPhaseActive = false;
+    window._encounterPhaseScene = null;
+    window._pendingEncounterCombatMod = null;
+    const enterBoss = () => {
+        const shop = document.getElementById('shop-area');
+        const battle = document.getElementById('battle-area');
+        if (shop) shop.style.display = 'none';
+        if (battle) battle.style.display = 'block';
+        hideEncounterPhaseUI();
+        spawnEnemy();
+    };
+    if (opts && opts.immediate) enterBoss();
+    else transitionMainView(enterBoss);
+}
 
 function rollEncounterSceneType() {
     const r = Math.random() * 100;
@@ -103,41 +131,159 @@ function buildEncounterPhaseHtml(sceneType) {
     return buildMonsterEncounterHtml();
 }
 
+function isRestockCrossroadFloor(f) {
+    const floorNum = Math.max(1, Math.floor(safeNum(f, 1)));
+    return floorNum > 1 && floorNum % 3 === 0 && !isBossFloorNumber(floorNum);
+}
+
+function hasSeenRestockCrossroad(f) {
+    if (!player) return true;
+    const floorNum = Math.max(1, Math.floor(safeNum(f, 1)));
+    return Array.isArray(player._restockCrossroadsSeen) && player._restockCrossroadsSeen.includes(floorNum);
+}
+
+function markRestockCrossroadSeen(f) {
+    if (!player) return;
+    const floorNum = Math.max(1, Math.floor(safeNum(f, 1)));
+    if (!Array.isArray(player._restockCrossroadsSeen)) player._restockCrossroadsSeen = [];
+    if (!player._restockCrossroadsSeen.includes(floorNum)) player._restockCrossroadsSeen.push(floorNum);
+    if (player._restockCrossroadsSeen.length > 40) player._restockCrossroadsSeen = player._restockCrossroadsSeen.slice(-40);
+}
+
+function buildRestockCrossroadHtml() {
+    return `
+<div class="restock-crossroad-card">
+  <p class="restock-crossroad-kicker">${floor}층 재정비 분기점</p>
+  <h2 class="restock-crossroad-title">희미한 등불</h2>
+  <p class="restock-crossroad-copy">저 멀리 희미한 등불과 함께 조력자의 상점이 보입니다. 몬스터들의 기운도 강해지고 있습니다. 당신은 어떻게 하겠습니까?</p>
+  <div class="restock-crossroad-actions">
+    <button type="button" class="restock-crossroad-btn restock-crossroad-btn--shop" onclick="resolveRestockCrossroad('shop')">상점에 진입하여 재정비한다</button>
+    <button type="button" class="restock-crossroad-btn restock-crossroad-btn--climb" onclick="resolveRestockCrossroad('climb')">상점을 무시하고 계속 등반한다</button>
+  </div>
+</div>`;
+}
+
 function hideEncounterPhaseUI() {
     const ep = document.getElementById('encounter-phase');
     const hud = document.getElementById('battle-hud');
-    if (ep) ep.style.display = 'none';
+    if (ep) {
+        ep.style.display = 'none';
+        ep.replaceChildren();
+    }
     if (hud) hud.style.display = 'block';
 }
 
-function beginFloorEncounter() {
+function renderRestockCrossroad(opts) {
     setCombatProcessing(false);
+    restockCrossroadActive = true;
+    window._encounterPhaseActive = false;
+    window._encounterPhaseScene = null;
+    window._pendingEncounterCombatMod = null;
+    enemy = null;
+    const renderCrossroad = () => {
+        const ep = document.getElementById('encounter-phase');
+        const hud = document.getElementById('battle-hud');
+        if (ep) {
+            ep.replaceChildren();
+            ep.style.display = 'block';
+            ep.insertAdjacentHTML('beforeend', buildRestockCrossroadHtml());
+        }
+        if (hud) hud.style.display = 'none';
+        updateUi();
+        renderActions();
+    };
+    if (opts && opts.immediate) renderCrossroad();
+    else transitionMainView(renderCrossroad);
+}
+
+function maybeStartRestockCrossroad(clearedFloor, flowKind, extraContext) {
+    if (isBossFloorNumber(floor)) return false;
+    if (!player || !isRestockCrossroadFloor(floor) || hasSeenRestockCrossroad(floor)) return false;
+    markRestockCrossroadSeen(floor);
+    restockCrossroadContext = {
+        clearedFloor: Math.max(1, Math.floor(safeNum(clearedFloor, floor - 1))),
+        flowKind: flowKind || 'encounter',
+        defeatedBoss: !!(extraContext && extraContext.defeatedBoss),
+    };
+    renderRestockCrossroad();
+    return true;
+}
+
+function resumeRestockCrossroadContext(context, opts) {
+    const ctx = context || {};
+    if (ctx.flowKind === 'battle') {
+        winBattleContinueFrom(ctx.clearedFloor, {
+            skipCrossroad: true,
+            immediate: !!(opts && opts.immediate),
+            defeatedBoss: !!ctx.defeatedBoss,
+        });
+        return;
+    }
+    beginFloorEncounter(opts && opts.immediate ? { immediate: true } : undefined);
+}
+
+window.resolveRestockCrossroad = function resolveRestockCrossroad(choice) {
+    if (!player || !restockCrossroadActive) return;
+    const context = restockCrossroadContext || {
+        clearedFloor: Math.max(1, floor - 1),
+        flowKind: 'encounter',
+        defeatedBoss: false,
+    };
+    restockCrossroadActive = false;
+    restockCrossroadContext = null;
+    if (choice === 'shop') {
+        resumeAfterRestockCrossroad = context;
+        writeLog('[분기점] 조력자의 상점에 들러 재정비하기로 했습니다.');
+        openShop();
+        return;
+    }
+    writeLog('[분기점] 상점을 지나치고 위험한 등반을 계속합니다.');
+    resumeRestockCrossroadContext(context);
+};
+
+function beginFloorEncounter(opts) {
+    setCombatProcessing(false);
+    if (isBossFloorNumber(floor)) {
+        startBossFloorCombat(opts);
+        return;
+    }
     if (pendingShop) {
         spawnEnemy();
+        return;
+    }
+    if (restockCrossroadActive) {
+        renderRestockCrossroad(opts);
         return;
     }
     const scene = window._encounterPhaseScene || rollEncounterSceneType();
     window._encounterPhaseScene = scene;
     window._encounterPhaseActive = true;
     enemy = null;
-    const ep = document.getElementById('encounter-phase');
-    const hud = document.getElementById('battle-hud');
-    if (ep) {
-        ep.style.display = 'block';
-        ep.innerHTML = buildEncounterPhaseHtml(scene);
-    }
-    if (hud) hud.style.display = 'none';
-    updateUi();
-    renderActions();
+    const renderEncounter = () => {
+        const ep = document.getElementById('encounter-phase');
+        const hud = document.getElementById('battle-hud');
+        if (ep) {
+            ep.replaceChildren();
+            ep.style.display = 'block';
+            ep.insertAdjacentHTML('beforeend', buildEncounterPhaseHtml(scene));
+        }
+        if (hud) hud.style.display = 'none';
+        updateUi();
+        renderActions();
+    };
+    if (opts && opts.immediate) renderEncounter();
+    else transitionMainView(renderEncounter);
 }
 
 window.enterCombatFromEncounter = function enterCombatFromEncounter() {
     if (!player) return;
     window._encounterPhaseActive = false;
     window._encounterPhaseScene = null;
-    hideEncounterPhaseUI();
     window._pendingEncounterCombatMod = null;
-    spawnEnemy();
+    transitionMainView(() => {
+        hideEncounterPhaseUI();
+        spawnEnemy();
+    });
 };
 
 window.ambushEncounterEnemy = function ambushEncounterEnemy() {
@@ -145,7 +291,6 @@ window.ambushEncounterEnemy = function ambushEncounterEnemy() {
     const success = Math.random() < 0.5;
     window._encounterPhaseActive = false;
     window._encounterPhaseScene = null;
-    hideEncounterPhaseUI();
     if (success) {
         window._pendingEncounterCombatMod = { enemyHpMul: 0.8 };
         writeLog('[기습] ✅ 적의 허를 찔렀습니다! 적 체력이 20% 깎인 상태로 전투를 시작합니다.');
@@ -156,7 +301,10 @@ window.ambushEncounterEnemy = function ambushEncounterEnemy() {
         player.curHp = Math.max(1, safeNum(player.curHp, 1) - dmg);
         writeLog(`[기습] ❌ 발각되었습니다! 허둥지둥 물러나며 체력 ${dmg}를 잃었습니다.`);
     }
-    spawnEnemy();
+    transitionMainView(() => {
+        hideEncounterPhaseUI();
+        spawnEnemy();
+    });
 };
 
 window.openPanicRunSacrificeModal = function openPanicRunSacrificeModal() {
@@ -239,7 +387,10 @@ window.resolveTreasureChest = function resolveTreasureChest(openChest) {
     const roll = Math.random();
     if (roll < 0.45) {
         const goldMult = typeof getPlayerGoldGainMult === 'function' ? getPlayerGoldGainMult() : 1;
-        const gain = Math.floor((12 + Math.floor(Math.random() * 24) + Math.floor(floor * 0.8)) * goldMult);
+        const baseGain = typeof computeFloorGoldReward === 'function'
+            ? computeFloorGoldReward(floor, { multiplier: 1.1 })
+            : Math.max(15, 6 + Math.floor(Math.random() * 5) + floor * 3);
+        const gain = Math.floor(baseGain * goldMult);
         gold += gain;
         totalGoldEarned += gain;
         writeLog(`[보물] 💰 녹슨 상자에서 ${gain}G를 찾았습니다.`);
@@ -364,7 +515,6 @@ window.skipAltarOption = function skipAltarOption() {
 function advanceFloorAfterNonCombatEncounter() {
     if (!player) return;
     window._encounterPhaseActive = false;
-    hideEncounterPhaseUI();
     failActiveQuestIfLeavingFloor();
     const prevFloor = floor;
     floor++;
@@ -376,7 +526,7 @@ function advanceFloorAfterNonCombatEncounter() {
         setTimeout(() => showMercEvolutionChoice(() => beginFloorEncounter()), 300);
         return;
     }
-    if (floor > 1 && floor % 3 === 0) pendingShop = true;
+    if (maybeStartRestockCrossroad(prevFloor, 'encounter')) return;
     beginFloorEncounter();
 }
 
@@ -479,7 +629,7 @@ window.resolveStatSwap = (idx) => {
     if (idx >= 0) window._statSwapEvents[idx].action();
     else writeLog(`[이벤트층] 변화를 거부했습니다.`);
     updateUi();
-    if (floor > 1 && floor % 3 === 0) pendingShop = true;
+    if (maybeStartRestockCrossroad(Math.max(1, floor - 1), 'encounter')) return;
     beginFloorEncounter();
 };
 
@@ -495,7 +645,7 @@ function showSkillEvent() {
 
     if (bonusSkills.length === 0) {
         writeLog(`[이벤트층] 이미 모든 보너스 스킬을 보유하고 있습니다!`);
-        if (floor > 1 && floor % 3 === 0) pendingShop = true;
+        if (maybeStartRestockCrossroad(Math.max(1, floor - 1), 'encounter')) return;
         beginFloorEncounter(); return;
     }
 
@@ -531,7 +681,7 @@ window.resolveSkillEvent = (idx) => {
         showUnlockPopup('✨ 스킬 각성!', `<b style="color:#9b59b6">${skill.name}</b><br>${skill.desc}`, '#9b59b6');
     } else writeLog(`[이벤트층] 각성을 거부했습니다.`);
     updateUi();
-    if (floor > 1 && floor % 3 === 0) pendingShop = true;
+    if (maybeStartRestockCrossroad(Math.max(1, floor - 1), 'encounter')) return;
     beginFloorEncounter();
 };
 
@@ -613,7 +763,7 @@ window.resolveForge = (idx) => {
         }
     }
     updateUi();
-    if (floor > 1 && floor % 3 === 0) pendingShop = true;
+    if (maybeStartRestockCrossroad(Math.max(1, floor - 1), 'encounter')) return;
     beginFloorEncounter();
 };
 
@@ -722,11 +872,17 @@ window.resolveEncounter = (idx) => {
     const event = window._currentEncounter;
     document.body.removeChild(window._encounterOverlay);
     event.choices[idx].action(); updateUi();
-    if (floor>1&&floor%3===0) pendingShop=true;
+    if (maybeStartRestockCrossroad(Math.max(1, floor - 1), 'encounter')) return;
     beginFloorEncounter();
 };
 
-function winBattleContinueFrom(clearedFloor) {
+function winBattleContinueFrom(clearedFloor, opts) {
+    const defeatedBoss = opts && typeof opts.defeatedBoss === 'boolean' ? opts.defeatedBoss : !!(enemy && enemy.isBoss);
+    if (isBossFloorNumber(floor)) {
+        beginFloorEncounter(opts && opts.immediate ? { immediate: true } : undefined);
+        return;
+    }
+    if (!(opts && opts.skipCrossroad) && maybeStartRestockCrossroad(clearedFloor, 'battle', { defeatedBoss })) return;
     if (floor === 15 && player.name === '소환사' && !localStorage.getItem('summon_altar_done')) {
         setTimeout(() => showContractAltar(), 500);
         return;
@@ -735,19 +891,17 @@ function winBattleContinueFrom(clearedFloor) {
         setTimeout(() => showEventFloor(), 500);
         return;
     }
-    if (clearedFloor > 5 && !enemy.isBoss && Math.random() < 0.15) {
+    if (clearedFloor > 5 && !defeatedBoss && Math.random() < 0.15) {
         if (clearedFloor === 10 && !player.evolved) setTimeout(() => checkEvolution(), 300);
         setTimeout(() => showRandomEncounter(), 500);
         return;
     }
     if (clearedFloor === 10 && !player.evolved) {
-        if (floor > 1 && floor % 3 === 0) pendingShop = true;
-        beginFloorEncounter();
+        beginFloorEncounter(opts && opts.immediate ? { immediate: true } : undefined);
         setTimeout(() => checkEvolution(), 300);
         return;
     }
-    if (floor > 1 && floor % 3 === 0) pendingShop = true;
-    beginFloorEncounter();
+    beginFloorEncounter(opts && opts.immediate ? { immediate: true } : undefined);
 }
 
 window.rollEncounterSceneType = rollEncounterSceneType;
@@ -759,6 +913,10 @@ window.buildRestEncounterHtml = buildRestEncounterHtml;
 window.buildAltarEncounterHtml = buildAltarEncounterHtml;
 window.buildEncounterPhaseHtml = buildEncounterPhaseHtml;
 window.hideEncounterPhaseUI = hideEncounterPhaseUI;
+window.buildRestockCrossroadHtml = buildRestockCrossroadHtml;
+window.renderRestockCrossroad = renderRestockCrossroad;
+window.maybeStartRestockCrossroad = maybeStartRestockCrossroad;
+window.resumeRestockCrossroadContext = resumeRestockCrossroadContext;
 window.beginFloorEncounter = beginFloorEncounter;
 window.buildAltarEncounterOptions = buildAltarEncounterOptions;
 window.pushPassiveContractHistory = pushPassiveContractHistory;

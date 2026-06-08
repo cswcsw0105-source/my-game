@@ -28,21 +28,89 @@ const BALANCE = Object.freeze({
     divineBlessingLifestealBonus: 0.05,
 
     enemyWallFloor: 30,
-    enemyPreWallGrowth: 1.055,
-    enemyPostWallGrowth: 1.065,
-    enemyWallHpMult: 2.2,
-    enemyWallAtkMult: 2.0,
-    enemyWallDefMult: 2.1,
+    enemyPreWallGrowth: 1.058,
+    enemyPostWallGrowth: 1.067,
+    enemyWallHpMult: 1.5,
+    enemyWallAtkMult: 1.35,
+    enemyWallDefMult: 2.18,
     upgradeFloorEquivalent: 1.25,
 
     rarityPower: {
-        common: 1,
-        rare: 1.5,
-        epic: 2.5,
-        legendary: 4,
-        legend: 4,
+        common: 1.15,
+        rare: 1.85,
+        epic: 3.4,
+        legendary: 7,
+        legend: 7,
+    },
+    goldReward: {
+        normalBaseMin: 6,
+        normalBaseMax: 10,
+        floorStep: 3,
+        normalMultiplier: 1.3,
+        normalMin: 15,
+        bossMultiplier: 2.4,
+        bossFlatBonus: 20,
+        bossFloorBonus: 2,
+    },
+    shopPriceByRarity: {
+        common: { base: 40, floorStep: 2 },
+        rare: { base: 120, floorStep: 5 },
+        epic: { base: 400, floorStep: 15 },
+        legendary: { base: 1500, floorStep: 50 },
+    },
+    floorGrowth: {
+        atkPerFloor: 1,
+        hpPerFloor: 5,
+    },
+    equipmentFloorWeightStep: 0.005,
+    equipmentFloorWeightCap: 1.65,
+    equipmentBaseStats: {
+        weaponAtk: 14,
+        ringAtk: 11,
+        armorHp: 72,
+        armorDef: 10,
+        hybridDef: 4,
+        crit: 5,
+        critMult: 0.08,
+        lifesteal: 0.03,
+        prayerBonus: 1,
+        divinityGainBonus: 0.015,
     },
 });
+
+const tacticalSkillChoices = Object.freeze({
+    parry: Object.freeze({
+        key: 'parry',
+        name: '패링',
+        type: 'defense',
+        icon: '🛡️',
+        shortDesc: '다음 피격 1회 무효화',
+        battleLog: '다음 적 공격을 한 번 무력화합니다.',
+    }),
+    focus: Object.freeze({
+        key: 'focus',
+        name: '집중 공격',
+        type: 'attack',
+        icon: '🎯',
+        shortDesc: '다음 공격 치명 확률 +60%',
+        critBonus: 60,
+        battleLog: '다음 공격의 치명타 확률이 크게 상승합니다.',
+    }),
+    barrier: Object.freeze({
+        key: 'barrier',
+        name: '방어막',
+        type: 'defense',
+        icon: '✨',
+        shortDesc: '다음 피격 1회 무효화',
+        battleLog: '붉은 마굴의 충격을 한 번 완전히 흘려냅니다.',
+    }),
+});
+
+const tacticalSkillMilestones = Object.freeze([
+    Object.freeze({ floor: 5, choices: Object.freeze(['parry', 'focus']) }),
+    Object.freeze({ floor: 15, choices: Object.freeze(['barrier', 'focus']) }),
+    Object.freeze({ floor: 30, choices: Object.freeze(['parry', 'barrier', 'focus']) }),
+]);
 
 const jobBase = {
     Warrior: { name: '워리어', hp: 300, atk: 19, def: 10, color: '#ff4757' },
@@ -52,29 +120,57 @@ const jobBase = {
     MercenaryCaptain: { name: '용병단장', hp: 210, atk: 5, def: 5, color: '#e67e22' },
 };
 
-const introPrologueLines = Object.freeze([
-    '당신은 과거에 엄청난 사건들이 가득했던 존재였습니다. 지금은 어떤 일인지 과거의 일이 하나도 기억나지 않습니다.. 그리고 현재 당신의 앞에는 몬스터가 침을 흘리며 당신을 쳐다보고 있습니다! 당신의 옆에는 금방이라도 부셔질 것 같은 무기들이 널부러져 있습니다. 뭔가 많이 떨어져 있지만 시간이 별로 없습니다! 무엇을 집겠습니까?',
-]);
+const introPrologueText = Object.freeze({
+    memoryPrompt:
+        '정신을 차리려 눈을 감자, 기억의 파편들이 스쳐 지나갑니다. 당신이 기억하는 마지막 기억은 무엇입니까?',
+    dangerPrompt:
+        '당신은 과거에 엄청난 사건들이 가득했던 존재였습니다. 지금은 어떤 일인지 과거의 일이 하나도 기억나지 않습니다.. 그리고 현재 당신의 앞에는 몬스터가 침을 흘리며 당신을 쳐다보고 있습니다!',
+    weaponPrompt:
+        '옆에는 금방이라도 부셔질 것 같은 무기들이 널부러져 있습니다. 시간이 별로 없습니다. 무엇을 집겠습니까?',
+});
+
+const introMemoryChoices = Object.freeze({
+    betrayed_heroes: {
+        key: 'betrayed_heroes',
+        label: '나를 배신한 동료들의 차가운 눈빛',
+        raceKey: 'human',
+        baseJobKey: 'Warrior',
+    },
+    demon_lord_mockery: {
+        key: 'demon_lord_mockery',
+        label: '나를 멸시하던 마왕의 비웃음',
+        raceKey: 'demon',
+        baseJobKey: 'Wizard',
+    },
+    burning_tribe: {
+        key: 'burning_tribe',
+        label: '불타오르던 고향 부족의 불길',
+        raceKey: 'beastkin',
+        baseJobKey: 'Hunter',
+    },
+});
 
 const raceStories = Object.freeze({
     human: {
         key: 'human',
         name: '인간',
         color: '#f1c40f',
-        summary: '배신당한 옛 용사 파티원',
+        summary: '배신당한 자',
         past:
-            '과거 용사 파티의 일원이었으나, 마지막 원정에서 동료들에게 배신당해 마굴 아래로 던져진 인간.',
+            '인간 용사와 왕에게 이용당한 끝에 토사구팽당하고, 복수심만 남긴 채 마굴 아래로 떨어진 인간.',
         fragments: {
             runStart: [
-                '희미한 기억 속에서 누군가 당신을 용사라고 불렀다. 하지만 지금 손에 남은 것은 피와 먼지뿐이다.',
+                '왕의 깃발 아래에서 들었던 환호가 아직 귓가에 남아 있다. 마지막에 돌아온 것은 축복이 아니라 처형 명령이었다.',
+                '당신을 용사라 부르던 인간들은 전쟁이 끝나자 가장 먼저 당신의 이름을 지웠다.',
             ],
             floorMilestones: {
-                5: ['무너진 회랑의 문양이 낯익다. 이곳은 과거 당신이 봉인했던 마굴의 바깥층일지도 모른다.'],
-                10: ['검은 제단 앞에서 배신자의 웃음소리가 짧게 스친다. 이름은 아직 떠오르지 않는다.'],
-                30: ['마굴의 벽이 심장처럼 뛰기 시작한다. 당신을 이곳에 던진 자들이 이 아래를 두려워했던 이유가 있다.'],
+                5: ['녹슨 검날에 왕실 문장이 비친다. 당신은 그 문장을 지키기 위해 너무 많은 피를 흘렸다.'],
+                10: ['인간 용사의 얼굴이 떠오른다. 그는 당신의 어깨를 두드린 뒤, 같은 손으로 등을 밀었다.'],
+                20: ['왕의 명령서는 불타 사라졌지만 문장은 기억난다. “영웅은 전쟁 뒤에 가장 위험하다.”'],
+                30: ['마굴의 문이 닫히던 순간, 인간 왕은 눈을 피하지 않았다. 당신의 복수는 아직 시작도 하지 않았다.'],
             },
             relic: {
-                default: '유물이 손에 닿자 용사 파티의 맹세가 조각난 목소리로 되살아난다.',
+                default: '유물이 손에 닿자 왕궁의 맹세문이 피 묻은 조롱처럼 되살아난다.',
             },
         },
     },
@@ -82,20 +178,22 @@ const raceStories = Object.freeze({
         key: 'demon',
         name: '마족',
         color: '#e74c3c',
-        summary: '기억을 잃은 전 마왕군',
+        summary: '추방당한 군주',
         past:
-            '과거 마왕군에 속했으나 알 수 없는 이유로 군단을 배신했고, 기억을 잃은 채 감옥 같은 마굴에 떨어진 마족.',
+            '마계의 군주였으나 흑막의 계략으로 권좌와 힘을 빼앗기고, 최하층 던전으로 추방당한 마족.',
         fragments: {
             runStart: [
-                '몬스터의 침 냄새보다 먼저 익숙한 마기가 코끝을 찌른다. 이곳은 감옥이면서, 한때 당신의 진영이었다.',
+                '마기가 당신을 알아보고 낮게 떨린다. 그러나 그것은 복종이 아니라, 폐위된 군주를 향한 조롱에 가깝다.',
+                '왕좌의 감촉은 사라졌지만 빼앗긴 힘의 공백은 아직 심장 한가운데 남아 있다.',
             ],
             floorMilestones: {
-                5: ['벽의 발톱 자국을 읽을 수 있다. 누군가 이 통로를 마왕군의 언어로 봉쇄했다.'],
-                10: ['당신의 배신을 저주하는 듯한 낡은 군기가 천장에 걸려 있다.'],
-                30: ['심층의 마기가 당신을 주인으로 착각했다가 곧바로 적으로 인식한다.'],
+                5: ['벽에 새겨진 봉인문은 당신의 군단 문법을 흉내 냈다. 진짜 명령권자는 따로 있었다.'],
+                10: ['무너진 군기가 발밑에서 바스러진다. 부하들은 배신한 것이 아니라 누군가에게 조종당했다.'],
+                20: ['마계의 법정이 떠오른다. 당신의 죄명은 반역, 판결문에는 조력자의 인장이 희미하게 찍혀 있었다.'],
+                30: ['심층의 마기가 무릎 꿇으려다 멈춘다. 당신은 아직 군주지만, 왕관은 다른 손에 있다.'],
             },
             relic: {
-                default: '유물 안쪽에서 마왕군의 명령 체계가 반응한다. 당신은 이 물건의 사용법을 알고 있었다.',
+                default: '유물 안쪽에서 잃어버린 왕권의 명령 체계가 반응한다. 당신은 이것을 빼앗긴 적이 있다.',
             },
         },
     },
@@ -103,23 +201,185 @@ const raceStories = Object.freeze({
         key: 'beastkin',
         name: '수인',
         color: '#2ed573',
-        summary: '봉인된 사냥 부족의 생존자',
+        summary: '짓밟힌 생존자',
         past:
-            '마굴의 길목을 지키던 사냥 부족 출신. 부족이 몰살되던 밤의 기억은 사라졌지만, 몸은 아직 사냥법을 기억한다.',
+            '전쟁의 참화 속에서 부족을 잃고, 살아남기 위해 힘을 갈망하며 마굴로 숨어 들어온 수인.',
         fragments: {
             runStart: [
-                '발밑의 진동과 숨소리만으로도 적의 거리를 알 수 있다. 기억은 사라졌지만 본능은 남았다.',
+                '발밑의 진동이 전장을 떠올리게 한다. 부족의 울음소리는 사라졌지만 살아남으라는 본능만은 남았다.',
+                '당신은 도망친 것이 아니다. 언젠가 되돌아가기 위해 더 깊은 어둠으로 숨은 것이다.',
             ],
             floorMilestones: {
-                5: ['낡은 함정의 배치가 당신의 부족 방식과 닮아 있다. 누군가 오래전에 이곳에서 싸웠다.'],
-                10: ['피 냄새 사이로 익숙한 약초 향이 섞인다. 잊었던 사냥터의 기억이 아주 잠깐 열린다.'],
-                30: ['심층의 포효가 뼈를 울린다. 당신의 부족이 끝까지 막으려 했던 것이 이 아래에 있다.'],
+                5: ['부서진 뼈장식이 흙 속에 묻혀 있다. 부족의 전사들이 여기까지 밀려왔던 흔적이다.'],
+                10: ['피 냄새 사이로 익숙한 약초 향이 섞인다. 치료받지 못한 아이들의 숨소리가 잠깐 들린다.'],
+                20: ['전쟁을 일으킨 자들은 힘을 숭배했다. 당신은 그들의 언어로 대답하기 위해 이를 악문다.'],
+                30: ['심층의 포효가 뼈를 울린다. 부족을 짓밟은 힘의 근원이 이 아래에서 아직 살아 있다.'],
             },
             relic: {
-                default: '유물이 손에 닿자 잃어버린 부족의 사냥 노래가 귓가에 맴돈다.',
+                default: '유물이 손에 닿자 잃어버린 부족의 사냥 노래가 낮은 장송곡처럼 맴돈다.',
             },
         },
     },
+});
+
+const storyData = Object.freeze({
+    playerStateDefaults: Object.freeze({
+        corruption: 0,
+        purification: 0,
+    }),
+    routeTitles: Object.freeze({
+        neutral: null,
+        corruption: '마력을 탐하는 자',
+        purification: '진실을 가르는 자',
+    }),
+    endingTitles: Object.freeze({
+        demonKing: '마왕의 그릇',
+        hero: '환각을 깨뜨린 용사',
+    }),
+    choiceImpacts: Object.freeze({
+        trust_helper: Object.freeze({
+            corruption: 1,
+            purification: 0,
+            label: '조력자 신뢰',
+        }),
+        embrace_dark_power: Object.freeze({
+            corruption: 2,
+            purification: 0,
+            label: '어둠의 힘 수용',
+        }),
+        doubt_helper: Object.freeze({
+            corruption: 0,
+            purification: 1,
+            label: '조력자 의심',
+        }),
+        resist_hallucination: Object.freeze({
+            corruption: 0,
+            purification: 2,
+            label: '환각 저항',
+        }),
+    }),
+    milestones: Object.freeze({
+        30: Object.freeze({
+            key: 'bossLastWords30',
+            title: '30층 보스의 유언',
+            trigger: 'inner_monologue',
+            lines: Object.freeze([
+                '그 검을... 더는 고치지 마라... 조력자의 꼭두각시 녀석...',
+                '쓰러진 보스의 목소리는 저주가 아니라 경고에 가까웠다.',
+                '조력자가 말해 주지 않은 무언가가, 이 마굴의 중층부터 모습을 드러내기 시작한다.',
+            ]),
+        }),
+    }),
+    routeMilestones: Object.freeze([31, 40, 50, 60, 70, 80]),
+    routes: Object.freeze({
+        neutral: Object.freeze({
+            title: null,
+            milestones: Object.freeze({
+                31: Object.freeze([
+                    '30층 너머의 공기는 달라졌다. 조력자의 말과 보스의 유언이 머릿속에서 서로를 밀어낸다.',
+                    '아직 무엇도 확신할 수 없다. 다만 이제부터의 등반은 단순한 생존이 아니다.',
+                ]),
+                40: Object.freeze([
+                    '길은 위로 이어지지만, 기억은 계속 아래로 가라앉는다.',
+                    '복수와 의심 사이에서 당신의 손은 아직 어느 쪽도 완전히 붙잡지 못했다.',
+                ]),
+                50: Object.freeze([
+                    '마굴의 중층 끝에서 조력자의 조언은 더 친절해지고, 몬스터들의 눈빛은 더 인간적으로 변한다.',
+                    '어느 쪽이 거짓인지 판단하기에는 아직 피 냄새가 너무 짙다.',
+                ]),
+                60: Object.freeze([
+                    '심층의 문이 열릴수록 조력자의 목소리는 가까워지고, 보스들의 경고는 선명해진다.',
+                    '당신은 아직 선택하지 않았다. 그래서 마굴은 더 많은 환영을 준비한다.',
+                ]),
+                70: Object.freeze([
+                    '유물은 힘을 주지만 동시에 질문을 남긴다. 이 힘은 회복인가, 계승인가.',
+                ]),
+                80: Object.freeze([
+                    '심층의 마지막 봉인이 흔들린다. 이제 중립은 오래 버틸 수 없는 자세가 되었다.',
+                ]),
+            }),
+        }),
+        corruption: Object.freeze({
+            title: '마력을 탐하는 자',
+            milestones: Object.freeze({
+                31: Object.freeze([
+                    '조력자는 낮게 웃으며 말한다. “잘했다. 이제야 네게 어울리는 힘을 받아들이기 시작했군.”',
+                    '보스의 경고는 비겁한 패자의 변명처럼 들린다. 복수에는 더 많은 마력이 필요하다.',
+                ]),
+                40: Object.freeze([
+                    '조력자의 칭찬은 점점 달콤해진다. “너를 버린 자들이 이 모습을 보면 무릎 꿇을 것이다.”',
+                    '당신은 그 장면을 상상한다. 왕의 얼굴, 용사의 떨리는 손, 그리고 당신의 검 끝.',
+                ]),
+                50: Object.freeze([
+                    '몬스터의 비명이 짧게 끊길 때마다 마굴은 더 선명한 힘으로 답한다.',
+                    '죄책감은 약자의 언어다. 당신을 버린 세계에는 약속보다 공포가 더 잘 통한다.',
+                ]),
+                60: Object.freeze([
+                    '조력자는 말한다. “망설이지 마라. 이곳의 모든 피는 네 왕관을 위한 제물이다.”',
+                    '당신은 부정하지 않는다. 손에 감긴 마력은 이제 낯설지 않다.',
+                ]),
+                70: Object.freeze([
+                    '심층의 마력은 당신을 두려워하지 않는다. 오히려 오래 기다린 주인처럼 살갗에 스며든다.',
+                    '복수는 목표가 아니라 의식이 되어 간다.',
+                ]),
+                80: Object.freeze([
+                    '마굴의 마지막 봉인이 당신의 심장 박동에 맞춰 열린다.',
+                    '조력자는 속삭인다. “곧 완성된다. 네 분노가 곧 왕좌가 될 것이다.”',
+                ]),
+            }),
+        }),
+        purification: Object.freeze({
+            title: '진실을 가르는 자',
+            milestones: Object.freeze({
+                31: Object.freeze([
+                    '보스의 눈은 죽기 직전까지 당신이 아니라 조력자의 그림자를 보고 있었다.',
+                    '당신은 처음으로 검을 내려다본다. 이 무기는 적을 베는 도구인가, 누군가의 명령을 수행하는 사슬인가.',
+                ]),
+                40: Object.freeze([
+                    '벽의 그림자는 공격하지 않는다. 그 안에는 도망치다 쓰러진 몬스터들의 기억이 남아 있다.',
+                    '당신은 그들의 눈망울에서 슬픔을 본다. 괴물이라는 말만으로 지워지지 않는 감정이다.',
+                ]),
+                50: Object.freeze([
+                    '조력자의 설명은 완벽하지만, 완벽하기 때문에 더 수상하다.',
+                    '이 마굴의 적들은 모두 당신을 막으려 한다. 죽이려는 것이 아니라, 멈추게 하려는 것처럼.',
+                ]),
+                60: Object.freeze([
+                    '환각이 왕관과 복수를 보여 줄수록 당신은 그 뒤의 빈틈을 찾는다.',
+                    '분노는 아직 뜨겁지만, 이제 그것을 쥔 손은 조력자의 것이 아니다.',
+                ]),
+                70: Object.freeze([
+                    '몬스터 하나가 쓰러지기 전 아주 작게 고개를 젓는다. 당신은 그 뜻을 이해해 버렸다.',
+                    '이 등반이 구원이 아니라 학살이라면, 진짜 적은 꼭대기가 아니라 곁에 있다.',
+                ]),
+                80: Object.freeze([
+                    '심층의 마지막 문 앞에서 조력자의 목소리가 처음으로 갈라진다.',
+                    '당신은 환각을 베어 낸다. 남은 것은 복수보다 무거운 진실이다.',
+                ]),
+            }),
+        }),
+    }),
+    endings: Object.freeze({
+        demonKing: Object.freeze({
+            key: 'endingDemonKing',
+            title: '마왕화 엔딩 분기',
+            battleTitle: '마왕 계승식',
+            lines: Object.freeze([
+                '조력자는 더 이상 인간의 얼굴을 유지하지 않는다. 그는 무릎을 꿇고 당신을 올려다본다.',
+                '“훌륭하다. 네 분노와 욕망은 마왕의 그릇으로 손색이 없다.”',
+                '부서진 왕관이 허공에서 맞물린다. 최종전은 처단이 아니라 계승식으로 변한다.',
+            ]),
+        }),
+        hero: Object.freeze({
+            key: 'endingHero',
+            title: '용사화 엔딩 분기',
+            battleTitle: '환각 파쇄',
+            lines: Object.freeze([
+                '조력자가 펼친 환각이 왕관과 복수를 속삭인다. 당신은 그 모든 장면을 검등으로 깨뜨린다.',
+                '“나는 네가 만든 마왕이 아니다. 무고한 자들의 피값을 치르게 하러 왔다.”',
+                '진짜 악마가 모습을 드러낸다. 당신의 칼끝은 더 이상 복수심이 아니라 죗값을 향한다.',
+            ]),
+        }),
+    }),
 });
 
 const introWeaponChoices = Object.freeze({
@@ -251,6 +511,96 @@ const promotionStories = Object.freeze({
             30: ['통곡의 벽 앞에서 신성력이 흔들린다. 믿음이 아니라 선택을 시험하는 빛이다.'],
         },
     },
+});
+
+const floorStories = Object.freeze({
+    bands: [
+        {
+            key: 'middle_doubt',
+            title: '중층 - 의구심',
+            from: 31,
+            to: 50,
+            cadence: 4,
+            lines: [
+                '베이스캠프의 조력자는 위로 갈수록 기억이 선명해질 거라고 했다. 하지만 벽에 남은 흔적은 그 말을 비웃듯 반대로 이어진다.',
+                '돌바닥에 새겨진 표식이 낯익다. 당신이 도망친 흔적이 아니라, 누군가 당신을 이쪽으로 몰아넣은 흔적이다.',
+                '조력자가 건네준 지도와 기억 속 통로가 조금씩 어긋난다. 지도는 항상 더 위험한 방으로 당신을 인도하고 있었다.',
+                '잃어버린 목소리 하나가 돌아온다. “그를 믿지 마.” 누구의 경고였는지는 아직 떠오르지 않는다.',
+                '상층으로 오를수록 몬스터는 흉폭해지지만, 그보다 더 불편한 것은 조력자가 지나치게 많은 것을 알고 있다는 사실이다.',
+            ],
+        },
+        {
+            key: 'deep_truth',
+            title: '심층 - 진실',
+            from: 51,
+            to: 80,
+            cadence: 5,
+            lines: [
+                '유물의 표면에 조력자의 인장이 떠오른다. 그는 처음부터 이 물건들이 어디에 있는지 알고 있었다.',
+                '기억의 조각이 맞물린다. 당신은 유물을 모으는 사람이 아니라, 유물을 봉인하던 사람이었다.',
+                '베이스캠프에서 들었던 조언들이 하나의 명령문처럼 다시 들린다. 그는 당신을 돕는 척하며 봉인을 풀게 만들고 있었다.',
+                '심층의 문들은 당신의 피가 아니라 조력자가 준 표식에 반응한다. 열쇠는 당신이 아니라 그가 쥐고 있었다.',
+                '유물이 하나씩 모일수록 마굴의 심장은 더 크게 뛴다. 당신이 강해지는 만큼, 오래된 배신도 완성되어 간다.',
+                '기억 속에서 조력자의 얼굴이 선명해진다. 그는 구조자가 아니었다. 마지막 순간 당신의 등을 민 손이었다.',
+            ],
+        },
+        {
+            key: 'summit_eve',
+            title: '꼭대기 - 결전 전야',
+            from: 81,
+            to: 99,
+            cadence: 4,
+            lines: [
+                '모든 기억이 돌아온다. 처음 깨어났을 때 등 뒤에 흩어져 있던 파괴된 장비들은 쓰레기가 아니라, 원래 당신의 무기였다.',
+                '낡은 검, 망치, 지팡이, 활. 무엇을 집었든 그 잔해는 모두 한때 당신의 손에 맞춰져 있었다.',
+                '조력자는 당신의 무기를 부수고 기억을 가둔 뒤, 빈손의 당신에게 다시 무기를 고르게 했다. 선택은 자유가 아니라 실험이었다.',
+                '꼭대기로 이어지는 계단마다 배신의 장면이 또렷해진다. 이제 필요한 것은 해명이 아니라 처단이다.',
+                '마굴 전체가 떨린다. 유물은 봉인을 풀었고, 당신은 기억을 되찾았다. 남은 것은 배신자의 이름을 부르는 일뿐이다.',
+            ],
+        },
+    ],
+    milestones: {
+        31: ['30층의 벽을 넘자 공기가 달라진다. 조력자가 말한 “안전한 길”은 이곳 어디에도 보이지 않는다.'],
+        35: ['베이스캠프에서 들었던 농담과 같은 문장이 벽의 낡은 경고문에 새겨져 있다. 그는 이곳을 처음 보는 사람이 아니었다.'],
+        40: ['기억 속 누군가가 유물을 부수라고 외친다. 하지만 조력자는 늘 유물을 모으라고만 했다.'],
+        45: ['손바닥에 남은 오래된 상처가 지도의 붉은 표시와 겹친다. 당신은 이미 이 길을 한 번 올라갔었다.'],
+        50: ['중층의 끝에서 의심은 확신이 된다. 조력자의 설명은 너무 깔끔했고, 당신의 기억은 너무 피투성이였다.'],
+        51: ['심층의 첫 문이 열린다. 문에 새겨진 이름은 몬스터의 것이 아니라 조력자의 것이다.'],
+        55: ['유물 조각이 조력자의 목소리로 속삭인다. “조금만 더 모으면 된다.” 도움의 말이 아니라 조종의 명령이다.'],
+        60: ['심연의 보스가 쓰러진 자리에서 오래된 봉인문이 뜯겨 나간다. 당신이 이긴 것이 아니라, 누군가가 기다리던 문이 열린 것이다.'],
+        65: ['기억의 조각 속 조력자는 당신에게 칼을 겨누지 않았다. 그는 웃으며 당신의 무기를 등 뒤에서 부쉈다.'],
+        70: ['마굴의 심장은 당신이 들고 온 유물에 반응한다. 조력자는 당신을 전사로 만든 것이 아니라 운반책으로 만들었다.'],
+        75: ['베이스캠프의 불빛이 멀어질수록 거짓말은 선명해진다. 이제 돌아가도 그는 같은 미소로 다음 유물을 요구할 것이다.'],
+        80: ['심층의 마지막 봉인이 풀린다. 조력자가 원한 것은 당신의 생존이 아니라, 당신만 열 수 있는 문이었다.'],
+        81: ['꼭대기의 계단 앞에서 기억이 완전히 열린다. 당신은 패배자가 아니라 봉인을 지키던 마지막 수문장이었다.'],
+        85: ['등 뒤의 부서진 장비들이 하나의 형상을 이룬다. 그것들은 모두 원래 당신의 무기였고, 그가 산산조각 낸 증거였다.'],
+        90: ['바람 없는 통로에서 배신자의 이름이 울린다. 이제 그 이름은 공포가 아니라 목표다.'],
+        95: ['정상에 가까워질수록 몬스터들은 물러서지 않는다. 그들은 조력자를 지키는 것이 아니라, 풀려난 재앙을 두려워하고 있다.'],
+        99: ['마지막 문 앞에서 당신은 모든 선택을 다시 떠올린다. 이번에는 누가 무기를 고르게 만들었는지 알고 있다.'],
+        100: ['종착지의 문이 열린다. 베이스캠프의 조력자가 그 안에서 기다리고 있다. 더 이상 조력자라는 이름은 필요 없다.'],
+    },
+    relicClues: {
+        deep_truth: [
+            '유물 안쪽에 조력자의 봉인이 남아 있다. 그는 당신보다 먼저 이 유물들을 만졌고, 당신이 가져오기를 기다렸다.',
+            '기억의 조각이 유물에 비친다. 조력자는 “회복”이라는 말로 봉인 해제를 숨겼다.',
+            '유물은 당신을 강하게 만드는 동시에 꼭대기의 잠금을 푼다. 조력자는 두 결과를 모두 알고 있었다.',
+            '유물 속 목소리가 말한다. “모으지 마라.” 하지만 그 경고는 조력자의 주문에 눌려 아주 늦게 들려왔다.',
+        ],
+        summit_eve: [
+            '유물이 더 이상 조력자의 말을 흉내 내지 않는다. 이제 그것은 당신의 원래 사명을 기억하고 있다.',
+            '유물의 빛이 부서진 장비의 잔상을 비춘다. 당신은 처음부터 무기를 잃은 것이 아니라 빼앗긴 것이었다.',
+            '마지막 조각이 맞춰진다. 조력자가 원한 최종 열쇠는 유물이 아니라, 기억을 되찾은 당신 자신이다.',
+        ],
+        default: [
+            '유물이 차갑게 떨린다. 이 힘은 선물이 아니라 오래전에 당신이 봉인했던 경고다.',
+        ],
+    },
+    finalBossOpening: [
+        '100층. 종착지의 방 한가운데, 베이스캠프의 조력자가 익숙한 미소로 서 있다.',
+        '그는 당신이 모아 온 유물들을 바라보며 고개를 끄덕인다. “마침내 다 가져왔군.”',
+        '모든 기억이 완성된다. 그는 당신을 구한 자가 아니라, 당신을 배신하고 무기를 부순 뒤 기억을 봉인한 자였다.',
+        '조력자의 그림자가 거대한 형상으로 부풀어 오른다. 이제 마지막 전투가 시작된다.',
+    ],
 });
 
 /** 시작 시 동료 1명: 워리어/헌터/마법사 (고용 아이템 없음) — v6.6.3 기본 성장 상향 */
@@ -754,6 +1104,36 @@ const equipmentPool = [
  */
 const synergyRules = [
     {
+        id: 'syn_role_offense_blade',
+        name: '전투 공명',
+        fromTag: 'role_offense',
+        needCount: 2,
+        bonus: { atk: 18, crit: 4 },
+        effectDesc: '공격형 2개: 공격+18, 치명+4%',
+        detailDesc:
+            '공격형 장비가 동시에 2개 이상 장착되면 발동합니다. 무기·공격 반지·공격 룬 빌드의 화력을 끌어올립니다.',
+    },
+    {
+        id: 'syn_role_guard',
+        name: '수호 공명',
+        fromTag: 'role_defense',
+        needCount: 2,
+        bonus: { hp: 70, def: 10 },
+        effectDesc: '방어형 2개: 체력+70, 방어+10',
+        detailDesc:
+            '방어형 장비가 동시에 2개 이상 장착되면 발동합니다. 갑옷·방패·수호 룬 중심의 생존력을 보강합니다.',
+    },
+    {
+        id: 'syn_role_utility',
+        name: '풍요 공명',
+        fromTag: 'role_utility',
+        needCount: 2,
+        bonus: { hp: 35, critMult: 0.08 },
+        effectDesc: '유틸형 2개: 체력+35, 치명배율+8%',
+        detailDesc:
+            '유틸형 장비가 동시에 2개 이상 장착되면 발동합니다. 골드·흡혈·포션 보조 장비를 전투 가치로 이어 줍니다.',
+    },
+    {
         id: 'syn_common_echo',
         name: '잔향 공명',
         fromTag: 'rarity_common',
@@ -825,21 +1205,28 @@ function buildEquipmentStatParts(it) {
         if (typeof it.value === 'number' && it.value) parts.push(`공격(+${it.value})`);
         if (typeof it.hpBonus === 'number' && it.hpBonus) parts.push(`체력(+${it.hpBonus})`);
         if (typeof it.def === 'number' && it.def !== 0) parts.push(it.def > 0 ? `방어(+${it.def})` : `방어(${it.def})`);
+        if (typeof it.damageReduction === 'number') parts.push(`피해 감소(+${Math.round(it.damageReduction * 100)}%)`);
         if (typeof it.critBonus === 'number') parts.push(`치명(+${it.critBonus}%)`);
         if (typeof it.critMult === 'number') parts.push(`치명 배율(+${Math.round(it.critMult * 100)}%)`);
         if (typeof it.lifesteal === 'number') parts.push(`흡혈(${Math.round(it.lifesteal * 100)}%)`);
         if (typeof it.goldGainBonus === 'number') parts.push(`골드 획득(+${Math.round(it.goldGainBonus * 100)}%)`);
+        if (typeof it.potionHealBonus === 'number') parts.push(`포션 회복(+${Math.round(it.potionHealBonus * 100)}%)`);
         if (typeof it.fleeBonus === 'number') parts.push(`도주 완화(${Math.round(it.fleeBonus * 100)}%)`);
         return parts;
     }
     if ((it.type === 'atk' || it.type === 'ring') && typeof it.value === 'number') parts.push(`공격(+${it.value})`);
     if (it.type === 'hp' && typeof it.value === 'number') parts.push(`체력(+${it.value})`);
+    if (typeof it.hpBonus === 'number' && it.hpBonus) parts.push(`체력(+${it.hpBonus})`);
     if (typeof it.def === 'number' && it.def !== 0) {
         parts.push(it.def > 0 ? `방어(+${it.def})` : `방어(${it.def})`);
     }
+    if (typeof it.damageReduction === 'number') parts.push(`피해 감소(+${Math.round(it.damageReduction * 100)}%)`);
     if (typeof it.critBonus === 'number') parts.push(`치명(+${it.critBonus}%)`);
     if (typeof it.critMult === 'number') parts.push(`치명 배율(+${Math.round(it.critMult * 100)}%)`);
     if (typeof it.lifesteal === 'number') parts.push(`흡혈(${Math.round(it.lifesteal * 100)}%)`);
+    if (typeof it.goldGainBonus === 'number') parts.push(`골드 획득(+${Math.round(it.goldGainBonus * 100)}%)`);
+    if (typeof it.potionHealBonus === 'number') parts.push(`포션 회복(+${Math.round(it.potionHealBonus * 100)}%)`);
+    if (typeof it.fleeBonus === 'number') parts.push(`도주 완화(${Math.round(it.fleeBonus * 100)}%)`);
     if (typeof it.divinityGainBonus === 'number') parts.push(`신성 획득(+${Math.round(it.divinityGainBonus * 100)}%)`);
     return parts;
 }
@@ -877,11 +1264,291 @@ function rebuildEquipmentDesc(it, opts) {
 }
 
 function getRarityPowerMultiplier(rk) {
-    const key = String(rk || 'common').toLowerCase();
+    const key = normalizeRarityKey(rk);
     return (BALANCE.rarityPower && BALANCE.rarityPower[key]) || BALANCE.rarityPower.common;
 }
 
-/** 등급별 총 예산(pt): 일반 1x, 희귀 1.5x, 영웅 2.5x, 전설 4x */
+function normalizeRarityKey(rk) {
+    const key = String(rk || 'common').toLowerCase();
+    if (key === 'legend') return 'legendary';
+    if (key === 'rare' || key === 'epic' || key === 'legendary') return key;
+    return 'common';
+}
+
+function getRarityBaseGoldPrice(rk) {
+    const key = normalizeRarityKey(rk);
+    return getShopPriceForRarity(key, 1);
+}
+
+function normalizeBalanceFloor(floorRef, fallback) {
+    const raw = floorRef == null ? fallback : floorRef;
+    const n = Number(raw);
+    if (Number.isFinite(n) && n > 0) return Math.floor(n);
+    const fb = Number(fallback);
+    if (Number.isFinite(fb) && fb > 0) return Math.floor(fb);
+    return 1;
+}
+
+function getFloorGrowthStep() {
+    const cfg = BALANCE.floorGrowth || {};
+    return {
+        atk: Math.max(0, Math.floor(_safeNumForPrice(cfg.atkPerFloor, 1))),
+        hp: Math.max(0, Math.floor(_safeNumForPrice(cfg.hpPerFloor, 5))),
+    };
+}
+
+function normalizeFloorGrowth(raw) {
+    const out = raw && typeof raw === 'object' ? raw : {};
+    const floors = Math.max(0, Math.floor(Number(out.floors) || 0));
+    const atk = Math.max(0, Math.floor(Number(out.atk) || 0));
+    const hp = Math.max(0, Math.floor(Number(out.hp) || 0));
+    return { floors, atk, hp };
+}
+
+function computeFloorGrowthForClears(clearCount) {
+    const floors = Math.max(0, Math.floor(Number(clearCount) || 0));
+    const step = getFloorGrowthStep();
+    return {
+        floors,
+        atk: floors * step.atk,
+        hp: floors * step.hp,
+    };
+}
+
+function getTacticalSkillDef(skillKey) {
+    const key = String(skillKey || '').trim();
+    return key ? tacticalSkillChoices[key] || null : null;
+}
+
+function getTacticalSkillMilestoneForFloor(floorRef) {
+    const f = normalizeBalanceFloor(floorRef, 1);
+    return tacticalSkillMilestones.find((m) => m && m.floor === f) || null;
+}
+
+function createDefaultPlayerState() {
+    const d = storyData && storyData.playerStateDefaults ? storyData.playerStateDefaults : {};
+    return {
+        corruption: Math.max(0, Math.floor(Number(d.corruption) || 0)),
+        purification: Math.max(0, Math.floor(Number(d.purification) || 0)),
+    };
+}
+
+function normalizePlayerState(raw) {
+    const src = raw && typeof raw === 'object' ? raw : {};
+    return {
+        corruption: Math.max(0, Math.floor(Number(src.corruption) || 0)),
+        purification: Math.max(0, Math.floor(Number(src.purification) || 0)),
+    };
+}
+
+function getStoryRouteKey(playerStateRef) {
+    const st = normalizePlayerState(playerStateRef);
+    if (st.corruption > st.purification) return 'corruption';
+    if (st.purification > st.corruption) return 'purification';
+    return 'neutral';
+}
+
+function getStoryEndingKey(playerStateRef) {
+    return getStoryRouteKey(playerStateRef) === 'purification' ? 'hero' : 'demonKing';
+}
+
+function getStoryTitleForState(playerStateRef, floorRef) {
+    const f = normalizeBalanceFloor(floorRef, 1);
+    const route = getStoryRouteKey(playerStateRef);
+    if (f >= 31 && f < 100) {
+        return (storyData.routeTitles && storyData.routeTitles[route]) || null;
+    }
+    if (f >= 100) {
+        const endingKey = getStoryEndingKey(playerStateRef);
+        return (storyData.endingTitles && storyData.endingTitles[endingKey]) || null;
+    }
+    return null;
+}
+
+function getStoryChoiceImpact(choiceKey) {
+    const key = String(choiceKey || '').trim();
+    if (!key || !storyData.choiceImpacts || !storyData.choiceImpacts[key]) return null;
+    const raw = storyData.choiceImpacts[key];
+    return Object.freeze({
+        corruption: Math.max(0, Math.floor(Number(raw.corruption) || 0)),
+        purification: Math.max(0, Math.floor(Number(raw.purification) || 0)),
+        label: raw.label || key,
+    });
+}
+
+function getRouteMilestoneFloor(floorRef) {
+    const f = normalizeBalanceFloor(floorRef, 1);
+    const milestones = Array.isArray(storyData.routeMilestones) ? storyData.routeMilestones : [];
+    if (milestones.includes(f)) return f;
+    return null;
+}
+
+function getStoryMilestoneDef(floorRef, playerStateRef) {
+    const f = normalizeBalanceFloor(floorRef, 1);
+    if (storyData.milestones && storyData.milestones[f]) {
+        const def = storyData.milestones[f];
+        return {
+            key: def.key || `common:${f}`,
+            route: 'common',
+            title: def.title || `${f}층 기억`,
+            trigger: def.trigger || null,
+            lines: Array.isArray(def.lines) ? Array.from(def.lines) : [],
+            titleOverride: null,
+        };
+    }
+    if (f >= 31 && f <= 80) {
+        const route = getStoryRouteKey(playerStateRef);
+        const milestoneFloor = getRouteMilestoneFloor(f);
+        if (!milestoneFloor) return null;
+        const routeData = storyData.routes && storyData.routes[route] ? storyData.routes[route] : storyData.routes.neutral;
+        const lines =
+            routeData && routeData.milestones && routeData.milestones[milestoneFloor]
+                ? Array.from(routeData.milestones[milestoneFloor])
+                : [];
+        if (!lines.length) return null;
+        return {
+            key: `${route}:${milestoneFloor}`,
+            route,
+            title: routeData.title ? `${milestoneFloor}층 · ${routeData.title}` : `${milestoneFloor}층 갈림길`,
+            trigger: 'route_monologue',
+            lines,
+            titleOverride: routeData.title || null,
+        };
+    }
+    if (f === 100) {
+        const endingKey = getStoryEndingKey(playerStateRef);
+        const ending = storyData.endings && storyData.endings[endingKey] ? storyData.endings[endingKey] : null;
+        if (!ending) return null;
+        return {
+            key: ending.key || `ending:${endingKey}`,
+            route: endingKey,
+            title: ending.title || '최종 대면',
+            trigger: 'ending_branch',
+            lines: Array.isArray(ending.lines) ? Array.from(ending.lines) : [],
+            titleOverride: (storyData.endingTitles && storyData.endingTitles[endingKey]) || null,
+            battleTitle: ending.battleTitle || null,
+        };
+    }
+    return null;
+}
+
+function getShopPriceForRarity(rk, floorRef) {
+    const key = normalizeRarityKey(rk);
+    const f = normalizeBalanceFloor(floorRef, 1);
+    const table = BALANCE.shopPriceByRarity || {};
+    const spec = table[key] || table.common || { base: 40, floorStep: 2 };
+    const base = _safeNumForPrice(spec.base, 40);
+    const step = _safeNumForPrice(spec.floorStep, 2);
+    return Math.max(1, Math.floor(base + f * step));
+}
+
+function clampShopPriceToRarityOrder(rk, price, floorRef) {
+    const order = ['common', 'rare', 'epic', 'legendary'];
+    const key = normalizeRarityKey(rk);
+    const idx = order.indexOf(key);
+    if (idx < 0) return Math.max(1, Math.floor(_safeNumForPrice(price, 1)));
+    const f = normalizeBalanceFloor(floorRef, 1);
+    let out = Math.max(1, Math.floor(_safeNumForPrice(price, getShopPriceForRarity(key, f))));
+    if (idx > 0) {
+        const lowerTierPrice = getShopPriceForRarity(order[idx - 1], f);
+        out = Math.max(out, lowerTierPrice + 1);
+    }
+    if (idx < order.length - 1) {
+        const upperTierPrice = getShopPriceForRarity(order[idx + 1], f);
+        out = Math.min(out, upperTierPrice - 1);
+    }
+    return Math.max(1, out);
+}
+
+function getPriceFloorReference(it, explicitFloorRef) {
+    if (explicitFloorRef && typeof explicitFloorRef === 'object') {
+        const candidates = [
+            explicitFloorRef.shopFloor,
+            explicitFloorRef.priceFloor,
+            explicitFloorRef.currentFloor,
+            explicitFloorRef.floor,
+        ];
+        for (const raw of candidates) {
+            const n = Number(raw);
+            if (Number.isFinite(n) && n > 0) return Math.floor(n);
+        }
+    } else {
+        const n = Number(explicitFloorRef);
+        if (Number.isFinite(n) && n > 0) return Math.floor(n);
+    }
+    return getEquipmentFloorReference(it);
+}
+
+function computeFloorGoldReward(floorRef, opts) {
+    const cfg = BALANCE.goldReward || {};
+    const f = normalizeBalanceFloor(floorRef, 1);
+    const minBase = Math.floor(_safeNumForPrice(cfg.normalBaseMin, 6));
+    const maxBase = Math.max(minBase, Math.floor(_safeNumForPrice(cfg.normalBaseMax, 10)));
+    const spread = maxBase - minBase + 1;
+    const rolledBase = minBase + Math.floor(Math.random() * spread);
+    const floorStep = _safeNumForPrice(cfg.floorStep, 3);
+    const normalMin = _safeNumForPrice(cfg.normalMin, 15);
+    const normalMultiplier = _safeNumForPrice(cfg.normalMultiplier, 1);
+    let gain = Math.max(normalMin, rolledBase + f * floorStep) * normalMultiplier;
+    if (opts && opts.isBoss) {
+        gain = gain * _safeNumForPrice(cfg.bossMultiplier, 2.4)
+            + _safeNumForPrice(cfg.bossFlatBonus, 20)
+            + f * _safeNumForPrice(cfg.bossFloorBonus, 2);
+    }
+    if (opts && Number.isFinite(Number(opts.multiplier))) {
+        gain *= Number(opts.multiplier);
+    }
+    return Math.max(1, Math.floor(gain));
+}
+
+function getEquipmentFloorReference(it) {
+    if (!it) return 1;
+    const candidates = [it.unlockFloor, it.floorUnlock, it.requiredFloor, it.minFloor, it.floor];
+    for (const raw of candidates) {
+        const n = Number(raw);
+        if (Number.isFinite(n) && n > 0) return Math.floor(n);
+    }
+    return 1;
+}
+
+function getEquipmentFloorWeight(it) {
+    const floorRef = getEquipmentFloorReference(it);
+    const step = _safeNumForPrice(BALANCE.equipmentFloorWeightStep, 0.005);
+    const cap = _safeNumForPrice(BALANCE.equipmentFloorWeightCap, 1.45);
+    const raw = 1 + Math.max(0, floorRef - 1) * step;
+    return Math.min(cap, Math.max(1, raw));
+}
+
+function getEquipmentPowerScale(it) {
+    return getRarityPowerMultiplier(it && it.rarity) * getEquipmentFloorWeight(it);
+}
+
+function buildStableEquipmentEffectId(it) {
+    const raw = `${String((it && it.name) || 'legendary').trim()}|${String((it && it.type) || 'gear')}`;
+    let h = 2166136261;
+    for (let i = 0; i < raw.length; i++) {
+        h ^= raw.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+    }
+    return `legendary_${(h >>> 0).toString(36)}`;
+}
+
+function ensureLegendaryUniqueEffectPlaceholder(it) {
+    if (!it || normalizeRarityKey(it.rarity) !== 'legendary' || it.type === 'rune' || it.type === 'relic') {
+        if (it && normalizeRarityKey(it.rarity) !== 'legendary') {
+            delete it.uniqueEffectId;
+            delete it.effectDescription;
+        }
+        return it;
+    }
+    if (!it.uniqueEffectId) it.uniqueEffectId = buildStableEquipmentEffectId(it);
+    if (!it.effectDescription) {
+        it.effectDescription = '전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다.';
+    }
+    return it;
+}
+
+/** 등급별 총 예산(pt): 일반 1x, 희귀 1.5x, 영웅 2.5x, 전설 4.5x */
 const BASE_EQUIPMENT_BUDGET = 48;
 const BUDGET_BY_RARITY = {
     common: Math.round(BASE_EQUIPMENT_BUDGET * getRarityPowerMultiplier('common')),
@@ -1287,31 +1954,341 @@ function _safeNumForPrice(v, fb) {
     return Number.isFinite(n) ? n : fb;
 }
 
-/**
- * 스탯 총합(STAT_COST_X100) + 희귀도 계수로 골드 가격 산출 — 상점·해금·드랍 공통.
- */
-function computeEquipmentGoldPrice(it) {
-    if (!it || it.type === 'relic') return _safeNumForPrice(it && it.price, 0);
-    if (it.type === 'rune') {
-        const rk = String(it.rarity || 'common').toLowerCase();
-        const fixed = { common: 300, rare: 800, epic: 1500, legendary: 3000, legend: 3000 };
-        return fixed[rk] ?? 300;
+function _roundScaledStat(v, minValue) {
+    const min = minValue == null ? 0 : minValue;
+    return Math.max(min, Math.round(Number.isFinite(v) ? v : 0));
+}
+
+function _fixedDecimals(v, digits) {
+    const n = Number(v);
+    return Number((Number.isFinite(n) ? n : 0).toFixed(digits));
+}
+
+function _hasOwnStat(it, key) {
+    return !!it && Object.prototype.hasOwnProperty.call(it, key);
+}
+
+const EQUIPMENT_ROLE_LABELS = Object.freeze({
+    offense: '공격형',
+    defense: '방어형',
+    utility: '유틸형',
+});
+
+const EQUIPMENT_ROLE_TAGS = Object.freeze({
+    offense: ['role_offense', 'synergy_blade'],
+    defense: ['role_defense', 'synergy_guard'],
+    utility: ['role_utility', 'synergy_utility'],
+});
+
+const LEGACY_CONCEPT_TAGS = new Set(['blade', 'heavy', 'precision', 'arcane', 'blood']);
+
+function getEquipmentRoleLabel(role) {
+    return EQUIPMENT_ROLE_LABELS[role] || EQUIPMENT_ROLE_LABELS.offense;
+}
+
+function detectEquipmentRole(it) {
+    if (!it) return 'offense';
+    const explicit = String(it.itemRole || it.equipmentRole || '').toLowerCase();
+    if (explicit === 'offense' || explicit === 'defense' || explicit === 'utility') return explicit;
+    const n = String(it.name || '');
+    const t = String(it.type || '');
+    const weaponRx =
+        /검|도끼|창|활|화살|단검|너클|철퇴|지팡이|보주|시위|석궁|쇠뇌|표창|비수|독침|대검|양날검|마력봉|주문봉|파열|파멸|폭풍|번개|천둥|화염|냉기|얼음|심연|혼돈|전쟁|광전|분노|전사의|전장|맹렬|처형|암살|급소|저격|추적|조준|눈|렌즈|망원경/;
+    const defenseRx =
+        /갑옷|갑주|흉갑|갑옷|방패|방어|수호|성역|철벽|요새|불멸|판금|비늘|짚신|장화|부츠|로브|망토|가죽|외피|장갑|투구|각반|벨트|버클|붕대|갑피|철판|대지|암석|바위|심장|성배|성기사|세계수|결계|수호진/;
+    const utilityRx =
+        /풍요|도둑|황금|행운|상인|매매|거래|동전|보물|회복|포션|치유|허브|흡혈|피의|피\b|혈|뱀파이어|생명|에센스|계약|맹세|도피|이탈|공허|바람의 은빛|도주|탈출|재생/;
+    if (t === 'rune') {
+        if (/방어|수호|대지|심장|결계|방패|철벽/.test(n)) return 'defense';
+        if (/공격|파열|불꽃|번개|심연|화염|냉기|폭풍/.test(n)) return 'offense';
+        return 'utility';
     }
-    const C = STAT_COST_X100;
-    let pt = 0;
-    if (it.type === 'hp') pt += C.hp * Math.max(0, _safeNumForPrice(it.value, 0));
-    else if (it.type === 'atk' || it.type === 'ring') pt += C.atk * Math.max(0, _safeNumForPrice(it.value, 0));
-    pt += C.def * Math.max(0, _safeNumForPrice(it.def, 0));
-    pt += C.crit * Math.max(0, _safeNumForPrice(it.critBonus, 0));
-    pt += C.cm * Math.max(0, _safeNumForPrice(it.critMult, 0) * 100);
-    pt += C.ls * Math.max(0, _safeNumForPrice(it.lifesteal, 0) * 100);
-    const rk = String(it.rarity || 'common').toLowerCase();
-    const tier = { common: 1, rare: 1.1, epic: 1.26, legendary: 1.42, legend: 1.42 }[rk] || 1;
-    const prayer = _safeNumForPrice(it.prayerBonus, 0) * 400;
-    const div = _safeNumForPrice(it.divinityGainBonus, 0) * 5200;
-    const regen = it.regenPotion ? 1600 : 0;
-    const base = 14 + (pt / 100) * 0.34 * tier + prayer + div + regen;
-    return Math.max(8, Math.floor(base));
+    const hasWeaponConcept = weaponRx.test(n);
+    const hasDefenseConcept = defenseRx.test(n);
+    const hasUtilityConcept = utilityRx.test(n);
+    if (t === 'hp') {
+        if (hasUtilityConcept && /회복|포션|치유|허브|흡혈|피의|피\b|혈|뱀파이어|생명|에센스|계약|맹세|재생|세계수/.test(n)) {
+            return 'utility';
+        }
+        return 'defense';
+    }
+    if (t === 'ring') {
+        if (hasUtilityConcept) return 'utility';
+        if (hasDefenseConcept) return 'defense';
+        return 'offense';
+    }
+    if (t === 'atk') {
+        if (hasUtilityConcept && !hasWeaponConcept) return 'utility';
+        return 'offense';
+    }
+    if (hasUtilityConcept) return 'utility';
+    if (hasDefenseConcept) return 'defense';
+    if (hasWeaponConcept) return 'offense';
+    return 'offense';
+}
+
+function normalizeEquipmentTagsForRole(it, role) {
+    if (!it) return;
+    const rk = normalizeRarityKey(it.rarity);
+    const base = Array.isArray(it.tags) ? it.tags : [];
+    const kept = base
+        .map((t) => String(t || '').trim())
+        .filter((t) => {
+            if (!t) return false;
+            if (LEGACY_CONCEPT_TAGS.has(t)) return false;
+            if (/^role_/i.test(t) || /^synergy_/i.test(t)) return false;
+            if (/^rarity_/i.test(t) || /^type_/i.test(t)) return false;
+            return true;
+        });
+    it.tags = Array.from(
+        new Set([
+            ...kept,
+            `rarity_${rk}`,
+            `type_${String(it.type || 'gear')}`,
+            ...(EQUIPMENT_ROLE_TAGS[role] || EQUIPMENT_ROLE_TAGS.offense),
+        ])
+    );
+    it.itemRole = role;
+    it.itemRoleLabel = getEquipmentRoleLabel(role);
+}
+
+function clearEquipmentGeneratedStats(it) {
+    [
+        'value',
+        'hpBonus',
+        'def',
+        'critBonus',
+        'critMult',
+        'lifesteal',
+        'goldGainBonus',
+        'fleeBonus',
+        'damageReduction',
+        'potionHealBonus',
+        'divinityGainBonus',
+        'prayerBonus',
+        'regenPotion',
+        'penalty',
+    ].forEach((key) => {
+        delete it[key];
+    });
+}
+
+function stripStatsOutsideRole(it, role) {
+    if (!it) return it;
+    const r = role || detectEquipmentRole(it);
+    if (r === 'offense') {
+        delete it.hpBonus;
+        delete it.def;
+        delete it.damageReduction;
+        delete it.lifesteal;
+        delete it.goldGainBonus;
+        delete it.fleeBonus;
+        delete it.potionHealBonus;
+        delete it.divinityGainBonus;
+        delete it.prayerBonus;
+        delete it.regenPotion;
+        if (it.type === 'hp') delete it.value;
+    } else if (r === 'defense') {
+        if (it.type !== 'hp') delete it.value;
+        delete it.critBonus;
+        delete it.critMult;
+        delete it.lifesteal;
+        delete it.goldGainBonus;
+        delete it.fleeBonus;
+        delete it.potionHealBonus;
+        delete it.divinityGainBonus;
+        delete it.prayerBonus;
+        delete it.regenPotion;
+        delete it.penalty;
+    } else {
+        delete it.value;
+        delete it.hpBonus;
+        delete it.def;
+        delete it.damageReduction;
+        delete it.critBonus;
+        delete it.critMult;
+        delete it.divinityGainBonus;
+        delete it.prayerBonus;
+        delete it.penalty;
+    }
+    return it;
+}
+
+function getEquipmentQualityMultiplier(it, rnd) {
+    const roll = typeof rnd === 'function' ? rnd() : 0.5;
+    const name = String((it && it.name) || '');
+    let q = 0.74 + roll * 0.68;
+    if (/명품|왕|제국|전설|영광|천공|태양|세계수|불멸|심연|파멸|용왕|전쟁신/.test(name)) q += 0.14;
+    if (/낡은|녹슨|부서진|조각난|작은|마른|짚신|유리|끈|못|파편/.test(name)) q -= 0.14;
+    return Math.max(0.62, Math.min(1.55, q));
+}
+
+function getRoleScale(it, rnd) {
+    return getRarityPowerMultiplier(it && it.rarity) * getEquipmentFloorWeight(it) * getEquipmentQualityMultiplier(it, rnd);
+}
+
+function assignOffenseStats(it, scale, rnd) {
+    const rk = normalizeRarityKey(it.rarity);
+    const name = String(it.name || '');
+    const mainBase = it.type === 'ring' ? 9 : it.type === 'rune' ? 8 : 13;
+    it.value = _roundScaledStat(mainBase * scale * (0.88 + rnd() * 0.24), 1);
+    const wantsCrit = /치명|급소|암살|약점|눈|렌즈|망원경|독수리|표식|조준|예리|날카|심연|그림자|처형/.test(name);
+    const wantsCritMult = /마도|폭풍|천공|별|번개|천둥|혼돈|보주|지팡이|파멸|마력|각성|심판|왕관/.test(name);
+    if (rk !== 'common' || wantsCrit || rnd() > 0.42) {
+        it.critBonus = _roundScaledStat((rk === 'legendary' ? 3.4 : rk === 'epic' ? 2.5 : rk === 'rare' ? 1.55 : 0.85) * scale, 1);
+    }
+    if (rk === 'legendary' || rk === 'epic' || wantsCritMult || rnd() > 0.55) {
+        it.critMult = _fixedDecimals((rk === 'legendary' ? 0.028 : rk === 'epic' ? 0.022 : 0.015) * scale, 2);
+    }
+}
+
+function assignDefenseStats(it, scale, rnd) {
+    const rk = normalizeRarityKey(it.rarity);
+    const hp = _roundScaledStat(54 * scale * (0.9 + rnd() * 0.24), 1);
+    if (it.type === 'hp') it.value = hp;
+    else it.hpBonus = hp;
+    it.def = _roundScaledStat(7.5 * scale * (0.82 + rnd() * 0.36), 1);
+    const reductionBase = rk === 'legendary' ? 0.024 : rk === 'epic' ? 0.019 : rk === 'rare' ? 0.014 : 0.009;
+    it.damageReduction = _fixedDecimals(Math.min(0.18, Math.max(0.01, reductionBase * scale)), 3);
+}
+
+function assignUtilityStats(it, scale, rnd) {
+    const rk = normalizeRarityKey(it.rarity);
+    const name = String(it.name || '');
+    const wantsGold = /풍요|황금|행운|도둑|상인|매매|거래|동전|보물|유산|잔광/.test(name);
+    const wantsLifesteal = /흡혈|피의|피\b|혈|뱀파이어|에센스|계약|맹세|생명|심장/.test(name);
+    const wantsPotion = /회복|포션|치유|허브|세계수|재생|불사조/.test(name);
+    const wantsFlee = /도피|이탈|공허|바람|도주|탈출/.test(name);
+    const picks = [];
+    if (wantsGold) picks.push('gold');
+    if (wantsLifesteal) picks.push('lifesteal');
+    if (wantsPotion) picks.push('potion');
+    if (wantsFlee) picks.push('flee');
+    if (!picks.length) {
+        const order = ['gold', 'lifesteal', 'potion', 'flee'];
+        picks.push(order[Math.floor(rnd() * order.length)]);
+    }
+    if ((rk === 'epic' || rk === 'legendary') && picks.length < 2) {
+        const extra = ['gold', 'lifesteal', 'potion', 'flee'].find((x) => !picks.includes(x));
+        if (extra) picks.push(extra);
+    }
+    if (rk === 'legendary' && picks.length < 3) {
+        const extra = ['gold', 'lifesteal', 'potion', 'flee'].find((x) => !picks.includes(x));
+        if (extra) picks.push(extra);
+    }
+    const mult = 0.8 + rnd() * 0.32;
+    if (picks.includes('gold')) {
+        it.goldGainBonus = _fixedDecimals(Math.min(0.35, Math.max(0.025, 0.018 * scale * mult)), 3);
+    }
+    if (picks.includes('lifesteal')) {
+        it.lifesteal = _fixedDecimals(Math.min(0.3, Math.max(0.025, 0.016 * scale * mult)), 3);
+    }
+    if (picks.includes('potion')) {
+        it.potionHealBonus = _fixedDecimals(Math.min(0.45, Math.max(0.08, 0.03 * scale * mult)), 3);
+    }
+    if (picks.includes('flee')) {
+        it.fleeBonus = _fixedDecimals(Math.min(0.3, Math.max(0.05, 0.02 * scale * mult)), 3);
+    }
+}
+
+function applyRoleBoundStatsToEquipmentItem(it) {
+    const role = detectEquipmentRole(it);
+    const seed = _budgetHashSeed(`${String(it.name || '')}|${String(it.type || '')}|${normalizeRarityKey(it.rarity)}|${getEquipmentFloorReference(it)}|role`);
+    const rnd = _budgetMulberry32(seed);
+    clearEquipmentGeneratedStats(it);
+    const scale = getRoleScale(it, rnd);
+    if (role === 'defense') assignDefenseStats(it, scale, rnd);
+    else if (role === 'utility') assignUtilityStats(it, scale, rnd);
+    else assignOffenseStats(it, scale, rnd);
+    normalizeEquipmentTagsForRole(it, role);
+    stripStatsOutsideRole(it, role);
+    return it;
+}
+
+function computeEquipmentStatValueScore(it) {
+    if (!it) return 0;
+    const hpValue = (it.type === 'hp' ? safeNumberForStatScore(it.value) : 0) + safeNumberForStatScore(it.hpBonus);
+    const atkValue = (it.type === 'atk' || it.type === 'ring' || it.type === 'rune') ? safeNumberForStatScore(it.value) : 0;
+    return (
+        atkValue * 1.55 +
+        hpValue * 0.23 +
+        Math.max(0, safeNumberForStatScore(it.def)) * 2.4 +
+        Math.max(0, safeNumberForStatScore(it.critBonus)) * 4.8 +
+        Math.max(0, safeNumberForStatScore(it.critMult)) * 100 * 2.8 +
+        Math.max(0, safeNumberForStatScore(it.damageReduction)) * 100 * 6.8 +
+        Math.max(0, safeNumberForStatScore(it.lifesteal)) * 100 * 4.5 +
+        Math.max(0, safeNumberForStatScore(it.goldGainBonus)) * 100 * 3.7 +
+        Math.max(0, safeNumberForStatScore(it.potionHealBonus)) * 100 * 2.8 +
+        Math.max(0, safeNumberForStatScore(it.fleeBonus)) * 100 * 1.8
+    );
+}
+
+function safeNumberForStatScore(v) {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+}
+
+function _ensureMinPercentStat(it, key, minValue, digits) {
+    if (!it) return;
+    const cur = Number(it[key]);
+    const safe = Number.isFinite(cur) ? cur : 0;
+    it[key] = _fixedDecimals(Math.max(safe, minValue), digits);
+}
+
+function _ensureMinFlatStat(it, key, minValue) {
+    if (!it) return;
+    const cur = Number(it[key]);
+    const safe = Number.isFinite(cur) ? cur : 0;
+    it[key] = Math.max(Math.floor(safe), minValue);
+}
+
+function applyHighRarityMeritStats(it) {
+    if (!it || it.type === 'relic' || it.type === 'merc') return it;
+    const rk = normalizeRarityKey(it.rarity);
+    if (rk !== 'epic' && rk !== 'legendary') return it;
+    const isLegendary = rk === 'legendary';
+    const role = detectEquipmentRole(it);
+    if (role === 'offense') {
+        _ensureMinFlatStat(it, 'critBonus', isLegendary ? 16 : 10);
+        if (isLegendary) _ensureMinPercentStat(it, 'critMult', 0.22, 2);
+    } else if (role === 'defense') {
+        _ensureMinPercentStat(it, 'damageReduction', isLegendary ? 0.1 : 0.055, 3);
+    } else {
+        if (!it.goldGainBonus && !it.lifesteal && !it.potionHealBonus && !it.fleeBonus) {
+            it.goldGainBonus = isLegendary ? 0.22 : 0.14;
+        }
+    }
+    stripStatsOutsideRole(it, role);
+    return it;
+}
+
+/**
+ * 공식 가격: 등급별 기준가 + 현재 층수 계수.
+ * 등급 간 가격 역전을 막기 위해 하위 등급은 상위 등급 가격 미만으로 클램프한다.
+ */
+function computeEquipmentGoldPrice(it, explicitFloorRef) {
+    if (!it) return 0;
+    const key = normalizeRarityKey(it.rarity);
+    const priceFloor = getPriceFloorReference(it, explicitFloorRef);
+    const basePrice = getShopPriceForRarity(key, priceFloor);
+    const statScore = computeEquipmentStatValueScore(it);
+    const baselineScore = {
+        common: 10,
+        rare: 42,
+        epic: 85,
+        legendary: 170,
+    }[key] || 10;
+    const rarityCoeff = {
+        common: 3,
+        rare: 2,
+        epic: 1.2,
+        legendary: 0.72,
+    }[key] || 3;
+    const floorCoeff = rarityCoeff + Math.min(1.4, Math.max(1, priceFloor) * 0.035);
+    const rolePremium = it.itemRole === 'utility' ? 1.08 : it.itemRole === 'defense' ? 1.03 : 1;
+    const premiumScore = Math.max(0, statScore - baselineScore);
+    const rawPrice = basePrice + Math.round((premiumScore * floorCoeff + statScore * 0.22) * rolePremium);
+    return clampShopPriceToRarityOrder(key, rawPrice, priceFloor);
 }
 
 function _jitterWeights(base, rnd) {
@@ -1501,27 +2478,17 @@ function _allocateBudgetToStats(Bx, ch, rnd, rarityKey, it) {
 }
 
 /**
- * 비유물 장비: 데이터 수치 통과 + 클램프·가격·설명 갱신. (무기/반지=공격·유틸, 갑옷=체력·방어 테이블 유지)
- * 룬은 등급 고정가. 유물·relic 등급 제외.
+ * 비유물 장비 공식화:
+ * 기본 수치 × 등급 배율 × 층 가중치로 무기·방어구·반지를 전부 재계산한다.
  */
 function applyOfficialStatsToEquipmentItem(it, opts) {
     if (!it) return it;
     const o = opts || {};
     if (it.type === 'relic' || String(it.rarity || '').toLowerCase() === 'relic') return it;
-
-    if (it.tags && it.tags.includes('synergy_priest')) {
-        clampEquipmentItemStatsToRarityCaps(it);
-        it.price = computeEquipmentGoldPrice(it);
-        if (o.rebuildDesc !== false) rebuildEquipmentDesc(it, o);
-        return it;
-    }
-
-    /** 통과형: 무기·반지=공격 계열, 갑옷=체력·방어 계열로 데이터 수치 유지(랜덤 재배분 없음). */
-    if (it.type === 'rune') {
-        it.price = computeEquipmentGoldPrice(it);
-        it._officialStatApplied = true;
-        if (o.rebuildDesc !== false) rebuildEquipmentDesc(it, o);
-        return it;
+    if (!['atk', 'hp', 'ring', 'rune'].includes(String(it.type || ''))) return it;
+    if (o.floorUnlockKey != null) {
+        const floorRef = Number(o.floorUnlockKey);
+        if (Number.isFinite(floorRef) && floorRef > 0) it.unlockFloor = Math.floor(floorRef);
     }
 
     delete it.itemConceptKey;
@@ -1529,33 +2496,58 @@ function applyOfficialStatsToEquipmentItem(it, opts) {
     delete it._itemConceptLabelKo;
     delete it._keywordThemeLabelKo;
 
+    applyRoleBoundStatsToEquipmentItem(it);
+    applyHighRarityMeritStats(it);
     it._officialStatApplied = true;
     clampEquipmentItemStatsToRarityCaps(it);
-    if (o.forgeRecipe) {
-        it.price = 0;
-    } else {
-        it.price = computeEquipmentGoldPrice(it);
-    }
+    ensureLegendaryUniqueEffectPlaceholder(it);
+    it.price = computeEquipmentGoldPrice(
+        it,
+        o.floorUnlockKey != null ? { priceFloor: Number(o.floorUnlockKey) } : undefined,
+    );
     if (o.rebuildDesc !== false) rebuildEquipmentDesc(it, o);
     return it;
 }
 
 /** 저장 데이터·구버전 보정: 등급 상한으로 장비 수치 클램프 후 설명 갱신 */
 function clampEquipmentItemStatsToRarityCaps(it) {
-    if (!it || it.type === 'relic' || it.type === 'merc' || it.type === 'rune') return it;
-    const rk = String(it.rarity || 'common').toLowerCase();
+    if (!it || it.type === 'relic' || it.type === 'merc') return it;
+    if (!['atk', 'hp', 'ring', 'rune'].includes(String(it.type || ''))) return it;
+    const role = detectEquipmentRole(it);
+    stripStatsOutsideRole(it, role);
+    normalizeEquipmentTagsForRole(it, role);
+    const rk = normalizeRarityKey(it.rarity);
     const M = _statMaxForRarity(rk);
     if (typeof it.value === 'number') {
         if (it.type === 'hp') it.value = Math.max(1, Math.min(M.hp, it.value));
         else if (it.type === 'atk' || it.type === 'ring') it.value = Math.max(1, Math.min(M.atk, it.value));
+        else if (it.type === 'rune') it.value = Math.max(1, Math.min(M.atk, it.value));
+    }
+    if (typeof it.hpBonus === 'number') {
+        it.hpBonus = Math.max(1, Math.min(M.hp, it.hpBonus));
     }
     if (typeof it.def === 'number') {
-        const negCap = rk === 'legendary' || rk === 'legend' ? -22 : -16;
-        it.def = Math.min(M.def, Math.max(negCap, it.def));
+        it.def = Math.min(M.def, Math.max(0, it.def));
     }
     if (typeof it.critBonus === 'number') it.critBonus = Math.min(M.crit, Math.max(0, it.critBonus));
     if (typeof it.critMult === 'number') it.critMult = Math.min(M.cm / 100, Math.max(0, it.critMult));
     if (typeof it.lifesteal === 'number') it.lifesteal = Math.min(M.ls / 100, Math.max(0, it.lifesteal));
+    if (typeof it.damageReduction === 'number') {
+        const reductionCap = rk === 'legendary' ? 0.2 : rk === 'epic' ? 0.13 : rk === 'rare' ? 0.075 : 0.04;
+        it.damageReduction = Math.min(reductionCap, Math.max(0, it.damageReduction));
+    }
+    if (typeof it.goldGainBonus === 'number') {
+        const goldCap = rk === 'legendary' ? 0.35 : rk === 'epic' ? 0.22 : rk === 'rare' ? 0.08 : 0.04;
+        it.goldGainBonus = Math.min(goldCap, Math.max(0, it.goldGainBonus));
+    }
+    if (typeof it.potionHealBonus === 'number') {
+        const potionCap = rk === 'legendary' ? 0.5 : rk === 'epic' ? 0.32 : rk === 'rare' ? 0.2 : 0.12;
+        it.potionHealBonus = Math.min(potionCap, Math.max(0, it.potionHealBonus));
+    }
+    if (typeof it.fleeBonus === 'number') {
+        const fleeCap = rk === 'legendary' ? 0.3 : rk === 'epic' ? 0.18 : rk === 'rare' ? 0.12 : 0.07;
+        it.fleeBonus = Math.min(fleeCap, Math.max(0, it.fleeBonus));
+    }
     return it;
 }
 
@@ -1563,6 +2555,22 @@ if (typeof window !== 'undefined') {
     window.applyOfficialStatsToEquipmentItem = applyOfficialStatsToEquipmentItem;
     window.clampEquipmentItemStatsToRarityCaps = clampEquipmentItemStatsToRarityCaps;
     window.computeEquipmentGoldPrice = computeEquipmentGoldPrice;
+    window.computeFloorGoldReward = computeFloorGoldReward;
+    window.normalizeFloorGrowth = normalizeFloorGrowth;
+    window.computeFloorGrowthForClears = computeFloorGrowthForClears;
+    window.getFloorGrowthStep = getFloorGrowthStep;
+    window.tacticalSkillChoices = tacticalSkillChoices;
+    window.tacticalSkillMilestones = tacticalSkillMilestones;
+    window.getTacticalSkillDef = getTacticalSkillDef;
+    window.getTacticalSkillMilestoneForFloor = getTacticalSkillMilestoneForFloor;
+    window.storyData = storyData;
+    window.createDefaultPlayerState = createDefaultPlayerState;
+    window.normalizePlayerState = normalizePlayerState;
+    window.getStoryRouteKey = getStoryRouteKey;
+    window.getStoryEndingKey = getStoryEndingKey;
+    window.getStoryTitleForState = getStoryTitleForState;
+    window.getStoryChoiceImpact = getStoryChoiceImpact;
+    window.getStoryMilestoneDef = getStoryMilestoneDef;
     window.RUNE_POOL_COUNT = typeof runePool !== 'undefined' ? runePool.length : 0;
 }
 

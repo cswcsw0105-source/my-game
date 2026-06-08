@@ -57,8 +57,66 @@
         if (!s.rebirthStatBonus) s.rebirthStatBonus = { hp: 0, atk: 0, def: 0, acc: 0 };
         if (!s.rebirthPctBonus) s.rebirthPctBonus = { atkPct: 0, defPct: 0, critMultPct: 0 };
         if (s.bestFloor == null) s.bestFloor = 1;
+        s.floorGrowth = normalizeSlotFloorGrowth(s.floorGrowth);
+        s.playerState = normalizeSlotPlayerState(s.playerState);
+        s.tacticalSkills = uniqueStringArray(s.tacticalSkills);
+        s.tacticalSkillMilestonesClaimed = uniqueNumberArray(s.tacticalSkillMilestonesClaimed);
+        s.promotionHistory = uniqueStringArray(s.promotionHistory);
+        s.rescuedItems = normalizeRescuedItems(s.rescuedItems);
         /** A/B 라인 고정 제거 — 테크는 직업 내 노드 자유 조합 */
         if (s.techLine === 'A' || s.techLine === 'B') s.techLine = null;
+    }
+
+    function normalizeSlotFloorGrowth(raw) {
+        if (typeof normalizeFloorGrowth === 'function') return normalizeFloorGrowth(raw);
+        const src = raw && typeof raw === 'object' ? raw : {};
+        return {
+            floors: Math.max(0, Math.floor(Number(src.floors) || 0)),
+            atk: Math.max(0, Math.floor(Number(src.atk) || 0)),
+            hp: Math.max(0, Math.floor(Number(src.hp) || 0)),
+        };
+    }
+
+    function normalizeSlotPlayerState(raw) {
+        if (typeof normalizePlayerState === 'function') return normalizePlayerState(raw);
+        const src = raw && typeof raw === 'object' ? raw : {};
+        return {
+            corruption: Math.max(0, Math.floor(Number(src.corruption) || 0)),
+            purification: Math.max(0, Math.floor(Number(src.purification) || 0)),
+        };
+    }
+
+    function uniqueStringArray(raw) {
+        const arr = Array.isArray(raw) ? raw : [];
+        return Array.from(new Set(arr.map((x) => String(x || '').trim()).filter(Boolean)));
+    }
+
+    function uniqueNumberArray(raw) {
+        const arr = Array.isArray(raw) ? raw : [];
+        return Array.from(
+            new Set(
+                arr
+                    .map((x) => Math.floor(Number(x) || 0))
+                    .filter((x) => Number.isFinite(x) && x > 0)
+            )
+        );
+    }
+
+    function normalizeRescuedItems(raw) {
+        const arr = Array.isArray(raw) ? raw : [];
+        return arr
+            .filter((it) => it && typeof it === 'object' && ['atk', 'hp', 'ring', 'rune'].includes(String(it.type || '')))
+            .slice(0, 12)
+            .map((it) => {
+                try {
+                    const copy = JSON.parse(JSON.stringify(it));
+                    if (copy.type === 'merc') return null;
+                    return copy;
+                } catch (e) {
+                    return null;
+                }
+            })
+            .filter(Boolean);
     }
 
     function loadMeta() {
@@ -370,6 +428,11 @@
         slot.extraPerma = { hp: 0, atk: 0, def: 0, acc: 0 };
         slot.metaPenalty = { hp: 0, atk: 0, def: 0, acc: 0 };
         slot.questFlags = {};
+        slot.floorGrowth = normalizeSlotFloorGrowth(null);
+        slot.playerState = normalizeSlotPlayerState(null);
+        slot.tacticalSkills = [];
+        slot.tacticalSkillMilestonesClaimed = [];
+        slot.rescuedItems = [];
         slot.rebirthStatBonus = slot.rebirthStatBonus || { hp: 0, atk: 0, def: 0, acc: 0 };
         slot.rebirthPctBonus = slot.rebirthPctBonus || { atkPct: 0, defPct: 0, critMultPct: 0 };
         slot.rebirthPctBonus.atkPct += 10;
@@ -386,6 +449,16 @@
         const opt = options && typeof options === 'object' ? options : {};
         const raceKey =
             opt.raceKey && typeof raceStories !== 'undefined' && raceStories[opt.raceKey] ? opt.raceKey : null;
+        const memoryKey =
+            opt.memoryKey && typeof introMemoryChoices !== 'undefined' && introMemoryChoices[opt.memoryKey]
+                ? opt.memoryKey
+                : null;
+        const originBaseJobKey =
+            opt.originBaseJobKey && typeof jobBase !== 'undefined' && jobBase[opt.originBaseJobKey]
+                ? opt.originBaseJobKey
+                : memoryKey && typeof introMemoryChoices !== 'undefined'
+                  ? introMemoryChoices[memoryKey].baseJobKey
+                  : jobKey;
         const weaponKey =
             opt.weaponKey && typeof introWeaponChoices !== 'undefined' && introWeaponChoices[opt.weaponKey]
                 ? opt.weaponKey
@@ -401,10 +474,13 @@
             name: name || '무명',
             jobKey,
             raceKey,
+            memoryKey,
+            originBaseJobKey,
             introWeaponKey: weaponKey,
             classKey,
             currentPromotion: null,
             promotionHistory: [],
+            playerState: normalizeSlotPlayerState(opt.playerState),
             storyFlags: {},
             storyLog: [],
             techLine: null,
@@ -420,6 +496,10 @@
             rebirthStatBonus: { hp: 0, atk: 0, def: 0, acc: 0 },
             rebirthPctBonus: { atkPct: 0, defPct: 0, critMultPct: 0 },
             bestFloor: 1,
+            floorGrowth: normalizeSlotFloorGrowth(null),
+            tacticalSkills: [],
+            tacticalSkillMilestonesClaimed: [],
+            rescuedItems: [],
         };
         recalcTechBonus(slot);
         m.slots.push(slot);
@@ -574,10 +654,60 @@
         saveMeta(m);
     }
 
+    function syncRunProgress(slotId, progress) {
+        const m = loadMeta();
+        const slot = m.slots.find((s) => s.id === slotId);
+        if (!slot) return null;
+        const p = progress && typeof progress === 'object' ? progress : {};
+        if (p.floorGrowth) slot.floorGrowth = normalizeSlotFloorGrowth(p.floorGrowth);
+        if (p.playerState) slot.playerState = normalizeSlotPlayerState(p.playerState);
+        if (Array.isArray(p.tacticalSkills)) slot.tacticalSkills = uniqueStringArray(p.tacticalSkills);
+        if (Array.isArray(p.tacticalSkillMilestonesClaimed)) {
+            slot.tacticalSkillMilestonesClaimed = uniqueNumberArray(p.tacticalSkillMilestonesClaimed);
+        }
+        if (p.currentPromotion) {
+            slot.currentPromotion = String(p.currentPromotion);
+            slot.promotionHistory = uniqueStringArray([...(slot.promotionHistory || []), slot.currentPromotion]);
+        }
+        saveMeta(m);
+        return slot;
+    }
+
+    function grantTacticalSkillToSlot(slotId, skillKey, milestoneFloor) {
+        const key = String(skillKey || '').trim();
+        if (!key) return { ok: false, msg: '스킬 없음' };
+        if (typeof getTacticalSkillDef === 'function' && !getTacticalSkillDef(key)) {
+            return { ok: false, msg: '정의되지 않은 스킬' };
+        }
+        const m = loadMeta();
+        const slot = m.slots.find((s) => s.id === slotId);
+        if (!slot) return { ok: false, msg: '슬롯 없음' };
+        slot.tacticalSkills = uniqueStringArray([...(slot.tacticalSkills || []), key]);
+        const mf = Math.floor(Number(milestoneFloor) || 0);
+        if (mf > 0) {
+            slot.tacticalSkillMilestonesClaimed = uniqueNumberArray([...(slot.tacticalSkillMilestonesClaimed || []), mf]);
+        }
+        saveMeta(m);
+        return { ok: true, skillKey: key, skills: slot.tacticalSkills };
+    }
+
     function setRunSnapshot(slotId, obj) {
         const m = loadMeta();
         const slot = m.slots.find((s) => s.id === slotId);
         if (!slot) return;
+        if (obj && obj.player) {
+            const p = obj.player;
+            if (p.floorGrowth) slot.floorGrowth = normalizeSlotFloorGrowth(p.floorGrowth);
+            if (p.playerState) slot.playerState = normalizeSlotPlayerState(p.playerState);
+            if (Array.isArray(p.tacticalSkills)) slot.tacticalSkills = uniqueStringArray(p.tacticalSkills);
+            if (Array.isArray(p.tacticalSkillMilestonesClaimed)) {
+                slot.tacticalSkillMilestonesClaimed = uniqueNumberArray(p.tacticalSkillMilestonesClaimed);
+            }
+            if (p.currentPromotion) {
+                slot.currentPromotion = String(p.currentPromotion);
+                slot.promotionHistory = uniqueStringArray([...(slot.promotionHistory || []), slot.currentPromotion]);
+            }
+        }
         slot.runSnapshot = obj;
         saveMeta(m);
     }
@@ -590,6 +720,22 @@
         saveMeta(m);
     }
 
+    function preserveRescueInventory(slotId, items) {
+        const m = loadMeta();
+        const slot = m.slots.find((s) => s.id === slotId);
+        if (!slot) return 0;
+        slot.rescuedItems = normalizeRescuedItems(items);
+        slot.runSnapshot = null;
+        slot.runCheckpointMeta = { level: Math.max(1, slot.level || 1), exp: Math.max(0, slot.exp || 0) };
+        saveMeta(m);
+        return slot.rescuedItems.length;
+    }
+
+    function getRescuedItems(slotId) {
+        const slot = getSlotById(slotId);
+        return slot ? normalizeRescuedItems(slot.rescuedItems) : [];
+    }
+
     /** 저장 런 스냅샷 제거 + 런 체크포인트·메타 레벨·EXP 초기화 (저장 삭제 확정 시) */
     function wipeSavedRunAndResetMetaLevel(slotId) {
         const m = loadMeta();
@@ -599,6 +745,10 @@
         slot.runCheckpointMeta = { level: 1, exp: 0 };
         slot.level = 1;
         slot.exp = 0;
+        slot.floorGrowth = normalizeSlotFloorGrowth(null);
+        slot.tacticalSkills = [];
+        slot.tacticalSkillMilestonesClaimed = [];
+        slot.rescuedItems = [];
         recalcTechBonus(slot);
         saveMeta(m);
     }
@@ -666,8 +816,12 @@
         applyReincarnation,
         markRunCheckpoint,
         revertRunToCheckpoint,
+        syncRunProgress,
+        grantTacticalSkillToSlot,
         setRunSnapshot,
         clearRunSnapshot,
+        preserveRescueInventory,
+        getRescuedItems,
         wipeSavedRunAndResetMetaLevel,
         getRunSnapshot,
         commitTechPurchase,
@@ -700,3 +854,6 @@
     global.MetaRPG = MetaRPG;
     global.BASE_CAMP_FLOORS = BASE_CAMP_FLOORS;
 })(typeof window !== 'undefined' ? window : globalThis);
+
+const MetaRPG = (typeof window !== 'undefined' ? window.MetaRPG : globalThis.MetaRPG);
+const BASE_CAMP_FLOORS = (typeof window !== 'undefined' ? window.BASE_CAMP_FLOORS : globalThis.BASE_CAMP_FLOORS);

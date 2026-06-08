@@ -75,6 +75,8 @@ function applyOwnedEquipmentItemBonuses(it) {
         if (it.lifesteal) player.lifesteal = safeNum(player.lifesteal, 0) + safeNum(it.lifesteal, 0);
         if (it.critBonus) player.crit = safeNum(player.crit, 1) + safeNum(it.critBonus, 0);
         if (it.critMult) player.critMult = safeNum(player.critMult, 1.8) + safeNum(it.critMult, 0);
+        if (it.damageReduction) player.damageReduction = safeNum(player.damageReduction, 0) + safeNum(it.damageReduction, 0);
+        if (it.potionHealBonus) player.potionHealBonus = safeNum(player.potionHealBonus, 0) + safeNum(it.potionHealBonus, 0);
         if (it.regenPotion) player.hasRegenPotion = true;
         return;
     }
@@ -86,10 +88,17 @@ function applyOwnedEquipmentItemBonuses(it) {
         player.maxHp = Math.max(1, safeNum(player.maxHp, 1) + add);
         player.curHp = safeNum(player.curHp, 0) + add;
     }
+    if (it.type !== 'rune' && typeof it.hpBonus === 'number' && it.hpBonus) {
+        const add = safeNum(it.hpBonus, 0);
+        player.maxHp = Math.max(1, safeNum(player.maxHp, 1) + add);
+        player.curHp = safeNum(player.curHp, 0) + add;
+    }
     if (it.def) player.extraDef = safeNum(player.extraDef, 0) + safeNum(it.def, 0);
     if (it.lifesteal) player.lifesteal = safeNum(player.lifesteal, 0) + safeNum(it.lifesteal, 0);
     if (it.critBonus) player.crit = safeNum(player.crit, 1) + safeNum(it.critBonus, 0);
     if (it.critMult) player.critMult = safeNum(player.critMult, 1.8) + safeNum(it.critMult, 0);
+    if (it.damageReduction) player.damageReduction = safeNum(player.damageReduction, 0) + safeNum(it.damageReduction, 0);
+    if (it.potionHealBonus) player.potionHealBonus = safeNum(player.potionHealBonus, 0) + safeNum(it.potionHealBonus, 0);
     if (it.penalty && it.penalty[player.name]) {
         player.acc -= safeNum(it.penalty[player.name], 0);
     }
@@ -132,6 +141,17 @@ function fullResyncPlayerCombatStatsFromMetaAndInventory() {
         acc = safeNum(rs.acc, 0) + safeNum(tb.acc, 0) + safeNum(lb.acc, 0);
     }
 
+    const fg = typeof normalizeFloorGrowth === 'function'
+        ? normalizeFloorGrowth(player.floorGrowth || slot.floorGrowth)
+        : {
+              floors: Math.max(0, Math.floor(safeNum(player.floorGrowth && player.floorGrowth.floors, 0))),
+              atk: Math.max(0, Math.floor(safeNum(player.floorGrowth && player.floorGrowth.atk, 0))),
+              hp: Math.max(0, Math.floor(safeNum(player.floorGrowth && player.floorGrowth.hp, 0))),
+          };
+    player.floorGrowth = fg;
+    atk += fg.atk;
+    maxHp += fg.hp;
+
     player.atk = atk;
     player.def = def;
     player.maxHp = maxHp;
@@ -142,6 +162,8 @@ function fullResyncPlayerCombatStatsFromMetaAndInventory() {
     player.lifesteal = 0;
     player.extraDef = 0;
     player.extraAtk = 0;
+    player.damageReduction = 0;
+    player.potionHealBonus = 0;
 
     applyRebirthPctBonusToPlayer(slot);
 
@@ -170,6 +192,14 @@ function getLifestealOverflowAtk() {
     const r = safeNum(player && player.lifesteal, 0);
     if (r <= LIFESTEAL_SOFT_CAP) return 0;
     return Math.floor((r - LIFESTEAL_SOFT_CAP) * 100);
+}
+
+function getPlayerDamageReduction() {
+    return Math.min(0.55, Math.max(0, safeNum(player && player.damageReduction, 0)));
+}
+
+function getPlayerPotionHealMultiplier() {
+    return 1 + Math.min(0.8, Math.max(0, safeNum(player && player.potionHealBonus, 0)));
 }
 
 function isPriestJob() {
@@ -298,6 +328,8 @@ window.fullResyncPlayerCombatStatsFromMetaAndInventory = fullResyncPlayerCombatS
 window.getCritInfo = getCritInfo;
 window.getLifestealEffective = getLifestealEffective;
 window.getLifestealOverflowAtk = getLifestealOverflowAtk;
+window.getPlayerDamageReduction = getPlayerDamageReduction;
+window.getPlayerPotionHealMultiplier = getPlayerPotionHealMultiplier;
 window.isPriestJob = isPriestJob;
 window.isPriestBlessed = isPriestBlessed;
 window.isChosenPriest = isChosenPriest;
@@ -311,22 +343,22 @@ window.addDivinePower = addDivinePower;
 window.getEffectiveAttackPower = getEffectiveAttackPower;
 window.getTotalPlayerDefenseForHit = getTotalPlayerDefenseForHit;
 
-function sumRuneBonuses(field) {
+function sumOwnedItemBonuses(field) {
     if (!player || !Array.isArray(player.items)) return 0;
     let s = 0;
     for (const it of player.items) {
-        if (it && it.type === 'rune' && typeof it[field] === 'number') s += safeNum(it[field], 0);
+        if (it && it.type !== 'merc' && typeof it[field] === 'number') s += safeNum(it[field], 0);
     }
     return s;
 }
 
 function getPlayerGoldGainMult() {
-    return 1 + sumRuneBonuses('goldGainBonus');
+    return 1 + sumOwnedItemBonuses('goldGainBonus');
 }
 
 /** 패닉 도주 시 층 하락 완화 확률(합산, 상한 55%) */
 function getPlayerFleeBonus() {
-    return Math.min(0.55, sumRuneBonuses('fleeBonus'));
+    return Math.min(0.55, sumOwnedItemBonuses('fleeBonus'));
 }
 
 window.getPlayerGoldGainMult = getPlayerGoldGainMult;

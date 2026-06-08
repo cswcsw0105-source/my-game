@@ -1,5 +1,8 @@
 // Global runtime state (single source of truth)
 let floor = 1, gold = 0, player = null, enemy = null;
+let playerState = typeof createDefaultPlayerState === 'function'
+    ? createDefaultPlayerState()
+    : { corruption: 0, purification: 0 };
 let defendingTurns = 0, dodgingTurns = 0, shieldedTurns = 0;
 let regenTurns = 0, regenAmount = 0;
 let isProcessing = false;

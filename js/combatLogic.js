@@ -408,6 +408,35 @@ function applySummonDarkTurnStart() {
     return false;
 }
 
+function useTacticalSkillAction(skillKey) {
+    if (!player || !enemy) return false;
+    const key = String(skillKey || '').trim();
+    const owned = Array.isArray(player.tacticalSkills) ? player.tacticalSkills : [];
+    const def = typeof getTacticalSkillDef === 'function' ? getTacticalSkillDef(key) : null;
+    if (!key || !def || !owned.includes(key)) {
+        writeLog('[전술] 아직 배운 전술 스킬이 아닙니다.');
+        return false;
+    }
+    player.tacticalSkillUses = player.tacticalSkillUses && typeof player.tacticalSkillUses === 'object'
+        ? player.tacticalSkillUses
+        : {};
+    if (player.tacticalSkillUses[key]) {
+        writeLog('[전술] 이 전투에서 이미 사용한 스킬입니다.');
+        return false;
+    }
+    if (key === 'focus' && player.tacticalFocusReady) return false;
+    if (key === 'parry' && player.tacticalParryReady) return false;
+    if (key === 'barrier' && player.tacticalBarrierReady) return false;
+    player.tacticalSkillUses[key] = 1;
+    if (key === 'focus') player.tacticalFocusReady = true;
+    if (key === 'parry') player.tacticalParryReady = true;
+    if (key === 'barrier') player.tacticalBarrierReady = true;
+    writeLog(`[전술] <b>${def.icon || '✦'} ${def.name}</b> — ${def.battleLog || def.shortDesc || '전술 준비 완료'}`);
+    updateUi();
+    renderActions();
+    return true;
+}
+
 window.useAction = async (type) => {
     if (isProcessing) return;
     setCombatProcessing(true);
@@ -423,6 +452,16 @@ window.useAction = async (type) => {
         return;
     }
     if (player) ensurePlayerSynergyBonuses();
+
+    if (String(type || '').startsWith('전술:')) {
+        const key = String(type).split(':')[1] || '';
+        if (!useTacticalSkillAction(key)) {
+            setCombatProcessing(false);
+            return;
+        }
+        queueEnemyTurnWithPacing();
+        return;
+    }
 
     if (type==='공격') {
         await playJobAttackVfx('player', player.name || player.baseJob);
@@ -482,6 +521,12 @@ window.useAction = async (type) => {
             if(critInfo.isBerserkCrit){effectMsg+="<b style='color:#ff4757'>🔥 분노!</b> ";}
             const mercCritMode=isMercenaryCaptainJob()&&player.fieldMerc&&player.fieldMerc.mercHp>0;
             if(mercCritMode){effectiveCrit=getMercEffectiveCritForMercAttack();}
+            if (player.tacticalFocusReady) {
+                const focusDef = typeof getTacticalSkillDef === 'function' ? getTacticalSkillDef('focus') : null;
+                effectiveCrit = Math.min(100, effectiveCrit + safeNum(focusDef && focusDef.critBonus, 60));
+                player.tacticalFocusReady = false;
+                effectMsg += "<b style='color:#a78bfa'>🎯 집중 공격!</b> ";
+            }
             let relicAtkMult=1;
             if(player.relics&&player.relics.includes('execute')&&enemy.curHp<=enemy.hp*0.35){relicAtkMult*=1.8;effectMsg+="<b style='color:#e74c3c'>💀 집행!</b> ";}
             if(player.relics&&player.relics.includes('berserk_crit')&&player.maxHp&&player.curHp<=player.maxHp*0.35){relicAtkMult*=1.45;effectMsg+="<b style='color:#ff4757'>🔥 격노 심장!</b> ";}
@@ -555,7 +600,7 @@ window.useAction = async (type) => {
                 player.critMult = safeNum(player.critMult, 1.8) + 0.03;
                 writeLog(`[유물] 💚 혈반지 흡수! 회복 ${kh}, 치명 배율 +3%`);
             }
-        } else { writeLog(`[빗나감] 공격 실패!`); triggerDodgeMove('enemy'); showMissFloat('enemy'); }
+        } else { writeLog(`[빗나감] 공격 실패!`); showMissFloat('enemy'); }
         updateUi(); renderActions();
         if(enemy.curHp<=0) return winBattle();
 
@@ -644,22 +689,26 @@ window.usePotion = () => {
     if(player.potions<=0) return writeLog("포션이 없습니다!");
     if(potionUsedThisTurn) return writeLog("이번 턴에 이미 포션을 사용했습니다!");
     player.potions--; potionUsedThisTurn=true;
+    const potionHealMult = typeof getPlayerPotionHealMultiplier === 'function'
+        ? getPlayerPotionHealMultiplier()
+        : 1;
+    const potionHeal = (maxHp, ratio) => Math.max(1, Math.floor(maxHp * ratio * potionHealMult));
     if (isMercenaryCaptainJob() && player.fieldMerc && player.fieldMerc.mercHp > 0) {
         if (player.hasRegenPotion) {
             player.mercRegenTurns = 2;
-            player.mercRegenAmount = Math.floor(player.fieldMerc.mercMaxHp * 0.22);
+            player.mercRegenAmount = potionHeal(player.fieldMerc.mercMaxHp, 0.22);
             writeLog(`[포션] 🧪 용병에게 서서히 회복! (2턴간 매 적 턴 전 ${player.mercRegenAmount})`);
         } else {
-            const h = Math.floor(player.fieldMerc.mercMaxHp * 0.38);
+            const h = potionHeal(player.fieldMerc.mercMaxHp, 0.38);
             player.fieldMerc.mercHp = Math.min(player.fieldMerc.mercMaxHp, player.fieldMerc.mercHp + h);
             writeLog(`[포션] 🧪 용병 체력 ${h} 회복! (${player.fieldMerc.mercHp}/${player.fieldMerc.mercMaxHp})`);
         }
     } else if (isMercenaryCaptainJob()) {
-        const h = Math.floor(getEffectiveMaxHp() * 0.12);
+        const h = potionHeal(getEffectiveMaxHp(), 0.12);
         player.curHp = Math.min(getEffectiveMaxHp(), player.curHp + h);
         writeLog(`[포션] 🧪 단장 긴급 체력 ${h} (동료 없음·최소 회복)`);
-    } else if(player.hasRegenPotion){regenTurns=2;regenAmount=Math.floor(getEffectiveMaxHp()*0.25);writeLog(`[포션] 🧪 서서히 회복! (2턴간 매 턴 ${regenAmount})`);}
-    else{const h=Math.floor(getEffectiveMaxHp()*0.35);player.curHp=Math.min(getEffectiveMaxHp(),player.curHp+h);writeLog(`[포션] 🧪 즉시 체력 ${h} 회복!`);}
+    } else if(player.hasRegenPotion){regenTurns=2;regenAmount=potionHeal(getEffectiveMaxHp(),0.25);writeLog(`[포션] 🧪 서서히 회복! (2턴간 매 턴 ${regenAmount})`);}
+    else{const h=potionHeal(getEffectiveMaxHp(),0.35);player.curHp=Math.min(getEffectiveMaxHp(),player.curHp+h);writeLog(`[포션] 🧪 즉시 체력 ${h} 회복!`);}
     updateUi(); renderActions();
 };
 
@@ -755,7 +804,7 @@ function enemyTurn() {
             dodgingTurns--;
             if(Math.random()*100<75){
                 writeLog(`[회피 성공] 💨 적의 공격을 피했습니다!`); hitLanded=false;
-                triggerDodgeMove('player'); showMissFloat('player');
+                showMissFloat('player');
                 if(player.relics&&player.relics.includes('dodge_counter')){const cd=Math.max(1,Math.floor(player.atk*0.9)-Math.floor(enemy.def*0.6));enemy.curHp-=cd;writeLog(`[유물] 🗡️ 그림자 반격! ${cd} 피해!`);showDmgFloat(cd,false,false);if(enemy.curHp<=0){setTimeout(()=>winBattle(),100);return;}}
             } else writeLog(`[회피 실패] 피하지 못했습니다!`);
         }
@@ -776,54 +825,81 @@ function enemyTurn() {
                     triggerCritEffect();
                     playCritGoldBurst('player');
                 }
-                if(shieldedTurns>0){dmg=Math.floor(dmg*0.5);shieldedTurns--;writeLog(`[방어막] ✨ 피해 50% 감소! (${dmg} 입음)`); triggerGuardAura(); if(player.relics&&player.relics.includes('barrier_reflect')){const rd=Math.floor(dmg*0.45);enemy.curHp-=rd;const heal=Math.floor(getEffectiveMaxHp()*0.05);player.curHp=Math.min(getEffectiveMaxHp(),player.curHp+heal);writeLog(`[유물] 🔮 마력 방벽: 반사 ${rd}, 회복 ${heal}`);if(enemy.curHp<=0){setTimeout(()=>winBattle(),100);}}}
+                let tacticalNullified = false;
+                if (player.tacticalParryReady) {
+                    player.tacticalParryReady = false;
+                    tacticalNullified = true;
+                    dmg = 0;
+                    writeLog('[전술] 🛡️ 패링 성공 — 이번 피격을 무효화했습니다.');
+                    triggerGuardAura();
+                    showMissFloat('player');
+                } else if (player.tacticalBarrierReady) {
+                    player.tacticalBarrierReady = false;
+                    tacticalNullified = true;
+                    dmg = 0;
+                    writeLog('[전술] ✨ 방어막 발동 — 이번 피격을 완전히 흘렸습니다.');
+                    triggerGuardAura();
+                    showMissFloat('player');
+                } else if(shieldedTurns>0){dmg=Math.floor(dmg*0.5);shieldedTurns--;writeLog(`[방어막] ✨ 피해 50% 감소! (${dmg} 입음)`); triggerGuardAura(); if(player.relics&&player.relics.includes('barrier_reflect')){const rd=Math.floor(dmg*0.45);enemy.curHp-=rd;const heal=Math.floor(getEffectiveMaxHp()*0.05);player.curHp=Math.min(getEffectiveMaxHp(),player.curHp+heal);writeLog(`[유물] 🔮 마력 방벽: 반사 ${rd}, 회복 ${heal}`);if(enemy.curHp<=0){setTimeout(()=>winBattle(),100);}}}
                 else if(defendingTurns>0){dmg=Math.floor(dmg*0.4);defendingTurns--;writeLog(`[철벽 방어] 🛡️ 피해 60% 감소! (${dmg} 입음)`); triggerGuardAura();}
                 else writeLog(`[피격] 적의 공격! ${dmg} 데미지.`);
-                if (player.summon && player.summon.id === 'golem') {
-                    dmg = Math.max(1, Math.floor(dmg * 0.90));
-                    writeLog(`[소환] 🪨 골렘이 피해를 줄였습니다! (${dmg})`);
-                }
-                if (player.prayerVulnerableHits && player.prayerVulnerableHits > 0) {
-                    dmg = Math.max(1, Math.floor(dmg * 2));
-                    player.prayerVulnerableHits = 0;
-                    writeLog('[기도 반동] ⚠️ 기도의 반동으로 이번 피격 피해가 2배가 되었습니다.');
-                }
-                if (isMercenaryCaptainJob() && player.fieldMerc && player.fieldMerc.mercHp > 0) {
-                    player.fieldMerc.mercHp -= dmg;
-                    writeLog(`[어그로] 용병이 맞았다! ${dmg} (용병 ${Math.max(0, player.fieldMerc.mercHp)}/${player.fieldMerc.mercMaxHp})`);
-                    showDmgFloat(dmg, false, true);
-                    if (player.fieldMerc.mercHp <= 0) {
-                        if (player.fieldMerc.mercItems && player.fieldMerc.mercItems.length) {
-                            player.mercInventory = [...player.fieldMerc.mercItems];
-                        }
-                        player.fieldMerc = null;
-                        player.mercCooldownTurns = 3;
-                        player.mercReviveAt90Percent = true;
-                        player._mercCooldownSkipOnce = true;
-                        writeLog(`💀 용병 전멸! 재소환까지 ${player.mercCooldownTurns}턴 (또는 🪙 긴급 재가동)`);
+                if (!tacticalNullified) {
+                    if (player.summon && player.summon.id === 'golem') {
+                        dmg = Math.max(1, Math.floor(dmg * 0.90));
+                        writeLog(`[소환] 🪨 골렘이 피해를 줄였습니다! (${dmg})`);
                     }
-                } else {
-                player.curHp-=dmg; showDmgFloat(dmg,false,true);
-                if (String(enemy.job || '').includes('헌터')) {
-                    if (player.hunterExposeReady) {
-                        const bonusFixed = Math.max(1, Math.floor(getEffectiveMaxHp() * 0.1));
-                        player.curHp = Math.max(0, player.curHp - bonusFixed);
-                        player.hunterExposeReady = false;
-                        player.hunterExposeStacks = 0;
-                        playAssassinStrikeVfx('player');
-                        writeLog(`[헌터] 🎯 약점 공격 발동! 추가 고정 피해 ${bonusFixed}`);
+                    if (player.prayerVulnerableHits && player.prayerVulnerableHits > 0) {
+                        dmg = Math.max(1, Math.floor(dmg * 2));
+                        player.prayerVulnerableHits = 0;
+                        writeLog('[기도 반동] ⚠️ 기도의 반동으로 이번 피격 피해가 2배가 되었습니다.');
+                    }
+                    const gearReduction = typeof getPlayerDamageReduction === 'function'
+                        ? getPlayerDamageReduction()
+                        : 0;
+                    if (gearReduction > 0 && dmg > 0) {
+                        const beforeReduction = dmg;
+                        dmg = Math.max(1, Math.floor(dmg * (1 - gearReduction)));
+                        if (beforeReduction !== dmg) {
+                            writeLog(`[장비] 피해 감소 ${Math.round(gearReduction * 100)}% 적용 (${beforeReduction} → ${dmg})`);
+                        }
+                    }
+                    if (isMercenaryCaptainJob() && player.fieldMerc && player.fieldMerc.mercHp > 0) {
+                        player.fieldMerc.mercHp -= dmg;
+                        writeLog(`[어그로] 용병이 맞았다! ${dmg} (용병 ${Math.max(0, player.fieldMerc.mercHp)}/${player.fieldMerc.mercMaxHp})`);
+                        showDmgFloat(dmg, false, true);
+                        if (player.fieldMerc.mercHp <= 0) {
+                            if (player.fieldMerc.mercItems && player.fieldMerc.mercItems.length) {
+                                player.mercInventory = [...player.fieldMerc.mercItems];
+                            }
+                            player.fieldMerc = null;
+                            player.mercCooldownTurns = 3;
+                            player.mercReviveAt90Percent = true;
+                            player._mercCooldownSkipOnce = true;
+                            writeLog(`💀 용병 전멸! 재소환까지 ${player.mercCooldownTurns}턴 (또는 🪙 긴급 재가동)`);
+                        }
                     } else {
-                        player.hunterExposeStacks = Math.max(0, safeNum(player.hunterExposeStacks, 0)) + 1;
-                        const cur = Math.min(3, player.hunterExposeStacks);
-                        writeLog(`[헌터] 약점을 간파합니다... (${cur}/3)`);
-                        if (player.hunterExposeStacks >= 3) {
-                            player.hunterExposeReady = true;
-                            writeLog('[헌터] 다음 타격은 치명적인 약점 공격으로 강화됩니다!');
+                        player.curHp-=dmg; showDmgFloat(dmg,false,true);
+                        if (String(enemy.job || '').includes('헌터')) {
+                            if (player.hunterExposeReady) {
+                                const bonusFixed = Math.max(1, Math.floor(getEffectiveMaxHp() * 0.1));
+                                player.curHp = Math.max(0, player.curHp - bonusFixed);
+                                player.hunterExposeReady = false;
+                                player.hunterExposeStacks = 0;
+                                playAssassinStrikeVfx('player');
+                                writeLog(`[헌터] 🎯 약점 공격 발동! 추가 고정 피해 ${bonusFixed}`);
+                            } else {
+                                player.hunterExposeStacks = Math.max(0, safeNum(player.hunterExposeStacks, 0)) + 1;
+                                const cur = Math.min(3, player.hunterExposeStacks);
+                                writeLog(`[헌터] 약점을 간파합니다... (${cur}/3)`);
+                                if (player.hunterExposeStacks >= 3) {
+                                    player.hunterExposeReady = true;
+                                    writeLog('[헌터] 다음 타격은 치명적인 약점 공격으로 강화됩니다!');
+                                }
+                            }
                         }
                     }
                 }
-                }
-            } else { writeLog(`[럭키] 적의 공격이 빗나갔습니다!`); triggerDodgeMove('player'); showMissFloat('player'); }
+            } else { writeLog(`[럭키] 적의 공격이 빗나갔습니다!`); showMissFloat('player'); }
         }
         if (isMercenaryCaptainJob() && player.mercCooldownTurns > 0) {
             if (player._mercCooldownSkipOnce) {
@@ -855,9 +931,9 @@ function enemyTurn() {
 function winBattle() {
     setCombatProcessing(false);
     triggerBossWarning(false);
-    let baseGain;
-    if(floor<=10){baseGain=enemy.isBoss?50+floor*5:28+Math.floor(Math.random()*8)+floor*2;}
-    else{baseGain=enemy.isBoss?65+Math.floor(Math.random()*30)+floor*4:14+Math.floor(Math.random()*12)+Math.floor(floor*1.2);}
+    const baseGain = typeof computeFloorGoldReward === 'function'
+        ? computeFloorGoldReward(floor, { isBoss: !!(enemy && enemy.isBoss) })
+        : Math.max(15, 6 + Math.floor(Math.random() * 5) + floor * 3);
     let bonus=0, bonusMsg="";
     const relKey=getAffinityRelKey();
     if(!enemy.isBoss&&relations[relKey]&&relations[relKey].weak===enemy.job){bonus=Math.floor(baseGain*0.3);bonusMsg=` <b style='color:#f1c40f'>(역전 보너스 +${bonus}G!)</b>`;}
@@ -866,6 +942,12 @@ function winBattle() {
     gold+=gain; totalGoldEarned+=gain;
     { const _em = getEffectiveMaxHp(); player.curHp = Math.min(_em, player.curHp + Math.floor(_em * 0.15)); }
     writeLog(`[승리] ${gain}G 획득 및 체력 소량 회복.${bonusMsg}`);
+    if (player.tutorialBattleActive) {
+        player.tutorialBattleActive = false;
+        player.prologueLocked = false;
+        writeLog('[튜토리얼] 첫 전투를 넘겼습니다. 이제 마굴을 오르며 잃어버린 기억을 추적합니다.');
+        if (typeof updatePrologueBattleControls === 'function') updatePrologueBattleControls();
+    }
     const expGain = 8 + Math.floor(floor * 0.85) + (enemy.isBoss ? 28 : 0);
     if (player.metaSlotId && typeof MetaRPG !== 'undefined') {
         const r = MetaRPG.addExpToSlot(player.metaSlotId, expGain);
@@ -877,29 +959,51 @@ function winBattle() {
         }
     }
     processFloorQuestOnVictory();
-    if (floor % 100 === 0 && floor >= 100 && enemy.isBoss) return milestoneCenturyFloor();
-    if (floor > 20 && player.farmingStay) proceedWinBattleFarmContinue();
-    else proceedWinBattleNextFloor();
+    const defeatedBoss = !!(enemy && enemy.isBoss);
+    const continueAfterVictory = () => {
+        if (floor % 100 === 0 && floor >= 100 && defeatedBoss) return milestoneCenturyFloor();
+        if (floor > 20 && player.farmingStay) proceedWinBattleFarmContinue();
+        else proceedWinBattleNextFloor();
+    };
+    if (typeof showVictoryRewardAndAwaitContinue === 'function') {
+        showVictoryRewardAndAwaitContinue(
+            {
+                clearedFloor: floor,
+                goldGain: gain,
+                expGain,
+                defeatedBoss,
+            },
+            continueAfterVictory
+        );
+    } else {
+        continueAfterVictory();
+    }
 }
 
 function dungeonClear() {
     triggerBossWarning(false);
     const sg=Math.floor(totalGoldEarned*0.1), ps=getSavedGold();
+    const clearTitle = typeof getPlayerClassDisplayName === 'function' ? getPlayerClassDisplayName() : player.name;
     localStorage.setItem('saved_gold',ps+sg); exitBattleLayout();
     document.getElementById('battle-area').style.display='none';
-    document.querySelector('.screen').innerHTML=`<div style="text-align:center;padding:40px 20px;"><h2 style="color:#f1c40f;font-size:2em;">🏆 던전 클리어!</h2><p style="color:#e0e0e0;font-size:1.1em;margin:15px 0;"><b style="color:#f1c40f;">${player.name}</b>이(가) 100층을 정복했습니다!</p><p style="color:#2ed573;font-size:0.95em;margin-bottom:5px;">💰 보존 골드: <b>${sg}G</b></p><div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:20px;"><button onclick="startInfiniteMode()" style="background:#9b59b6;color:#fff;padding:14px 24px;font-size:1em;font-weight:700;">♾️ 무한모드 도전</button><button onclick="location.reload()" style="background:#f1c40f;color:#111;padding:14px 24px;font-size:1em;font-weight:700;">🏠 메인으로</button></div></div>`;
-    writeLog(`🏆 ${player.name}이(가) 100층을 클리어했습니다!!!`);
+    document.querySelector('.screen').innerHTML=`<div style="text-align:center;padding:40px 20px;"><h2 style="color:#f1c40f;font-size:2em;">🏆 던전 클리어!</h2><p style="color:#e0e0e0;font-size:1.1em;margin:15px 0;"><b style="color:#f1c40f;">${escapeHtml(clearTitle)}</b>이(가) 100층을 정복했습니다!</p><p style="color:#2ed573;font-size:0.95em;margin-bottom:5px;">💰 보존 골드: <b>${sg}G</b></p><div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:20px;"><button onclick="startInfiniteMode()" style="background:#9b59b6;color:#fff;padding:14px 24px;font-size:1em;font-weight:700;">♾️ 무한모드 도전</button><button onclick="location.reload()" style="background:#f1c40f;color:#111;padding:14px 24px;font-size:1em;font-weight:700;">🏠 메인으로</button></div></div>`;
+    writeLog(`🏆 ${escapeHtml(clearTitle)}이(가) 100층을 클리어했습니다!!!`);
 }
 
 function gameOver() {
     setCombatProcessing(false);
     triggerBossWarning(false);
     window.__deathApplied = false;
-    const sg = Math.floor(totalGoldEarned * 0.1);
+    const carriedGold = Math.max(0, Math.floor(safeNum(gold, 0)));
+    const sg = Math.floor(carriedGold * 0.2);
+    const lostGold = Math.max(0, carriedGold - sg);
     const slotId = player && player.metaSlotId;
     const enName = enemy ? enemy.name : '알 수 없는 적';
     const fl = floor;
-    window.__deathCtx = { sg, slotId, floor: fl, enemyName: enName };
+    const rescuedItems = player && Array.isArray(player.items)
+        ? player.items.filter((it) => it && it.type !== 'merc' && getEquipSlotKind(it))
+        : [];
+    window.__deathCtx = { sg, lostGold, slotId, floor: fl, enemyName: enName, rescuedItemCount: rescuedItems.length };
 
     exitBattleLayout();
     document.getElementById('battle-area').style.display = 'none';
@@ -927,10 +1031,19 @@ window.finalizeGameOverDeath = function finalizeGameOverDeath() {
     window.__deathApplied = true;
     const d = window.__deathCtx || {};
     const sg = d.sg != null ? d.sg : 0;
+    const lostGold = d.lostGold != null ? d.lostGold : Math.max(0, Math.floor(safeNum(gold, 0)) - sg);
     const slotId = d.slotId;
     const fl = d.floor != null ? d.floor : floor;
     const enName = d.enemyName || '알 수 없는 적';
+    let rescuedItemCount = d.rescuedItemCount != null ? d.rescuedItemCount : 0;
     if (typeof MetaRPG !== 'undefined') {
+        if (slotId) {
+            if (typeof MetaRPG.preserveRescueInventory === 'function') {
+                rescuedItemCount = MetaRPG.preserveRescueInventory(slotId, player && player.items);
+            } else if (typeof MetaRPG.clearRunSnapshot === 'function') {
+                MetaRPG.clearRunSnapshot(slotId);
+            }
+        }
         MetaRPG.addSavedGold(sg);
         if (slotId) {
             const qdef = MetaRPG.FLOOR_QUESTS[fl];
@@ -944,8 +1057,21 @@ window.finalizeGameOverDeath = function finalizeGameOverDeath() {
         const ps = getSavedGold();
         localStorage.setItem('saved_gold', ps + sg);
     }
-    writeLog(`💀 ${fl}층에서 ${enName}에게 패배했습니다. 허브로 복귀합니다.`);
-    returnToHubFromRun(false);
+    writeLog(
+        `💀 ${fl}층에서 ${enName}에게 패배했습니다. 구조대가 베이스캠프로 회수했습니다. ` +
+            `장비 ${rescuedItemCount}개 보존, 골드 ${lostGold}G 손실, ${sg}G 회수.`
+    );
+    if (typeof MetaRPG !== 'undefined' && slotId) MetaRPG.setActiveSlot(slotId);
+    player = null;
+    enemy = null;
+    floor = 1;
+    gold = 0;
+    totalGoldEarned = 0;
+    pendingShop = false;
+    exitBattleLayout();
+    document.getElementById('battle-area').style.display = 'none';
+    document.getElementById('shop-area').style.display = 'none';
+    showPreGameScreen();
 };
 
 window.setCombatProcessing = setCombatProcessing;
