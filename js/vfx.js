@@ -224,6 +224,35 @@ function playJobAttackVfx(attackerSide, jobName) {
     return playBerserkerChargeVfx(attackerSide, targetSide);
 }
 
+function inferV35WeaponKind(actor) {
+    const explicit = actor && actor.equipment && actor.equipment.weapon;
+    if (explicit && weaponTable && weaponTable[explicit]) return explicit;
+    const items = Array.isArray(actor && actor.items) ? actor.items : [];
+    const weaponItem = [...items].reverse().find((item) => item && item.type === 'atk');
+    const name = String(weaponItem && weaponItem.name || '');
+    if (/망치|철퇴|해머|너클/i.test(name)) return 'hammer';
+    if (/활|화살|석궁|총/i.test(name)) return 'ranged';
+    if (/지팡이|마도|마력|보주|주문/i.test(name)) return 'staff';
+    if (/낫|사이드/i.test(name)) return 'greatScythe';
+    return 'sword';
+}
+
+function playV35AttackVfx(attackerSide, actor, attackKind) {
+    const targetSide = attackerSide === 'player' ? 'enemy' : 'player';
+    if (attackKind === 'magic_attack') {
+        return playMageBoltVfx(attackerSide, targetSide).then(() => playMagicBurstVfx(targetSide));
+    }
+    const weaponKind = inferV35WeaponKind(actor);
+    if (weaponKind === 'ranged') return playHunterStrikeVfx(attackerSide, targetSide);
+    if (weaponKind === 'staff') return playMageBoltVfx(attackerSide, targetSide);
+    if (weaponKind === 'greatScythe') return playAssassinStrikeVfx(targetSide);
+    if (weaponKind === 'hammer') {
+        triggerScreenShakeHeavy();
+        return playBerserkerChargeVfx(attackerSide, targetSide);
+    }
+    return playBerserkerChargeVfx(attackerSide, targetSide);
+}
+
 function consumeHunterEvasionMissPenalty() {
     if (!enemy || !String(enemy.job || '').includes('헌터')) return 0;
     const turns = safeNum(enemy._hunterEvasionTurns, 0);
@@ -253,4 +282,6 @@ window.playCritGoldBurst = playCritGoldBurst;
 window.playBossStrikeVfx = playBossStrikeVfx;
 window.showMissFloat = showMissFloat;
 window.playJobAttackVfx = playJobAttackVfx;
+window.inferV35WeaponKind = inferV35WeaponKind;
+window.playV35AttackVfx = playV35AttackVfx;
 window.consumeHunterEvasionMissPenalty = consumeHunterEvasionMissPenalty;

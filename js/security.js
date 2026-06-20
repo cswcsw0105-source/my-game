@@ -175,6 +175,8 @@
         'playBossStrikeVfx',
         'showMissFloat',
         'playJobAttackVfx',
+        'inferV35WeaponKind',
+        'playV35AttackVfx',
         'consumeHunterEvasionMissPenalty',
         'renderActions',
         'renderPassiveContractHistoryPanels',

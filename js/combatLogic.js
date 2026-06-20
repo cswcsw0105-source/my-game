@@ -355,6 +355,20 @@ function describeCombatResult(actor, target, result) {
     }
 }
 
+function emitCombatResultVfx(target, result) {
+    if (!result) return;
+    const targetSide = target === player ? 'player' : 'enemy';
+    if (result.reason === 'miss' || result.reason === 'dodged') {
+        showMissFloat(targetSide);
+        if (result.reason === 'dodged') triggerDodgeMove(targetSide);
+        return;
+    }
+    if (result.type === 'attack') {
+        showDmgFloat(Math.max(0, result.damage || 0), false, target === player);
+        if ((result.damage || 0) > 0) triggerShakeEffect();
+    }
+}
+
 function chooseEnemyAction() {
     const learned = chooseLearnedGhostAction(enemy);
     if (learned) return learned;
@@ -388,12 +402,14 @@ async function enemyTurn() {
         writeLog(`[적 행동] ${enemy.name} — ${action === 'defend' ? '방어' : '회피'} 준비`);
     } else {
         enemy._attackMultiplier = enemy._bossChargeReady ? 2.5 : 1;
+        await playV35AttackVfx('enemy', enemy, action);
         const result = action === 'magic_attack'
             ? resolveMagicAttackAction(enemy, player, playerGuardState)
             : resolveAttackAction(enemy, player, playerGuardState);
         enemy._attackMultiplier = 1;
         enemy._bossChargeReady = false;
         describeCombatResult(enemy, player, result);
+        emitCombatResultVfx(player, result);
         playerGuardState = null;
     }
     if (enemy.isBoss) enemy.turnCount = Math.max(1, safeNum(enemy.turnCount, 1)) + 1;
@@ -419,19 +435,24 @@ window.useAction = async function useAction(type) {
     if (type === '공격') {
         const learnedAction = classifyPlayerAttackAction(player);
         recordPlayerBehavior(learnedAction);
+        await playV35AttackVfx('player', player, learnedAction);
         result = learnedAction === 'magic_attack'
             ? resolveMagicAttackAction(player, enemy, enemyGuardState)
             : resolveAttackAction(player, enemy, enemyGuardState);
         enemyGuardState = null;
         describeCombatResult(player, enemy, result);
+        emitCombatResultVfx(enemy, result);
     } else if (type === '힐') {
         recordPlayerBehavior('heal');
+        await playMagicBurstVfx('player');
         result = resolveHealAction(player);
         describeCombatResult(player, player, result);
     } else {
         const mode = type === '회피' ? 'dodge' : 'shield';
         recordPlayerBehavior(mode === 'dodge' ? 'dodge' : 'defend');
         playerGuardState = { mode, turn: combatTurnNumber };
+        if (mode === 'dodge') triggerDodgeMove('player');
+        else triggerGuardAura();
         writeLog(`[플레이어 행동] ${mode === 'dodge' ? '회피' : '방어'} 준비`);
     }
     updateUi();
@@ -487,7 +508,8 @@ function enterNextDungeonStage() {
     if (hasCrossedPointOfNoReturn(player.progress)) MetaRPG.clearRunSnapshot(player.metaSlotId);
     syncPlayerCampaignState();
     writeLog(`[전진] ${formatDungeonPosition(player.progress)} 진입${hasCrossedPointOfNoReturn(player.progress) ? ' · 복귀 불가' : ''}`);
-    if (current.stage === STAGES_PER_FLOOR && typeof openShop === 'function') {
+    if (current.stage % 5 === 0 && typeof openShop === 'function') {
+        enemy = null;
         openShop();
         return;
     }

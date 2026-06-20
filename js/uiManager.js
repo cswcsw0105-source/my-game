@@ -54,6 +54,29 @@ function getSlotClassDisplayName(slot) {
     return getDynamicCharacterTitleForFloor(refFloor, slot);
 }
 
+function syncV35PlayerStatDisplay() {
+    if (!player || !player.stats) return;
+    const stats = normalizeHumanStats(player.stats);
+    const attackElement = document.getElementById('p-atk-val');
+    const defenseElement = document.getElementById('p-def-val');
+    const hpTextElement = document.getElementById('p-hp-t');
+    const statusElement = document.getElementById('p-status');
+    if (attackElement) {
+        attackElement.textContent = String(getEffectiveAttackPower());
+        attackElement.title = `힘 ${stats.str} + 장비 공격 보정`;
+    }
+    if (defenseElement) {
+        defenseElement.textContent = String(getTotalPlayerDefenseForHit());
+        defenseElement.title = `방어 ${stats.def} + 장비 방어 보정`;
+    }
+    if (hpTextElement) hpTextElement.title = `체력 ${stats.hp} · 최대 HP ${getEffectiveMaxHp()}`;
+    if (statusElement) {
+        statusElement.textContent =
+            `힘 ${stats.str} · 방 ${stats.def} · 체 ${stats.hp} · 지 ${stats.int} · 지혜 ${stats.wis} · 민 ${stats.agi}`;
+        statusElement.title = `성혼 ${stats.divinity} · 뒤틀림 ${stats.distortion}`;
+    }
+}
+
 function hasPendingVictoryAdvance() {
     return !!(window._victoryState && window._victoryContinueFn);
 }
@@ -281,6 +304,7 @@ function renderPassiveContractHistoryPanels() {
 
 function updateUi() {
     if (!player) return;
+    syncV35PlayerStatDisplay();
     if (!enemy) {
         const shopEl = document.getElementById('shop-area');
         if (shopEl && shopEl.style.display === 'block') {
@@ -1458,11 +1482,7 @@ function getRelicStoryClueLines(relicKey) {
 }
 
 function writeStoryLines(title, lines) {
-    const arr = Array.isArray(lines) ? lines.filter(Boolean) : [];
-    if (!arr.length) return;
-    const safeTitle = escapeHtml(title || '기억');
-    const body = arr.map((line) => `<span style="display:block;margin-top:3px;">${escapeHtml(line)}</span>`).join('');
-    writeLog(`<span style="color:#9b59b6;font-weight:800;">[${safeTitle}]</span> ${body}`);
+    return;
 }
 
 function markStorySeen(slotId, flag, lines) {
@@ -1486,6 +1506,8 @@ function markStorySeen(slotId, flag, lines) {
 }
 
 function checkStoryMilestone(f) {
+    return false;
+    /* v3.5에서는 레거시 스토리 마일스톤을 사용하지 않는다.
     if (!player || !player.metaSlotId || typeof MetaRPG === 'undefined') return false;
     const floorNum = Math.max(1, Math.floor(safeNum(f, 1)));
     const slot = MetaRPG.getSlotById(player.metaSlotId);
@@ -1513,9 +1535,12 @@ function checkStoryMilestone(f) {
         writeLog(`<span style="color:#f1c40f;font-weight:800;">[타이틀]</span> ${escapeHtml(def.titleOverride)}로 변화.`);
     }
     return true;
+    */
 }
 
 function emitRunStartStory(slot) {
+    return;
+    /* v3.5에서는 레거시 런 시작 스토리를 사용하지 않는다.
     if (!slot) return;
     const race = getRaceStoryDef(slot.raceKey);
     const cls = getClassStoryDef(slot.classKey);
@@ -1528,9 +1553,12 @@ function emitRunStartStory(slot) {
     const raceName = race ? race.name : '기억';
     const className = cls ? cls.name : jobBase[slot.jobKey] ? jobBase[slot.jobKey].name : '모험가';
     writeStoryLines(`${raceName} / ${className}`, lines);
+    */
 }
 
 function emitFloorStory(f) {
+    return;
+    /* v3.5에서는 레거시 층 스토리를 사용하지 않는다.
     if (!player || !player.metaSlotId || typeof MetaRPG === 'undefined') return;
     const slot = MetaRPG.getSlotById(player.metaSlotId);
     if (!slot) return;
@@ -1548,18 +1576,24 @@ function emitFloorStory(f) {
     const globalKey = globalStory ? globalStory.key : 'personal';
     if (!markStorySeen(slot.id, `floor:${f}:${globalKey}:${slot.raceKey || 'none'}:${slot.classKey || slot.jobKey}:${player.name}`, lines)) return;
     writeStoryLines(globalStory ? globalStory.title : `${f}층 기억`, lines);
+    */
 }
 
 function emitPromotionStory(promotionName) {
+    return;
+    /* v3.5에서는 직업 및 전직 스토리를 사용하지 않는다.
     if (!player || !player.metaSlotId || !promotionName) return;
     const promo = getPromotionStoryDef(promotionName);
     const lines = (promo && promo.intro) || [];
     if (!lines.length) return;
     if (!markStorySeen(player.metaSlotId, `promotion:${promotionName}`, lines)) return;
     writeStoryLines(`${promotionName} 각성`, lines);
+    */
 }
 
 function emitRelicStory(it) {
+    return;
+    /* v3.5에서는 레거시 유물 스토리를 사용하지 않는다.
     if (!player || !player.metaSlotId || !it) return;
     const slot = typeof MetaRPG !== 'undefined' ? MetaRPG.getSlotById(player.metaSlotId) : null;
     if (!slot) return;
@@ -1577,9 +1611,12 @@ function emitRelicStory(it) {
     if (!lines.length) return;
     if (!markStorySeen(slot.id, `relic:${relicKey}:${storyBand ? storyBand.key : 'early'}`, lines)) return;
     writeStoryLines('유물 기억', lines);
+    */
 }
 
 function emitFinalBossOpeningStory() {
+    return;
+    /* v3.5에서는 레거시 최종 보스 스토리를 사용하지 않는다.
     if (!player || !player.metaSlotId || typeof MetaRPG === 'undefined') return;
     if (Math.floor(safeNum(floor, 1)) !== 100) return;
     const lines = typeof floorStories !== 'undefined' && Array.isArray(floorStories.finalBossOpening)
@@ -1589,6 +1626,7 @@ function emitFinalBossOpeningStory() {
         writeStoryLines('100층 종착지', lines);
     }
     checkStoryMilestone(100);
+    */
 }
 
 function getIntroMemoryChoiceDef(memoryKey) {
@@ -1808,9 +1846,8 @@ function canCreateCharacterInCurrentFile() {
 function startNewCharacterPrologueFlow() {
     if (typeof MetaRPG === 'undefined') return;
     if (!canCreateCharacterInCurrentFile()) return;
-    ensurePrologueScreen();
-    setMainUiHiddenForPrologue(true);
-    setProloguePhase('memory', { memoryKey: null });
+    closePrologueScreen();
+    confirmNewCharacter(HUMAN_JOB_KEY);
 }
 
 let prologueBattleBridgeActive = false;

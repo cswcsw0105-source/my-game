@@ -10264,7 +10264,6 @@ const RESTORED_ITEM_DATA = Object.freeze({
 if (typeof globalThis !== 'undefined') globalThis.RESTORED_ITEM_DATA = RESTORED_ITEM_DATA;
 if (typeof module !== 'undefined' && module.exports) module.exports = RESTORED_ITEM_DATA;
 
-
 // ===== data.js =====
 'use strict';
 
@@ -10610,18 +10609,47 @@ function normalizeRarityKey(value) {
     return key === 'legend' ? 'legendary' : ['common', 'rare', 'epic', 'legendary'].includes(key) ? key : 'common';
 }
 function computeEquipmentGoldPrice(item, floorRef) {
-    if (item && Number.isFinite(Number(item.price)) && Number(item.price) > 0) return Math.floor(Number(item.price));
+    if (item && Number.isFinite(Number(item.price)) && Number(item.price) > 0) {
+        if (item._v35PriceDiscountApplied) return Math.max(1, Math.floor(Number(item.price)));
+        item._v35PriceDiscountApplied = true;
+        return Math.max(1, Math.floor(Number(item.price) * 0.5));
+    }
     const floorValue = floorRef && typeof floorRef === 'object'
         ? Number(floorRef.shopFloor || floorRef.priceFloor || floorRef.floor || 1)
         : Number(floorRef || 1);
     const base = { common: 40, rare: 110, epic: 360, legendary: 1200 }[normalizeRarityKey(item && item.rarity)] || 40;
-    return Math.max(1, Math.floor(base + Math.max(1, floorValue) * 2));
+    if (item) item._v35PriceDiscountApplied = true;
+    return Math.max(1, Math.floor((base + Math.max(1, floorValue) * 2) * 0.5));
 }
 function computeFloorGoldReward(floorRef, options) {
     const depth = Math.max(1, Number(floorRef) || 1);
-    return Math.max(1, Math.floor((10 + depth * 2) * (options && options.isBoss ? 2.4 : 1)));
+    return Math.max(1, Math.floor((10 + depth * 2) * 3.5 * (options && options.isBoss ? 2.4 : 1)));
 }
 function applyOfficialStatsToEquipmentItem(item) {
+    if (item && !item._v35PowerBuffApplied && item.type !== 'relic' && item.type !== 'potion') {
+        const integerFields = ['value', 'hpBonus', 'def', 'critBonus', 'prayerBonus'];
+        const ratioFields = [
+            'critMult',
+            'lifesteal',
+            'damageReduction',
+            'goldGainBonus',
+            'potionHealBonus',
+            'fleeBonus',
+            'divinityGainBonus',
+        ];
+        integerFields.forEach((field) => {
+            if (Number.isFinite(Number(item[field])) && Number(item[field]) > 0) {
+                item[field] = Math.max(1, Math.round(Number(item[field]) * 1.5));
+            }
+        });
+        ratioFields.forEach((field) => {
+            if (Number.isFinite(Number(item[field])) && Number(item[field]) > 0) {
+                item[field] = Number((Number(item[field]) * 1.5).toFixed(4));
+            }
+        });
+        item._v35PowerBuffApplied = true;
+        rebuildEquipmentDesc(item);
+    }
     if (item && (!Number.isFinite(Number(item.price)) || Number(item.price) <= 0)) {
         item.price = computeEquipmentGoldPrice(item, 1);
     }
@@ -10741,7 +10769,6 @@ if (typeof module !== 'undefined' && module.exports) {
         TURN_RPG_DATA,
     };
 }
-
 
 // ===== rpg_v7.js =====
 'use strict';
@@ -11160,7 +11187,6 @@ if (typeof module !== 'undefined' && module.exports) {
 const MetaRPG = (typeof window !== 'undefined' ? window.MetaRPG : globalThis.MetaRPG);
 const BASE_CAMP_FLOORS = (typeof window !== 'undefined' ? window.BASE_CAMP_FLOORS : globalThis.BASE_CAMP_FLOORS);
 
-
 // ===== js/state.js =====
 // Global runtime state (single source of truth)
 let floor = 1, dungeonStage = 1, gold = 0, player = null, enemy = null;
@@ -11193,7 +11219,6 @@ const DIVINE_BLESSING_THRESHOLD = (typeof BALANCE !== 'undefined' && BALANCE.div
 const DIVINE_BLESSING_DEF_BONUS = (typeof BALANCE !== 'undefined' && BALANCE.divineBlessingDefBonus) || 20;
 const DIVINE_BLESSING_LIFESTEAL_BONUS =
     (typeof BALANCE !== 'undefined' && BALANCE.divineBlessingLifestealBonus) || 0.05;
-
 
 // ===== js/vfx.js =====
 // VFX/animation module (stage 1 split)
@@ -11422,6 +11447,35 @@ function playJobAttackVfx(attackerSide, jobName) {
     return playBerserkerChargeVfx(attackerSide, targetSide);
 }
 
+function inferV35WeaponKind(actor) {
+    const explicit = actor && actor.equipment && actor.equipment.weapon;
+    if (explicit && weaponTable && weaponTable[explicit]) return explicit;
+    const items = Array.isArray(actor && actor.items) ? actor.items : [];
+    const weaponItem = [...items].reverse().find((item) => item && item.type === 'atk');
+    const name = String(weaponItem && weaponItem.name || '');
+    if (/망치|철퇴|해머|너클/i.test(name)) return 'hammer';
+    if (/활|화살|석궁|총/i.test(name)) return 'ranged';
+    if (/지팡이|마도|마력|보주|주문/i.test(name)) return 'staff';
+    if (/낫|사이드/i.test(name)) return 'greatScythe';
+    return 'sword';
+}
+
+function playV35AttackVfx(attackerSide, actor, attackKind) {
+    const targetSide = attackerSide === 'player' ? 'enemy' : 'player';
+    if (attackKind === 'magic_attack') {
+        return playMageBoltVfx(attackerSide, targetSide).then(() => playMagicBurstVfx(targetSide));
+    }
+    const weaponKind = inferV35WeaponKind(actor);
+    if (weaponKind === 'ranged') return playHunterStrikeVfx(attackerSide, targetSide);
+    if (weaponKind === 'staff') return playMageBoltVfx(attackerSide, targetSide);
+    if (weaponKind === 'greatScythe') return playAssassinStrikeVfx(targetSide);
+    if (weaponKind === 'hammer') {
+        triggerScreenShakeHeavy();
+        return playBerserkerChargeVfx(attackerSide, targetSide);
+    }
+    return playBerserkerChargeVfx(attackerSide, targetSide);
+}
+
 function consumeHunterEvasionMissPenalty() {
     if (!enemy || !String(enemy.job || '').includes('헌터')) return 0;
     const turns = safeNum(enemy._hunterEvasionTurns, 0);
@@ -11451,8 +11505,9 @@ window.playCritGoldBurst = playCritGoldBurst;
 window.playBossStrikeVfx = playBossStrikeVfx;
 window.showMissFloat = showMissFloat;
 window.playJobAttackVfx = playJobAttackVfx;
+window.inferV35WeaponKind = inferV35WeaponKind;
+window.playV35AttackVfx = playV35AttackVfx;
 window.consumeHunterEvasionMissPenalty = consumeHunterEvasionMissPenalty;
-
 
 // ===== js/player.js =====
 'use strict';
@@ -11634,7 +11689,6 @@ Object.assign(window, {
     getPlayerFleeBonus,
 });
 
-
 // ===== js/enemy.js =====
 'use strict';
 
@@ -11777,7 +11831,6 @@ Object.assign(window, {
     spawnEnemy,
 });
 
-
 // ===== js/uiManager.js =====
 // UI manager module (stage 1 split)
 const BASE_JOB_TITLE_NAMES = Object.freeze({
@@ -11833,6 +11886,29 @@ function getSlotClassDisplayName(slot) {
     const snapFloor = slot.runSnapshot && slot.runSnapshot.floor ? slot.runSnapshot.floor : null;
     const refFloor = snapFloor || slot.bestFloor || 1;
     return getDynamicCharacterTitleForFloor(refFloor, slot);
+}
+
+function syncV35PlayerStatDisplay() {
+    if (!player || !player.stats) return;
+    const stats = normalizeHumanStats(player.stats);
+    const attackElement = document.getElementById('p-atk-val');
+    const defenseElement = document.getElementById('p-def-val');
+    const hpTextElement = document.getElementById('p-hp-t');
+    const statusElement = document.getElementById('p-status');
+    if (attackElement) {
+        attackElement.textContent = String(getEffectiveAttackPower());
+        attackElement.title = `힘 ${stats.str} + 장비 공격 보정`;
+    }
+    if (defenseElement) {
+        defenseElement.textContent = String(getTotalPlayerDefenseForHit());
+        defenseElement.title = `방어 ${stats.def} + 장비 방어 보정`;
+    }
+    if (hpTextElement) hpTextElement.title = `체력 ${stats.hp} · 최대 HP ${getEffectiveMaxHp()}`;
+    if (statusElement) {
+        statusElement.textContent =
+            `힘 ${stats.str} · 방 ${stats.def} · 체 ${stats.hp} · 지 ${stats.int} · 지혜 ${stats.wis} · 민 ${stats.agi}`;
+        statusElement.title = `성혼 ${stats.divinity} · 뒤틀림 ${stats.distortion}`;
+    }
 }
 
 function hasPendingVictoryAdvance() {
@@ -12062,6 +12138,7 @@ function renderPassiveContractHistoryPanels() {
 
 function updateUi() {
     if (!player) return;
+    syncV35PlayerStatDisplay();
     if (!enemy) {
         const shopEl = document.getElementById('shop-area');
         if (shopEl && shopEl.style.display === 'block') {
@@ -13239,11 +13316,7 @@ function getRelicStoryClueLines(relicKey) {
 }
 
 function writeStoryLines(title, lines) {
-    const arr = Array.isArray(lines) ? lines.filter(Boolean) : [];
-    if (!arr.length) return;
-    const safeTitle = escapeHtml(title || '기억');
-    const body = arr.map((line) => `<span style="display:block;margin-top:3px;">${escapeHtml(line)}</span>`).join('');
-    writeLog(`<span style="color:#9b59b6;font-weight:800;">[${safeTitle}]</span> ${body}`);
+    return;
 }
 
 function markStorySeen(slotId, flag, lines) {
@@ -13267,6 +13340,8 @@ function markStorySeen(slotId, flag, lines) {
 }
 
 function checkStoryMilestone(f) {
+    return false;
+    /* v3.5에서는 레거시 스토리 마일스톤을 사용하지 않는다.
     if (!player || !player.metaSlotId || typeof MetaRPG === 'undefined') return false;
     const floorNum = Math.max(1, Math.floor(safeNum(f, 1)));
     const slot = MetaRPG.getSlotById(player.metaSlotId);
@@ -13294,9 +13369,12 @@ function checkStoryMilestone(f) {
         writeLog(`<span style="color:#f1c40f;font-weight:800;">[타이틀]</span> ${escapeHtml(def.titleOverride)}로 변화.`);
     }
     return true;
+    */
 }
 
 function emitRunStartStory(slot) {
+    return;
+    /* v3.5에서는 레거시 런 시작 스토리를 사용하지 않는다.
     if (!slot) return;
     const race = getRaceStoryDef(slot.raceKey);
     const cls = getClassStoryDef(slot.classKey);
@@ -13309,9 +13387,12 @@ function emitRunStartStory(slot) {
     const raceName = race ? race.name : '기억';
     const className = cls ? cls.name : jobBase[slot.jobKey] ? jobBase[slot.jobKey].name : '모험가';
     writeStoryLines(`${raceName} / ${className}`, lines);
+    */
 }
 
 function emitFloorStory(f) {
+    return;
+    /* v3.5에서는 레거시 층 스토리를 사용하지 않는다.
     if (!player || !player.metaSlotId || typeof MetaRPG === 'undefined') return;
     const slot = MetaRPG.getSlotById(player.metaSlotId);
     if (!slot) return;
@@ -13329,18 +13410,24 @@ function emitFloorStory(f) {
     const globalKey = globalStory ? globalStory.key : 'personal';
     if (!markStorySeen(slot.id, `floor:${f}:${globalKey}:${slot.raceKey || 'none'}:${slot.classKey || slot.jobKey}:${player.name}`, lines)) return;
     writeStoryLines(globalStory ? globalStory.title : `${f}층 기억`, lines);
+    */
 }
 
 function emitPromotionStory(promotionName) {
+    return;
+    /* v3.5에서는 직업 및 전직 스토리를 사용하지 않는다.
     if (!player || !player.metaSlotId || !promotionName) return;
     const promo = getPromotionStoryDef(promotionName);
     const lines = (promo && promo.intro) || [];
     if (!lines.length) return;
     if (!markStorySeen(player.metaSlotId, `promotion:${promotionName}`, lines)) return;
     writeStoryLines(`${promotionName} 각성`, lines);
+    */
 }
 
 function emitRelicStory(it) {
+    return;
+    /* v3.5에서는 레거시 유물 스토리를 사용하지 않는다.
     if (!player || !player.metaSlotId || !it) return;
     const slot = typeof MetaRPG !== 'undefined' ? MetaRPG.getSlotById(player.metaSlotId) : null;
     if (!slot) return;
@@ -13358,9 +13445,12 @@ function emitRelicStory(it) {
     if (!lines.length) return;
     if (!markStorySeen(slot.id, `relic:${relicKey}:${storyBand ? storyBand.key : 'early'}`, lines)) return;
     writeStoryLines('유물 기억', lines);
+    */
 }
 
 function emitFinalBossOpeningStory() {
+    return;
+    /* v3.5에서는 레거시 최종 보스 스토리를 사용하지 않는다.
     if (!player || !player.metaSlotId || typeof MetaRPG === 'undefined') return;
     if (Math.floor(safeNum(floor, 1)) !== 100) return;
     const lines = typeof floorStories !== 'undefined' && Array.isArray(floorStories.finalBossOpening)
@@ -13370,6 +13460,7 @@ function emitFinalBossOpeningStory() {
         writeStoryLines('100층 종착지', lines);
     }
     checkStoryMilestone(100);
+    */
 }
 
 function getIntroMemoryChoiceDef(memoryKey) {
@@ -13589,9 +13680,8 @@ function canCreateCharacterInCurrentFile() {
 function startNewCharacterPrologueFlow() {
     if (typeof MetaRPG === 'undefined') return;
     if (!canCreateCharacterInCurrentFile()) return;
-    ensurePrologueScreen();
-    setMainUiHiddenForPrologue(true);
-    setProloguePhase('memory', { memoryKey: null });
+    closePrologueScreen();
+    confirmNewCharacter(HUMAN_JOB_KEY);
 }
 
 let prologueBattleBridgeActive = false;
@@ -15655,7 +15745,6 @@ window.startInfiniteMode=()=>{
 /** 사망 처리: 보존 골드·퀘스트 페널티 후 허브로 */
 // stage 4 split: moved to js/combatLogic.js
 
-
 // ===== js/encounter.js =====
 'use strict';
 
@@ -15696,7 +15785,6 @@ Object.assign(window, {
     renderRestockCrossroad,
     resolveRestockCrossroad,
 });
-
 
 // ===== js/shop.js =====
 // Shop module (stage 2 split)
@@ -15746,19 +15834,18 @@ window.leaveShopTrainHere = function leaveShopTrainHere() {
 };
 
 window.nextFloor = () => {
-    const crossroadContext = typeof resumeAfterRestockCrossroad !== 'undefined'
-        ? resumeAfterRestockCrossroad
-        : null;
-    resumeAfterRestockCrossroad = null;
-    transitionMainView(() => {
-        document.getElementById('shop-area').style.display='none';
-        document.getElementById('battle-area').style.display='block';
-        if (crossroadContext && typeof resumeRestockCrossroadContext === 'function') {
-            resumeRestockCrossroadContext(crossroadContext, { immediate: true });
-        } else {
-            beginFloorEncounter({ immediate: true });
-        }
-    });
+    const returnToCurrentStage = () => {
+        const shopArea = document.getElementById('shop-area');
+        const battleArea = document.getElementById('battle-area');
+        if (shopArea) shopArea.style.display = 'none';
+        if (battleArea) battleArea.style.display = 'block';
+        pendingShop = false;
+        window._encounterPhaseActive = false;
+        if (typeof hideEncounterPhaseUI === 'function') hideEncounterPhaseUI();
+        if (typeof spawnEnemy === 'function') spawnEnemy();
+    };
+    if (typeof transitionMainView === 'function') transitionMainView(returnToCurrentStage);
+    else returnToCurrentStage();
 };
 
 function getUnlockedPoolItems() {
@@ -15841,7 +15928,9 @@ function applyGoldenBalanceShopPrice(item) {
 function applyShopRarityTuning(baseItem) {
     if (!baseItem) return baseItem;
     if (baseItem.type === 'relic' || baseItem.type === 'potion' || baseItem.type === 'merc_shop_direct' || baseItem.type === 'merc_shop_fund') {
-        return applyGoldenBalanceShopPrice({ ...baseItem });
+        const tuned = { ...baseItem };
+        tuned.price = Math.max(1, Math.floor(safeNum(tuned.price, 1) * 0.5));
+        return tuned;
     }
     if (baseItem.type === 'rune') {
         const tuned = { ...baseItem };
@@ -15978,7 +16067,7 @@ function renderShopItems(keepCurrentStock) {
         list.appendChild(campRow);
     }
     if (!keepCurrentStock) {
-        currentPotionOffer = { name: "치유 포션", type: "potion", value: 80, price: 40, rarity: "common", desc: "최대 체력의 35%를 즉시 회복합니다." };
+        currentPotionOffer = { name: "치유 포션", type: "potion", value: 120, price: 20, rarity: "common", desc: "최대 체력의 35%를 즉시 회복합니다." };
         currentShopItems = [];
     }
     const unlockedItems=getUnlockedPoolItems(), picked=[];
@@ -16238,7 +16327,6 @@ window.formatShopItemName = formatShopItemName;
 window.formatShopItemDesc = formatShopItemDesc;
 window.mercCaptainExclusiveItem = mercCaptainExclusiveItem;
 window.getNonMercEquipmentPool = getNonMercEquipmentPool;
-
 
 // ===== js/combatLogic.js =====
 'use strict';
@@ -16598,6 +16686,20 @@ function describeCombatResult(actor, target, result) {
     }
 }
 
+function emitCombatResultVfx(target, result) {
+    if (!result) return;
+    const targetSide = target === player ? 'player' : 'enemy';
+    if (result.reason === 'miss' || result.reason === 'dodged') {
+        showMissFloat(targetSide);
+        if (result.reason === 'dodged') triggerDodgeMove(targetSide);
+        return;
+    }
+    if (result.type === 'attack') {
+        showDmgFloat(Math.max(0, result.damage || 0), false, target === player);
+        if ((result.damage || 0) > 0) triggerShakeEffect();
+    }
+}
+
 function chooseEnemyAction() {
     const learned = chooseLearnedGhostAction(enemy);
     if (learned) return learned;
@@ -16631,12 +16733,14 @@ async function enemyTurn() {
         writeLog(`[적 행동] ${enemy.name} — ${action === 'defend' ? '방어' : '회피'} 준비`);
     } else {
         enemy._attackMultiplier = enemy._bossChargeReady ? 2.5 : 1;
+        await playV35AttackVfx('enemy', enemy, action);
         const result = action === 'magic_attack'
             ? resolveMagicAttackAction(enemy, player, playerGuardState)
             : resolveAttackAction(enemy, player, playerGuardState);
         enemy._attackMultiplier = 1;
         enemy._bossChargeReady = false;
         describeCombatResult(enemy, player, result);
+        emitCombatResultVfx(player, result);
         playerGuardState = null;
     }
     if (enemy.isBoss) enemy.turnCount = Math.max(1, safeNum(enemy.turnCount, 1)) + 1;
@@ -16662,19 +16766,24 @@ window.useAction = async function useAction(type) {
     if (type === '공격') {
         const learnedAction = classifyPlayerAttackAction(player);
         recordPlayerBehavior(learnedAction);
+        await playV35AttackVfx('player', player, learnedAction);
         result = learnedAction === 'magic_attack'
             ? resolveMagicAttackAction(player, enemy, enemyGuardState)
             : resolveAttackAction(player, enemy, enemyGuardState);
         enemyGuardState = null;
         describeCombatResult(player, enemy, result);
+        emitCombatResultVfx(enemy, result);
     } else if (type === '힐') {
         recordPlayerBehavior('heal');
+        await playMagicBurstVfx('player');
         result = resolveHealAction(player);
         describeCombatResult(player, player, result);
     } else {
         const mode = type === '회피' ? 'dodge' : 'shield';
         recordPlayerBehavior(mode === 'dodge' ? 'dodge' : 'defend');
         playerGuardState = { mode, turn: combatTurnNumber };
+        if (mode === 'dodge') triggerDodgeMove('player');
+        else triggerGuardAura();
         writeLog(`[플레이어 행동] ${mode === 'dodge' ? '회피' : '방어'} 준비`);
     }
     updateUi();
@@ -16730,7 +16839,8 @@ function enterNextDungeonStage() {
     if (hasCrossedPointOfNoReturn(player.progress)) MetaRPG.clearRunSnapshot(player.metaSlotId);
     syncPlayerCampaignState();
     writeLog(`[전진] ${formatDungeonPosition(player.progress)} 진입${hasCrossedPointOfNoReturn(player.progress) ? ' · 복귀 불가' : ''}`);
-    if (current.stage === STAGES_PER_FLOOR && typeof openShop === 'function') {
+    if (current.stage % 5 === 0 && typeof openShop === 'function') {
+        enemy = null;
         openShop();
         return;
     }
@@ -17008,7 +17118,6 @@ Object.assign(window, {
     applySummonDarkTurnStart,
 });
 
-
 // ===== js/bootstrapCore.js =====
 // Bootstrap shell (post-migration)
 (function bootstrapShellInit() {
@@ -17020,14 +17129,12 @@ window.addEventListener('load', () => {
     // All runtime logic is loaded from domain modules.
 });
 
-
 // ===== game.js =====
 // Thin controller entrypoint after modular split.
 // Core runtime lives in js/bootstrapCore.js and feature modules.
 (function gameControllerInit() {
     window.__gameControllerReady = true;
 })();
-
 
 // ===== js/security.js =====
 // Browser hardening layer. Loaded last inside bundle.js.
@@ -17207,6 +17314,8 @@ window.addEventListener('load', () => {
         'playBossStrikeVfx',
         'showMissFloat',
         'playJobAttackVfx',
+        'inferV35WeaponKind',
+        'playV35AttackVfx',
         'consumeHunterEvasionMissPenalty',
         'renderActions',
         'renderPassiveContractHistoryPanels',

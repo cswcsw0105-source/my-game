@@ -342,18 +342,47 @@ function normalizeRarityKey(value) {
     return key === 'legend' ? 'legendary' : ['common', 'rare', 'epic', 'legendary'].includes(key) ? key : 'common';
 }
 function computeEquipmentGoldPrice(item, floorRef) {
-    if (item && Number.isFinite(Number(item.price)) && Number(item.price) > 0) return Math.floor(Number(item.price));
+    if (item && Number.isFinite(Number(item.price)) && Number(item.price) > 0) {
+        if (item._v35PriceDiscountApplied) return Math.max(1, Math.floor(Number(item.price)));
+        item._v35PriceDiscountApplied = true;
+        return Math.max(1, Math.floor(Number(item.price) * 0.5));
+    }
     const floorValue = floorRef && typeof floorRef === 'object'
         ? Number(floorRef.shopFloor || floorRef.priceFloor || floorRef.floor || 1)
         : Number(floorRef || 1);
     const base = { common: 40, rare: 110, epic: 360, legendary: 1200 }[normalizeRarityKey(item && item.rarity)] || 40;
-    return Math.max(1, Math.floor(base + Math.max(1, floorValue) * 2));
+    if (item) item._v35PriceDiscountApplied = true;
+    return Math.max(1, Math.floor((base + Math.max(1, floorValue) * 2) * 0.5));
 }
 function computeFloorGoldReward(floorRef, options) {
     const depth = Math.max(1, Number(floorRef) || 1);
-    return Math.max(1, Math.floor((10 + depth * 2) * (options && options.isBoss ? 2.4 : 1)));
+    return Math.max(1, Math.floor((10 + depth * 2) * 3.5 * (options && options.isBoss ? 2.4 : 1)));
 }
 function applyOfficialStatsToEquipmentItem(item) {
+    if (item && !item._v35PowerBuffApplied && item.type !== 'relic' && item.type !== 'potion') {
+        const integerFields = ['value', 'hpBonus', 'def', 'critBonus', 'prayerBonus'];
+        const ratioFields = [
+            'critMult',
+            'lifesteal',
+            'damageReduction',
+            'goldGainBonus',
+            'potionHealBonus',
+            'fleeBonus',
+            'divinityGainBonus',
+        ];
+        integerFields.forEach((field) => {
+            if (Number.isFinite(Number(item[field])) && Number(item[field]) > 0) {
+                item[field] = Math.max(1, Math.round(Number(item[field]) * 1.5));
+            }
+        });
+        ratioFields.forEach((field) => {
+            if (Number.isFinite(Number(item[field])) && Number(item[field]) > 0) {
+                item[field] = Number((Number(item[field]) * 1.5).toFixed(4));
+            }
+        });
+        item._v35PowerBuffApplied = true;
+        rebuildEquipmentDesc(item);
+    }
     if (item && (!Number.isFinite(Number(item.price)) || Number(item.price) <= 0)) {
         item.price = computeEquipmentGoldPrice(item, 1);
     }

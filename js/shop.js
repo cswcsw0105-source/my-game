@@ -45,19 +45,18 @@ window.leaveShopTrainHere = function leaveShopTrainHere() {
 };
 
 window.nextFloor = () => {
-    const crossroadContext = typeof resumeAfterRestockCrossroad !== 'undefined'
-        ? resumeAfterRestockCrossroad
-        : null;
-    resumeAfterRestockCrossroad = null;
-    transitionMainView(() => {
-        document.getElementById('shop-area').style.display='none';
-        document.getElementById('battle-area').style.display='block';
-        if (crossroadContext && typeof resumeRestockCrossroadContext === 'function') {
-            resumeRestockCrossroadContext(crossroadContext, { immediate: true });
-        } else {
-            beginFloorEncounter({ immediate: true });
-        }
-    });
+    const returnToCurrentStage = () => {
+        const shopArea = document.getElementById('shop-area');
+        const battleArea = document.getElementById('battle-area');
+        if (shopArea) shopArea.style.display = 'none';
+        if (battleArea) battleArea.style.display = 'block';
+        pendingShop = false;
+        window._encounterPhaseActive = false;
+        if (typeof hideEncounterPhaseUI === 'function') hideEncounterPhaseUI();
+        if (typeof spawnEnemy === 'function') spawnEnemy();
+    };
+    if (typeof transitionMainView === 'function') transitionMainView(returnToCurrentStage);
+    else returnToCurrentStage();
 };
 
 function getUnlockedPoolItems() {
@@ -140,7 +139,9 @@ function applyGoldenBalanceShopPrice(item) {
 function applyShopRarityTuning(baseItem) {
     if (!baseItem) return baseItem;
     if (baseItem.type === 'relic' || baseItem.type === 'potion' || baseItem.type === 'merc_shop_direct' || baseItem.type === 'merc_shop_fund') {
-        return applyGoldenBalanceShopPrice({ ...baseItem });
+        const tuned = { ...baseItem };
+        tuned.price = Math.max(1, Math.floor(safeNum(tuned.price, 1) * 0.5));
+        return tuned;
     }
     if (baseItem.type === 'rune') {
         const tuned = { ...baseItem };
@@ -277,7 +278,7 @@ function renderShopItems(keepCurrentStock) {
         list.appendChild(campRow);
     }
     if (!keepCurrentStock) {
-        currentPotionOffer = { name: "치유 포션", type: "potion", value: 80, price: 40, rarity: "common", desc: "최대 체력의 35%를 즉시 회복합니다." };
+        currentPotionOffer = { name: "치유 포션", type: "potion", value: 120, price: 20, rarity: "common", desc: "최대 체력의 35%를 즉시 회복합니다." };
         currentShopItems = [];
     }
     const unlockedItems=getUnlockedPoolItems(), picked=[];
