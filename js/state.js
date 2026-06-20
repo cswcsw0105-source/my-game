@@ -1,5 +1,5 @@
 // Global runtime state (single source of truth)
-let floor = 1, gold = 0, player = null, enemy = null;
+let floor = 1, dungeonStage = 1, gold = 0, player = null, enemy = null;
 let playerState = typeof createDefaultPlayerState === 'function'
     ? createDefaultPlayerState()
     : { corruption: 0, purification: 0 };
@@ -11,7 +11,7 @@ let currentPotionOffer = null;
 let lastEnemyJob = "";
 let rerollCost = 10;
 let currentUser = null;
-const RANK_BASE_JOBS = ['워리어', '헌터', '마법사', '용병단장'];
+const RANK_BASE_JOBS = ['인간 모험가'];
 let rankRealtimeUnsubs = [];
 let rankRealtimeCache = {};
 window._combatLogHistory = [];

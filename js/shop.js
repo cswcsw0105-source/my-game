@@ -61,16 +61,12 @@ window.nextFloor = () => {
 };
 
 function getUnlockedPoolItems() {
-    const bj=player.baseJob, result=[];
-    getUnlockedFloors(null).forEach(f=>{if(f%10===0&&floorUnlocks[f])result.push(floorUnlocks[f]);});
-    getUnlockedFloors(bj).forEach(f=>{
-        if(f%5===0&&f%10!==0){
-            if(bj==='워리어'&&floorUnlocks[f])result.push(floorUnlocks[f]);
-            else if(bj==='헌터'&&floorUnlocksHunter[f])result.push(floorUnlocksHunter[f]);
-            else if(bj==='마법사'&&floorUnlocksWizard[f])result.push(floorUnlocksWizard[f]);
-        }
-    });
-    return result;
+    const currentFloor = Math.max(1, Number(floor) || 1);
+    return [floorUnlocks, floorUnlocksHunter, floorUnlocksWizard]
+        .flatMap((table) => Object.entries(table || {}))
+        .filter(([unlockFloor]) => Number(unlockFloor) <= currentFloor)
+        .map(([, item]) => item)
+        .filter(Boolean);
 }
 
 function getItemsByRarity() {
@@ -111,21 +107,7 @@ function mercCaptainExclusiveItem(it) {
 
 /** 일반 상점용: 용병 계약 + 단장 전용 장비 제외 */
 function getNonMercEquipmentPool() {
-    return equipmentPool.filter((i) => {
-        if (!i || i.type === 'merc') return false;
-        if (mercCaptainExclusiveItem(i)) return false;
-        // 전직 전용 아이템 해금 시스템(기본 직업 플레이로 해금)
-        if (i.onlyFor && Array.isArray(i.onlyFor) && i.onlyFor.length === 1) {
-            const evo = i.onlyFor[0];
-            if (isEvolutionJobName(evo)) {
-                // 전직 직업으로 플레이할 때만, '해금 완료(3개)' 후에, 해금된 이름만 등장
-                if (!player || player.name !== evo) return false;
-                if (!isEvolutionItemSetUnlocked(evo)) return false;
-                if (!isEvolutionItemNameUnlocked(evo, i.name)) return false;
-            }
-        }
-        return true;
-    });
+    return equipmentPool.filter((item) => item && item.type !== 'merc');
 }
 
 function getShopRarityChances() {
@@ -181,7 +163,7 @@ function applyShopRarityTuning(baseItem) {
 }
 
 function isShopEquipmentForDedupe(it) {
-    return !!it && ['atk', 'hp', 'ring', 'rune'].includes(String(it.type || ''));
+    return !!it && ['atk', 'hp', 'ring', 'rune', 'util'].includes(String(it.type || ''));
 }
 
 function getShopSynergyFingerprint(it) {
@@ -332,11 +314,7 @@ function renderShopItems(keepCurrentStock) {
         }
     } else if (!keepCurrentStock) {
         if (floor >= 20 && Math.random() < 0.25 && player.relics) {
-            const ar = relicPool.filter((r) => {
-                if (player.relics.includes(r.effect)) return false;
-                if (!r.onlyFor) return true;
-                return r.onlyFor.some((j) => j === player.name || j === player.baseJob);
-            });
+            const ar = relicPool.filter((r) => !player.relics.includes(r.effect));
             if (ar.length > 0) {
                 const relic = ar[Math.floor(Math.random() * ar.length)];
                 tryPushDistinctShopItem(picked, { ...relic, type: 'relic', value: 0 }, { stock: currentShopItems, allowOwned: true });
@@ -351,10 +329,6 @@ function renderShopItems(keepCurrentStock) {
             const pool = getItemsByRarity();
             if (!pool.length) continue;
             const item = pool[Math.floor(Math.random() * pool.length)];
-            if (item.onlyFor) {
-                const allowed = Array.isArray(item.onlyFor) ? item.onlyFor : [item.onlyFor];
-                if (!allowed.includes(player.name) && !allowed.includes(player.baseJob)) continue;
-            }
             tryPushDistinctShopItem(picked, item, { stock: currentShopItems });
         }
         /** 풀에 생성 장비가 매우 많아 랜덤만으로는 룬이 거의 안 나옴 → 매 상점에 룬 1칸 확정 */

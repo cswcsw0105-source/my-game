@@ -1,1096 +1,766 @@
-// Combat core module (stage 4 split)
+'use strict';
+
+/*
+ * v3.5 순수 턴제 전투/진행 엔진.
+ * 플레이어와 적은 각자 한 턴에 공격/방어/힐 중 하나만 수행한다.
+ */
+
+let combatTurnNumber = 1;
+let playerTurnSpent = false;
+let playerGuardState = null;
+let enemyGuardState = null;
+const BEHAVIOR_ACTIONS = Object.freeze(['physical_attack', 'magic_attack', 'defend', 'dodge', 'heal']);
+const ARCHETYPE_ADVANTAGE = Object.freeze({ warrior: 'hunter', hunter: 'mage', mage: 'warrior' });
+
+function isMercenaryCaptainJob() { return false; }
+function getAffinityRelKey() { return '인간 모험가'; }
+function getMercGoldSkipCost() { return Infinity; }
+function getMercEffectiveAttackPower() { return 0; }
+function getMercBonusAcc() { return 0; }
+function getMercEffectiveCritForMercAttack() { return 0; }
+function getMercEffectiveCritMultForMercAttack() { return 1; }
+function getFieldMercAttackMult() { return 0; }
+function buildFieldMercFromTemplate() { return null; }
+function getMercGachaCost() { return Infinity; }
+function tryMercenaryRandomEvent() { return false; }
+function queueEnemyTurnWithPacing() { return enemyTurn(); }
+function triggerBossWarning() {}
+function applySummonDarkTurnStart() { return false; }
+
 function setCombatProcessing(flag) {
     isProcessing = !!flag;
     updateCombatButtonsLockState();
 }
+
 function updateCombatButtonsLockState() {
-    const div = document.getElementById('action-btns');
-    if (!div) return;
-    const buttons = div.querySelectorAll('button');
-    buttons.forEach((btn) => {
-        btn.classList.toggle('combat-btn-processing', !!isProcessing);
-        if (isProcessing) btn.setAttribute('aria-disabled', 'true');
-        else btn.removeAttribute('aria-disabled');
+    const host = document.getElementById('action-btns');
+    if (!host) return;
+    host.querySelectorAll('button').forEach((button) => {
+        button.disabled = !!isProcessing || button.disabled;
+        button.classList.toggle('combat-btn-processing', !!isProcessing);
     });
 }
-function queueEnemyTurnWithPacing() {
-    const delay = 1000 + Math.floor(Math.random() * 401);
-    setCombatProcessing(true);
-    window._enemyThinkingHint = '타락한 선구자가 당신의 빈틈을 노립니다...';
-    writeLog(`[긴장] ${window._enemyThinkingHint}`);
-    updateUi();
-    setTimeout(() => {
-        window._enemyThinkingHint = '';
-        enemyTurn();
-    }, delay);
-}
-function triggerBossWarning(on) {
-    const s = document.querySelector('.screen');
-    if (s) {
-        if (on) {
-            s.classList.add('boss-warning');
-            s.classList.add('boss-warning-glow');
-        } else {
-            s.classList.remove('boss-warning');
-            s.classList.remove('boss-warning-glow');
-        }
-    }
-}
+
 function waitMs(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function isMercenaryCaptainJob() {
-    return player && player.baseJob === '용병단장';
+function probabilityRoll(chance, random) {
+    const capped = capProbability(chance);
+    const rng = typeof random === 'function' ? random : Math.random;
+    const roll = rng();
+    return { success: roll < capped, chance: capped, roll };
 }
 
-/** 상성 계산용 키: 용병단장 + 필드 용병 있으면 용병 직업(카멜레온) */
-function getAffinityRelKey() {
-    if (!player) return '';
-    if (isMercenaryCaptainJob() && player.fieldMerc && player.fieldMerc.mercHp > 0) {
-        return player.fieldMerc.mercAffinityJob || player.fieldMerc.mercJob || '워리어';
-    }
-    if (relations[player.name]) return player.name;
-    return player.baseJob;
+function getActorStats(actor) {
+    if (actor === player) ensureHumanRuntimeShape(actor);
+    return normalizeHumanStats(actor && actor.stats || {});
 }
 
-function getMercGoldSkipCost() {
-    return 28 + floor * 6;
+function getEquippedWeapon(actor) {
+    const key = actor && actor.equipment && actor.equipment.weapon;
+    return weaponTable[key] || null;
 }
 
-/** 동료 용병 상성 키(전직 시 pathJob) */
-function getMercAffinityJobForField() {
-    const kind = player.mercCompanionKind;
-    if (!kind || !mercCompanionBases[kind]) return '워리어';
-    const ev = player.mercEvolution;
-    if (ev && ev.pathJob) return ev.pathJob;
-    return mercCompanionBases[kind].affinityJob;
+function getEquippedArmor(actor) {
+    const key = actor && actor.equipment && actor.equipment.armor;
+    return armorTable[key] || null;
 }
 
-/** 가챠·장비 필터: 동료 삼각 직업(+전직 계열) */
-function getMercEquipmentJobKeys() {
-    const kind = player.mercCompanionKind;
-    if (!kind) return [];
-    if (kind === '워리어') return ['워리어', '나이트', '버서커'];
-    if (kind === '헌터') return ['헌터', '궁수', '암살자'];
-    if (kind === '마법사') return ['마법사', '위저드', '소환사', '성직자'];
-    return [];
+function getActorEquipmentItems(actor) {
+    return Array.isArray(actor && actor.items) ? actor.items.filter(Boolean) : [];
 }
 
-function recalcMercGearTotals(fm) {
-    if (!fm) return;
-    let atk = 0,
-        hp = 0,
-        def = 0,
-        crit = 0,
-        critMult = 0,
-        ls = 0;
-    for (const it of fm.mercItems || []) {
-        if (!it) continue;
-        if (it.type === 'atk' || it.type === 'ring') atk += safeNum(it.value, 0);
-        if (it.type === 'hp') hp += safeNum(it.value, 0);
-        if (it.def) def += safeNum(it.def, 0);
-        if (it.critBonus) crit += safeNum(it.critBonus, 0);
-        if (it.critMult) critMult += safeNum(it.critMult, 0);
-        if (it.lifesteal) ls += safeNum(it.lifesteal, 0);
-    }
-    fm.mercBonusAtk = atk;
-    fm.mercBonusHp = hp;
-    fm.mercBonusAcc = 0;
-    fm.mercBonusDef = def;
-    fm.mercBonusCrit = crit;
-    fm.mercBonusCritMult = critMult;
-    fm.mercBonusLifesteal = ls;
+function getActorCombatArchetype(actor) {
+    const items = getActorEquipmentItems(actor);
+    const weapon = getEquippedWeapon(actor);
+    const text = items.map((item) => `${item.name || ''} ${(item.tags || []).join(' ')}`).join(' ');
+    if (
+        (actor && Array.isArray(actor.magic) && actor.magic.length) ||
+        (weapon && weapon.magicFocus) ||
+        /지팡이|마법|마력|마도|룬|보주|주문|arcane/i.test(text)
+    ) return 'mage';
+    if (/활|화살|석궁|총|단검|사냥|정찰|precision|wind/i.test(text)) return 'hunter';
+    return 'warrior';
 }
 
-function getMercFloorBaseAtk() {
-    const kind = player.mercCompanionKind || '워리어';
-    const base = mercCompanionBases[kind] || mercCompanionBases['워리어'];
-    const ev = player.mercEvolution;
-    let f = 12 + floor * 3.15;
-    if (ev && ev.dmgMult) f *= ev.dmgMult;
-    f *= 0.82 + base.dmgCoeff * 0.38;
-    return Math.max(6, Math.floor(f));
+function getAffinityState(attackerArchetype, defenderArchetype) {
+    if (!attackerArchetype || !defenderArchetype || attackerArchetype === defenderArchetype) return 'neutral';
+    if (ARCHETYPE_ADVANTAGE[attackerArchetype] === defenderArchetype) return 'advantage';
+    if (ARCHETYPE_ADVANTAGE[defenderArchetype] === attackerArchetype) return 'disadvantage';
+    return 'neutral';
 }
 
-function getMercEffectiveAttackPower() {
-    const atkBase = getMercFloorBaseAtk();
-    const fm = player.fieldMerc;
-    if (!fm) return Math.max(1, atkBase);
-    const gear = safeNum(fm.mercBonusAtk, 0);
-    const cmd = Math.floor((safeNum(player.atk, 0) + safeNum(player.extraAtk, 0)) * 0.2);
-    return Math.max(1, atkBase + gear + cmd);
+function getHpBucket(actor) {
+    const ratio = actorMaxHp(actor) > 0 ? getCurrentHp(actor) / actorMaxHp(actor) : 0;
+    if (ratio <= 0.25) return '0-25';
+    if (ratio <= 0.5) return '26-50';
+    if (ratio <= 0.75) return '51-75';
+    return '76-100';
 }
 
-function getMercBonusAcc() {
-    return player.fieldMerc ? safeNum(player.fieldMerc.mercBonusAcc, 0) : 0;
+function isBehaviorLearningZone(progress) {
+    const current = normalizeDungeonProgress(progress);
+    return current.floor >= 6 && current.floor <= 10;
 }
 
-function getMercEffectiveCritForMercAttack() {
-    const fm = player.fieldMerc;
-    if (!fm) return Math.min(CRIT_SOFT_CAP, getRawCritChance(0));
-    const bonus = safeNum(fm.mercBonusCrit, 0);
-    return Math.min(CRIT_SOFT_CAP, getRawCritChance(bonus));
+function hasMagicAttackCapability(actor) {
+    if (actor && Array.isArray(actor.magic) && actor.magic.length > 0) return true;
+    if (getEquippedWeapon(actor) && getEquippedWeapon(actor).magicFocus) return true;
+    return getActorCombatArchetype(actor) === 'mage';
 }
 
-function getMercEffectiveCritMultForMercAttack() {
-    const fm = player.fieldMerc;
-    const bonusCrit = fm ? safeNum(fm.mercBonusCrit, 0) : 0;
-    const bonusMult = fm ? safeNum(fm.mercBonusCritMult, 0) * 0.85 : 0;
-    return clampCritMultiplier(getCritBaseMultBeforeOverflow(bonusMult) + getCritOverflowMultBonus(bonusCrit));
+function classifyPlayerAttackAction(actor) {
+    return hasMagicAttackCapability(actor) ? 'magic_attack' : 'physical_attack';
 }
 
-/** 층·동료·전직 기반 배율 — 실제 ATK는 getMercEffectiveAttackPower */
-function computeMercDamageCoeff() {
-    const kind = player.mercCompanionKind;
-    if (!kind || !mercCompanionBases[kind]) return 0.72;
-    const base = mercCompanionBases[kind];
-    const ev = player.mercEvolution;
-    const floorScale = 1 + Math.min(MERC_FLOOR_SCALE_CAP - 1, floor * 0.065);
-    let c = 0.42 + base.dmgCoeff * 0.28;
-    c *= floorScale;
-    if (ev && ev.dmgMult) c *= ev.dmgMult;
-    return Math.min(1.32, c * MERC_DMG_GLOBAL_SCALE * 0.42);
-}
-
-function getFieldMercAttackMult() {
-    if (!player || !player.fieldMerc || player.fieldMerc.mercHp <= 0) return 0;
-    return computeMercDamageCoeff();
-}
-
-/** 시작 동료 / 전직 반영 필드 용병 생성 — mercItems·mercInventory 연동 */
-function buildFieldMercFromTemplate() {
-    const kind = player.mercCompanionKind || '워리어';
-    const base = mercCompanionBases[kind] || mercCompanionBases['워리어'];
-    const ev = player.mercEvolution;
-    const floorScale = 1 + Math.min(MERC_FLOOR_SCALE_CAP - 1, floor * 0.088);
-    let hpMult = base.hpCoeff * floorScale;
-    if (ev && ev.hpMult) hpMult *= ev.hpMult;
-    const baseHp = 62 + floor * 8.2;
-    let items = [];
-    if (player.fieldMerc && player.fieldMerc.mercItems && player.fieldMerc.mercItems.length) {
-        items = [...player.fieldMerc.mercItems];
-    } else if (player.mercInventory && player.mercInventory.length) {
-        items = [...player.mercInventory];
-    }
-    const evoName = ev ? ev.name : '';
-    const label = base.label + (evoName ? ` · ${evoName}` : '');
-    const fm = {
-        sourceName: label,
-        mercJob: base.affinityJob,
-        mercAffinityJob: getMercAffinityJobForField(),
-        mercCompanionKind: kind,
-        mercItems: items,
-    };
-    recalcMercGearTotals(fm);
-    const hpGear = safeNum(fm.mercBonusHp, 0);
-    const mercMaxHp = Math.max(38, Math.floor(baseHp * hpMult + safeNum(player.maxHp, 100) * 0.2) + hpGear);
-    const prevRatio =
-        player.fieldMerc && player.fieldMerc.mercMaxHp > 0 ? player.fieldMerc.mercHp / player.fieldMerc.mercMaxHp : 1;
-    fm.mercMaxHp = mercMaxHp;
-    fm.mercHp = Math.max(1, Math.floor(mercMaxHp * Math.min(1, prevRatio)));
-    player.mercInventory = [...(fm.mercItems || [])];
-    return fm;
-}
-
-function getMercGachaCost() {
-    return 18 + floor * 4;
-}
-
-/** 초반 악성 이벤트 50% → 층·전투 턴 경과에 따라 감소 (최소 ~5%) */
-function getMercGachaBadChance() {
-    const f = Math.max(0, floor - 1);
-    const t = safeNum(player.mercBattleTurnCount, 0);
-    const reduction = Math.min(0.45, f * 0.018 + t * 0.004);
-    return Math.max(0.05, 0.5 - reduction);
-}
-
-function getMercGachaCandidatePool() {
-    const keys = new Set(getMercEquipmentJobKeys());
-    return equipmentPool.filter((it) => {
-        if (!it || it.type === 'merc' || it.type === 'rune') return false;
-        if (!it.onlyFor || !Array.isArray(it.onlyFor) || it.onlyFor.length === 0) return true;
-        return it.onlyFor.some((j) => keys.has(j));
+function recordPlayerBehavior(action) {
+    if (!player || !enemy || !BEHAVIOR_ACTIONS.includes(action)) return;
+    const progress = normalizeDungeonProgress({ floor, stage: dungeonStage });
+    if (!isBehaviorLearningZone(progress)) return;
+    player.behaviorLogger = Array.isArray(player.behaviorLogger) ? player.behaviorLogger : [];
+    const hpRatio = actorMaxHp(player) > 0 ? getCurrentHp(player) / actorMaxHp(player) : 0;
+    const playerArchetype = getActorCombatArchetype(player);
+    const enemyArchetype = enemy.archetype || getActorCombatArchetype(enemy);
+    player.behaviorLogger.push({
+        floor: progress.floor,
+        stage: progress.stage,
+        turn: combatTurnNumber,
+        hpRatio,
+        hpBucket: getHpBucket(player),
+        enemyArchetype,
+        enemyElement: enemy.element || 'neutral',
+        enemyTraits: Array.isArray(enemy.traitTags) ? enemy.traitTags.slice() : [],
+        affinity: getAffinityState(playerArchetype, enemyArchetype),
+        playerArchetype,
+        action,
     });
 }
 
-function getMercExcludedItemNames() {
-    const s = new Set();
-    (player.fieldMerc && player.fieldMerc.mercItems ? player.fieldMerc.mercItems : []).forEach((i) => {
-        if (i && i.name) s.add(i.name);
-    });
-    (player.mercInventory || []).forEach((i) => {
-        if (i && i.name) s.add(i.name);
-    });
-    return s;
+function createActionCounter() {
+    return Object.fromEntries(BEHAVIOR_ACTIONS.map((action) => [action, 0]));
 }
 
-/** battle | shop_direct | shop_fund — 등급 가중 + 동일 이름 중복 금지 */
-function pickMercItemForPlayer(mode) {
-    const ex = getMercExcludedItemNames();
-    const pool = getMercGachaCandidatePool().filter((it) => it && !ex.has(it.name));
-    if (!pool.length) return null;
-    const canLegendary = floor >= 28;
-    const canEpic = floor >= 12;
-    const byR = { common: [], rare: [], epic: [], legendary: [] };
-    for (const it of pool) {
-        let r = it.rarity || 'common';
-        if (r === 'relic') continue;
-        if (r === 'legendary' && !canLegendary) continue;
-        if (r === 'epic' && !canEpic) continue;
-        if (!byR[r]) r = 'common';
-        byR[r].push(it);
-    }
-    let wc = 0,
-        wr = 0,
-        we = 0,
-        wl = 0;
-    if (mode === 'battle') {
-        wc = floor < 8 ? 26 : floor < 15 ? 20 : 14;
-        wr = floor < 8 ? 44 : floor < 15 ? 36 : 32;
-        we = canEpic ? (floor < 22 ? 24 : 38) : 0;
-        wl = canLegendary ? (floor < 35 ? 6 : 18) : 0;
-    } else if (mode === 'shop_direct') {
-        wc = 18;
-        wr = 32;
-        we = canEpic ? 35 : 0;
-        wl = canLegendary ? 15 : 0;
-    } else if (mode === 'shop_fund') {
-        wc = 8;
-        wr = 22;
-        we = canEpic ? 45 : 0;
-        wl = canLegendary ? 25 : 0;
-    }
-    const sum = wc + wr + we + wl;
-    if (sum <= 0) {
-        for (const rk of ['common', 'rare', 'epic', 'legendary']) {
-            if (byR[rk] && byR[rk].length) return byR[rk][Math.floor(Math.random() * byR[rk].length)];
-        }
-        return pool[Math.floor(Math.random() * pool.length)];
-    }
-    let roll = Math.random() * sum;
-    let tier = 'common';
-    if ((roll -= wc) < 0) tier = 'common';
-    else if ((roll -= wr) < 0) tier = 'rare';
-    else if ((roll -= we) < 0) tier = 'epic';
-    else tier = 'legendary';
-    const order = ['legendary', 'epic', 'rare', 'common'];
-    for (let k = 0; k < 6; k++) {
-        const arr = byR[tier];
-        if (arr && arr.length) return arr[Math.floor(Math.random() * arr.length)];
-        const ix = order.indexOf(tier);
-        tier = order[(ix + 1) % 4];
-    }
-    return pool[Math.floor(Math.random() * pool.length)];
+function addBehaviorCount(target, action) {
+    if (!target.counts) target.counts = createActionCounter();
+    target.counts[action] = (target.counts[action] || 0) + 1;
+    target.total = (target.total || 0) + 1;
 }
 
-function applyMercItemGainFromPool(gain) {
-    if (!gain || !player) return;
-    if (!player.mercInventory) player.mercInventory = [];
-    if (!player.fieldMerc || player.fieldMerc.mercHp <= 0) {
-        player.mercInventory.push({ ...gain });
-        saveCollection(gain.name);
-        writeLog(`[용병 장비] <b>${gain.name}</b> 비축 <span style="color:#888;">(${gain.rarity || 'common'})</span> — 복귀 시 장착`);
-        return;
-    }
-    if (!player.fieldMerc.mercItems) player.fieldMerc.mercItems = [];
-    player.fieldMerc.mercItems.push({ ...gain });
-    player.mercInventory = [...player.fieldMerc.mercItems];
-    const prevHp = player.fieldMerc.mercHp;
-    const prevMax = player.fieldMerc.mercMaxHp;
-    player.fieldMerc = buildFieldMercFromTemplate();
-    const deltaMax = player.fieldMerc.mercMaxHp - prevMax;
-    player.fieldMerc.mercHp = Math.min(
-        player.fieldMerc.mercMaxHp,
-        Math.max(1, prevHp + Math.max(0, Math.floor(deltaMax * 0.65)))
+function finalizeBehaviorNode(node) {
+    const counts = node.counts || createActionCounter();
+    const total = Math.max(0, Number(node.total) || 0);
+    node.probabilities = Object.fromEntries(
+        BEHAVIOR_ACTIONS.map((action) => [action, total > 0 ? (counts[action] || 0) / total : 0])
     );
-    saveCollection(gain.name);
-    writeLog(
-        `[용병 장비] ✨ <b style="color:#2ed573">${gain.name}</b> 입수 <span style="color:#888;">(${gain.rarity || 'common'})</span>`
+    return node;
+}
+
+function buildBehaviorProbabilityMatrix(logRows) {
+    const rows = Array.isArray(logRows) ? logRows.filter((row) => row && BEHAVIOR_ACTIONS.includes(row.action)) : [];
+    const matrix = {};
+    const hpTotals = {};
+    const global = { counts: createActionCounter(), total: 0 };
+    for (const row of rows) {
+        const hpBucket = row.hpBucket || '76-100';
+        const enemyArchetype = row.enemyArchetype || 'unknown';
+        const affinity = row.affinity || 'neutral';
+        matrix[hpBucket] = matrix[hpBucket] || {};
+        matrix[hpBucket][enemyArchetype] = matrix[hpBucket][enemyArchetype] || {};
+        matrix[hpBucket][enemyArchetype][affinity] =
+            matrix[hpBucket][enemyArchetype][affinity] || { counts: createActionCounter(), total: 0 };
+        hpTotals[hpBucket] = hpTotals[hpBucket] || { counts: createActionCounter(), total: 0 };
+        addBehaviorCount(matrix[hpBucket][enemyArchetype][affinity], row.action);
+        addBehaviorCount(hpTotals[hpBucket], row.action);
+        addBehaviorCount(global, row.action);
+    }
+    Object.values(matrix).forEach((byArchetype) =>
+        Object.values(byArchetype).forEach((byAffinity) =>
+            Object.values(byAffinity).forEach(finalizeBehaviorNode)
+        )
     );
+    Object.values(hpTotals).forEach(finalizeBehaviorNode);
+    finalizeBehaviorNode(global);
+    return { version: 1, actions: BEHAVIOR_ACTIONS.slice(), matrix, hpTotals, global, sampleCount: rows.length };
 }
 
-window.mercenaryFundGacha = () => {
-    if (!isMercenaryCaptainJob() || !enemy) return writeLog('[지원] 전투 중에만 사용할 수 있습니다.');
-    if (!player.fieldMerc || player.fieldMerc.mercHp <= 0) return writeLog('[지원] 전열 용병이 없습니다.');
-    const cost = getMercGachaCost();
-    if (gold < cost) return writeLog(`[지원] 골드가 부족합니다. (${cost}G 필요)`);
-    gold -= cost;
-    const badChance = getMercGachaBadChance();
-    const roll = Math.random();
-    if (roll < badChance) {
-        const kind = Math.floor(Math.random() * 4);
-        if (kind === 0) {
-            const pct = 0.08 + Math.random() * 0.1;
-            const dmg = Math.max(1, Math.floor(player.fieldMerc.mercMaxHp * pct));
-            player.fieldMerc.mercHp = Math.max(1, player.fieldMerc.mercHp - dmg);
-            writeLog(`[지원·악성] 💢 장비 거래 사기! 용병이 피해를 입었다 <b>-${dmg}</b> HP`);
-        } else if (kind === 1 && player.fieldMerc.mercItems && player.fieldMerc.mercItems.length > 0) {
-            const ratio = player.fieldMerc.mercHp / Math.max(1, player.fieldMerc.mercMaxHp);
-            const ix = Math.floor(Math.random() * player.fieldMerc.mercItems.length);
-            const lost = player.fieldMerc.mercItems.splice(ix, 1)[0];
-            player.mercInventory = [...player.fieldMerc.mercItems];
-            player.fieldMerc = buildFieldMercFromTemplate();
-            player.fieldMerc.mercHp = Math.max(1, Math.floor(player.fieldMerc.mercMaxHp * ratio));
-            writeLog(`[지원·악성] 🗑️ 용병이 <b>${lost.name}</b>을(를) 잃어버렸다!`);
-        } else if (kind === 2) {
-            const h = Math.max(1, Math.floor(player.maxHp * (0.06 + Math.random() * 0.06)));
-            player.curHp = Math.max(1, player.curHp - h);
-            writeLog(`[지원·악성] 😰 단장이 협상에 휘말려 체력 <b>-${h}</b>`);
-        } else {
-            writeLog(`[지원·악성] 💸 돈만 날렸다… (특별 획득 없음)`);
-        }
-    } else {
-        const it = pickMercItemForPlayer('battle');
-        if (!it) {
-            const refund = Math.floor(cost * 0.35);
-            gold += refund;
-            writeLog(`[지원] 📭 마을에 물건이 없다… ${refund}G 환급`);
-        } else {
-            applyMercItemGainFromPool({ ...it });
-        }
+function weightedActionRoll(probabilities, allowedActions, random) {
+    const allowed = new Set(allowedActions || []);
+    const entries = BEHAVIOR_ACTIONS
+        .filter((action) => allowed.has(action))
+        .map((action) => [action, Math.max(0, Number(probabilities && probabilities[action]) || 0)])
+        .filter(([, weight]) => weight > 0);
+    const total = entries.reduce((sum, [, weight]) => sum + weight, 0);
+    if (total <= 0) return null;
+    const rng = typeof random === 'function' ? random : Math.random;
+    let roll = rng() * total;
+    for (const [action, weight] of entries) {
+        roll -= weight;
+        if (roll <= 0) return action;
     }
-    updateUi();
-    renderActions();
-};
-
-function tryMercenaryRandomEvent() {
-    if (!isMercenaryCaptainJob() || !player.fieldMerc || player.fieldMerc.mercHp <= 0) return;
-    if (Math.random() > 0.016) return;
-    const tier = floor <= 12 ? 'low' : floor <= 35 ? 'mid' : 'high';
-    let neg = 0,
-        pos = 0;
-    if (tier === 'low') {
-        neg = 0.38;
-        pos = 0.06;
-    } else if (tier === 'high') {
-        neg = 0.004;
-        pos = 0.025;
-    } else {
-        neg = 0.12;
-        pos = 0.04;
-    }
-    const roll = Math.random();
-    if (roll < neg) {
-        if (tier === 'high' && Math.random() < 0.92) return;
-        player.mercNextBattleDebuff = { atkPct: -0.07 };
-        writeLog(`[용병 이벤트] 💢 술집 난투·사기 피해… <b>다음 전투</b> 공격력 일시 하락!`);
-        return;
-    }
-    if (roll < neg + pos) {
-        if (tier === 'high' && Math.random() > 0.35) {
-            writeLog(`[용병 이벤트] 고층의 실전은 거칠다… (미미한 보상)`);
-            player.atk += 1;
-            return;
-        }
-        player.atk += 3;
-        player.crit += 1;
-        writeLog(`[용병 이벤트] ✨ 실전 경험! 공격력+3, 치명+1%`);
-    }
+    return entries[entries.length - 1][0];
 }
 
-function applySummonDarkTurnStart() {
-    if (!player || !enemy || !player._awaitPlayerTurn) return;
-    player._awaitPlayerTurn = false;
-    if (player.name === '소환사' && floor < 100) {
-        return false;
-    }
-    if (player.summon && player.summon.id === 'dark') {
-        const hpCost = Math.max(1, Math.floor(player.maxHp * 0.06));
-        player.curHp = Math.max(1, player.curHp - hpCost);
-        const rawAtk = getEffectiveAttackPower();
-        const md = Math.max(1, Math.floor(1.15 * rawAtk - Math.floor(enemy.def * 0.35)));
-        enemy.curHp -= md;
-        writeLog(`[소환] 😈 어둠의 악마! 체력 -${hpCost}, 마법 피해 ${md}!`);
-        showDmgFloat(md, true, false); triggerShakeEffect();
-        if (enemy.curHp <= 0) { winBattle(); return true; }
-    }
-    return false;
+function getAllowedEnemyActions(actor) {
+    const actions = ['physical_attack', 'defend', 'dodge'];
+    if (hasMagicAttackCapability(actor)) actions.push('magic_attack');
+    if (actorCanHeal(actor)) actions.push('heal');
+    return actions;
 }
 
-function useTacticalSkillAction(skillKey) {
-    if (!player || !enemy) return false;
-    const key = String(skillKey || '').trim();
-    const owned = Array.isArray(player.tacticalSkills) ? player.tacticalSkills : [];
-    const def = typeof getTacticalSkillDef === 'function' ? getTacticalSkillDef(key) : null;
-    if (!key || !def || !owned.includes(key)) {
-        writeLog('[전술] 아직 배운 전술 스킬이 아닙니다.');
-        return false;
+function chooseLearnedGhostAction(actor) {
+    const behavior = actor && actor.behaviorMatrix;
+    if (!actor || !actor.isPlayerGhost || !behavior) return null;
+    const hpBucket = getHpBucket(actor);
+    const targetArchetype = getActorCombatArchetype(player);
+    const ghostArchetype = getActorCombatArchetype(actor);
+    const affinity = getAffinityState(ghostArchetype, targetArchetype);
+    const exact = behavior.matrix && behavior.matrix[hpBucket] &&
+        behavior.matrix[hpBucket][targetArchetype] &&
+        behavior.matrix[hpBucket][targetArchetype][affinity];
+    const hpFallback = behavior.hpTotals && behavior.hpTotals[hpBucket];
+    const source = exact && exact.total > 0 ? exact : hpFallback && hpFallback.total > 0 ? hpFallback : behavior.global;
+    return source && source.total > 0
+        ? weightedActionRoll(source.probabilities, getAllowedEnemyActions(actor))
+        : null;
+}
+
+function calculateAttackChance(attacker, defender) {
+    const attackStats = getActorStats(attacker);
+    const defendStats = getActorStats(defender);
+    const mastery = safeNum(attacker && attacker.mastery && attacker.mastery.weapon, 0);
+    return 0.42 + attackStats.agi * 0.004 + mastery * 0.002 - defendStats.agi * 0.0015;
+}
+
+function calculatePhysicalDamage(attacker, defender) {
+    const attackStats = getActorStats(attacker);
+    const defendStats = getActorStats(defender);
+    const weapon = getEquippedWeapon(attacker);
+    const armor = getEquippedArmor(defender);
+    let rawPower = safeNum(attacker && attacker.atk, attackStats.str) + (weapon ? safeNum(weapon.value, 0) : 0);
+    const attackerRatio = actorMaxHp(attacker) > 0 ? getCurrentHp(attacker) / actorMaxHp(attacker) : 1;
+    const defenderRatio = actorMaxHp(defender) > 0 ? getCurrentHp(defender) / actorMaxHp(defender) : 1;
+    if (attacker && attacker.archetype === 'warrior' && attackerRatio <= 0.45) rawPower *= attackerRatio <= 0.25 ? 1.55 : 1.3;
+    if (attacker && attacker.archetype === 'hunter' && defenderRatio <= 0.4) rawPower *= 1.45;
+    if (attacker && attacker._attackMultiplier) rawPower *= attacker._attackMultiplier;
+    const runtimeDefense = safeNum(defender && defender.def, defendStats.def) + safeNum(defender && defender.extraDef, 0);
+    const flatBlocked = Math.max(0, rawPower - runtimeDefense - (armor ? safeNum(armor.def, 0) : 0));
+    const mitigation = armor ? Math.min(0.6, Math.max(0, safeNum(armor.mitigation, 0))) : 0;
+    return Math.max(0, Math.floor(flatBlocked * (1 - mitigation)));
+}
+
+function calculateMagicDamage(attacker, defender) {
+    const attackStats = getActorStats(attacker);
+    const defendStats = getActorStats(defender);
+    const mastery = safeNum(attacker && attacker.mastery && (attacker.mastery.magic || attacker.mastery.holyMagic), 0);
+    const rawPower = attackStats.wis * 1.35 + attackStats.int * 0.45 + mastery * 0.25;
+    return Math.max(0, Math.floor(rawPower - defendStats.def * 0.35));
+}
+
+function getCurrentHp(actor) {
+    return actor === player ? safeNum(actor.curHp, 0) : safeNum(actor.curHp, 0);
+}
+
+function setCurrentHp(actor, value) {
+    const max = actor === player ? getEffectiveMaxHp() : Math.max(1, safeNum(actor.hp, 1));
+    actor.curHp = Math.max(0, Math.min(max, safeNum(value, 0)));
+}
+
+function actorMaxHp(actor) {
+    return actor === player ? getEffectiveMaxHp() : Math.max(1, safeNum(actor.hp, 1));
+}
+
+function actorCanHeal(actor) {
+    const stats = getActorStats(actor);
+    return stats.wis > 0 && getCurrentHp(actor) < actorMaxHp(actor);
+}
+
+function resolveAttackAction(attacker, defender, guardState) {
+    const hit = probabilityRoll(calculateAttackChance(attacker, defender));
+    if (!hit.success) return { type: 'attack', success: false, reason: 'miss', hit };
+
+    if (guardState && guardState.mode === 'dodge') {
+        const dodgeStats = getActorStats(defender);
+        const dodge = probabilityRoll(0.18 + dodgeStats.agi * 0.005);
+        if (dodge.success) return { type: 'attack', success: false, reason: 'dodged', hit, dodge };
+        if (dodgeStats.agi < 35) {
+            defender.statuses = Array.isArray(defender.statuses) ? defender.statuses : [];
+            defender.statuses.push({ key: 'ankleSprain', turns: 2, agilityPenalty: 20 });
+        }
     }
-    player.tacticalSkillUses = player.tacticalSkillUses && typeof player.tacticalSkillUses === 'object'
-        ? player.tacticalSkillUses
-        : {};
-    if (player.tacticalSkillUses[key]) {
-        writeLog('[전술] 이 전투에서 이미 사용한 스킬입니다.');
-        return false;
+
+    const armor = getEquippedArmor(defender);
+    if (armor) {
+        const nullify = probabilityRoll(safeNum(armor.nullifyChance, 0));
+        if (nullify.success) return { type: 'attack', success: true, damage: 0, nullified: true, hit, nullify };
     }
-    if (key === 'focus' && player.tacticalFocusReady) return false;
-    if (key === 'parry' && player.tacticalParryReady) return false;
-    if (key === 'barrier' && player.tacticalBarrierReady) return false;
-    player.tacticalSkillUses[key] = 1;
-    if (key === 'focus') player.tacticalFocusReady = true;
-    if (key === 'parry') player.tacticalParryReady = true;
-    if (key === 'barrier') player.tacticalBarrierReady = true;
-    writeLog(`[전술] <b>${def.icon || '✦'} ${def.name}</b> — ${def.battleLog || def.shortDesc || '전술 준비 완료'}`);
-    updateUi();
-    renderActions();
+
+    let damage = calculatePhysicalDamage(attacker, defender);
+    if (guardState && guardState.mode === 'shield') {
+        const defendStats = getActorStats(defender);
+        const block = probabilityRoll(0.22 + defendStats.def * 0.004);
+        if (block.success) {
+            damage = Math.max(0, Math.floor(damage * 0.45));
+            setCurrentHp(defender, getCurrentHp(defender) - damage);
+            return { type: 'attack', success: true, damage, guarded: true, hit, block };
+        }
+        damage = Math.floor(damage * 1.65);
+    }
+
+    setCurrentHp(defender, getCurrentHp(defender) - damage);
+    return { type: 'attack', success: true, damage, hit };
+}
+
+function resolveMagicAttackAction(attacker, defender, guardState) {
+    const cast = probabilityRoll(0.4 + getActorStats(attacker).wis * 0.004);
+    if (!cast.success) return { type: 'attack', attackKind: 'magic', success: false, reason: 'miss', hit: cast };
+    let damage = calculateMagicDamage(attacker, defender);
+    if (guardState && guardState.mode === 'dodge') {
+        const dodge = probabilityRoll(0.12 + getActorStats(defender).agi * 0.004);
+        if (dodge.success) return { type: 'attack', attackKind: 'magic', success: false, reason: 'dodged', hit: cast, dodge };
+    }
+    if (guardState && guardState.mode === 'shield') damage = Math.max(0, Math.floor(damage * 0.7));
+    setCurrentHp(defender, getCurrentHp(defender) - damage);
+    return { type: 'attack', attackKind: 'magic', success: true, damage, hit: cast };
+}
+
+function resolveHealAction(actor) {
+    const stats = getActorStats(actor);
+    const cast = probabilityRoll(0.4 + stats.wis * 0.004);
+    if (!cast.success) return { type: 'heal', success: false, reason: 'castFailed', cast };
+    const amount = Math.max(1, Math.floor(8 + stats.wis * 1.5));
+    const before = getCurrentHp(actor);
+    setCurrentHp(actor, before + amount);
+    return { type: 'heal', success: true, healed: getCurrentHp(actor) - before, cast };
+}
+
+function spendPlayerAction() {
+    if (playerTurnSpent) return false;
+    playerTurnSpent = true;
     return true;
 }
 
-window.useAction = async (type) => {
-    if (isProcessing) return;
+function describeCombatResult(actor, target, result) {
+    if (!result) return;
+    const actorName = actor === player ? '플레이어' : actor.name;
+    if (result.type === 'attack') {
+        if (result.reason === 'miss') writeLog(`[빗나감] ${actorName}의 공격 실패`);
+        else if (result.reason === 'dodged') writeLog(`[회피] ${target === player ? '플레이어' : target.name}이 공격을 완전히 회피`);
+        else if (result.nullified) writeLog(`[무효화] 장비가 ${actorName}의 공격을 완전히 차단`);
+        else writeLog(`[공격] ${actorName} → ${result.damage} 피해${result.guarded ? ' (방어 성공)' : ''}`);
+        return;
+    }
+    if (result.type === 'heal') {
+        writeLog(result.success ? `[힐] ${actorName} 체력 ${result.healed} 회복` : `[힐 실패] ${actorName}의 마법 실패`);
+    }
+}
+
+function chooseEnemyAction() {
+    const learned = chooseLearnedGhostAction(enemy);
+    if (learned) return learned;
+    const hpRatio = getCurrentHp(enemy) / actorMaxHp(enemy);
+    if (enemy.isBoss) {
+        enemy.turnCount = Math.max(1, safeNum(enemy.turnCount, 1));
+        if (enemy._bossChargeReady) return 'physical_attack';
+        if (enemy.turnCount % 4 === 3) return 'charge';
+    }
+    if (enemy.archetype === 'hunter' && getCurrentHp(player) / actorMaxHp(player) <= 0.4) return 'physical_attack';
+    if (enemy.archetype === 'mage' && hpRatio <= 0.38 && probabilityRoll(0.65).success) return 'defend';
+    if (hpRatio <= 0.3 && actorCanHeal(enemy)) return 'heal';
+    if (hpRatio <= 0.55 && probabilityRoll(0.25).success) return getActorStats(enemy).agi >= 45 ? 'dodge' : 'defend';
+    return hasMagicAttackCapability(enemy) && probabilityRoll(0.25).success ? 'magic_attack' : 'physical_attack';
+}
+
+async function enemyTurn() {
+    if (!enemy || !player || enemy.curHp <= 0 || player.curHp <= 0) return;
     setCombatProcessing(true);
+    await waitMs(300);
+    const action = chooseEnemyAction();
+    if (action === 'charge') {
+        enemy._bossChargeReady = true;
+        writeLog(`[적 행동] ${enemy.name} — 강공격 준비`);
+    } else if (action === 'heal') {
+        const result = resolveHealAction(enemy);
+        describeCombatResult(enemy, enemy, result);
+        enemyGuardState = null;
+    } else if (action === 'defend' || action === 'dodge') {
+        enemyGuardState = { mode: action === 'defend' ? 'shield' : 'dodge', turn: combatTurnNumber };
+        writeLog(`[적 행동] ${enemy.name} — ${action === 'defend' ? '방어' : '회피'} 준비`);
+    } else {
+        enemy._attackMultiplier = enemy._bossChargeReady ? 2.5 : 1;
+        const result = action === 'magic_attack'
+            ? resolveMagicAttackAction(enemy, player, playerGuardState)
+            : resolveAttackAction(enemy, player, playerGuardState);
+        enemy._attackMultiplier = 1;
+        enemy._bossChargeReady = false;
+        describeCombatResult(enemy, player, result);
+        playerGuardState = null;
+    }
+    if (enemy.isBoss) enemy.turnCount = Math.max(1, safeNum(enemy.turnCount, 1)) + 1;
+    if (player.curHp <= 0) {
+        gameOver();
+        return;
+    }
+    combatTurnNumber += 1;
+    playerTurnSpent = false;
+    setCombatProcessing(false);
+    updateUi();
+    renderActions();
+}
+
+window.useAction = async function useAction(type) {
+    if (isProcessing || !player || !enemy || player.curHp <= 0 || enemy.curHp <= 0) return;
+    if (!spendPlayerAction()) {
+        writeLog('[턴 제한] 한 턴에는 공격/방어/힐 중 하나만 선택할 수 있습니다.');
+        return;
+    }
+    setCombatProcessing(true);
+    let result = null;
     if (type === '공격') {
-        const now = Date.now();
-        if (now < attackGcdUntil) {
-            setCombatProcessing(false);
-            return writeLog(`[쿨다운] 공격을 너무 빨리 눌렀습니다!`);
-        }
+        const learnedAction = classifyPlayerAttackAction(player);
+        recordPlayerBehavior(learnedAction);
+        result = learnedAction === 'magic_attack'
+            ? resolveMagicAttackAction(player, enemy, enemyGuardState)
+            : resolveAttackAction(player, enemy, enemyGuardState);
+        enemyGuardState = null;
+        describeCombatResult(player, enemy, result);
+    } else if (type === '힐') {
+        recordPlayerBehavior('heal');
+        result = resolveHealAction(player);
+        describeCombatResult(player, player, result);
+    } else {
+        const mode = type === '회피' ? 'dodge' : 'shield';
+        recordPlayerBehavior(mode === 'dodge' ? 'dodge' : 'defend');
+        playerGuardState = { mode, turn: combatTurnNumber };
+        writeLog(`[플레이어 행동] ${mode === 'dodge' ? '회피' : '방어'} 준비`);
     }
-    if (applySummonDarkTurnStart()) {
-        setCombatProcessing(false);
+    updateUi();
+    if (enemy.curHp <= 0) {
+        await waitMs(120);
+        winBattle();
         return;
     }
-    if (player) ensurePlayerSynergyBonuses();
-
-    if (String(type || '').startsWith('전술:')) {
-        const key = String(type).split(':')[1] || '';
-        if (!useTacticalSkillAction(key)) {
-            setCombatProcessing(false);
-            return;
-        }
-        queueEnemyTurnWithPacing();
-        return;
-    }
-
-    if (type==='공격') {
-        await playJobAttackVfx('player', player.name || player.baseJob);
-        const now = Date.now();
-        attackGcdUntil = now + ATTACK_GCD_MS;
-        setTimeout(() => { renderActions(); }, ATTACK_GCD_MS);
-
-        if (player.unlockedSkill && floor >= 20) {
-            player.ultStack = Math.min(player.ultMaxStack, player.ultStack + 1);
-        }
-        let multiplier=1.0, effectMsg="";
-        const relKey=getAffinityRelKey();
-        if(!enemy.isBoss&&relations[relKey]){
-            if(relations[relKey].strong===enemy.job){multiplier=1.5;effectMsg="<b style='color:#2ed573'>(상성 우위!)</b> ";}
-            else if(relations[relKey].weak===enemy.job){multiplier=0.8;effectMsg="<b style='color:#ff4757'>(상성 열세..)</b> ";}
-        }
-        const synAcc = safeNum(player._syn && player._syn.acc, 0);
-        const mercAcc = isMercenaryCaptainJob() && player.fieldMerc && player.fieldMerc.mercHp > 0 ? getMercBonusAcc() : 0;
-        const missPenalty = consumeHunterEvasionMissPenalty();
-        const accRateBase =
-            Math.min(95, BASE_HIT_ACCURACY + safeNum(player.acc, 0) + synAcc + mercAcc);
-        const accRate = Math.max(5, accRateBase - missPenalty);
-        let hitLanded = false;
-        const prevStreak = safeNum(player._playerMissStreak, 0);
-        if (prevStreak >= 3) {
-            hitLanded = true;
-            player._playerMissStreak = 0;
-        } else if (Math.random() * 100 < accRate) {
-            hitLanded = true;
-            player._playerMissStreak = 0;
-        } else {
-            player._playerMissStreak = prevStreak + 1;
-        }
-        if(hitLanded){
-            let berserkMult = (player.name==='버서커' && player.curHp <= player.maxHp * 0.5) ? 1.35 : 1;
-            if (berserkMult > 1) effectMsg += "<b style='color:#e74c3c'>【광폭화】</b> ";
-            let baseDmg;
-            if (isMercenaryCaptainJob() && player.fieldMerc && player.fieldMerc.mercHp > 0) {
-                const mm = getFieldMercAttackMult();
-                baseDmg = Math.floor((getMercEffectiveAttackPower() * mm + Math.floor(Math.random() * 8)) * berserkMult);
-                const specialChance = 0.1 + Math.random() * 0.1;
-                if (Math.random() < specialChance) {
-                    baseDmg = Math.floor(baseDmg * 2.55);
-                    effectMsg += "<b style='color:#e67e22'>【용병 필살기】</b> ";
-                    triggerCritEffect();
-                    triggerShakeEffect();
-                }
-                tryMercenaryRandomEvent();
-            } else if (isMercenaryCaptainJob()) {
-                baseDmg = Math.floor((getEffectiveAttackPower() * 0.07 + Math.floor(Math.random() * 4)) * berserkMult);
-                effectMsg += "<b style='color:#888'>(단장 직격·최약)</b> ";
-            } else {
-                baseDmg=Math.floor((getEffectiveAttackPower()+Math.floor(Math.random()*8)) * berserkMult);
-            }
-            const critInfo=getCritInfo();
-            let effectiveCrit=critInfo.effectiveCrit;
-            if(critInfo.isBerserkCrit){effectMsg+="<b style='color:#ff4757'>🔥 분노!</b> ";}
-            const mercCritMode=isMercenaryCaptainJob()&&player.fieldMerc&&player.fieldMerc.mercHp>0;
-            if(mercCritMode){effectiveCrit=getMercEffectiveCritForMercAttack();}
-            if (player.tacticalFocusReady) {
-                const focusDef = typeof getTacticalSkillDef === 'function' ? getTacticalSkillDef('focus') : null;
-                effectiveCrit = Math.min(100, effectiveCrit + safeNum(focusDef && focusDef.critBonus, 60));
-                player.tacticalFocusReady = false;
-                effectMsg += "<b style='color:#a78bfa'>🎯 집중 공격!</b> ";
-            }
-            let relicAtkMult=1;
-            if(player.relics&&player.relics.includes('execute')&&enemy.curHp<=enemy.hp*0.35){relicAtkMult*=1.8;effectMsg+="<b style='color:#e74c3c'>💀 집행!</b> ";}
-            if(player.relics&&player.relics.includes('berserk_crit')&&player.maxHp&&player.curHp<=player.maxHp*0.35){relicAtkMult*=1.45;effectMsg+="<b style='color:#ff4757'>🔥 격노 심장!</b> ";}
-            if(player.shieldEmpowered){relicAtkMult*=1.25;player.shieldEmpowered=false;effectMsg+="<b style='color:#3498db'>🛡️ 수호 증폭!</b> ";}
-            if (player && player._arcaneCharge) {
-                relicAtkMult *= 1.35;
-                player._arcaneCharge = false;
-                effectMsg += "<b style='color:#9b59b6'>🔮 연쇄 충전!</b> ";
-            }
-            let isCrit = false;
-            let usedWeak = false;
-            if (enemy.weakPoint && player.name === '암살자') {
-                usedWeak = true;
-                enemy.weakPoint = false;
-                isCrit = true;
-                baseDmg = Math.floor(baseDmg * (mercCritMode ? getMercEffectiveCritMultForMercAttack() : getEffectiveCritMult()) * 2);
-                effectMsg += "<b style='color:#9b59b6'>【약점 노출】</b> <b style='color:#f1c40f'>💥 암살!</b> ";
-                triggerCritEffect();
-                playCritGoldBurst('enemy');
-            } else {
-                if (player && player.priestNextCrit) {
-                    isCrit = true;
-                    player.priestNextCrit = false;
-                    effectMsg += "<b style='color:#f1c40f'>✨ 신의 가호 치명!</b> ";
-                } else {
-                    isCrit = Math.random()*100<effectiveCrit;
-                }
-                if(isCrit){baseDmg=Math.floor(baseDmg*(mercCritMode?getMercEffectiveCritMultForMercAttack():getEffectiveCritMult()));effectMsg+="<b style='color:#f1c40f'>💥 치명타!</b> ";triggerCritEffect(); playCritGoldBurst('enemy');}
-            }
-            const effDefRaw = (usedWeak ? 0 : enemy.def);
-            const effDef = player && player.chosenPriest ? Math.floor(effDefRaw * 0.8) : effDefRaw;
-            let finalDmg=Math.max(1,Math.floor(baseDmg*multiplier*relicAtkMult)-effDef);
-            if (enemy._aiGuardedTurns && enemy._aiGuardedTurns > 0) {
-                finalDmg = Math.max(1, Math.floor(finalDmg * 0.62));
-                enemy._aiGuardedTurns = Math.max(0, enemy._aiGuardedTurns - 1);
-                writeLog('[적 AI] 방어 태세로 피해 일부를 흘렸습니다.');
-            }
-            enemy.curHp-=finalDmg;
-            showDmgFloat(finalDmg,isCrit,false); triggerShakeEffect();
-            writeLog(`[명중] ${effectMsg}적에게 ${finalDmg} 피해!`);
-            if(mercCritMode&&player.fieldMerc&&safeNum(player.fieldMerc.mercBonusLifesteal,0)>0){
-                const mls=Math.min(LIFESTEAL_SOFT_CAP,safeNum(player.fieldMerc.mercBonusLifesteal,0));
-                const mh=Math.floor(finalDmg*mls);
-                player.fieldMerc.mercHp=Math.min(player.fieldMerc.mercMaxHp,player.fieldMerc.mercHp+mh);
-                if(mh>0) writeLog(`[용병 흡혈] 💉 ${mh}`);
-            } else if(getLifestealEffective()>0){const h=Math.floor(finalDmg*getLifestealEffective());player.curHp=Math.min(getEffectiveMaxHp(),player.curHp+h);writeLog(`[흡혈] 💉 ${h}`);}
-            if (player.name==='버서커' && player.curHp <= player.maxHp * 0.5) {
-                const rh = Math.floor(finalDmg * 0.25);
-                player.curHp = Math.min(getEffectiveMaxHp(), player.curHp + rh);
-                writeLog(`[패시브] 광폭화 흡혈 +${rh}`);
-            }
-            if (player.summon && player.summon.id === 'fire' && enemy.curHp > 0) {
-                const fireDmg = Math.max(1, Math.floor(getEffectiveAttackPower() * 0.06));
-                enemy.curHp -= fireDmg;
-                writeLog(`[소환] 🔥 불의 정령 추가 피해 ${fireDmg}!`);
-                showDmgFloat(fireDmg, false, false);
-                if (enemy.curHp <= 0) { updateUi(); renderActions(); return winBattle(); }
-            }
-
-            if(player.bonusSkills){
-                if(player.bonusSkills.includes('bonus_bleed')&&Math.random()<0.10){const bd=Math.floor(finalDmg*0.8);enemy.curHp-=bd;writeLog(`[스킬] 피의 분노! ${bd} 추가 피해!`);showDmgFloat(bd,false,false);}
-                if(isCrit&&player.bonusSkills.includes('bonus_explode')){const ed=Math.floor(getEffectiveAttackPower()*0.5);enemy.curHp-=ed;writeLog(`[스킬] 폭발 일격! ${ed} 추가 피해!`);showDmgFloat(ed,false,false);}
-            }
-            if(isCrit&&player.relics&&player.relics.includes('chain_cast')&&enemy.curHp>0){
-                player._arcaneCharge = true;
-                writeLog(`[유물] ⚡ 연쇄 마법진: 다음 공격 피해 증폭 준비!`);
-            }
-            if(enemy.curHp<=0&&player.relics&&player.relics.includes('kill_heal')){
-                const kh=Math.floor(getEffectiveMaxHp()*0.10);
-                player.curHp=Math.min(getEffectiveMaxHp(),player.curHp+kh);
-                player.critMult = safeNum(player.critMult, 1.8) + 0.03;
-                writeLog(`[유물] 💚 혈반지 흡수! 회복 ${kh}, 치명 배율 +3%`);
-            }
-        } else { writeLog(`[빗나감] 공격 실패!`); showMissFloat('enemy'); }
-        updateUi(); renderActions();
-        if(enemy.curHp<=0) return winBattle();
-
-    } else if (type==='궁극기') {
-        await playJobAttackVfx('player', player.name || player.baseJob);
-        if (player.ultStack < player.ultMaxStack) return writeLog(`[궁극기] 스택이 부족합니다! (${player.ultStack}/${player.ultMaxStack})`);
-        player.ultStack = 0;
-        const ultSpec = ultSkills[player.unlockedSkill];
-        const dmgMult = ultSpec ? ultSpec.dmgMult : 4.0;
-        const missPenalty = consumeHunterEvasionMissPenalty();
-        const ultHitRate = Math.max(5, 50 - missPenalty);
-        if (Math.random() * 100 < ultHitRate) {
-            let berserkMult = (player.name==='버서커' && player.curHp <= player.maxHp * 0.5) ? 1.35 : 1;
-            let ultDmg = Math.floor(getEffectiveAttackPower() * dmgMult * berserkMult);
-            const critInfo=getCritInfo();
-            const isCrit = Math.random()*100 < critInfo.effectiveCrit;
-            if (isCrit) { ultDmg = Math.floor(ultDmg*getEffectiveCritMult()); triggerCritEffect(); playCritGoldBurst('enemy'); }
-            if (enemy._aiGuardedTurns && enemy._aiGuardedTurns > 0) {
-                ultDmg = Math.max(1, Math.floor(ultDmg * 0.62));
-                enemy._aiGuardedTurns = Math.max(0, enemy._aiGuardedTurns - 1);
-                writeLog('[적 AI] 방어막이 궁극기 피해를 일부 상쇄했습니다.');
-            }
-            enemy.curHp -= ultDmg;
-            showDmgFloat(ultDmg, isCrit, false); triggerShakeEffect();
-            writeLog(`[궁극기] 💥 ${player.unlockedSkill} 炸裂! ${isCrit?'🔥 치명타! ':''}${ultDmg} 피해!`);
-            if (getLifestealEffective()>0) { const h=Math.floor(ultDmg*getLifestealEffective()); player.curHp=Math.min(getEffectiveMaxHp(),player.curHp+h); writeLog(`[흡혈] 💉 ${h}`); }
-            if (player.name==='버서커' && player.curHp <= player.maxHp * 0.5) {
-                const rh = Math.floor(ultDmg * 0.25);
-                player.curHp = Math.min(getEffectiveMaxHp(), player.curHp + rh);
-                writeLog(`[패시브] 광폭화 흡혈 +${rh}`);
-            }
-            if (enemy.curHp<=0) { updateUi(); renderActions(); return winBattle(); }
-        } else {
-            writeLog(`[궁극기] ❌ ${player.unlockedSkill} 발동 실패! (50% 확률)`);
-        }
-        updateUi(); renderActions();
-
-    } else if (type==='방패방어') {
-        const guardRate = 70 + (player._guardBonus||0);
-        if(Math.random()*100<guardRate){defendingTurns=2;writeLog(`[성공] 🛡️ 2턴간 피해 60% 감소!`);if(player.relics&&player.relics.includes('shield_empower')){player.shieldEmpowered=true;const rh=Math.floor(getEffectiveMaxHp()*0.08);player.curHp=Math.min(getEffectiveMaxHp(),player.curHp+rh);writeLog(`[유물] ⚡ 철벽의 의지 발동! 회복 +${rh}, 다음 공격 강화`);}}
-        else writeLog(`[실패] 방패 방어 실패!`);
-    } else if (type==='회피') {
-        dodgingTurns=2; writeLog(`[회피기] 💨 2번의 공격을 75% 확률로 회피합니다!`);
-    } else if (type==='방어막') {
-        const shieldRate = 60 + (player._guardBonus||0);
-        if(Math.random()*100<shieldRate){shieldedTurns=2;writeLog(`[성공] ✨ 2턴간 피해 50% 감소!`);}
-        else writeLog(`[실패] 방어막 전개 실패!`);
-    } else if (type === '기도') {
-        if (player.name !== '성직자') {
-            setCombatProcessing(false);
-            return writeLog('[기도] 성직자만 사용할 수 있습니다.');
-        }
-        normalizeDivineState();
-        if (clampDivinePower(player.divinePower) >= DIVINE_POWER_MAX) {
-            setCombatProcessing(false);
-            return writeLog(`[기도] 신성력은 이미 최대치입니다. (${DIVINE_POWER_MAX}/${DIVINE_POWER_MAX})`);
-        }
-        player.prayerCountThisTurn = safeNum(player.prayerCountThisTurn, 0);
-        if (player.prayerCountThisTurn >= 2) {
-            setCombatProcessing(false);
-            return writeLog('[기도] 이번 턴에는 최대 2번만 기도할 수 있습니다.');
-        }
-        const gain = (1 + safeNum(player.prayerBonusFlat, 0)) * safeNum(player.divineGainMult, 1);
-        const actualGain = addDivinePower(gain);
-        player.prayerVulnerableHits = 1;
-        player.prayerCountThisTurn += 1;
-        writeLog(
-            `[신성력] 🙏 기도 — 신성력 <b>+${formatDivinePowerForDisplay(actualGain)}</b> (합계 ${formatDivinePowerForDisplay(
-                player.divinePower
-            )} / 최대 ${DIVINE_POWER_MAX}) · 다음 피격 2배`
-        );
-        updateUi(); renderActions();
-        if (player.prayerCountThisTurn >= 2) {
-            queueEnemyTurnWithPacing();
-        } else {
-            setCombatProcessing(false);
-        }
-        return;
-    }
-    queueEnemyTurnWithPacing();
+    await enemyTurn();
 };
 
-window.usePotion = () => {
-    if (isProcessing) return;
-    if (applySummonDarkTurnStart()) return;
-    if(player.potions<=0) return writeLog("포션이 없습니다!");
-    if(potionUsedThisTurn) return writeLog("이번 턴에 이미 포션을 사용했습니다!");
-    player.potions--; potionUsedThisTurn=true;
-    const potionHealMult = typeof getPlayerPotionHealMultiplier === 'function'
-        ? getPlayerPotionHealMultiplier()
-        : 1;
-    const potionHeal = (maxHp, ratio) => Math.max(1, Math.floor(maxHp * ratio * potionHealMult));
-    if (isMercenaryCaptainJob() && player.fieldMerc && player.fieldMerc.mercHp > 0) {
-        if (player.hasRegenPotion) {
-            player.mercRegenTurns = 2;
-            player.mercRegenAmount = potionHeal(player.fieldMerc.mercMaxHp, 0.22);
-            writeLog(`[포션] 🧪 용병에게 서서히 회복! (2턴간 매 적 턴 전 ${player.mercRegenAmount})`);
-        } else {
-            const h = potionHeal(player.fieldMerc.mercMaxHp, 0.38);
-            player.fieldMerc.mercHp = Math.min(player.fieldMerc.mercMaxHp, player.fieldMerc.mercHp + h);
-            writeLog(`[포션] 🧪 용병 체력 ${h} 회복! (${player.fieldMerc.mercHp}/${player.fieldMerc.mercMaxHp})`);
-        }
-    } else if (isMercenaryCaptainJob()) {
-        const h = potionHeal(getEffectiveMaxHp(), 0.12);
-        player.curHp = Math.min(getEffectiveMaxHp(), player.curHp + h);
-        writeLog(`[포션] 🧪 단장 긴급 체력 ${h} (동료 없음·최소 회복)`);
-    } else if(player.hasRegenPotion){regenTurns=2;regenAmount=potionHeal(getEffectiveMaxHp(),0.25);writeLog(`[포션] 🧪 서서히 회복! (2턴간 매 턴 ${regenAmount})`);}
-    else{const h=potionHeal(getEffectiveMaxHp(),0.35);player.curHp=Math.min(getEffectiveMaxHp(),player.curHp+h);writeLog(`[포션] 🧪 즉시 체력 ${h} 회복!`);}
-    updateUi(); renderActions();
+window.usePotion = function usePotion() {
+    if (isProcessing || !player || player.curHp <= 0) return;
+    if (!spendPlayerAction()) return writeLog('[턴 제한] 이번 턴의 행동을 이미 사용했습니다.');
+    const result = resolveHealAction(player);
+    describeCombatResult(player, player, result);
+    updateUi();
+    enemyTurn();
 };
 
-let autoRegenCounter = 0;
-function enemyTurn() {
-    setTimeout(async () => {
-        if (!enemy || !player) return;
-        let earlyUnlockSet = false;
-        const scheduleEarlyUnlock = (animMs) => {
-            const ms = Math.max(0, safeNum(animMs, 0) - 200);
-            setTimeout(() => {
-                earlyUnlockSet = true;
-                setCombatProcessing(false);
-            }, ms);
-        };
-        if (player && player.name === '성직자') {
-            player.prayerCountThisTurn = 0;
-        }
-        if (isMercenaryCaptainJob()) {
-            player.mercBattleTurnCount = safeNum(player.mercBattleTurnCount, 0) + 1;
-        }
-        if(regenTurns>0){player.curHp=Math.min(getEffectiveMaxHp(),player.curHp+regenAmount);regenTurns--;writeLog(`[재생] 💚 ${regenAmount} 회복! (남은 턴: ${regenTurns})`);}
-        if (isMercenaryCaptainJob() && player.mercRegenTurns > 0 && player.fieldMerc && player.fieldMerc.mercHp > 0) {
-            player.fieldMerc.mercHp = Math.min(player.fieldMerc.mercMaxHp, player.fieldMerc.mercHp + player.mercRegenAmount);
-            player.mercRegenTurns--;
-            writeLog(`[용병 재생] 💚 ${player.mercRegenAmount} (남은 턴: ${player.mercRegenTurns})`);
-        }
-        potionUsedThisTurn=false;
+function syncPlayerCampaignState() {
+    if (!player || !player.metaSlotId) return;
+    ensureHumanRuntimeShape(player);
+    player.progress = normalizeDungeonProgress({ floor, stage: dungeonStage });
+    MetaRPG.syncRunProgress(player.metaSlotId, {
+        stats: player.stats,
+        progress: player.progress,
+        hp: player.curHp,
+        maxHp: player.maxHp,
+        equipment: player.equipment,
+        magic: player.magic,
+        skills: player.skills,
+        mastery: player.mastery,
+        statuses: player.statuses,
+        body: player.body,
+        items: player.items,
+        relics: player.relics,
+        behaviorLogger: player.behaviorLogger,
+        behaviorMatrix: player.behaviorMatrix,
+    });
+}
 
-        if (player.bonusSkills && player.bonusSkills.includes('bonus_regen')) {
-            autoRegenCounter++;
-            if (autoRegenCounter % 3 === 0) { const h=Math.floor(getEffectiveMaxHp()*0.05); player.curHp=Math.min(getEffectiveMaxHp(),player.curHp+h); writeLog(`[스킬] 강철 심장 ${h} 회복!`); }
-        }
-
-        let hitLanded=true, currentEnemyAtk=enemy.atk;
-        const enemyHpRate = safeNum(enemy.curHp, 1) / Math.max(1, safeNum(enemy.hp, 1));
-        const playerHpRate = safeNum(player.curHp, 1) / Math.max(1, safeNum(getEffectiveMaxHp(), 1));
-        const isHunterEnemy = String(enemy.job || '').includes('헌터');
-        const hunterExecutionMode = isHunterEnemy && playerHpRate <= 0.4;
-        let enemyIntent = 'attack';
-        if (!enemy.isBoss) {
-            if (enemyHpRate < 0.9 && Math.random() < 0.18) enemyIntent = 'guard';
-            if (String(enemy.job || '').includes('마법사') && enemyHpRate <= 0.38 && Math.random() < 0.65) enemyIntent = 'barrier';
-            if (isHunterEnemy && enemyHpRate <= 0.4 && Math.random() < 0.55) enemyIntent = 'evasion';
-            if (hunterExecutionMode) enemyIntent = 'attack';
-            if (enemyHpRate >= 0.9 && (enemyIntent === 'guard' || enemyIntent === 'barrier')) enemyIntent = 'attack';
-        }
-        if (String(enemy.job || '').includes('워리어') && enemyHpRate <= 0.45) {
-            currentEnemyAtk = Math.floor(currentEnemyAtk * (enemyHpRate <= 0.25 ? 1.55 : 1.3));
-            writeLog('[적 AI] 광폭한 압박! 체력이 낮아진 적의 공격이 폭증합니다.');
-        }
-        if (enemyIntent === 'guard') {
-            enemy._aiGuardedTurns = 1;
-            writeLog('[적 AI] 적이 자세를 낮추고 방어 태세를 취합니다.');
-            player._awaitPlayerTurn = true;
-            setCombatProcessing(false);
-            updateUi(); renderActions();
-            return;
-        }
-        if (enemyIntent === 'barrier') {
-            enemy._aiGuardedTurns = 2;
-            writeLog('[적 AI] 마법사가 긴급 방어막을 전개했습니다.');
-            player._awaitPlayerTurn = true;
-            setCombatProcessing(false);
-            updateUi(); renderActions();
-            return;
-        }
-        if (enemyIntent === 'evasion') {
-            enemy._hunterEvasionTurns = 1;
-            writeLog('[적 AI] 헌터가 몸을 낮추고 회피 자세를 취합니다. 다음 1턴, 당신의 공격은 빗나가기 쉬워집니다.');
-            player._awaitPlayerTurn = true;
-            setCombatProcessing(false);
-            updateUi(); renderActions();
-            return;
-        }
-        if(enemy.isBoss){
-            if(enemy.bossCharge){writeLog(`💥 [강공격] 보스의 묵직한 일격!!`);currentEnemyAtk=enemy.atk*2.5;enemy.bossCharge=false;triggerBossWarning(false);}
-            else if(enemy.turnCount%4===3){
-                enemy.bossCharge=true;
-                triggerBossWarning(true);
-                writeLog(`⚠️ [위험] 보스가 강공격을 준비합니다!`);
-                enemy.turnCount++;
-                await waitMs(220);
-                player._awaitPlayerTurn = true;
-                setCombatProcessing(false);
-                updateUi();
-                renderActions();
-                return;
-            }
-            enemy.turnCount++;
-        }
-        if(dodgingTurns>0){
-            dodgingTurns--;
-            if(Math.random()*100<75){
-                writeLog(`[회피 성공] 💨 적의 공격을 피했습니다!`); hitLanded=false;
-                showMissFloat('player');
-                if(player.relics&&player.relics.includes('dodge_counter')){const cd=Math.max(1,Math.floor(player.atk*0.9)-Math.floor(enemy.def*0.6));enemy.curHp-=cd;writeLog(`[유물] 🗡️ 그림자 반격! ${cd} 피해!`);showDmgFloat(cd,false,false);if(enemy.curHp<=0){setTimeout(()=>winBattle(),100);return;}}
-            } else writeLog(`[회피 실패] 피하지 못했습니다!`);
-        }
-        if(hitLanded){
-            const enemyHitRate = hunterExecutionMode ? 100 : 80;
-            if(Math.random()*100<enemyHitRate){
-                if (enemy.isBoss) {
-                    scheduleEarlyUnlock(660);
-                    await playBossStrikeVfx('player');
-                } else {
-                    scheduleEarlyUnlock(360);
-                    await playJobAttackVfx('enemy', enemy.job || '');
-                }
-                let dmg=Math.max(1,currentEnemyAtk-getTotalPlayerDefenseForHit());
-                if (hunterExecutionMode) {
-                    dmg = Math.max(1, Math.floor(dmg * 1.45));
-                    writeLog('[헌터 AI] ☠️ 처형인 본능 발동! 약해진 상대를 향해 확정 치명타 급 습격!');
-                    triggerCritEffect();
-                    playCritGoldBurst('player');
-                }
-                let tacticalNullified = false;
-                if (player.tacticalParryReady) {
-                    player.tacticalParryReady = false;
-                    tacticalNullified = true;
-                    dmg = 0;
-                    writeLog('[전술] 🛡️ 패링 성공 — 이번 피격을 무효화했습니다.');
-                    triggerGuardAura();
-                    showMissFloat('player');
-                } else if (player.tacticalBarrierReady) {
-                    player.tacticalBarrierReady = false;
-                    tacticalNullified = true;
-                    dmg = 0;
-                    writeLog('[전술] ✨ 방어막 발동 — 이번 피격을 완전히 흘렸습니다.');
-                    triggerGuardAura();
-                    showMissFloat('player');
-                } else if(shieldedTurns>0){dmg=Math.floor(dmg*0.5);shieldedTurns--;writeLog(`[방어막] ✨ 피해 50% 감소! (${dmg} 입음)`); triggerGuardAura(); if(player.relics&&player.relics.includes('barrier_reflect')){const rd=Math.floor(dmg*0.45);enemy.curHp-=rd;const heal=Math.floor(getEffectiveMaxHp()*0.05);player.curHp=Math.min(getEffectiveMaxHp(),player.curHp+heal);writeLog(`[유물] 🔮 마력 방벽: 반사 ${rd}, 회복 ${heal}`);if(enemy.curHp<=0){setTimeout(()=>winBattle(),100);}}}
-                else if(defendingTurns>0){dmg=Math.floor(dmg*0.4);defendingTurns--;writeLog(`[철벽 방어] 🛡️ 피해 60% 감소! (${dmg} 입음)`); triggerGuardAura();}
-                else writeLog(`[피격] 적의 공격! ${dmg} 데미지.`);
-                if (!tacticalNullified) {
-                    if (player.summon && player.summon.id === 'golem') {
-                        dmg = Math.max(1, Math.floor(dmg * 0.90));
-                        writeLog(`[소환] 🪨 골렘이 피해를 줄였습니다! (${dmg})`);
-                    }
-                    if (player.prayerVulnerableHits && player.prayerVulnerableHits > 0) {
-                        dmg = Math.max(1, Math.floor(dmg * 2));
-                        player.prayerVulnerableHits = 0;
-                        writeLog('[기도 반동] ⚠️ 기도의 반동으로 이번 피격 피해가 2배가 되었습니다.');
-                    }
-                    const gearReduction = typeof getPlayerDamageReduction === 'function'
-                        ? getPlayerDamageReduction()
-                        : 0;
-                    if (gearReduction > 0 && dmg > 0) {
-                        const beforeReduction = dmg;
-                        dmg = Math.max(1, Math.floor(dmg * (1 - gearReduction)));
-                        if (beforeReduction !== dmg) {
-                            writeLog(`[장비] 피해 감소 ${Math.round(gearReduction * 100)}% 적용 (${beforeReduction} → ${dmg})`);
-                        }
-                    }
-                    if (isMercenaryCaptainJob() && player.fieldMerc && player.fieldMerc.mercHp > 0) {
-                        player.fieldMerc.mercHp -= dmg;
-                        writeLog(`[어그로] 용병이 맞았다! ${dmg} (용병 ${Math.max(0, player.fieldMerc.mercHp)}/${player.fieldMerc.mercMaxHp})`);
-                        showDmgFloat(dmg, false, true);
-                        if (player.fieldMerc.mercHp <= 0) {
-                            if (player.fieldMerc.mercItems && player.fieldMerc.mercItems.length) {
-                                player.mercInventory = [...player.fieldMerc.mercItems];
-                            }
-                            player.fieldMerc = null;
-                            player.mercCooldownTurns = 3;
-                            player.mercReviveAt90Percent = true;
-                            player._mercCooldownSkipOnce = true;
-                            writeLog(`💀 용병 전멸! 재소환까지 ${player.mercCooldownTurns}턴 (또는 🪙 긴급 재가동)`);
-                        }
-                    } else {
-                        player.curHp-=dmg; showDmgFloat(dmg,false,true);
-                        if (String(enemy.job || '').includes('헌터')) {
-                            if (player.hunterExposeReady) {
-                                const bonusFixed = Math.max(1, Math.floor(getEffectiveMaxHp() * 0.1));
-                                player.curHp = Math.max(0, player.curHp - bonusFixed);
-                                player.hunterExposeReady = false;
-                                player.hunterExposeStacks = 0;
-                                playAssassinStrikeVfx('player');
-                                writeLog(`[헌터] 🎯 약점 공격 발동! 추가 고정 피해 ${bonusFixed}`);
-                            } else {
-                                player.hunterExposeStacks = Math.max(0, safeNum(player.hunterExposeStacks, 0)) + 1;
-                                const cur = Math.min(3, player.hunterExposeStacks);
-                                writeLog(`[헌터] 약점을 간파합니다... (${cur}/3)`);
-                                if (player.hunterExposeStacks >= 3) {
-                                    player.hunterExposeReady = true;
-                                    writeLog('[헌터] 다음 타격은 치명적인 약점 공격으로 강화됩니다!');
-                                }
-                            }
-                        }
-                    }
-                }
-            } else { writeLog(`[럭키] 적의 공격이 빗나갔습니다!`); showMissFloat('player'); }
-        }
-        if (isMercenaryCaptainJob() && player.mercCooldownTurns > 0) {
-            if (player._mercCooldownSkipOnce) {
-                player._mercCooldownSkipOnce = false;
-            } else {
-                player.mercCooldownTurns--;
-            }
-        }
-        if (isMercenaryCaptainJob() && player.mercCooldownTurns === 0 && !player.fieldMerc && player.mercCompanionKind) {
-            player.fieldMerc = buildFieldMercFromTemplate();
-            const ratio = player.mercReviveAt90Percent ? 0.9 : 1;
-            player.fieldMerc.mercHp = Math.max(1, Math.floor(player.fieldMerc.mercMaxHp * ratio));
-            writeLog(
-                `[용병] ${ratio < 1 ? '부상에서 복귀' : '전열 재편성'}! HP ${player.fieldMerc.mercHp}/${player.fieldMerc.mercMaxHp} (${ratio < 1 ? '최대의 90%' : '만전'})`
-            );
-            player.mercReviveAt90Percent = false;
-        }
-        if (player.name === '암살자' && enemy && Math.random() < 0.15) {
-            enemy.weakPoint = true;
-            writeLog(`[패시브] 🎯 약점 노출! 다음 공격이 치명적으로 들어갑니다.`);
-        }
-        player._awaitPlayerTurn = true;
-        if(player.curHp<=0) return gameOver();
-        if (!earlyUnlockSet) setCombatProcessing(false);
-        updateUi(); renderActions();
-    }, 120);
+function enterNextDungeonStage() {
+    const current = normalizeDungeonProgress({ floor, stage: dungeonStage });
+    const next = advanceDungeonProgress(current);
+    if (next.completed) {
+        dungeonClear();
+        return;
+    }
+    floor = next.floor;
+    dungeonStage = next.stage;
+    player.progress = { floor, stage: dungeonStage };
+    if (hasCrossedPointOfNoReturn(player.progress)) MetaRPG.clearRunSnapshot(player.metaSlotId);
+    syncPlayerCampaignState();
+    writeLog(`[전진] ${formatDungeonPosition(player.progress)} 진입${hasCrossedPointOfNoReturn(player.progress) ? ' · 복귀 불가' : ''}`);
+    if (current.stage === STAGES_PER_FLOOR && typeof openShop === 'function') {
+        openShop();
+        return;
+    }
+    spawnEnemy();
 }
 
 function winBattle() {
     setCombatProcessing(false);
-    triggerBossWarning(false);
-    const baseGain = typeof computeFloorGoldReward === 'function'
-        ? computeFloorGoldReward(floor, { isBoss: !!(enemy && enemy.isBoss) })
-        : Math.max(15, 6 + Math.floor(Math.random() * 5) + floor * 3);
-    let bonus=0, bonusMsg="";
-    const relKey=getAffinityRelKey();
-    if(!enemy.isBoss&&relations[relKey]&&relations[relKey].weak===enemy.job){bonus=Math.floor(baseGain*0.3);bonusMsg=` <b style='color:#f1c40f'>(역전 보너스 +${bonus}G!)</b>`;}
-    const goldMult = typeof getPlayerGoldGainMult === 'function' ? getPlayerGoldGainMult() : 1;
-    const gain = Math.floor((baseGain + bonus) * goldMult);
-    gold+=gain; totalGoldEarned+=gain;
-    { const _em = getEffectiveMaxHp(); player.curHp = Math.min(_em, player.curHp + Math.floor(_em * 0.15)); }
-    writeLog(`[승리] ${gain}G 획득 및 체력 소량 회복.${bonusMsg}`);
-    if (player.tutorialBattleActive) {
-        player.tutorialBattleActive = false;
-        player.prologueLocked = false;
-        writeLog('[튜토리얼] 첫 전투를 넘겼습니다. 이제 마굴을 오르며 잃어버린 기억을 추적합니다.');
-        if (typeof updatePrologueBattleControls === 'function') updatePrologueBattleControls();
-    }
-    const expGain = 8 + Math.floor(floor * 0.85) + (enemy.isBoss ? 28 : 0);
-    if (player.metaSlotId && typeof MetaRPG !== 'undefined') {
-        const r = MetaRPG.addExpToSlot(player.metaSlotId, expGain);
-        if (r) {
-            player.runLevel = r.level;
-            player.runExp = r.exp;
-            const left = Math.max(0, (r.need || MetaRPG.expToNextLevel(r.level)) - r.exp);
-            writeLog(`[EXP] +${expGain} (Lv.${r.level}, 다음 ${left} EXP)`);
-        }
-    }
-    processFloorQuestOnVictory();
-    const defeatedBoss = !!(enemy && enemy.isBoss);
-    const continueAfterVictory = () => {
-        if (floor % 100 === 0 && floor >= 100 && defeatedBoss) return milestoneCenturyFloor();
-        if (floor > 20 && player.farmingStay) proceedWinBattleFarmContinue();
-        else proceedWinBattleNextFloor();
-    };
+    playerTurnSpent = false;
+    playerGuardState = null;
+    enemyGuardState = null;
+    const reward = computeFloorGoldReward(floor + (dungeonStage - 1) / STAGES_PER_FLOOR, {
+        isBoss: dungeonStage === STAGES_PER_FLOOR,
+    });
+    gold = Math.max(0, safeNum(gold, 0)) + reward;
+    if (typeof totalGoldEarned !== 'undefined') totalGoldEarned = Math.max(0, safeNum(totalGoldEarned, 0)) + reward;
+    writeLog(`[승리] ${formatDungeonPosition({ floor, stage: dungeonStage })} 전투 종료 · ${reward}G 획득`);
+    setCurrentHp(player, Math.min(getEffectiveMaxHp(), player.curHp + Math.max(1, Math.floor(getEffectiveMaxHp() * 0.08))));
+    syncPlayerCampaignState();
+    const continueForward = () => enterNextDungeonStage();
     if (typeof showVictoryRewardAndAwaitContinue === 'function') {
         showVictoryRewardAndAwaitContinue(
-            {
-                clearedFloor: floor,
-                goldGain: gain,
-                expGain,
-                defeatedBoss,
-            },
-            continueAfterVictory
+            { clearedFloor: floor, goldGain: reward, expGain: 0, defeatedBoss: dungeonStage === STAGES_PER_FLOOR },
+            continueForward
         );
     } else {
-        continueAfterVictory();
+        continueForward();
     }
-}
-
-function dungeonClear() {
-    triggerBossWarning(false);
-    const sg=Math.floor(totalGoldEarned*0.1), ps=getSavedGold();
-    const clearTitle = typeof getPlayerClassDisplayName === 'function' ? getPlayerClassDisplayName() : player.name;
-    localStorage.setItem('saved_gold',ps+sg); exitBattleLayout();
-    document.getElementById('battle-area').style.display='none';
-    document.querySelector('.screen').innerHTML=`<div style="text-align:center;padding:40px 20px;"><h2 style="color:#f1c40f;font-size:2em;">🏆 던전 클리어!</h2><p style="color:#e0e0e0;font-size:1.1em;margin:15px 0;"><b style="color:#f1c40f;">${escapeHtml(clearTitle)}</b>이(가) 100층을 정복했습니다!</p><p style="color:#2ed573;font-size:0.95em;margin-bottom:5px;">💰 보존 골드: <b>${sg}G</b></p><div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:20px;"><button onclick="startInfiniteMode()" style="background:#9b59b6;color:#fff;padding:14px 24px;font-size:1em;font-weight:700;">♾️ 무한모드 도전</button><button onclick="location.reload()" style="background:#f1c40f;color:#111;padding:14px 24px;font-size:1em;font-weight:700;">🏠 메인으로</button></div></div>`;
-    writeLog(`🏆 ${escapeHtml(clearTitle)}이(가) 100층을 클리어했습니다!!!`);
 }
 
 function gameOver() {
+    if (!player) return;
     setCombatProcessing(false);
-    triggerBossWarning(false);
-    window.__deathApplied = false;
-    const carriedGold = Math.max(0, Math.floor(safeNum(gold, 0)));
-    const sg = Math.floor(carriedGold * 0.2);
-    const lostGold = Math.max(0, carriedGold - sg);
-    const slotId = player && player.metaSlotId;
-    const enName = enemy ? enemy.name : '알 수 없는 적';
-    const fl = floor;
-    const rescuedItems = player && Array.isArray(player.items)
-        ? player.items.filter((it) => it && it.type !== 'merc' && getEquipSlotKind(it))
-        : [];
-    window.__deathCtx = { sg, lostGold, slotId, floor: fl, enemyName: enName, rescuedItemCount: rescuedItems.length };
-
-    exitBattleLayout();
-    document.getElementById('battle-area').style.display = 'none';
-
-    finalizeGameOverDeath();
+    ensureHumanRuntimeShape(player);
+    player.curHp = 0;
+    player.progress = normalizeDungeonProgress({ floor, stage: dungeonStage });
+    player.behaviorMatrix = isBehaviorLearningZone(player.progress)
+        ? buildBehaviorProbabilityMatrix(player.behaviorLogger)
+        : null;
+    const killedBy = enemy ? { id: enemy.id || null, name: enemy.name, ghostId: enemy.ghostId || null } : null;
+    const archived = MetaRPG.markPermanentDeath(player.metaSlotId, player, player.progress, killedBy);
+    const ghostName = archived && archived.ghost ? archived.ghost.monsterName : `${player.name}의 망령`;
+    writeLog(
+        `[영구 사망] ${player.name} — ${formatDungeonPosition(player.progress)}에서 사망. ` +
+        `모든 스탯·무기·갑옷·마법·스킬이 동일한 <b>${ghostName}</b>으로 박제되었습니다.`
+    );
+    enemy = null;
+    const battleArea = document.getElementById('battle-area');
+    if (battleArea) battleArea.style.display = 'none';
+    if (typeof exitBattleLayout === 'function') exitBattleLayout();
+    player = null;
+    floor = 1;
+    dungeonStage = 1;
+    if (typeof showPreGameScreen === 'function') showPreGameScreen();
 }
 
-window.resumeFromLastSaveAfterDeath = function resumeFromLastSaveAfterDeath() {
-    window.__deathApplied = true;
-    const d = window.__deathCtx || {};
-    const slotId = d.slotId;
-    if (!slotId || typeof MetaRPG === 'undefined') return location.reload();
-    const snap = MetaRPG.getRunSnapshot(slotId);
-    if (!snap || !snap.player) {
-        alert('저장된 런이 없습니다.');
-        return location.reload();
+function dungeonClear() {
+    if (player) {
+        player.progress = { floor: MAX_DUNGEON_FLOOR, stage: STAGES_PER_FLOOR };
+        syncPlayerCampaignState();
     }
-    MetaRPG.setActiveSlot(slotId);
-    document.querySelector('.screen').innerHTML = '';
-    loadRunFromMetaSnapshot(snap);
+    writeLog('[완주] 100-10층 돌파');
+    enemy = null;
+    updateUi();
+    renderActions();
+}
+
+function buildRuntimePlayerFromSlot(slot) {
+    const stats = normalizeHumanStats(slot.stats);
+    const maxHp = Math.max(1, safeNum(slot.maxHp, 50 + stats.hp * 5));
+    return ensureHumanRuntimeShape({
+        id: slot.id,
+        metaSlotId: slot.id,
+        name: slot.name,
+        color: '#d8d8d8',
+        stats,
+        curHp: Math.min(maxHp, Math.max(1, safeNum(slot.hp, maxHp))),
+        maxHp,
+        atk: stats.str,
+        def: stats.def,
+        int: stats.int,
+        wis: stats.wis,
+        agi: stats.agi,
+        divinity: stats.divinity,
+        distortion: stats.distortion,
+        progress: normalizeDungeonProgress(slot.progress),
+        equipment: JSON.parse(JSON.stringify(slot.equipment || { weapon: null, armor: null, accessories: [] })),
+        magic: JSON.parse(JSON.stringify(slot.magic || [])),
+        skills: JSON.parse(JSON.stringify(slot.skills || [])),
+        mastery: JSON.parse(JSON.stringify(slot.mastery || {})),
+        statuses: JSON.parse(JSON.stringify(slot.statuses || [])),
+        body: JSON.parse(JSON.stringify(slot.body || {})),
+        items: JSON.parse(JSON.stringify(slot.items || [])),
+        relics: JSON.parse(JSON.stringify(slot.relics || [])),
+        behaviorLogger: JSON.parse(JSON.stringify(slot.behaviorLogger || [])),
+        behaviorMatrix: slot.behaviorMatrix ? JSON.parse(JSON.stringify(slot.behaviorMatrix)) : null,
+        potions: 0,
+        baseJob: '인간 모험가',
+        jobKey: HUMAN_JOB_KEY,
+        classKey: null,
+        runLevel: 1,
+        runExp: 0,
+        tacticalSkills: [],
+        tacticalSkillUses: {},
+        passiveContractHistory: [],
+        floorGrowth: { floors: 0, atk: 0, hp: 0 },
+        playerState: { corruption: 0, purification: 0 },
+    });
+}
+
+function initHumanRunFromActiveSlot() {
+    const meta = MetaRPG.loadMeta();
+    const slot = meta.slots.find((entry) => entry.id === meta.activeSlotId);
+    if (!slot || slot.permanentDeath) return false;
+    player = buildRuntimePlayerFromSlot(slot);
+    fullResyncPlayerCombatStatsFromMetaAndInventory();
+    floor = player.progress.floor;
+    dungeonStage = player.progress.stage;
+    gold = 0;
+    combatTurnNumber = 1;
+    playerTurnSpent = false;
+    playerGuardState = null;
+    enemyGuardState = null;
+    document.getElementById('start-area').style.display = 'none';
+    document.getElementById('shop-area').style.display = 'none';
+    document.getElementById('battle-area').style.display = 'block';
+    if (typeof enterBattleLayout === 'function') enterBattleLayout();
+    writeLog(
+        `[생성] 인간 모험가 주사위 — 힘 ${player.stats.str}, 방어 ${player.stats.def}, 체력 ${player.stats.hp}, ` +
+        `지능 ${player.stats.int}, 지혜 ${player.stats.wis}, 민첩 ${player.stats.agi}, 성혼 0, 뒤틀림 0`
+    );
+    spawnEnemy();
+    return true;
+}
+
+// 기존 DOM 이벤트가 호출하는 이름을 유지하되 직업 인수는 무시한다.
+window.confirmNewCharacter = function confirmNewCharacter() {
+    const name = prompt('캐릭터 이름을 입력하세요 (비우면 인간 모험가):', '인간 모험가');
+    const result = MetaRPG.createCharacter(name || '인간 모험가');
+    if (!result.ok) {
+        alert(result.msg || '생성 실패');
+        return;
+    }
+    initHumanRunFromActiveSlot();
 };
 
-window.finalizeGameOverDeath = function finalizeGameOverDeath() {
-    if (window.__deathApplied) return;
-    window.__deathApplied = true;
-    const d = window.__deathCtx || {};
-    const sg = d.sg != null ? d.sg : 0;
-    const lostGold = d.lostGold != null ? d.lostGold : Math.max(0, Math.floor(safeNum(gold, 0)) - sg);
-    const slotId = d.slotId;
-    const fl = d.floor != null ? d.floor : floor;
-    const enName = d.enemyName || '알 수 없는 적';
-    let rescuedItemCount = d.rescuedItemCount != null ? d.rescuedItemCount : 0;
-    if (typeof MetaRPG !== 'undefined') {
-        if (slotId) {
-            if (typeof MetaRPG.preserveRescueInventory === 'function') {
-                rescuedItemCount = MetaRPG.preserveRescueInventory(slotId, player && player.items);
-            } else if (typeof MetaRPG.clearRunSnapshot === 'function') {
-                MetaRPG.clearRunSnapshot(slotId);
-            }
-        }
-        MetaRPG.addSavedGold(sg);
-        if (slotId) {
-            const qdef = MetaRPG.FLOOR_QUESTS[fl];
-            const sl = MetaRPG.getSlotById(slotId);
-            if (qdef && sl && !(sl.questFlags && sl.questFlags[qdef.id])) {
-                MetaRPG.applyQuestPenalty(slotId, qdef.failPenalty);
-                writeLog(`[퀘스트 실패] 사망으로 <b>${qdef.title}</b> 패널티 적용`);
-            }
-        }
-    } else {
-        const ps = getSavedGold();
-        localStorage.setItem('saved_gold', ps + sg);
+window.initRunFromMetaSlot = function initRunFromMetaSlot() {
+    return initHumanRunFromActiveSlot();
+};
+if (typeof initRunFromMetaSlot === 'function') {
+    initRunFromMetaSlot = window.initRunFromMetaSlot;
+}
+if (typeof confirmNewCharacter === 'function') {
+    confirmNewCharacter = window.confirmNewCharacter;
+}
+if (typeof loadRunFromMetaSnapshot === 'function') {
+    loadRunFromMetaSnapshot = function loadHumanRunFromSnapshot() {
+        return initHumanRunFromActiveSlot();
+    };
+}
+
+window.saveAndExitToMain = function saveAndExitToMain() {
+    if (!player || !player.metaSlotId) return;
+    const progress = normalizeDungeonProgress({ floor, stage: dungeonStage });
+    if (!canReturnToBaseCamp(progress)) {
+        writeLog(`[복귀 불가] ${formatDungeonPosition(progress)}부터는 베이스캠프로 돌아갈 수 없습니다.`);
+        return;
     }
-    writeLog(
-        `💀 ${fl}층에서 ${enName}에게 패배했습니다. 구조대가 베이스캠프로 회수했습니다. ` +
-            `장비 ${rescuedItemCount}개 보존, 골드 ${lostGold}G 손실, ${sg}G 회수.`
-    );
-    if (typeof MetaRPG !== 'undefined' && slotId) MetaRPG.setActiveSlot(slotId);
+    syncPlayerCampaignState();
+    const payload = typeof serializeRunState === 'function' ? serializeRunState() : { player, floor, dungeonStage };
+    MetaRPG.setRunSnapshot(player.metaSlotId, payload);
+    if (typeof exitBattleLayout === 'function') exitBattleLayout();
+    document.getElementById('battle-area').style.display = 'none';
     player = null;
     enemy = null;
-    floor = 1;
-    gold = 0;
-    totalGoldEarned = 0;
-    pendingShop = false;
-    exitBattleLayout();
-    document.getElementById('battle-area').style.display = 'none';
-    document.getElementById('shop-area').style.display = 'none';
-    showPreGameScreen();
+    if (typeof showPreGameScreen === 'function') showPreGameScreen();
 };
 
-window.setCombatProcessing = setCombatProcessing;
-window.updateCombatButtonsLockState = updateCombatButtonsLockState;
-window.queueEnemyTurnWithPacing = queueEnemyTurnWithPacing;
-window.triggerBossWarning = triggerBossWarning;
-window.applySummonDarkTurnStart = applySummonDarkTurnStart;
-window.enemyTurn = enemyTurn;
-window.winBattle = winBattle;
-window.dungeonClear = dungeonClear;
-window.gameOver = gameOver;
-window.isMercenaryCaptainJob = isMercenaryCaptainJob;
-window.getAffinityRelKey = getAffinityRelKey;
-window.getMercGoldSkipCost = getMercGoldSkipCost;
-window.getMercEffectiveAttackPower = getMercEffectiveAttackPower;
-window.getMercBonusAcc = getMercBonusAcc;
-window.getMercEffectiveCritForMercAttack = getMercEffectiveCritForMercAttack;
-window.getMercEffectiveCritMultForMercAttack = getMercEffectiveCritMultForMercAttack;
-window.getFieldMercAttackMult = getFieldMercAttackMult;
-window.buildFieldMercFromTemplate = buildFieldMercFromTemplate;
-window.getMercGachaCost = getMercGachaCost;
-window.tryMercenaryRandomEvent = tryMercenaryRandomEvent;
+window.exitToMainWithoutSave = function exitToMainWithoutSave() {
+    if (!player) return;
+    const progress = normalizeDungeonProgress({ floor, stage: dungeonStage });
+    if (!canReturnToBaseCamp(progress)) {
+        writeLog(`[복귀 불가] ${formatDungeonPosition(progress)}부터는 오직 전진만 가능합니다.`);
+        return;
+    }
+    window.saveAndExitToMain();
+};
+
+function installHumanActionButtons() {
+    const originalRenderActions = typeof renderActions === 'function' ? renderActions : null;
+    if (!originalRenderActions || originalRenderActions.__humanWrapped) return;
+    const wrapped = function renderHumanActions() {
+        originalRenderActions();
+        const host = document.getElementById('action-btns');
+        if (!host || !player || !enemy || enemy.curHp <= 0) return;
+        const buttons = Array.from(host.querySelectorAll('button'));
+        const defense = buttons.find((button) => !button.onclick && button !== buttons[0]);
+        if (defense) {
+            defense.innerText = player.stats.agi >= 45 ? '💨 회피' : '🛡️ 방어';
+            defense.onclick = () => useAction(player.stats.agi >= 45 ? '회피' : '방패방어');
+        }
+        if (!host.querySelector('[data-v35-heal]')) {
+            const heal = document.createElement('button');
+            heal.dataset.v35Heal = '1';
+            heal.innerText = '✨ 힐';
+            heal.style.background = '#4b6b50';
+            heal.onclick = () => useAction('힐');
+            host.appendChild(heal);
+        }
+        const potion = host.querySelector('.potion-btn');
+        if (potion) potion.remove();
+        updateCombatButtonsLockState();
+    };
+    wrapped.__humanWrapped = true;
+    renderActions = wrapped;
+    window.renderActions = wrapped;
+}
+
+installHumanActionButtons();
+
+function installDungeonProgressUiAdapter() {
+    const originalUpdateUi = typeof updateUi === 'function' ? updateUi : null;
+    if (!originalUpdateUi || originalUpdateUi.__v35ProgressWrapped) return;
+    const wrapped = function updateV35Ui() {
+        originalUpdateUi();
+        const position = `${floor}-${dungeonStage}`;
+        ['floor-t-battle', 'floor-t'].forEach((id) => {
+            const element = document.getElementById(id);
+            if (element) element.innerText = position;
+        });
+        const progress = normalizeDungeonProgress({ floor, stage: dungeonStage });
+        const canReturn = canReturnToBaseCamp(progress);
+        ['battle-save-main-btn', 'battle-exit-main-btn'].forEach((id) => {
+            const button = document.getElementById(id);
+            if (!button) return;
+            button.disabled = !canReturn;
+            button.title = canReturn
+                ? `${formatDungeonPosition(progress)}: 베이스캠프 복귀 가능`
+                : `${formatDungeonPosition(progress)}: 6-1층 진입 후 복귀 불가`;
+        });
+    };
+    wrapped.__v35ProgressWrapped = true;
+    updateUi = wrapped;
+    window.updateUi = wrapped;
+}
+
+installDungeonProgressUiAdapter();
+
+Object.assign(window, {
+    setCombatProcessing,
+    updateCombatButtonsLockState,
+    probabilityRoll,
+    calculateAttackChance,
+    calculatePhysicalDamage,
+    enemyTurn,
+    winBattle,
+    gameOver,
+    dungeonClear,
+    syncPlayerCampaignState,
+    enterNextDungeonStage,
+    initHumanRunFromActiveSlot,
+    isMercenaryCaptainJob,
+    getAffinityRelKey,
+    getMercGoldSkipCost,
+    getMercEffectiveAttackPower,
+    getMercBonusAcc,
+    getMercEffectiveCritForMercAttack,
+    getMercEffectiveCritMultForMercAttack,
+    getFieldMercAttackMult,
+    buildFieldMercFromTemplate,
+    getMercGachaCost,
+    tryMercenaryRandomEvent,
+    queueEnemyTurnWithPacing,
+    triggerBossWarning,
+    applySummonDarkTurnStart,
+});

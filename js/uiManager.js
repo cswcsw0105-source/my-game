@@ -804,6 +804,12 @@ function syncPlayerRunProgressToMeta() {
         playerState: player.playerState,
         tacticalSkills: player.tacticalSkills,
         tacticalSkillMilestonesClaimed: player.tacticalSkillMilestonesClaimed,
+        starterEquipment: (player.items || []).filter((it) => {
+            if (!it) return false;
+            return typeof isStarterGearItem === 'function'
+                ? isStarterGearItem(it)
+                : !!(it.isStarterGear || it.starterGearKind);
+        }),
         currentPromotion: player.currentPromotion || null,
     });
 }
@@ -1292,7 +1298,7 @@ auth.onAuthStateChanged((user) => {
 
 /** 베이스캠프 영구 강화 — 무한 단계, 슬롯 전용 */
 function getCampPermaNextPrice(key, level) {
-    const growth = (typeof BALANCE !== 'undefined' && BALANCE.enemyPostWallGrowth) || 1.065;
+    const growth = (typeof BALANCE !== 'undefined' && BALANCE.permanentUpgradeGrowth) || 1.065;
     const floorEq = (typeof BALANCE !== 'undefined' && BALANCE.upgradeFloorEquivalent) || 1.25;
     const tempo = Math.max(1.28, Math.pow(growth, floorEq * 5.2));
     const T = {
@@ -1961,7 +1967,7 @@ function showPreGameScreen() {
     document.getElementById('start-area').innerHTML = `
         <div style="text-align:center; margin-bottom:16px;">
             <h2 style="color:#f1c40f; margin-bottom:5px;">⚔️ 로그라이트 허브</h2>
-            <p style="color:#9b59b6;font-size:0.88em;margin:0 0 8px;font-weight:700;">시즌 1</p>
+            <p style="color:#9b59b6;font-size:0.88em;margin:0 0 8px;font-weight:700;">시즌 2</p>
             ${saveFileBar}
             <p style="color:#888; font-size:0.85em;">무한 층 · 베이스캠프에서만 영구 성장</p>
             ${globalUnlocked.length > 0 ? `<p style="color:#f1c40f;font-size:0.8em;">🔓 공용 해금: ${globalUnlocked.join(', ')}층</p>` : ''}
@@ -2184,7 +2190,38 @@ function initRunFromMetaSlot(options) {
     const baseDef = job.def + tb.def + lb.def + (rs.def || 0);
     const baseAcc = tb.acc + lb.acc + (rs.acc || 0);
     const rescuedItems = typeof MetaRPG.getRescuedItems === 'function' ? MetaRPG.getRescuedItems(slot.id) : [];
-    rescuedItems.forEach((it) => {
+    const starterItems = Array.isArray(slot.starterEquipment)
+        ? slot.starterEquipment
+              .map((it) => {
+                  try {
+                      const copy = JSON.parse(JSON.stringify(it));
+                      if (typeof applyStarterGearStats === 'function') applyStarterGearStats(copy);
+                      return copy;
+                  } catch (e) {
+                      return null;
+                  }
+              })
+              .filter(Boolean)
+        : typeof buildStarterEquipmentSet === 'function'
+          ? buildStarterEquipmentSet({
+                raceKey: slot.raceKey,
+                weaponKey: slot.introWeaponKey,
+                classKey: slot.classKey,
+                jobKey: slot.jobKey,
+            })
+          : [];
+    const runItems = [...rescuedItems];
+    starterItems.forEach((it) => {
+        if (!it) return;
+        const kind = it.starterGearKind;
+        const exists = runItems.some((owned) => {
+            if (!owned) return false;
+            if (typeof isStarterGearItem === 'function' && !isStarterGearItem(owned)) return false;
+            return owned.starterGearKind === kind;
+        });
+        if (!exists) runItems.push(it);
+    });
+    runItems.forEach((it) => {
         if (!it || it.type === 'merc') return;
         if (typeof applyOfficialStatsToEquipmentItem === 'function') applyOfficialStatsToEquipmentItem(it, { rebuildDesc: true });
         else if (typeof clampEquipmentItemStatsToRarityCaps === 'function') clampEquipmentItemStatsToRarityCaps(it);
@@ -2210,7 +2247,7 @@ function initRunFromMetaSlot(options) {
         metaSlotId: slot.id,
         runLevel: lv,
         runExp: slot.exp || 0,
-        items: rescuedItems,
+        items: runItems,
         relics: [],
         extraAtk: 0,
         _relicGamblerDefSub: 0,
@@ -2284,8 +2321,10 @@ function initRunFromMetaSlot(options) {
     enterBattleLayout();
     loadCollection();
     emitRunStartStory(slot);
-    if (player.items.length) {
+    if (rescuedItems.length) {
         writeLog(`[구조] 베이스캠프에 보존된 장비 ${player.items.length}개를 장착한 채 1층부터 재등반합니다.`);
+    } else if (starterItems.length) {
+        writeLog('[장비] 부서지기 직전의 고유 무기와 다 해진 고유 갑옷을 자동 장착했습니다.');
     }
     if (jb === 'MercenaryCaptain') {
         MetaRPG.markRunCheckpoint(slot.id);
@@ -3296,6 +3335,7 @@ function getEquipSlotKind(it) {
     if (it.type === 'atk') return 'weapon';
     if (it.type === 'hp') return 'armor';
     if (it.type === 'ring') return 'ring';
+    if (it.type === 'util') return 'ring';
     if (it.type === 'rune') return 'rune';
     return null;
 }
@@ -3787,14 +3827,17 @@ function renderInventoryPanel() {
             const rarityInfo = rl[rarity] || rl.common;
             const bp = Math.max(0, safeNum(it._buyPrice != null ? it._buyPrice : it.price, 0));
             const rf = Math.floor(bp * 0.5);
+            const starterGear = typeof isStarterGearItem === 'function' ? isStarterGearItem(it) : !!(it.isStarterGear || it.starterGearKind);
             html += `<div class="inventory-slot-cell inventory-slot-cell-filled" style="--rarity-color:${rarityInfo.color};">
                 <div class="inventory-item-top">
                     <span class="inventory-item-rarity" style="background:${rarityInfo.bg};color:${rarityInfo.color};">${rarityInfo.label}</span>
-                    <button type="button" class="inventory-sell-btn" onclick="sellItemByUid('${escapeJsSingleQuoteString(it._uid)}')">판매</button>
+                    ${starterGear
+                        ? '<span class="inventory-item-price" style="margin:0;color:#f1c40f;">고유</span>'
+                        : `<button type="button" class="inventory-sell-btn" onclick="sellItemByUid('${escapeJsSingleQuoteString(it._uid)}')">판매</button>`}
                 </div>
                 <div class="inventory-item-name">${formatShopItemName(it.name)}</div>
                 <div class="inventory-item-desc">${formatShopItemDesc(it.desc)}</div>
-                <div class="inventory-item-price">판매가 <b>${rf}G</b></div>
+                <div class="inventory-item-price">${starterGear ? '상점에서 수리 및 복원 가능' : `판매가 <b>${rf}G</b>`}</div>
             </div>`;
         }
         html += `</div></section>`;

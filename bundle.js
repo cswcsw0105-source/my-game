@@ -2,3460 +2,11157 @@
 (function dungeonRuntimeBundle(){
 'use strict';
 
-// ---- data.js ----
-/**
- * v7 장비 확장 필드 (선택)
- * - tags: string[] — 시너지 키 (synergyRules.needTags 와 매칭)
- * - meta: { setId?, season? } — 향후 세트/시즌용 확장 슬롯
+// ===== js/restoredItemData.js =====
+'use strict';
+
+// Generated from Git HEAD data.js: restored legacy item tables only.
+const RESTORED_ITEM_DATA = Object.freeze({
+  "equipmentPool": [
+    {
+      "name": "거인족의 대검",
+      "type": "atk",
+      "price": 490,
+      "rarity": "epic",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "desc": "공격(+38), 치명(+10%), 치명 배율(+6%).",
+      "value": 38,
+      "critBonus": 10,
+      "critMult": 0.06,
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "찬빛 합금 흉갑",
+      "type": "hp",
+      "price": 619,
+      "rarity": "epic",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "desc": "체력(+245), 방어(+39), 피해 감소(+9%).",
+      "value": 245,
+      "def": 39,
+      "damageReduction": 0.086,
+      "tags": [
+        "rarity_epic",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "용사의 방패",
+      "type": "hp",
+      "price": 186,
+      "rarity": "rare",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "desc": "체력(+81), 방어(+13), 피해 감소(+2%).",
+      "value": 81,
+      "def": 13,
+      "damageReduction": 0.021,
+      "tags": [
+        "rarity_rare",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "전쟁의 도끼",
+      "type": "atk",
+      "price": 133,
+      "rarity": "rare",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "desc": "공격(+17), 치명(+2%).",
+      "value": 17,
+      "critBonus": 2,
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "분노의 투구",
+      "type": "hp",
+      "price": 123,
+      "rarity": "common",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "desc": "체력(+53), 방어(+6), 피해 감소(+1%).",
+      "value": 53,
+      "def": 6,
+      "damageReduction": 0.01,
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "철벽의 각반",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "desc": "체력(+93), 방어(+11), 피해 감소(+1%).",
+      "value": 93,
+      "def": 11,
+      "damageReduction": 0.014,
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "강철 팔찌",
+      "type": "ring",
+      "price": 66,
+      "rarity": "common",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "desc": "공격(+9), 치명 배율(+1%).",
+      "value": 9,
+      "critMult": 0.01,
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "파괴자의 도끼",
+      "type": "atk",
+      "price": 514,
+      "rarity": "epic",
+      "onlyFor": [
+        "버서커"
+      ],
+      "desc": "공격(+47), 치명(+10%), 치명 배율(+7%).",
+      "value": 47,
+      "critBonus": 10,
+      "critMult": 0.07,
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "성기사의 검",
+      "type": "atk",
+      "price": 481,
+      "rarity": "epic",
+      "onlyFor": [
+        "나이트"
+      ],
+      "desc": "공격(+34), 치명(+10%), 치명 배율(+6%).",
+      "value": 34,
+      "critBonus": 10,
+      "critMult": 0.06,
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "정령왕의 활",
+      "type": "atk",
+      "price": 512,
+      "rarity": "epic",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "desc": "공격(+44), 치명(+10%), 치명 배율(+8%).",
+      "value": 44,
+      "critBonus": 10,
+      "critMult": 0.08,
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "은신 단검",
+      "type": "atk",
+      "price": 142,
+      "rarity": "rare",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "desc": "공격(+23), 치명(+2%).",
+      "value": 23,
+      "critBonus": 2,
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "독화살 통",
+      "type": "atk",
+      "price": 142,
+      "rarity": "rare",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "desc": "공격(+20), 치명(+3%).",
+      "value": 20,
+      "critBonus": 3,
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "그림자 망토",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "desc": "체력(+96), 방어(+11), 피해 감소(+1%).",
+      "value": 96,
+      "def": 11,
+      "damageReduction": 0.014,
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "사냥꾼의 장갑",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "desc": "체력(+65), 방어(+7), 피해 감소(+1%).",
+      "value": 65,
+      "def": 7,
+      "damageReduction": 0.011,
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "바람의 신발",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "desc": "체력(+79), 방어(+9), 피해 감소(+1%).",
+      "value": 79,
+      "def": 9,
+      "damageReduction": 0.012,
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "독이 묻은 화살촉",
+      "type": "atk",
+      "price": 113,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "desc": "공격(+17), 치명(+1%).",
+      "value": 17,
+      "critBonus": 1,
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "폭풍의 활",
+      "type": "atk",
+      "price": 492,
+      "rarity": "epic",
+      "onlyFor": [
+        "궁수"
+      ],
+      "desc": "공격(+37), 치명(+10%), 치명 배율(+7%).",
+      "value": 37,
+      "critBonus": 10,
+      "critMult": 0.07,
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "그림자 쌍검",
+      "type": "atk",
+      "price": 514,
+      "rarity": "epic",
+      "onlyFor": [
+        "암살자"
+      ],
+      "desc": "공격(+45), 치명(+10%), 치명 배율(+8%).",
+      "value": 45,
+      "critBonus": 10,
+      "critMult": 0.08,
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "고대 마도 지팡이",
+      "type": "atk",
+      "price": 594,
+      "rarity": "epic",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "desc": "공격(+69), 치명(+12%), 치명 배율(+11%).",
+      "value": 69,
+      "critBonus": 12,
+      "critMult": 0.11,
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "학자의 로브",
+      "type": "hp",
+      "price": 117,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "desc": "체력(+46), 방어(+6), 피해 감소(+1%).",
+      "value": 46,
+      "def": 6,
+      "damageReduction": 0.01,
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "마력 증폭기",
+      "type": "atk",
+      "price": 199,
+      "rarity": "rare",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "desc": "공격(+31), 치명(+3%), 치명 배율(+3%).",
+      "value": 31,
+      "critBonus": 3,
+      "critMult": 0.03,
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "정령의 로브",
+      "type": "hp",
+      "price": 202,
+      "rarity": "rare",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "desc": "체력(+109), 방어(+12), 피해 감소(+3%).",
+      "value": 109,
+      "def": 12,
+      "damageReduction": 0.025,
+      "tags": [
+        "rarity_rare",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "마력 수정",
+      "type": "atk",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "desc": "공격(+19), 치명 배율(+2%).",
+      "value": 19,
+      "critMult": 0.02,
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "마력 구슬",
+      "type": "atk",
+      "price": 106,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "desc": "공격(+15), 치명 배율(+2%).",
+      "value": 15,
+      "critMult": 0.02,
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "마력 봉인 관",
+      "type": "atk",
+      "price": 92,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "desc": "공격(+11), 치명(+1%), 치명 배율(+1%).",
+      "value": 11,
+      "critBonus": 1,
+      "critMult": 0.01,
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "고대 마법진",
+      "type": "atk",
+      "price": 523,
+      "rarity": "epic",
+      "onlyFor": [
+        "위저드"
+      ],
+      "desc": "공격(+49), 치명(+10%), 치명 배율(+8%).",
+      "value": 49,
+      "critBonus": 10,
+      "critMult": 0.08,
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "차원 부름 인장",
+      "type": "hp",
+      "price": 605,
+      "rarity": "epic",
+      "onlyFor": [
+        "소환사"
+      ],
+      "desc": "체력(+267), 방어(+33), 피해 감소(+9%).",
+      "value": 267,
+      "def": 33,
+      "damageReduction": 0.086,
+      "tags": [
+        "rarity_epic",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "드래곤의 심장",
+      "type": "hp",
+      "price": 1765,
+      "rarity": "legendary",
+      "desc": "체력(+418), 방어(+53), 피해 감소(+18%).",
+      "value": 418,
+      "def": 53,
+      "damageReduction": 0.18,
+      "tags": [
+        "rarity_legendary",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_ur77fs",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "빛의 잔광검",
+      "type": "atk",
+      "price": 1845,
+      "rarity": "legendary",
+      "desc": "공격(+134), 치명(+32%), 치명 배율(+26%).",
+      "value": 134,
+      "critBonus": 32,
+      "critMult": 0.26,
+      "tags": [
+        "rarity_legendary",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_1sls3ax",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "흡혈 반지",
+      "type": "ring",
+      "price": 128,
+      "rarity": "rare",
+      "desc": "흡혈(3%).",
+      "lifesteal": 0.025,
+      "tags": [
+        "rarity_rare",
+        "type_ring",
+        "role_utility",
+        "synergy_utility"
+      ],
+      "itemRole": "utility",
+      "itemRoleLabel": "유틸형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "흡혈 망토",
+      "type": "hp",
+      "price": 129,
+      "rarity": "rare",
+      "desc": "흡혈(3%).",
+      "lifesteal": 0.034,
+      "tags": [
+        "rarity_rare",
+        "type_hp",
+        "role_utility",
+        "synergy_utility"
+      ],
+      "itemRole": "utility",
+      "itemRoleLabel": "유틸형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "저주받은 검",
+      "type": "atk",
+      "price": 512,
+      "rarity": "epic",
+      "desc": "공격(+44), 치명(+10%), 치명 배율(+8%).",
+      "value": 44,
+      "critBonus": 10,
+      "critMult": 0.08,
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "바람의 부츠",
+      "type": "hp",
+      "price": 250,
+      "rarity": "rare",
+      "desc": "체력(+109), 방어(+19), 피해 감소(+3%).",
+      "value": 109,
+      "def": 19,
+      "damageReduction": 0.031,
+      "tags": [
+        "rarity_rare",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "중갑옷",
+      "type": "hp",
+      "price": 199,
+      "rarity": "rare",
+      "desc": "체력(+101), 방어(+12), 피해 감소(+3%).",
+      "value": 101,
+      "def": 12,
+      "damageReduction": 0.026,
+      "tags": [
+        "rarity_rare",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "낡은 가죽 갑옷",
+      "type": "hp",
+      "price": 105,
+      "rarity": "common",
+      "desc": "체력(+40), 방어(+5), 피해 감소(+1%).",
+      "value": 40,
+      "def": 5,
+      "damageReduction": 0.01,
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "회복의 목걸이",
+      "type": "hp",
+      "price": 88,
+      "rarity": "common",
+      "desc": "포션 회복(+8%).",
+      "potionHealBonus": 0.08,
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_utility",
+        "synergy_utility"
+      ],
+      "itemRole": "utility",
+      "itemRoleLabel": "유틸형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "대지의 반지",
+      "type": "ring",
+      "price": 124,
+      "rarity": "common",
+      "desc": "체력(+55), 방어(+9), 피해 감소(+1%).",
+      "hpBonus": 55,
+      "def": 9,
+      "damageReduction": 0.01,
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "수련자의 검",
+      "type": "atk",
+      "price": 97,
+      "rarity": "common",
+      "desc": "공격(+12), 치명(+1%), 치명 배율(+1%).",
+      "value": 12,
+      "critBonus": 1,
+      "critMult": 0.01,
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "견습 갑옷",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "desc": "체력(+66), 방어(+8), 피해 감소(+1%).",
+      "value": 66,
+      "def": 8,
+      "damageReduction": 0.011,
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "행운의 동전",
+      "type": "ring",
+      "price": 44,
+      "rarity": "common",
+      "desc": "골드 획득(+3%).",
+      "goldGainBonus": 0.025,
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_utility",
+        "synergy_utility"
+      ],
+      "itemRole": "utility",
+      "itemRoleLabel": "유틸형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "불꽃 반지",
+      "type": "ring",
+      "price": 98,
+      "rarity": "common",
+      "desc": "공격(+14), 치명(+1%).",
+      "value": 14,
+      "critBonus": 1,
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "생명의 돌",
+      "type": "hp",
+      "price": 128,
+      "rarity": "rare",
+      "desc": "흡혈(3%).",
+      "lifesteal": 0.027,
+      "tags": [
+        "rarity_rare",
+        "type_hp",
+        "role_utility",
+        "synergy_utility"
+      ],
+      "itemRole": "utility",
+      "itemRoleLabel": "유틸형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "전투 반지",
+      "type": "ring",
+      "price": 181,
+      "rarity": "rare",
+      "desc": "공격(+21), 치명(+4%), 치명 배율(+4%).",
+      "value": 21,
+      "critBonus": 4,
+      "critMult": 0.04,
+      "tags": [
+        "rarity_rare",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "용의 비늘 조각",
+      "type": "hp",
+      "price": 212,
+      "rarity": "rare",
+      "desc": "체력(+107), 방어(+13), 피해 감소(+3%).",
+      "value": 107,
+      "def": 13,
+      "damageReduction": 0.029,
+      "tags": [
+        "rarity_rare",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "고대 유물 파편",
+      "type": "atk",
+      "price": 189,
+      "rarity": "rare",
+      "desc": "공격(+28), 치명(+3%), 치명 배율(+3%).",
+      "value": 28,
+      "critBonus": 3,
+      "critMult": 0.03,
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "피의 에센스",
+      "type": "atk",
+      "price": 425,
+      "rarity": "epic",
+      "desc": "흡혈(5%), 골드 획득(+6%).",
+      "goldGainBonus": 0.055,
+      "lifesteal": 0.049,
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_utility",
+        "synergy_utility"
+      ],
+      "itemRole": "utility",
+      "itemRoleLabel": "유틸형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "불사의 갑옷",
+      "type": "hp",
+      "price": 574,
+      "rarity": "epic",
+      "desc": "체력(+238), 방어(+28), 피해 감소(+8%).",
+      "value": 238,
+      "def": 28,
+      "damageReduction": 0.083,
+      "tags": [
+        "rarity_epic",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "번개의 반지",
+      "type": "ring",
+      "price": 465,
+      "rarity": "epic",
+      "desc": "공격(+27), 치명(+10%), 치명 배율(+6%).",
+      "value": 27,
+      "critBonus": 10,
+      "critMult": 0.06,
+      "tags": [
+        "rarity_epic",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "폭군의 갑옷",
+      "type": "hp",
+      "price": 1813,
+      "rarity": "legendary",
+      "desc": "체력(+512), 방어(+64), 피해 감소(+18%).",
+      "value": 512,
+      "def": 64,
+      "damageReduction": 0.18,
+      "tags": [
+        "rarity_legendary",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_1kjxo48",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "세계수의 가지",
+      "type": "hp",
+      "price": 1817,
+      "rarity": "legendary",
+      "desc": "체력(+497), 방어(+67), 피해 감소(+18%).",
+      "value": 497,
+      "def": 67,
+      "damageReduction": 0.18,
+      "tags": [
+        "rarity_legendary",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_1e7ih9h",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "녹슨 철퇴",
+      "type": "atk",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+19), 치명(+1%), 치명 배율(+2%).",
+      "value": 19,
+      "critBonus": 1,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "훈련용 목검",
+      "type": "atk",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "desc": "공격(+21), 치명(+1%).",
+      "value": 21,
+      "critBonus": 1,
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "보병의 흉갑",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "desc": "체력(+72), 방어(+10), 피해 감소(+1%).",
+      "value": 72,
+      "def": 10,
+      "damageReduction": 0.013,
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "철벽 방패",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "desc": "체력(+53), 방어(+8), 피해 감소(+1%).",
+      "value": 53,
+      "def": 8,
+      "damageReduction": 0.01,
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "전장의 붕대",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "desc": "체력(+49), 방어(+7), 피해 감소(+1%).",
+      "value": 49,
+      "def": 7,
+      "damageReduction": 0.01,
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "기사단 양날검",
+      "type": "atk",
+      "price": 209,
+      "rarity": "rare",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "desc": "공격(+29), 치명(+4%), 치명 배율(+4%).",
+      "value": 29,
+      "critBonus": 4,
+      "critMult": 0.04,
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "가시 갑옷",
+      "type": "hp",
+      "price": 284,
+      "rarity": "rare",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "desc": "체력(+132), 방어(+22), 피해 감소(+3%).",
+      "value": 132,
+      "def": 22,
+      "damageReduction": 0.034,
+      "tags": [
+        "rarity_rare",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "광전사의 팔찌",
+      "type": "ring",
+      "price": 157,
+      "rarity": "rare",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+19), 치명(+3%), 치명 배율(+3%).",
+      "value": 19,
+      "critBonus": 3,
+      "critMult": 0.03,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "수호 기사의 인장",
+      "type": "hp",
+      "price": 205,
+      "rarity": "rare",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "desc": "체력(+95), 방어(+14), 피해 감소(+3%).",
+      "value": 95,
+      "def": 14,
+      "damageReduction": 0.025,
+      "tags": [
+        "rarity_rare",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "철의 반지",
+      "type": "ring",
+      "price": 131,
+      "rarity": "rare",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "desc": "공격(+11), 치명(+2%).",
+      "value": 11,
+      "critBonus": 2,
+      "tags": [
+        "rarity_rare",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "룬문자 대검",
+      "type": "atk",
+      "price": 521,
+      "rarity": "epic",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "desc": "공격(+48), 치명(+10%), 치명 배율(+8%).",
+      "value": 48,
+      "critBonus": 10,
+      "critMult": 0.08,
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "깊은 광산 판금",
+      "type": "hp",
+      "price": 595,
+      "rarity": "epic",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "desc": "체력(+239), 방어(+32), 피해 감소(+9%).",
+      "value": 239,
+      "def": 32,
+      "damageReduction": 0.089,
+      "tags": [
+        "rarity_epic",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "피의 맹세",
+      "type": "atk",
+      "price": 424,
+      "rarity": "epic",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "desc": "흡혈(5%), 골드 획득(+5%).",
+      "goldGainBonus": 0.05,
+      "lifesteal": 0.045,
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_utility",
+        "synergy_utility"
+      ],
+      "itemRole": "utility",
+      "itemRoleLabel": "유틸형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "성역의 방패",
+      "type": "hp",
+      "price": 555,
+      "rarity": "epic",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "desc": "체력(+215), 방어(+26), 피해 감소(+8%).",
+      "value": 215,
+      "def": 26,
+      "damageReduction": 0.079,
+      "tags": [
+        "rarity_epic",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "전장의 함성",
+      "type": "atk",
+      "price": 574,
+      "rarity": "epic",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "desc": "공격(+62), 치명(+12%), 치명 배율(+10%).",
+      "value": 62,
+      "critBonus": 12,
+      "critMult": 0.1,
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "태양검 심연",
+      "type": "atk",
+      "price": 1698,
+      "rarity": "legendary",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "desc": "공격(+78), 치명(+21%), 치명 배율(+22%).",
+      "value": 78,
+      "critBonus": 21,
+      "critMult": 0.22,
+      "tags": [
+        "rarity_legendary",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_ybsdt8",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "불멸의 요새",
+      "type": "hp",
+      "price": 1719,
+      "rarity": "legendary",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "desc": "체력(+350), 방어(+45), 피해 감소(+16%).",
+      "value": 350,
+      "def": 45,
+      "damageReduction": 0.164,
+      "tags": [
+        "rarity_legendary",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_dd21in",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "광기의 도끼 잔향",
+      "type": "atk",
+      "price": 1722,
+      "rarity": "legendary",
+      "onlyFor": [
+        "버서커"
+      ],
+      "desc": "공격(+91), 치명(+22%), 치명 배율(+22%).",
+      "value": 91,
+      "critBonus": 22,
+      "critMult": 0.22,
+      "tags": [
+        "rarity_legendary",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_1b2f099",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "성기사의 성배",
+      "type": "hp",
+      "price": 1803,
+      "rarity": "legendary",
+      "onlyFor": [
+        "나이트"
+      ],
+      "desc": "체력(+476), 방어(+63), 피해 감소(+18%).",
+      "value": 476,
+      "def": 63,
+      "damageReduction": 0.18,
+      "tags": [
+        "rarity_legendary",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_8fcztb",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "전쟁신의 유산",
+      "type": "atk",
+      "price": 1827,
+      "rarity": "legendary",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "desc": "공격(+117), 치명(+33%), 치명 배율(+27%).",
+      "value": 117,
+      "critBonus": 33,
+      "critMult": 0.27,
+      "tags": [
+        "rarity_legendary",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_elnxg4",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "나무 활",
+      "type": "atk",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "desc": "공격(+16), 치명(+1%), 치명 배율(+2%).",
+      "value": 16,
+      "critBonus": 1,
+      "critMult": 0.02,
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "가죽 장갑",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "desc": "체력(+71), 방어(+12), 피해 감소(+1%).",
+      "value": 71,
+      "def": 12,
+      "damageReduction": 0.013,
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "작은 단검",
+      "type": "atk",
+      "price": 103,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "desc": "공격(+15), 치명(+1%).",
+      "value": 15,
+      "critBonus": 1,
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "숲길 장화",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "desc": "체력(+66), 방어(+10), 피해 감소(+1%).",
+      "value": 66,
+      "def": 10,
+      "damageReduction": 0.011,
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "독침 화살",
+      "type": "atk",
+      "price": 97,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "desc": "공격(+17).",
+      "value": 17,
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "바람의 시위",
+      "type": "ring",
+      "price": 134,
+      "rarity": "rare",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "desc": "공격(+14), 치명(+3%), 치명 배율(+2%).",
+      "value": 14,
+      "critBonus": 3,
+      "critMult": 0.02,
+      "tags": [
+        "rarity_rare",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "그림자 가면",
+      "type": "atk",
+      "price": 195,
+      "rarity": "rare",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "desc": "공격(+32), 치명(+4%).",
+      "value": 32,
+      "critBonus": 4,
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "맹금의 깃털",
+      "type": "atk",
+      "price": 133,
+      "rarity": "rare",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "desc": "공격(+17), 치명(+2%).",
+      "value": 17,
+      "critBonus": 2,
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "그림자 장화",
+      "type": "hp",
+      "price": 214,
+      "rarity": "rare",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "desc": "체력(+108), 방어(+14), 피해 감소(+3%).",
+      "value": 108,
+      "def": 14,
+      "damageReduction": 0.026,
+      "tags": [
+        "rarity_rare",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "독니 화살",
+      "type": "atk",
+      "price": 182,
+      "rarity": "rare",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "desc": "공격(+26), 치명(+3%), 치명 배율(+3%).",
+      "value": 26,
+      "critBonus": 3,
+      "critMult": 0.03,
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "폭풍 시위",
+      "type": "atk",
+      "price": 525,
+      "rarity": "epic",
+      "onlyFor": [
+        "궁수"
+      ],
+      "desc": "공격(+50), 치명(+10%), 치명 배율(+8%).",
+      "value": 50,
+      "critBonus": 10,
+      "critMult": 0.08,
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "암흑 각오",
+      "type": "atk",
+      "price": 503,
+      "rarity": "epic",
+      "onlyFor": [
+        "암살자"
+      ],
+      "desc": "공격(+42), 치명(+10%), 치명 배율(+7%).",
+      "value": 42,
+      "critBonus": 10,
+      "critMult": 0.07,
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "정찰병의 망원경",
+      "type": "ring",
+      "price": 491,
+      "rarity": "epic",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "desc": "공격(+33), 치명(+10%), 치명 배율(+9%).",
+      "value": 33,
+      "critBonus": 10,
+      "critMult": 0.09,
+      "tags": [
+        "rarity_epic",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "맹독 가죽",
+      "type": "atk",
+      "price": 527,
+      "rarity": "epic",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "desc": "공격(+51), 치명(+10%), 치명 배율(+8%).",
+      "value": 51,
+      "critBonus": 10,
+      "critMult": 0.08,
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "천둥 화살",
+      "type": "atk",
+      "price": 523,
+      "rarity": "epic",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "desc": "공격(+49), 치명(+10%), 치명 배율(+8%).",
+      "value": 49,
+      "critBonus": 10,
+      "critMult": 0.08,
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "별빛 석궁",
+      "type": "atk",
+      "price": 1689,
+      "rarity": "legendary",
+      "onlyFor": [
+        "궁수"
+      ],
+      "desc": "공격(+72), 치명(+21%), 치명 배율(+22%).",
+      "value": 72,
+      "critBonus": 21,
+      "critMult": 0.22,
+      "tags": [
+        "rarity_legendary",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_1iwbnys",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "심연의 낫",
+      "type": "atk",
+      "price": 1757,
+      "rarity": "legendary",
+      "onlyFor": [
+        "암살자"
+      ],
+      "desc": "공격(+105), 치명(+25%), 치명 배율(+22%).",
+      "value": 105,
+      "critBonus": 25,
+      "critMult": 0.22,
+      "tags": [
+        "rarity_legendary",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_uxbepk",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "천둥신의 활시위",
+      "type": "atk",
+      "price": 1687,
+      "rarity": "legendary",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "desc": "공격(+74), 치명(+20%), 치명 배율(+22%).",
+      "value": 74,
+      "critBonus": 20,
+      "critMult": 0.22,
+      "tags": [
+        "rarity_legendary",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_5nanps",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "바람의 군주",
+      "type": "atk",
+      "price": 1771,
+      "rarity": "legendary",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "desc": "공격(+108), 치명(+27%), 치명 배율(+22%).",
+      "value": 108,
+      "critBonus": 27,
+      "critMult": 0.22,
+      "tags": [
+        "rarity_legendary",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_119tdx7",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "피의 계약서",
+      "type": "atk",
+      "price": 1576,
+      "rarity": "legendary",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "desc": "흡혈(8%), 골드 획득(+9%), 포션 회복(+15%).",
+      "goldGainBonus": 0.09,
+      "lifesteal": 0.08,
+      "potionHealBonus": 0.15,
+      "tags": [
+        "rarity_legendary",
+        "type_atk",
+        "role_utility",
+        "synergy_utility"
+      ],
+      "itemRole": "utility",
+      "itemRoleLabel": "유틸형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_1dexmfm",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "마나 잔류석",
+      "type": "atk",
+      "price": 113,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+17), 치명(+1%).",
+      "value": 17,
+      "critBonus": 1,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "초급 주문서",
+      "type": "atk",
+      "price": 83,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "desc": "공격(+11), 치명(+1%).",
+      "value": 11,
+      "critBonus": 1,
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "마도 학도 로브",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "desc": "체력(+85), 방어(+10), 피해 감소(+1%).",
+      "value": 85,
+      "def": 10,
+      "damageReduction": 0.013,
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "정령 가루",
+      "type": "atk",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "desc": "공격(+23), 치명(+1%), 치명 배율(+2%).",
+      "value": 23,
+      "critBonus": 1,
+      "critMult": 0.02,
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "마력 전도체",
+      "type": "atk",
+      "price": 116,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "desc": "공격(+17), 치명 배율(+2%).",
+      "value": 17,
+      "critMult": 0.02,
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "고대 룬스톤",
+      "type": "atk",
+      "price": 171,
+      "rarity": "rare",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "desc": "공격(+23), 치명(+3%), 치명 배율(+3%).",
+      "value": 23,
+      "critBonus": 3,
+      "critMult": 0.03,
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "마력 증폭 링",
+      "type": "atk",
+      "price": 137,
+      "rarity": "rare",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "desc": "공격(+18), 치명(+2%), 치명 배율(+2%).",
+      "value": 18,
+      "critBonus": 2,
+      "critMult": 0.02,
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "시간의 모래",
+      "type": "hp",
+      "price": 240,
+      "rarity": "rare",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "desc": "체력(+119), 방어(+16), 피해 감소(+3%).",
+      "value": 119,
+      "def": 16,
+      "damageReduction": 0.032,
+      "tags": [
+        "rarity_rare",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "번개 인장",
+      "type": "atk",
+      "price": 213,
+      "rarity": "rare",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "desc": "공격(+30), 치명(+4%), 치명 배율(+4%).",
+      "value": 30,
+      "critBonus": 4,
+      "critMult": 0.04,
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "심연의 페이지",
+      "type": "atk",
+      "price": 178,
+      "rarity": "rare",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "desc": "공격(+25), 치명(+3%), 치명 배율(+3%).",
+      "value": 25,
+      "critBonus": 3,
+      "critMult": 0.03,
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "성역 마도서",
+      "type": "atk",
+      "price": 545,
+      "rarity": "epic",
+      "onlyFor": [
+        "위저드"
+      ],
+      "desc": "공격(+54), 치명(+11%), 치명 배율(+9%).",
+      "value": 54,
+      "critBonus": 11,
+      "critMult": 0.09,
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "소환진 외피",
+      "type": "hp",
+      "price": 503,
+      "rarity": "epic",
+      "onlyFor": [
+        "소환사"
+      ],
+      "desc": "체력(+167), 방어(+22), 피해 감소(+6%).",
+      "value": 167,
+      "def": 22,
+      "damageReduction": 0.058,
+      "tags": [
+        "rarity_epic",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "혼돈 보주",
+      "type": "atk",
+      "price": 527,
+      "rarity": "epic",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "desc": "공격(+51), 치명(+10%), 치명 배율(+8%).",
+      "value": 51,
+      "critBonus": 10,
+      "critMult": 0.08,
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "별무리 로브",
+      "type": "hp",
+      "price": 536,
+      "rarity": "epic",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "desc": "체력(+188), 방어(+26), 피해 감소(+7%).",
+      "value": 188,
+      "def": 26,
+      "damageReduction": 0.069,
+      "tags": [
+        "rarity_epic",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "마력 폭풍 지팡이",
+      "type": "atk",
+      "price": 518,
+      "rarity": "epic",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "desc": "공격(+47), 치명(+10%), 치명 배율(+8%).",
+      "value": 47,
+      "critBonus": 10,
+      "critMult": 0.08,
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "천공의 지팡이",
+      "type": "atk",
+      "price": 1861,
+      "rarity": "legendary",
+      "onlyFor": [
+        "위저드"
+      ],
+      "desc": "공격(+130), 치명(+35%), 치명 배율(+29%).",
+      "value": 130,
+      "critBonus": 35,
+      "critMult": 0.29,
+      "tags": [
+        "rarity_legendary",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_1hk3uyp",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "차원문 인장",
+      "type": "hp",
+      "price": 1789,
+      "rarity": "legendary",
+      "onlyFor": [
+        "소환사"
+      ],
+      "desc": "체력(+426), 방어(+62), 피해 감소(+18%).",
+      "value": 426,
+      "def": 62,
+      "damageReduction": 0.18,
+      "tags": [
+        "rarity_legendary",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_1x31a92",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "마도 제국의 왕관",
+      "type": "atk",
+      "price": 1861,
+      "rarity": "legendary",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "desc": "공격(+125), 치명(+36%), 치명 배율(+30%).",
+      "value": 125,
+      "critBonus": 36,
+      "critMult": 0.3,
+      "tags": [
+        "rarity_legendary",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_uy0mcn",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "불멸의 마력 심장",
+      "type": "atk",
+      "price": 1836,
+      "rarity": "legendary",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "desc": "공격(+128), 치명(+32%), 치명 배율(+26%).",
+      "value": 128,
+      "critBonus": 32,
+      "critMult": 0.26,
+      "tags": [
+        "rarity_legendary",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_19onzu7",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "세계수의 잎새",
+      "type": "hp",
+      "price": 1798,
+      "rarity": "legendary",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "desc": "체력(+468), 방어(+62), 피해 감소(+18%).",
+      "value": 468,
+      "def": 62,
+      "damageReduction": 0.18,
+      "tags": [
+        "rarity_legendary",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_1ub5843",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "낡은 끈",
+      "type": "hp",
+      "price": 116,
+      "rarity": "common",
+      "desc": "체력(+44), 방어(+6), 피해 감소(+1%).",
+      "value": 44,
+      "def": 6,
+      "damageReduction": 0.01,
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "조각난 화살촉",
+      "type": "atk",
+      "price": 124,
+      "rarity": "common",
+      "desc": "공격(+18), 치명(+1%), 치명 배율(+2%).",
+      "value": 18,
+      "critBonus": 1,
+      "critMult": 0.02,
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "구리 반지",
+      "type": "ring",
+      "price": 77,
+      "rarity": "common",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "desc": "공격(+13).",
+      "value": 13,
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "이끼 낀 돌",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "desc": "체력(+80), 방어(+9), 피해 감소(+1%).",
+      "value": 80,
+      "def": 9,
+      "damageReduction": 0.013,
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "가죽 끈",
+      "type": "ring",
+      "price": 124,
+      "rarity": "common",
+      "desc": "체력(+85), 방어(+12), 피해 감소(+1%).",
+      "hpBonus": 85,
+      "def": 12,
+      "damageReduction": 0.013,
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "작은 철못",
+      "type": "atk",
+      "price": 92,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "desc": "공격(+16).",
+      "value": 16,
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "마른 허브",
+      "type": "hp",
+      "price": 88,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_utility",
+        "synergy_utility"
+      ],
+      "desc": "포션 회복(+8%).",
+      "potionHealBonus": 0.08,
+      "itemRole": "utility",
+      "itemRoleLabel": "유틸형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "부서진 수정",
+      "type": "atk",
+      "price": 108,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "desc": "공격(+19).",
+      "value": 19,
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "녹슨 못",
+      "type": "atk",
+      "price": 124,
+      "rarity": "common",
+      "desc": "공격(+19), 치명(+1%), 치명 배율(+2%).",
+      "value": 19,
+      "critBonus": 1,
+      "critMult": 0.02,
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "짚신",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "desc": "체력(+61), 방어(+8), 피해 감소(+1%).",
+      "value": 61,
+      "def": 8,
+      "damageReduction": 0.01,
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "유리 조각",
+      "type": "atk",
+      "price": 76,
+      "rarity": "common",
+      "desc": "공격(+11), 치명 배율(+1%).",
+      "value": 11,
+      "critMult": 0.01,
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "작은 방울",
+      "type": "ring",
+      "price": 90,
+      "rarity": "common",
+      "desc": "공격(+12), 치명 배율(+2%).",
+      "value": 12,
+      "critMult": 0.02,
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "밧줄 조각",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "desc": "체력(+62), 방어(+8), 피해 감소(+1%).",
+      "value": 62,
+      "def": 8,
+      "damageReduction": 0.01,
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "납 동전",
+      "type": "atk",
+      "price": 44,
+      "rarity": "common",
+      "desc": "골드 획득(+3%).",
+      "goldGainBonus": 0.025,
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_utility",
+        "synergy_utility"
+      ],
+      "itemRole": "utility",
+      "itemRoleLabel": "유틸형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "마른 고기",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "desc": "체력(+67), 방어(+9), 피해 감소(+1%).",
+      "value": 67,
+      "def": 9,
+      "damageReduction": 0.01,
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "작은 방패 파편",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "desc": "체력(+54), 방어(+7), 피해 감소(+1%).",
+      "value": 54,
+      "def": 7,
+      "damageReduction": 0.01,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "깃털 화살",
+      "type": "atk",
+      "price": 108,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+19).",
+      "value": 19,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "연습용 구슬",
+      "type": "atk",
+      "price": 121,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "desc": "공격(+15), 치명(+1%), 치명 배율(+2%).",
+      "value": 15,
+      "critBonus": 1,
+      "critMult": 0.02,
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "청동 팔찌",
+      "type": "atk",
+      "price": 147,
+      "rarity": "rare",
+      "desc": "공격(+21), 치명(+2%), 치명 배율(+2%).",
+      "value": 21,
+      "critBonus": 2,
+      "critMult": 0.02,
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "은박 반지",
+      "type": "ring",
+      "price": 181,
+      "rarity": "rare",
+      "desc": "공격(+21), 치명(+4%), 치명 배율(+4%).",
+      "value": 21,
+      "critBonus": 4,
+      "critMult": 0.04,
+      "tags": [
+        "rarity_rare",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "가는 철검",
+      "type": "atk",
+      "price": 209,
+      "rarity": "rare",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "desc": "공격(+29), 치명(+4%), 치명 배율(+4%).",
+      "value": 29,
+      "critBonus": 4,
+      "critMult": 0.04,
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "사냥꾼 주머니",
+      "type": "atk",
+      "price": 189,
+      "rarity": "rare",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "desc": "공격(+28), 치명(+3%), 치명 배율(+3%).",
+      "value": 28,
+      "critBonus": 3,
+      "critMult": 0.03,
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "마력 잔물결",
+      "type": "atk",
+      "price": 168,
+      "rarity": "rare",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "desc": "공격(+22), 치명(+3%), 치명 배율(+3%).",
+      "value": 22,
+      "critBonus": 3,
+      "critMult": 0.03,
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "단단한 가죽",
+      "type": "hp",
+      "price": 194,
+      "rarity": "rare",
+      "desc": "체력(+90), 방어(+13), 피해 감소(+2%).",
+      "value": 90,
+      "def": 13,
+      "damageReduction": 0.023,
+      "tags": [
+        "rarity_rare",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "바람 깃털",
+      "type": "ring",
+      "price": 138,
+      "rarity": "rare",
+      "desc": "공격(+19), 치명(+3%).",
+      "value": 19,
+      "critBonus": 3,
+      "tags": [
+        "rarity_rare",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "작은 붉은 수정",
+      "type": "atk",
+      "price": 144,
+      "rarity": "rare",
+      "desc": "공격(+20), 치명(+2%), 치명 배율(+2%).",
+      "value": 20,
+      "critBonus": 2,
+      "critMult": 0.02,
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "강철 버클",
+      "type": "hp",
+      "price": 173,
+      "rarity": "rare",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "desc": "체력(+77), 방어(+11), 피해 감소(+2%).",
+      "value": 77,
+      "def": 11,
+      "damageReduction": 0.021,
+      "tags": [
+        "rarity_rare",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "야간 투시경",
+      "type": "ring",
+      "price": 138,
+      "rarity": "rare",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "desc": "공격(+19), 치명(+3%).",
+      "value": 19,
+      "critBonus": 3,
+      "tags": [
+        "rarity_rare",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "마나 잔디",
+      "type": "hp",
+      "price": 233,
+      "rarity": "rare",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "desc": "체력(+118), 방어(+16), 피해 감소(+3%).",
+      "value": 118,
+      "def": 16,
+      "damageReduction": 0.028,
+      "tags": [
+        "rarity_rare",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "냉기 결정",
+      "type": "atk",
+      "price": 490,
+      "rarity": "epic",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "desc": "공격(+36), 치명(+10%), 치명 배율(+7%).",
+      "value": 36,
+      "critBonus": 10,
+      "critMult": 0.07,
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "강철 너클",
+      "type": "atk",
+      "price": 514,
+      "rarity": "epic",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "desc": "공격(+47), 치명(+10%), 치명 배율(+7%).",
+      "value": 47,
+      "critBonus": 10,
+      "critMult": 0.07,
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "독침 통",
+      "type": "atk",
+      "price": 543,
+      "rarity": "epic",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "desc": "공격(+53), 치명(+11%), 치명 배율(+9%).",
+      "value": 53,
+      "critBonus": 11,
+      "critMult": 0.09,
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "별무늬 천",
+      "type": "hp",
+      "price": 538,
+      "rarity": "epic",
+      "desc": "체력(+172), 방어(+29), 피해 감소(+7%).",
+      "value": 172,
+      "def": 29,
+      "damageReduction": 0.066,
+      "tags": [
+        "rarity_epic",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "암흑 가루",
+      "type": "atk",
+      "price": 541,
+      "rarity": "epic",
+      "desc": "공격(+55), 치명(+10%), 치명 배율(+9%).",
+      "value": 55,
+      "critBonus": 10,
+      "critMult": 0.09,
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "은빛 고리",
+      "type": "atk",
+      "price": 494,
+      "rarity": "epic",
+      "desc": "공격(+38), 치명(+10%), 치명 배율(+7%).",
+      "value": 38,
+      "critBonus": 10,
+      "critMult": 0.07,
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "화염 잔재",
+      "type": "atk",
+      "price": 503,
+      "rarity": "epic",
+      "desc": "공격(+42), 치명(+10%), 치명 배율(+7%).",
+      "value": 42,
+      "critBonus": 10,
+      "critMult": 0.07,
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "빛바랜 망토",
+      "type": "hp",
+      "price": 550,
+      "rarity": "epic",
+      "desc": "체력(+199), 방어(+30), 피해 감소(+7%).",
+      "value": 199,
+      "def": 30,
+      "damageReduction": 0.065,
+      "tags": [
+        "rarity_epic",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "수정 렌즈",
+      "type": "ring",
+      "price": 458,
+      "rarity": "epic",
+      "desc": "공격(+24), 치명(+10%), 치명 배율(+6%).",
+      "value": 24,
+      "critBonus": 10,
+      "critMult": 0.06,
+      "tags": [
+        "rarity_epic",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "천상의 파편",
+      "type": "atk",
+      "price": 1672,
+      "rarity": "legendary",
+      "desc": "공격(+70), 치명(+18%), 치명 배율(+22%).",
+      "value": 70,
+      "critBonus": 18,
+      "critMult": 0.22,
+      "tags": [
+        "rarity_legendary",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_1v3vlek",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "고대 철판",
+      "type": "hp",
+      "price": 1734,
+      "rarity": "legendary",
+      "desc": "체력(+333), 방어(+56), 피해 감소(+15%).",
+      "value": 333,
+      "def": 56,
+      "damageReduction": 0.153,
+      "tags": [
+        "rarity_legendary",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_wovs09",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "폭풍의 씨앗",
+      "type": "atk",
+      "price": 1807,
+      "rarity": "legendary",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "desc": "공격(+112), 치명(+31%), 치명 배율(+26%).",
+      "value": 112,
+      "critBonus": 31,
+      "critMult": 0.26,
+      "tags": [
+        "rarity_legendary",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_ct0de8",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "용해액 병",
+      "type": "atk",
+      "price": 1776,
+      "rarity": "legendary",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "desc": "공격(+101), 치명(+29%), 치명 배율(+24%).",
+      "value": 101,
+      "critBonus": 29,
+      "critMult": 0.24,
+      "tags": [
+        "rarity_legendary",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_ksd3jq",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "성스러운 철",
+      "type": "atk",
+      "price": 1744,
+      "rarity": "legendary",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "desc": "공격(+93), 치명(+26%), 치명 배율(+22%).",
+      "value": 93,
+      "critBonus": 26,
+      "critMult": 0.22,
+      "tags": [
+        "rarity_legendary",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_2k3ndy",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "심해 비늘",
+      "type": "hp",
+      "price": 1720,
+      "rarity": "legendary",
+      "desc": "체력(+325), 방어(+53), 피해 감소(+14%).",
+      "value": 325,
+      "def": 53,
+      "damageReduction": 0.145,
+      "tags": [
+        "rarity_legendary",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_16dxdp",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "얼음 핵",
+      "type": "atk",
+      "price": 1726,
+      "rarity": "legendary",
+      "desc": "공격(+87), 치명(+24%), 치명 배율(+22%).",
+      "value": 87,
+      "critBonus": 24,
+      "critMult": 0.22,
+      "tags": [
+        "rarity_legendary",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_zuosy0",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "시간의 가루",
+      "type": "hp",
+      "price": 1671,
+      "rarity": "legendary",
+      "desc": "체력(+311), 방어(+36), 피해 감소(+14%).",
+      "value": 311,
+      "def": 36,
+      "damageReduction": 0.138,
+      "tags": [
+        "rarity_legendary",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_iojpvn",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "혼령 실",
+      "type": "atk",
+      "price": 530,
+      "rarity": "epic",
+      "desc": "공격(+52), 치명(+10%), 치명 배율(+8%).",
+      "value": 52,
+      "critBonus": 10,
+      "critMult": 0.08,
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "태양 가루",
+      "type": "ring",
+      "price": 518,
+      "rarity": "epic",
+      "desc": "공격(+40), 치명(+11%), 치명 배율(+10%).",
+      "value": 40,
+      "critBonus": 11,
+      "critMult": 0.1,
+      "tags": [
+        "rarity_epic",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "암석 심장",
+      "type": "hp",
+      "price": 1823,
+      "rarity": "legendary",
+      "desc": "체력(+586), 방어(+61), 피해 감소(+18%).",
+      "value": 586,
+      "def": 61,
+      "damageReduction": 0.18,
+      "tags": [
+        "rarity_legendary",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_w4sqrj",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "유리한 거래",
+      "type": "atk",
+      "price": 128,
+      "rarity": "rare",
+      "desc": "골드 획득(+3%).",
+      "goldGainBonus": 0.031,
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_utility",
+        "synergy_utility"
+      ],
+      "itemRole": "utility",
+      "itemRoleLabel": "유틸형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "잊힌 인장",
+      "type": "hp",
+      "price": 168,
+      "rarity": "rare",
+      "desc": "체력(+78), 방어(+10), 피해 감소(+2%).",
+      "value": 78,
+      "def": 10,
+      "damageReduction": 0.021,
+      "tags": [
+        "rarity_rare",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "바람의 조각",
+      "type": "atk",
+      "price": 162,
+      "rarity": "rare",
+      "desc": "공격(+22), 치명(+3%), 치명 배율(+2%).",
+      "value": 22,
+      "critBonus": 3,
+      "critMult": 0.02,
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "대지의 알",
+      "type": "hp",
+      "price": 490,
+      "rarity": "epic",
+      "desc": "체력(+150), 방어(+21), 피해 감소(+6%).",
+      "value": 150,
+      "def": 21,
+      "damageReduction": 0.055,
+      "tags": [
+        "rarity_epic",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "불꽃 심지",
+      "type": "atk",
+      "price": 495,
+      "rarity": "epic",
+      "desc": "공격(+40), 치명(+10%), 치명 배율(+6%).",
+      "value": 40,
+      "critBonus": 10,
+      "critMult": 0.06,
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "수호 흉갑",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "desc": "체력(+85), 방어(+10), 피해 감소(+1%).",
+      "value": 85,
+      "def": 10,
+      "damageReduction": 0.014,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "금빛 전장검",
+      "type": "atk",
+      "price": 177,
+      "rarity": "rare",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+30), 치명(+3%).",
+      "value": 30,
+      "critBonus": 3,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "철기 방울",
+      "type": "ring",
+      "price": 52,
+      "rarity": "common",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+8).",
+      "value": 8,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "번개 리치",
+      "type": "atk",
+      "price": 185,
+      "rarity": "rare",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+27), 치명(+3%), 치명 배율(+3%).",
+      "value": 27,
+      "critBonus": 3,
+      "critMult": 0.03,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "불굴 모닝스타",
+      "type": "atk",
+      "price": 103,
+      "rarity": "common",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+15), 치명(+1%).",
+      "value": 15,
+      "critBonus": 1,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "성역 장검",
+      "type": "atk",
+      "price": 503,
+      "rarity": "epic",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+42), 치명(+10%), 치명 배율(+7%).",
+      "value": 42,
+      "critBonus": 10,
+      "critMult": 0.07,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "전장 흉갑",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "desc": "체력(+62), 방어(+8), 피해 감소(+1%).",
+      "value": 62,
+      "def": 8,
+      "damageReduction": 0.01,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "파쇄 철퇴",
+      "type": "atk",
+      "price": 152,
+      "rarity": "rare",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+23), 치명(+3%).",
+      "value": 23,
+      "critBonus": 3,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "붉은 반지",
+      "type": "ring",
+      "price": 90,
+      "rarity": "common",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+12), 치명 배율(+2%).",
+      "value": 12,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "신성 창",
+      "type": "atk",
+      "price": 184,
+      "rarity": "rare",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+32), 치명(+3%).",
+      "value": 32,
+      "critBonus": 3,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "얼음 도끼",
+      "type": "atk",
+      "price": 86,
+      "rarity": "common",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+13), 치명 배율(+1%).",
+      "value": 13,
+      "critMult": 0.01,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "철의 대검",
+      "type": "atk",
+      "price": 483,
+      "rarity": "epic",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+35), 치명(+10%), 치명 배율(+6%).",
+      "value": 35,
+      "critBonus": 10,
+      "critMult": 0.06,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "성기사 흉갑",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "desc": "체력(+73), 방어(+12), 피해 감소(+1%).",
+      "value": 73,
+      "def": 12,
+      "damageReduction": 0.012,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "금빛 전장검",
+      "type": "atk",
+      "price": 177,
+      "rarity": "rare",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+30), 치명(+3%).",
+      "value": 30,
+      "critBonus": 3,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "성역 링",
+      "type": "ring",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "desc": "체력(+71), 방어(+9), 피해 감소(+1%).",
+      "hpBonus": 71,
+      "def": 9,
+      "damageReduction": 0.013,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "야수 리치",
+      "type": "atk",
+      "price": 149,
+      "rarity": "rare",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+22), 치명(+3%).",
+      "value": 22,
+      "critBonus": 3,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "파멸 모닝스타",
+      "type": "atk",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+21), 치명 배율(+3%).",
+      "value": 21,
+      "critMult": 0.03,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "어둠 장검",
+      "type": "atk",
+      "price": 523,
+      "rarity": "epic",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+49), 치명(+10%), 치명 배율(+8%).",
+      "value": 49,
+      "critBonus": 10,
+      "critMult": 0.08,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "재앙 흉갑",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "desc": "체력(+75), 방어(+13), 피해 감소(+1%).",
+      "value": 75,
+      "def": 13,
+      "damageReduction": 0.014,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "야수 철퇴",
+      "type": "atk",
+      "price": 182,
+      "rarity": "rare",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+26), 치명(+3%), 치명 배율(+3%).",
+      "value": 26,
+      "critBonus": 3,
+      "critMult": 0.03,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "푸른빛 인장",
+      "type": "ring",
+      "price": 96,
+      "rarity": "common",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+10), 치명(+1%), 치명 배율(+2%).",
+      "value": 10,
+      "critBonus": 1,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "강철 창",
+      "type": "atk",
+      "price": 166,
+      "rarity": "rare",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+27), 치명(+3%).",
+      "value": 27,
+      "critBonus": 3,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "심연 도끼",
+      "type": "atk",
+      "price": 113,
+      "rarity": "common",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+17), 치명(+1%).",
+      "value": 17,
+      "critBonus": 1,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "은빛 대검",
+      "type": "atk",
+      "price": 485,
+      "rarity": "epic",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+36), 치명(+10%), 치명 배율(+6%).",
+      "value": 36,
+      "critBonus": 10,
+      "critMult": 0.06,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "용맹 흉갑",
+      "type": "hp",
+      "price": 1817,
+      "rarity": "legendary",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_legendary",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "desc": "체력(+516), 방어(+65), 피해 감소(+18%).",
+      "value": 516,
+      "def": 65,
+      "damageReduction": 0.18,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_baa7sp",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "대지 전장검",
+      "type": "atk",
+      "price": 151,
+      "rarity": "rare",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+19), 치명(+3%), 치명 배율(+2%).",
+      "value": 19,
+      "critBonus": 3,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "수호 휘장",
+      "type": "ring",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "desc": "체력(+87), 방어(+11), 피해 감소(+1%).",
+      "hpBonus": 87,
+      "def": 11,
+      "damageReduction": 0.014,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "검은철 리치",
+      "type": "atk",
+      "price": 189,
+      "rarity": "rare",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+28), 치명(+3%), 치명 배율(+3%).",
+      "value": 28,
+      "critBonus": 3,
+      "critMult": 0.03,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "맹세 모닝스타",
+      "type": "atk",
+      "price": 49,
+      "rarity": "common",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_utility",
+        "synergy_utility"
+      ],
+      "desc": "흡혈(3%).",
+      "lifesteal": 0.025,
+      "itemRole": "utility",
+      "itemRoleLabel": "유틸형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "불굴 장검",
+      "type": "atk",
+      "price": 492,
+      "rarity": "epic",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+39), 치명(+10%), 치명 배율(+6%).",
+      "value": 39,
+      "critBonus": 10,
+      "critMult": 0.06,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "푸른 흉갑",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "desc": "체력(+63), 방어(+9), 피해 감소(+1%).",
+      "value": 63,
+      "def": 9,
+      "damageReduction": 0.01,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "맹렬 철퇴",
+      "type": "atk",
+      "price": 164,
+      "rarity": "rare",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+21), 치명(+3%), 치명 배율(+3%).",
+      "value": 21,
+      "critBonus": 3,
+      "critMult": 0.03,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "폭풍 방울",
+      "type": "ring",
+      "price": 101,
+      "rarity": "common",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+11), 치명(+1%), 치명 배율(+2%).",
+      "value": 11,
+      "critBonus": 1,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "강철심 창",
+      "type": "atk",
+      "price": 149,
+      "rarity": "rare",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+22), 치명(+3%).",
+      "value": 22,
+      "critBonus": 3,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "광전 도끼",
+      "type": "atk",
+      "price": 87,
+      "rarity": "common",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+15).",
+      "value": 15,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "낡은 대검",
+      "type": "atk",
+      "price": 492,
+      "rarity": "epic",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+39), 치명(+10%), 치명 배율(+6%).",
+      "value": 39,
+      "critBonus": 10,
+      "critMult": 0.06,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "전장 흉갑",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "desc": "체력(+62), 방어(+8), 피해 감소(+1%).",
+      "value": 62,
+      "def": 8,
+      "damageReduction": 0.01,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "검은 전장검",
+      "type": "atk",
+      "price": 227,
+      "rarity": "rare",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+34), 치명(+4%), 치명 배율(+4%).",
+      "value": 34,
+      "critBonus": 4,
+      "critMult": 0.04,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "천벌 반지",
+      "type": "ring",
+      "price": 72,
+      "rarity": "common",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+12).",
+      "value": 12,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "불꽃 리치",
+      "type": "atk",
+      "price": 209,
+      "rarity": "rare",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+36), 치명(+4%).",
+      "value": 36,
+      "critBonus": 4,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "구원 모닝스타",
+      "type": "atk",
+      "price": 116,
+      "rarity": "common",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+14), 치명(+1%), 치명 배율(+2%).",
+      "value": 14,
+      "critBonus": 1,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "맹렬 장검",
+      "type": "atk",
+      "price": 543,
+      "rarity": "epic",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+56), 치명(+10%), 치명 배율(+9%).",
+      "value": 56,
+      "critBonus": 10,
+      "critMult": 0.09,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "은빛 흉갑",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "desc": "체력(+54), 방어(+8), 피해 감소(+1%).",
+      "value": 54,
+      "def": 8,
+      "damageReduction": 0.01,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "용병 철퇴",
+      "type": "atk",
+      "price": 223,
+      "rarity": "rare",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+33), 치명(+4%), 치명 배율(+4%).",
+      "value": 33,
+      "critBonus": 4,
+      "critMult": 0.04,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "맹세 링",
+      "type": "ring",
+      "price": 49,
+      "rarity": "common",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_utility",
+        "synergy_utility"
+      ],
+      "desc": "흡혈(3%).",
+      "lifesteal": 0.025,
+      "itemRole": "utility",
+      "itemRoleLabel": "유틸형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "전설 창",
+      "type": "atk",
+      "price": 163,
+      "rarity": "rare",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+26), 치명(+3%).",
+      "value": 26,
+      "critBonus": 3,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "빛의 도끼",
+      "type": "atk",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+19), 치명(+1%), 치명 배율(+2%).",
+      "value": 19,
+      "critBonus": 1,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "하늘 대검",
+      "type": "atk",
+      "price": 507,
+      "rarity": "epic",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+42), 치명(+10%), 치명 배율(+8%).",
+      "value": 42,
+      "critBonus": 10,
+      "critMult": 0.08,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "심연 흉갑",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "desc": "체력(+68), 방어(+9), 피해 감소(+1%).",
+      "value": 68,
+      "def": 9,
+      "damageReduction": 0.01,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "붉은장 전장검",
+      "type": "atk",
+      "price": 1699,
+      "rarity": "legendary",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "tags": [
+        "rarity_legendary",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+79), 치명(+21%), 치명 배율(+22%).",
+      "value": 79,
+      "critBonus": 21,
+      "critMult": 0.22,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_1ulr6jo",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "숲 화살통",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "desc": "체력(+66), 방어(+8), 피해 감소(+1%).",
+      "value": 66,
+      "def": 8,
+      "damageReduction": 0.01,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "날렵 활",
+      "type": "atk",
+      "price": 151,
+      "rarity": "rare",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+22), 치명(+2%), 치명 배율(+2%).",
+      "value": 22,
+      "critBonus": 2,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "황혼 휘장",
+      "type": "ring",
+      "price": 77,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+13).",
+      "value": 13,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "금빛 활",
+      "type": "atk",
+      "price": 205,
+      "rarity": "rare",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+35), 치명(+4%).",
+      "value": 35,
+      "critBonus": 4,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "천둥 활",
+      "type": "atk",
+      "price": 111,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+16), 치명 배율(+2%).",
+      "value": 16,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "냉기 활",
+      "type": "atk",
+      "price": 503,
+      "rarity": "epic",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+42), 치명(+10%), 치명 배율(+7%).",
+      "value": 42,
+      "critBonus": 10,
+      "critMult": 0.07,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "그림자 가죽",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "desc": "체력(+70), 방어(+9), 피해 감소(+1%).",
+      "value": 70,
+      "def": 9,
+      "damageReduction": 0.011,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "늪 활",
+      "type": "atk",
+      "price": 144,
+      "rarity": "rare",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+20), 치명(+2%), 치명 배율(+2%).",
+      "value": 20,
+      "critBonus": 2,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "민첩 주머니",
+      "type": "ring",
+      "price": 77,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+8), 치명(+1%), 치명 배율(+1%).",
+      "value": 8,
+      "critBonus": 1,
+      "critMult": 0.01,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "서리 활",
+      "type": "atk",
+      "price": 175,
+      "rarity": "rare",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+24), 치명(+3%), 치명 배율(+3%).",
+      "value": 24,
+      "critBonus": 3,
+      "critMult": 0.03,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "진홍 활",
+      "type": "atk",
+      "price": 102,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+18).",
+      "value": 18,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "유성 활",
+      "type": "atk",
+      "price": 556,
+      "rarity": "epic",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+57), 치명(+11%), 치명 배율(+10%).",
+      "value": 57,
+      "critBonus": 11,
+      "critMult": 0.1,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "불꽃 깃털",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "desc": "체력(+97), 방어(+12), 피해 감소(+1%).",
+      "value": 97,
+      "def": 12,
+      "damageReduction": 0.014,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "맹금 활",
+      "type": "atk",
+      "price": 195,
+      "rarity": "rare",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+32), 치명(+4%).",
+      "value": 32,
+      "critBonus": 4,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "절벽 눈",
+      "type": "ring",
+      "price": 88,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+12), 치명(+1%).",
+      "value": 12,
+      "critBonus": 1,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "독수리 활",
+      "type": "atk",
+      "price": 195,
+      "rarity": "rare",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+32), 치명(+4%).",
+      "value": 32,
+      "critBonus": 4,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "폭풍 활",
+      "type": "atk",
+      "price": 111,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+16), 치명 배율(+2%).",
+      "value": 16,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "밤 활",
+      "type": "atk",
+      "price": 550,
+      "rarity": "epic",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+59), 치명(+10%), 치명 배율(+9%).",
+      "value": 59,
+      "critBonus": 10,
+      "critMult": 0.09,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "유령 장갑",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "desc": "체력(+69), 방어(+11), 피해 감소(+1%).",
+      "value": 69,
+      "def": 11,
+      "damageReduction": 0.012,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "질풍 활",
+      "type": "atk",
+      "price": 163,
+      "rarity": "rare",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+26), 치명(+3%).",
+      "value": 26,
+      "critBonus": 3,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "독 반지",
+      "type": "ring",
+      "price": 96,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+10), 치명(+1%), 치명 배율(+2%).",
+      "value": 10,
+      "critBonus": 1,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "저격 활",
+      "type": "atk",
+      "price": 220,
+      "rarity": "rare",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+32), 치명(+4%), 치명 배율(+4%).",
+      "value": 32,
+      "critBonus": 4,
+      "critMult": 0.04,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "뱀 활",
+      "type": "atk",
+      "price": 107,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+14), 치명(+1%), 치명 배율(+1%).",
+      "value": 14,
+      "critBonus": 1,
+      "critMult": 0.01,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "번개 활",
+      "type": "atk",
+      "price": 543,
+      "rarity": "epic",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+56), 치명(+10%), 치명 배율(+9%).",
+      "value": 56,
+      "critBonus": 10,
+      "critMult": 0.09,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "안개 화살통",
+      "type": "hp",
+      "price": 1674,
+      "rarity": "legendary",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_legendary",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "desc": "체력(+283), 방어(+43), 피해 감소(+13%).",
+      "value": 283,
+      "def": 43,
+      "damageReduction": 0.128,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_e1dr8i",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "침묵 활",
+      "type": "atk",
+      "price": 133,
+      "rarity": "rare",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+16), 치명(+2%).",
+      "value": 16,
+      "critBonus": 2,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "신속 망원경",
+      "type": "ring",
+      "price": 121,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+15), 치명(+1%), 치명 배율(+2%).",
+      "value": 15,
+      "critBonus": 1,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "야생 활",
+      "type": "atk",
+      "price": 166,
+      "rarity": "rare",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+27), 치명(+3%).",
+      "value": 27,
+      "critBonus": 3,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "추적 활",
+      "type": "atk",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+19), 치명 배율(+2%).",
+      "value": 19,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "여우 활",
+      "type": "atk",
+      "price": 518,
+      "rarity": "epic",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+47), 치명(+10%), 치명 배율(+8%).",
+      "value": 47,
+      "critBonus": 10,
+      "critMult": 0.08,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "유령 가죽",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "desc": "체력(+79), 방어(+10), 피해 감소(+1%).",
+      "value": 79,
+      "def": 10,
+      "damageReduction": 0.014,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "이슬 활",
+      "type": "atk",
+      "price": 227,
+      "rarity": "rare",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+34), 치명(+4%), 치명 배율(+4%).",
+      "value": 34,
+      "critBonus": 4,
+      "critMult": 0.04,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "속삭임 링",
+      "type": "ring",
+      "price": 101,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+14), 치명 배율(+2%).",
+      "value": 14,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "급습 활",
+      "type": "atk",
+      "price": 156,
+      "rarity": "rare",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+24), 치명(+3%).",
+      "value": 24,
+      "critBonus": 3,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "달빛 활",
+      "type": "atk",
+      "price": 92,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+16).",
+      "value": 16,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "은신 활",
+      "type": "atk",
+      "price": 543,
+      "rarity": "epic",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+53), 치명(+11%), 치명 배율(+9%).",
+      "value": 53,
+      "critBonus": 11,
+      "critMult": 0.09,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "늑대 깃털",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "desc": "체력(+74), 방어(+11), 피해 감소(+1%).",
+      "value": 74,
+      "def": 11,
+      "damageReduction": 0.014,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "맹독 활",
+      "type": "atk",
+      "price": 223,
+      "rarity": "rare",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+33), 치명(+4%), 치명 배율(+4%).",
+      "value": 33,
+      "critBonus": 4,
+      "critMult": 0.04,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "빙결 표식",
+      "type": "ring",
+      "price": 73,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+9), 치명(+1%).",
+      "value": 9,
+      "critBonus": 1,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "날쌤 활",
+      "type": "atk",
+      "price": 171,
+      "rarity": "rare",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+23), 치명(+3%), 치명 배율(+3%).",
+      "value": 23,
+      "critBonus": 3,
+      "critMult": 0.03,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "매복 활",
+      "type": "atk",
+      "price": 72,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+12).",
+      "value": 12,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "별빛 활",
+      "type": "atk",
+      "price": 479,
+      "rarity": "epic",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+33), 치명(+10%), 치명 배율(+6%).",
+      "value": 33,
+      "critBonus": 10,
+      "critMult": 0.06,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "암살 장갑",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "desc": "체력(+85), 방어(+13), 피해 감소(+1%).",
+      "value": 85,
+      "def": 13,
+      "damageReduction": 0.013,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "새벽 활",
+      "type": "atk",
+      "price": 138,
+      "rarity": "rare",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+22), 치명(+2%).",
+      "value": 22,
+      "critBonus": 2,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "은빛 휘장",
+      "type": "ring",
+      "price": 106,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+12), 치명(+1%), 치명 배율(+2%).",
+      "value": 12,
+      "critBonus": 1,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "화염 활",
+      "type": "atk",
+      "price": 134,
+      "rarity": "rare",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+19), 치명(+2%).",
+      "value": 19,
+      "critBonus": 2,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "예리 활",
+      "type": "atk",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+17), 치명(+1%), 치명 배율(+2%).",
+      "value": 17,
+      "critBonus": 1,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "바람 활",
+      "type": "atk",
+      "price": 512,
+      "rarity": "epic",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+44), 치명(+10%), 치명 배율(+8%).",
+      "value": 44,
+      "critBonus": 10,
+      "critMult": 0.08,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "숲 화살통",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "desc": "체력(+66), 방어(+8), 피해 감소(+1%).",
+      "value": 66,
+      "def": 8,
+      "damageReduction": 0.01,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "날렵 활",
+      "type": "atk",
+      "price": 1690,
+      "rarity": "legendary",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_legendary",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+76), 치명(+20%), 치명 배율(+22%).",
+      "value": 76,
+      "critBonus": 20,
+      "critMult": 0.22,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_1yjxhvg",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "얼음 로브",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "desc": "체력(+74), 방어(+12), 피해 감소(+1%).",
+      "value": 74,
+      "def": 12,
+      "damageReduction": 0.014,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "대마도 각인",
+      "type": "atk",
+      "price": 213,
+      "rarity": "rare",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+30), 치명(+4%), 치명 배율(+4%).",
+      "value": 30,
+      "critBonus": 4,
+      "critMult": 0.04,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "보주 장식핀",
+      "type": "ring",
+      "price": 75,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+9), 치명 배율(+2%).",
+      "value": 9,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "수호 주문봉",
+      "type": "atk",
+      "price": 166,
+      "rarity": "rare",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+27), 치명(+3%).",
+      "value": 27,
+      "critBonus": 3,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "봉인 보주",
+      "type": "atk",
+      "price": 101,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+14), 치명 배율(+2%).",
+      "value": 14,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "결계 마력봉",
+      "type": "atk",
+      "price": 490,
+      "rarity": "epic",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+38), 치명(+10%), 치명 배율(+6%).",
+      "value": 38,
+      "critBonus": 10,
+      "critMult": 0.06,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "고대 로브",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "desc": "체력(+52), 방어(+8), 피해 감소(+1%).",
+      "value": 52,
+      "def": 8,
+      "damageReduction": 0.01,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "얼음 구슬",
+      "type": "atk",
+      "price": 175,
+      "rarity": "rare",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+24), 치명(+3%), 치명 배율(+3%).",
+      "value": 24,
+      "critBonus": 3,
+      "critMult": 0.03,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "대마도 주술목",
+      "type": "ring",
+      "price": 85,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+11), 치명 배율(+2%).",
+      "value": 11,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "보주 페이지",
+      "type": "atk",
+      "price": 189,
+      "rarity": "rare",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+28), 치명(+3%), 치명 배율(+3%).",
+      "value": 28,
+      "critBonus": 3,
+      "critMult": 0.03,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "수호 각인",
+      "type": "atk",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+20), 치명(+1%).",
+      "value": 20,
+      "critBonus": 1,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "봉인 파편",
+      "type": "atk",
+      "price": 541,
+      "rarity": "epic",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+55), 치명(+10%), 치명 배율(+9%).",
+      "value": 55,
+      "critBonus": 10,
+      "critMult": 0.09,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "결계 로브",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "desc": "체력(+49), 방어(+7), 피해 감소(+1%).",
+      "value": 49,
+      "def": 7,
+      "damageReduction": 0.01,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "고대 보주",
+      "type": "atk",
+      "price": 178,
+      "rarity": "rare",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+25), 치명(+3%), 치명 배율(+3%).",
+      "value": 25,
+      "critBonus": 3,
+      "critMult": 0.03,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "얼음 링",
+      "type": "ring",
+      "price": 62,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+10).",
+      "value": 10,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "대마도 결정",
+      "type": "atk",
+      "price": 164,
+      "rarity": "rare",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+21), 치명(+3%), 치명 배율(+3%).",
+      "value": 21,
+      "critBonus": 3,
+      "critMult": 0.03,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "보주 구슬",
+      "type": "atk",
+      "price": 116,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+14), 치명(+1%), 치명 배율(+2%).",
+      "value": 14,
+      "critBonus": 1,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "수호 지팡이",
+      "type": "atk",
+      "price": 518,
+      "rarity": "epic",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+47), 치명(+10%), 치명 배율(+8%).",
+      "value": 47,
+      "critBonus": 10,
+      "critMult": 0.08,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "봉인 로브",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "desc": "체력(+77), 방어(+12), 피해 감소(+1%).",
+      "value": 77,
+      "def": 12,
+      "damageReduction": 0.013,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "결계 각인",
+      "type": "atk",
+      "price": 209,
+      "rarity": "rare",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+29), 치명(+4%), 치명 배율(+4%).",
+      "value": 29,
+      "critBonus": 4,
+      "critMult": 0.04,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "고대 인장",
+      "type": "ring",
+      "price": 96,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+10), 치명(+1%), 치명 배율(+2%).",
+      "value": 10,
+      "critBonus": 1,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "얼음 주문봉",
+      "type": "atk",
+      "price": 138,
+      "rarity": "rare",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+19), 치명(+3%).",
+      "value": 19,
+      "critBonus": 3,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "대마도 보주",
+      "type": "atk",
+      "price": 116,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+17), 치명 배율(+2%).",
+      "value": 17,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "보주 마력봉",
+      "type": "atk",
+      "price": 547,
+      "rarity": "epic",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+53), 치명(+11%), 치명 배율(+10%).",
+      "value": 53,
+      "critBonus": 11,
+      "critMult": 0.1,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "수호 로브",
+      "type": "hp",
+      "price": 1700,
+      "rarity": "legendary",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_legendary",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "desc": "체력(+315), 방어(+48), 피해 감소(+14%).",
+      "value": 315,
+      "def": 48,
+      "damageReduction": 0.137,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_shtyap",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "봉인 구슬",
+      "type": "atk",
+      "price": 161,
+      "rarity": "rare",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+20), 치명(+3%), 치명 배율(+3%).",
+      "value": 20,
+      "critBonus": 3,
+      "critMult": 0.03,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "결계 구슬",
+      "type": "ring",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "desc": "체력(+66), 방어(+8), 피해 감소(+1%).",
+      "hpBonus": 66,
+      "def": 8,
+      "damageReduction": 0.011,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "고대 페이지",
+      "type": "atk",
+      "price": 145,
+      "rarity": "rare",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+21), 치명(+3%).",
+      "value": 21,
+      "critBonus": 3,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "얼음 각인",
+      "type": "atk",
+      "price": 108,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+19).",
+      "value": 19,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "대마도 파편",
+      "type": "atk",
+      "price": 488,
+      "rarity": "epic",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+37), 치명(+10%), 치명 배율(+6%).",
+      "value": 37,
+      "critBonus": 10,
+      "critMult": 0.06,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "보주 로브",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "desc": "체력(+62), 방어(+10), 피해 감소(+1%).",
+      "value": 62,
+      "def": 10,
+      "damageReduction": 0.011,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "수호 보주",
+      "type": "atk",
+      "price": 182,
+      "rarity": "rare",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+26), 치명(+3%), 치명 배율(+3%).",
+      "value": 26,
+      "critBonus": 3,
+      "critMult": 0.03,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "봉인 장식핀",
+      "type": "ring",
+      "price": 61,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+8), 치명 배율(+1%).",
+      "value": 8,
+      "critMult": 0.01,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "결계 결정",
+      "type": "atk",
+      "price": 181,
+      "rarity": "rare",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+28), 치명(+4%).",
+      "value": 28,
+      "critBonus": 4,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "고대 구슬",
+      "type": "atk",
+      "price": 101,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+14), 치명 배율(+2%).",
+      "value": 14,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "얼음 지팡이",
+      "type": "atk",
+      "price": 570,
+      "rarity": "epic",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+63), 치명(+11%), 치명 배율(+10%).",
+      "value": 63,
+      "critBonus": 11,
+      "critMult": 0.1,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "대마도 로브",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "desc": "체력(+83), 방어(+12), 피해 감소(+1%).",
+      "value": 83,
+      "def": 12,
+      "damageReduction": 0.013,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "보주 각인",
+      "type": "atk",
+      "price": 216,
+      "rarity": "rare",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+31), 치명(+4%), 치명 배율(+4%).",
+      "value": 31,
+      "critBonus": 4,
+      "critMult": 0.04,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "수호 주술목",
+      "type": "ring",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "desc": "체력(+93), 방어(+10), 피해 감소(+1%).",
+      "hpBonus": 93,
+      "def": 10,
+      "damageReduction": 0.014,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "봉인 주문봉",
+      "type": "atk",
+      "price": 137,
+      "rarity": "rare",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+18), 치명(+2%), 치명 배율(+2%).",
+      "value": 18,
+      "critBonus": 2,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "결계 보주",
+      "type": "atk",
+      "price": 71,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+10), 치명 배율(+1%).",
+      "value": 10,
+      "critMult": 0.01,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "고대 마력봉",
+      "type": "atk",
+      "price": 570,
+      "rarity": "epic",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+63), 치명(+11%), 치명 배율(+10%).",
+      "value": 63,
+      "critBonus": 11,
+      "critMult": 0.1,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "얼음 로브",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "desc": "체력(+74), 방어(+12), 피해 감소(+1%).",
+      "value": 74,
+      "def": 12,
+      "damageReduction": 0.014,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "대마도 구슬",
+      "type": "atk",
+      "price": 140,
+      "rarity": "rare",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+19), 치명(+2%), 치명 배율(+2%).",
+      "value": 19,
+      "critBonus": 2,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "보주 링",
+      "type": "ring",
+      "price": 101,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+14), 치명 배율(+2%).",
+      "value": 14,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "수호 페이지",
+      "type": "atk",
+      "price": 203,
+      "rarity": "rare",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+29), 치명(+4%), 치명 배율(+3%).",
+      "value": 29,
+      "critBonus": 4,
+      "critMult": 0.03,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "봉인 각인",
+      "type": "atk",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+16), 치명(+1%), 치명 배율(+2%).",
+      "value": 16,
+      "critBonus": 1,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "결계 파편",
+      "type": "atk",
+      "price": 527,
+      "rarity": "epic",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+51), 치명(+10%), 치명 배율(+8%).",
+      "value": 51,
+      "critBonus": 10,
+      "critMult": 0.08,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "고대 로브",
+      "type": "hp",
+      "price": 124,
+      "rarity": "common",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "desc": "체력(+52), 방어(+8), 피해 감소(+1%).",
+      "value": 52,
+      "def": 8,
+      "damageReduction": 0.01,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "얼음 보주",
+      "type": "atk",
+      "price": 1752,
+      "rarity": "legendary",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사"
+      ],
+      "tags": [
+        "rarity_legendary",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "공격(+95), 치명(+27%), 치명 배율(+22%).",
+      "value": 95,
+      "critBonus": 27,
+      "critMult": 0.22,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_1anmc45",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "공명의 인장",
+      "type": "atk",
+      "rarity": "common",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 106,
+      "desc": "공격(+15), 치명 배율(+2%).",
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 15,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "공명의 성배",
+      "type": "hp",
+      "rarity": "common",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 124,
+      "desc": "체력(+59), 방어(+9), 피해 감소(+1%).",
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "value": 59,
+      "def": 9,
+      "damageReduction": 0.01,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "공명의 잔향",
+      "type": "ring",
+      "rarity": "rare",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 147,
+      "desc": "공격(+16), 치명(+3%), 치명 배율(+3%).",
+      "tags": [
+        "rarity_rare",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 16,
+      "critBonus": 3,
+      "critMult": 0.03,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "공명의 빛결",
+      "type": "atk",
+      "rarity": "epic",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 529,
+      "desc": "공격(+50), 치명(+10%), 치명 배율(+9%).",
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 50,
+      "critBonus": 10,
+      "critMult": 0.09,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "공명의 유성",
+      "type": "hp",
+      "rarity": "legendary",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 1708,
+      "desc": "체력(+321), 방어(+47), 피해 감소(+15%).",
+      "tags": [
+        "rarity_legendary",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "value": 321,
+      "def": 47,
+      "damageReduction": 0.15,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_ef531s",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "공명의 서광",
+      "type": "ring",
+      "rarity": "common",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 106,
+      "desc": "공격(+12), 치명(+1%), 치명 배율(+2%).",
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 12,
+      "critBonus": 1,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "공명의 성운",
+      "type": "atk",
+      "rarity": "common",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 108,
+      "desc": "공격(+19).",
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 19,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "공명의 찬란",
+      "type": "hp",
+      "rarity": "rare",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 175,
+      "desc": "체력(+86), 방어(+10), 피해 감소(+2%).",
+      "tags": [
+        "rarity_rare",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "value": 86,
+      "def": 10,
+      "damageReduction": 0.023,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "서약의 인장",
+      "type": "ring",
+      "rarity": "epic",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 498,
+      "desc": "공격(+36), 치명(+10%), 치명 배율(+9%).",
+      "tags": [
+        "rarity_epic",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 36,
+      "critBonus": 10,
+      "critMult": 0.09,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "서약의 성배",
+      "type": "atk",
+      "rarity": "legendary",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 1695,
+      "desc": "공격(+73), 치명(+22%), 치명 배율(+22%).",
+      "tags": [
+        "rarity_legendary",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 73,
+      "critBonus": 22,
+      "critMult": 0.22,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_rh5vw1",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "서약의 잔향",
+      "type": "hp",
+      "rarity": "common",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 124,
+      "desc": "체력(+47), 방어(+7), 피해 감소(+1%).",
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "value": 47,
+      "def": 7,
+      "damageReduction": 0.01,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "서약의 빛결",
+      "type": "ring",
+      "rarity": "common",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 116,
+      "desc": "공격(+14), 치명(+1%), 치명 배율(+2%).",
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 14,
+      "critBonus": 1,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "서약의 유성",
+      "type": "atk",
+      "rarity": "rare",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 159,
+      "desc": "공격(+25), 치명(+3%).",
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 25,
+      "critBonus": 3,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "서약의 서광",
+      "type": "hp",
+      "rarity": "epic",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 541,
+      "desc": "체력(+213), 방어(+24), 피해 감소(+7%).",
+      "tags": [
+        "rarity_epic",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "value": 213,
+      "def": 24,
+      "damageReduction": 0.073,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "서약의 성운",
+      "type": "ring",
+      "rarity": "legendary",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 1663,
+      "desc": "공격(+58), 치명(+20%), 치명 배율(+22%).",
+      "tags": [
+        "rarity_legendary",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 58,
+      "critBonus": 20,
+      "critMult": 0.22,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_gyrd8v",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "서약의 찬란",
+      "type": "atk",
+      "rarity": "common",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 124,
+      "desc": "공격(+23), 치명(+1%), 치명 배율(+2%).",
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 23,
+      "critBonus": 1,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "찬가의 인장",
+      "type": "hp",
+      "rarity": "common",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 124,
+      "desc": "체력(+60), 방어(+9), 피해 감소(+1%).",
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "value": 60,
+      "def": 9,
+      "damageReduction": 0.011,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "찬가의 성배",
+      "type": "ring",
+      "rarity": "rare",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 226,
+      "desc": "체력(+112), 방어(+15), 피해 감소(+3%).",
+      "tags": [
+        "rarity_rare",
+        "type_ring",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "hpBonus": 112,
+      "def": 15,
+      "damageReduction": 0.029,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "찬가의 잔향",
+      "type": "atk",
+      "rarity": "epic",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 583,
+      "desc": "공격(+66), 치명(+12%), 치명 배율(+10%).",
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 66,
+      "critBonus": 12,
+      "critMult": 0.1,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "찬가의 빛결",
+      "type": "hp",
+      "rarity": "legendary",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 1653,
+      "desc": "체력(+261), 방어(+37), 피해 감소(+13%).",
+      "tags": [
+        "rarity_legendary",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "value": 261,
+      "def": 37,
+      "damageReduction": 0.125,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_1jg3n56",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "찬가의 유성",
+      "type": "ring",
+      "rarity": "common",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 80,
+      "desc": "공격(+10), 치명 배율(+2%).",
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 10,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "찬가의 서광",
+      "type": "atk",
+      "rarity": "common",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 88,
+      "desc": "공격(+12), 치명(+1%).",
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 12,
+      "critBonus": 1,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "찬가의 성운",
+      "type": "hp",
+      "rarity": "rare",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 261,
+      "desc": "체력(+121), 방어(+19), 피해 감소(+3%).",
+      "tags": [
+        "rarity_rare",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "value": 121,
+      "def": 19,
+      "damageReduction": 0.034,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "찬가의 찬란",
+      "type": "ring",
+      "rarity": "epic",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 476,
+      "desc": "공격(+30), 치명(+10%), 치명 배율(+7%).",
+      "tags": [
+        "rarity_epic",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 30,
+      "critBonus": 10,
+      "critMult": 0.07,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "축성의 인장",
+      "type": "atk",
+      "rarity": "legendary",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 1830,
+      "desc": "공격(+124), 치명(+32%), 치명 배율(+26%).",
+      "tags": [
+        "rarity_legendary",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 124,
+      "critBonus": 32,
+      "critMult": 0.26,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_fiur16",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "축성의 성배",
+      "type": "hp",
+      "rarity": "common",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 124,
+      "desc": "체력(+91), 방어(+10), 피해 감소(+1%).",
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "value": 91,
+      "def": 10,
+      "damageReduction": 0.014,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "축성의 잔향",
+      "type": "ring",
+      "rarity": "common",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 101,
+      "desc": "공격(+11), 치명(+1%), 치명 배율(+2%).",
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 11,
+      "critBonus": 1,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "축성의 빛결",
+      "type": "atk",
+      "rarity": "rare",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 182,
+      "desc": "공격(+26), 치명(+3%), 치명 배율(+3%).",
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 26,
+      "critBonus": 3,
+      "critMult": 0.03,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "축성의 유성",
+      "type": "hp",
+      "rarity": "epic",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 522,
+      "desc": "체력(+206), 방어(+22), 피해 감소(+6%).",
+      "tags": [
+        "rarity_epic",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "value": 206,
+      "def": 22,
+      "damageReduction": 0.064,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "축성의 서광",
+      "type": "ring",
+      "rarity": "legendary",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 1759,
+      "desc": "공격(+77), 치명(+32%), 치명 배율(+26%).",
+      "tags": [
+        "rarity_legendary",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 77,
+      "critBonus": 32,
+      "critMult": 0.26,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_19zf4oi",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "축성의 성운",
+      "type": "atk",
+      "rarity": "common",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 86,
+      "desc": "공격(+13), 치명 배율(+1%).",
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 13,
+      "critMult": 0.01,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "축성의 찬란",
+      "type": "hp",
+      "rarity": "common",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 124,
+      "desc": "체력(+55), 방어(+7), 피해 감소(+1%).",
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "value": 55,
+      "def": 7,
+      "damageReduction": 0.01,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "은총의 인장",
+      "type": "ring",
+      "rarity": "rare",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 143,
+      "desc": "공격(+15), 치명(+3%), 치명 배율(+3%).",
+      "tags": [
+        "rarity_rare",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 15,
+      "critBonus": 3,
+      "critMult": 0.03,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "은총의 성배",
+      "type": "atk",
+      "rarity": "epic",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 518,
+      "desc": "공격(+47), 치명(+10%), 치명 배율(+8%).",
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 47,
+      "critBonus": 10,
+      "critMult": 0.08,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "은총의 잔향",
+      "type": "hp",
+      "rarity": "legendary",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 1764,
+      "desc": "체력(+381), 방어(+56), 피해 감소(+18%).",
+      "tags": [
+        "rarity_legendary",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "value": 381,
+      "def": 56,
+      "damageReduction": 0.18,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_h6hzl3",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "은총의 빛결",
+      "type": "ring",
+      "rarity": "common",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 96,
+      "desc": "공격(+10), 치명(+1%), 치명 배율(+2%).",
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 10,
+      "critBonus": 1,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "은총의 유성",
+      "type": "atk",
+      "rarity": "common",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 123,
+      "desc": "공격(+19), 치명(+1%).",
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 19,
+      "critBonus": 1,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "은총의 서광",
+      "type": "hp",
+      "rarity": "rare",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 174,
+      "desc": "체력(+73), 방어(+12), 피해 감소(+2%).",
+      "tags": [
+        "rarity_rare",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "value": 73,
+      "def": 12,
+      "damageReduction": 0.02,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "은총의 성운",
+      "type": "ring",
+      "rarity": "epic",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 463,
+      "desc": "공격(+24), 치명(+10%), 치명 배율(+7%).",
+      "tags": [
+        "rarity_epic",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 24,
+      "critBonus": 10,
+      "critMult": 0.07,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "은총의 찬란",
+      "type": "atk",
+      "rarity": "legendary",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 1739,
+      "desc": "공격(+99), 치명(+23%), 치명 배율(+22%).",
+      "tags": [
+        "rarity_legendary",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 99,
+      "critBonus": 23,
+      "critMult": 0.22,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_1865va4",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "심판의 인장",
+      "type": "hp",
+      "rarity": "common",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 124,
+      "desc": "체력(+55), 방어(+8), 피해 감소(+1%).",
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "value": 55,
+      "def": 8,
+      "damageReduction": 0.01,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "심판의 성배",
+      "type": "ring",
+      "rarity": "common",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 124,
+      "desc": "체력(+50), 방어(+8), 피해 감소(+1%).",
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "hpBonus": 50,
+      "def": 8,
+      "damageReduction": 0.01,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "심판의 잔향",
+      "type": "atk",
+      "rarity": "rare",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 206,
+      "desc": "공격(+28), 치명(+4%), 치명 배율(+4%).",
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 28,
+      "critBonus": 4,
+      "critMult": 0.04,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "심판의 빛결",
+      "type": "hp",
+      "rarity": "epic",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 483,
+      "desc": "체력(+160), 방어(+18), 피해 감소(+6%).",
+      "tags": [
+        "rarity_epic",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "value": 160,
+      "def": 18,
+      "damageReduction": 0.055,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "심판의 유성",
+      "type": "ring",
+      "rarity": "legendary",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 1664,
+      "desc": "공격(+59), 치명(+20%), 치명 배율(+22%).",
+      "tags": [
+        "rarity_legendary",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 59,
+      "critBonus": 20,
+      "critMult": 0.22,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_1woa7ac",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "심판의 서광",
+      "type": "atk",
+      "rarity": "common",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 81,
+      "desc": "공격(+12), 치명 배율(+1%).",
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 12,
+      "critMult": 0.01,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "심판의 성운",
+      "type": "hp",
+      "rarity": "common",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 124,
+      "desc": "체력(+88), 방어(+13), 피해 감소(+1%).",
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "value": 88,
+      "def": 13,
+      "damageReduction": 0.014,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "심판의 찬란",
+      "type": "ring",
+      "rarity": "rare",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 133,
+      "desc": "공격(+14), 치명(+2%), 치명 배율(+2%).",
+      "tags": [
+        "rarity_rare",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 14,
+      "critBonus": 2,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "계시의 인장",
+      "type": "atk",
+      "rarity": "epic",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 527,
+      "desc": "공격(+49), 치명(+10%), 치명 배율(+9%).",
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 49,
+      "critBonus": 10,
+      "critMult": 0.09,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "계시의 성배",
+      "type": "hp",
+      "rarity": "legendary",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 1769,
+      "desc": "체력(+433), 방어(+55), 피해 감소(+17%).",
+      "tags": [
+        "rarity_legendary",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "value": 433,
+      "def": 55,
+      "damageReduction": 0.174,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_59ii0",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "계시의 잔향",
+      "type": "ring",
+      "rarity": "common",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 57,
+      "desc": "공격(+9).",
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 9,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "계시의 빛결",
+      "type": "atk",
+      "rarity": "common",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 95,
+      "desc": "공격(+13), 치명 배율(+2%).",
+      "tags": [
+        "rarity_common",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 13,
+      "critMult": 0.02,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "계시의 유성",
+      "type": "hp",
+      "rarity": "rare",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 213,
+      "desc": "체력(+100), 방어(+14), 피해 감소(+3%).",
+      "tags": [
+        "rarity_rare",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "value": 100,
+      "def": 14,
+      "damageReduction": 0.028,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "계시의 서광",
+      "type": "ring",
+      "rarity": "epic",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 470,
+      "desc": "공격(+29), 치명(+10%), 치명 배율(+6%).",
+      "tags": [
+        "rarity_epic",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 29,
+      "critBonus": 10,
+      "critMult": 0.06,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "계시의 성운",
+      "type": "atk",
+      "rarity": "legendary",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 1767,
+      "desc": "공격(+108), 치명(+26%), 치명 배율(+22%).",
+      "tags": [
+        "rarity_legendary",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 108,
+      "critBonus": 26,
+      "critMult": 0.22,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_3p5fby",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "계시의 찬란",
+      "type": "hp",
+      "rarity": "common",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 121,
+      "desc": "체력(+51), 방어(+6), 피해 감소(+1%).",
+      "tags": [
+        "rarity_common",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "value": 51,
+      "def": 6,
+      "damageReduction": 0.01,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "영광의 인장",
+      "type": "ring",
+      "rarity": "common",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 92,
+      "desc": "공격(+16).",
+      "tags": [
+        "rarity_common",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 16,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "영광의 성배",
+      "type": "atk",
+      "rarity": "rare",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 171,
+      "desc": "공격(+23), 치명(+3%), 치명 배율(+3%).",
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 23,
+      "critBonus": 3,
+      "critMult": 0.03,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "영광의 잔향",
+      "type": "hp",
+      "rarity": "epic",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 528,
+      "desc": "체력(+211), 방어(+22), 피해 감소(+7%).",
+      "tags": [
+        "rarity_epic",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "value": 211,
+      "def": 22,
+      "damageReduction": 0.068,
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "영광의 빛결",
+      "type": "ring",
+      "rarity": "legendary",
+      "onlyFor": [
+        "성직자"
+      ],
+      "price": 1704,
+      "desc": "공격(+70), 치명(+25%), 치명 배율(+22%).",
+      "tags": [
+        "rarity_legendary",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "value": 70,
+      "critBonus": 25,
+      "critMult": 0.22,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_32hpkq",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "구리 각인 룬",
+      "type": "rune",
+      "rarity": "common",
+      "desc": "룬. 흡혈(3%).",
+      "lifesteal": 0.025,
+      "tags": [
+        "rarity_common",
+        "type_rune",
+        "role_utility",
+        "synergy_utility"
+      ],
+      "itemRole": "utility",
+      "itemRoleLabel": "유틸형",
+      "_officialStatApplied": true,
+      "price": 49
+    },
+    {
+      "name": "바람의 은빛 룬",
+      "type": "rune",
+      "rarity": "common",
+      "desc": "룬. 도주 완화(5%).",
+      "fleeBonus": 0.05,
+      "tags": [
+        "rarity_common",
+        "type_rune",
+        "role_utility",
+        "synergy_utility"
+      ],
+      "itemRole": "utility",
+      "itemRoleLabel": "유틸형",
+      "_officialStatApplied": true,
+      "price": 44
+    },
+    {
+      "name": "불꽃 박석 룬",
+      "type": "rune",
+      "rarity": "common",
+      "desc": "룬. 공격(+7), 치명 배율(+1%).",
+      "value": 7,
+      "critMult": 0.01,
+      "tags": [
+        "rarity_common",
+        "type_rune",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "price": 56
+    },
+    {
+      "name": "청동 수호 룬",
+      "type": "rune",
+      "rarity": "rare",
+      "desc": "룬. 체력(+77), 방어(+12), 피해 감소(+2%).",
+      "hpBonus": 77,
+      "def": 12,
+      "damageReduction": 0.022,
+      "tags": [
+        "rarity_rare",
+        "type_rune",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true,
+      "price": 180
+    },
+    {
+      "name": "매매의 황금 룬",
+      "type": "rune",
+      "rarity": "rare",
+      "desc": "룬. 골드 획득(+3%).",
+      "goldGainBonus": 0.028,
+      "tags": [
+        "rarity_rare",
+        "type_rune",
+        "role_utility",
+        "synergy_utility"
+      ],
+      "itemRole": "utility",
+      "itemRoleLabel": "유틸형",
+      "_officialStatApplied": true,
+      "price": 127
+    },
+    {
+      "name": "그림자 도피 룬",
+      "type": "rune",
+      "rarity": "rare",
+      "desc": "룬. 도주 완화(5%).",
+      "fleeBonus": 0.05,
+      "tags": [
+        "rarity_rare",
+        "type_rune",
+        "role_utility",
+        "synergy_utility"
+      ],
+      "itemRole": "utility",
+      "itemRoleLabel": "유틸형",
+      "_officialStatApplied": true,
+      "price": 127
+    },
+    {
+      "name": "심연 파열 룬",
+      "type": "rune",
+      "rarity": "epic",
+      "desc": "룬. 공격(+29), 치명(+10%), 치명 배율(+7%).",
+      "value": 29,
+      "critBonus": 10,
+      "critMult": 0.07,
+      "tags": [
+        "rarity_epic",
+        "type_rune",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "price": 474
+    },
+    {
+      "name": "대지 심장 룬",
+      "type": "rune",
+      "rarity": "epic",
+      "desc": "룬. 체력(+224), 방어(+36), 피해 감소(+9%).",
+      "hpBonus": 224,
+      "def": 36,
+      "damageReduction": 0.086,
+      "tags": [
+        "rarity_epic",
+        "type_rune",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true,
+      "price": 601
+    },
+    {
+      "name": "유물 잔광 룬",
+      "type": "rune",
+      "rarity": "legendary",
+      "desc": "룬. 흡혈(16%), 골드 획득(+18%), 포션 회복(+30%).",
+      "goldGainBonus": 0.179,
+      "lifesteal": 0.159,
+      "potionHealBonus": 0.298,
+      "tags": [
+        "rarity_legendary",
+        "type_rune",
+        "role_utility",
+        "synergy_utility"
+      ],
+      "itemRole": "utility",
+      "itemRoleLabel": "유틸형",
+      "_officialStatApplied": true,
+      "price": 1644
+    },
+    {
+      "name": "공허 이탈 룬",
+      "type": "rune",
+      "rarity": "legendary",
+      "desc": "룬. 흡혈(9%), 골드 획득(+10%), 도주 완화(11%).",
+      "goldGainBonus": 0.101,
+      "lifesteal": 0.09,
+      "fleeBonus": 0.112,
+      "tags": [
+        "rarity_legendary",
+        "type_rune",
+        "role_utility",
+        "synergy_utility"
+      ],
+      "itemRole": "utility",
+      "itemRoleLabel": "유틸형",
+      "_officialStatApplied": true,
+      "price": 1573
+    }
+  ],
+  "floorUnlocks": {
+    "5": {
+      "name": "철의 의지",
+      "type": "hp",
+      "price": 303,
+      "rarity": "rare",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "desc": "5층 달성 해금. 체력(+147), 방어(+18), 피해 감소(+4%).",
+      "unlockFloor": 5,
+      "value": 147,
+      "def": 18,
+      "damageReduction": 0.037,
+      "tags": [
+        "rarity_rare",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    "10": {
+      "name": "용기의 목걸이",
+      "type": "hp",
+      "price": 369,
+      "rarity": "rare",
+      "desc": "10층 달성 해금. 체력(+145), 방어(+23), 피해 감소(+4%).",
+      "unlockFloor": 10,
+      "value": 145,
+      "def": 23,
+      "damageReduction": 0.037,
+      "tags": [
+        "rarity_rare",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    "15": {
+      "name": "광전사의 도끼",
+      "type": "atk",
+      "price": 282,
+      "rarity": "rare",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "desc": "15층 달성 해금. 공격(+33), 치명(+4%).",
+      "unlockFloor": 15,
+      "value": 33,
+      "critBonus": 4,
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    "20": {
+      "name": "전사의 팔찌",
+      "type": "ring",
+      "price": 262,
+      "rarity": "rare",
+      "desc": "20층 달성 해금. 공격(+22), 치명(+4%).",
+      "unlockFloor": 20,
+      "value": 22,
+      "critBonus": 4,
+      "tags": [
+        "rarity_rare",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    "25": {
+      "name": "성기사의 방패",
+      "type": "hp",
+      "price": 924,
+      "rarity": "epic",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "desc": "25층 달성 해금. 체력(+172), 방어(+24), 피해 감소(+6%).",
+      "unlockFloor": 25,
+      "value": 172,
+      "def": 24,
+      "damageReduction": 0.063,
+      "tags": [
+        "rarity_epic",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    "30": {
+      "name": "불사조의 깃털",
+      "type": "hp",
+      "price": 1280,
+      "rarity": "epic",
+      "desc": "30층 달성 해금. 체력(+296), 방어(+46), 피해 감소(+10%).",
+      "unlockFloor": 30,
+      "value": 296,
+      "def": 46,
+      "damageReduction": 0.1,
+      "tags": [
+        "rarity_epic",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    "35": {
+      "name": "분노의 갑옷",
+      "type": "hp",
+      "price": 1269,
+      "rarity": "epic",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "desc": "35층 달성 해금. 체력(+267), 방어(+34), 피해 감소(+9%).",
+      "unlockFloor": 35,
+      "value": 267,
+      "def": 34,
+      "damageReduction": 0.09,
+      "tags": [
+        "rarity_epic",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    "40": {
+      "name": "심연의 보석",
+      "type": "atk",
+      "price": 1183,
+      "rarity": "epic",
+      "desc": "40층 달성 해금. 공격(+47), 치명(+10%), 치명 배율(+8%).",
+      "unlockFloor": 40,
+      "value": 47,
+      "critBonus": 10,
+      "critMult": 0.08,
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    "45": {
+      "name": "전쟁신의 갑주",
+      "type": "hp",
+      "price": 4177,
+      "rarity": "legendary",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "desc": "45층 달성 해금. 체력(+386), 방어(+50), 피해 감소(+18%).",
+      "unlockFloor": 45,
+      "value": 386,
+      "def": 50,
+      "damageReduction": 0.18,
+      "tags": [
+        "rarity_legendary",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_1abb9kx",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    "50": {
+      "name": "천공의 갑옷",
+      "type": "hp",
+      "price": 1435,
+      "rarity": "epic",
+      "desc": "50층 달성 해금. 체력(+243), 방어(+29), 피해 감소(+8%).",
+      "unlockFloor": 50,
+      "value": 243,
+      "def": 29,
+      "damageReduction": 0.075,
+      "tags": [
+        "rarity_epic",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    "60": {
+      "name": "파멸의 검",
+      "type": "atk",
+      "price": 5170,
+      "rarity": "legendary",
+      "desc": "60층 달성 해금. 공격(+133), 치명(+33%), 치명 배율(+27%).",
+      "unlockFloor": 60,
+      "value": 133,
+      "critBonus": 33,
+      "critMult": 0.27,
+      "tags": [
+        "rarity_legendary",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_1r1lxsp",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    "70": {
+      "name": "불멸의 흉갑",
+      "type": "hp",
+      "price": 5573,
+      "rarity": "legendary",
+      "desc": "70층 달성 해금. 체력(+483), 방어(+66), 피해 감소(+18%).",
+      "unlockFloor": 70,
+      "value": 483,
+      "def": 66,
+      "damageReduction": 0.18,
+      "tags": [
+        "rarity_legendary",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_1e3lblt",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    "80": {
+      "name": "신의 축복",
+      "type": "atk",
+      "price": 6446,
+      "rarity": "legendary",
+      "desc": "80층 달성 해금. 공격(+154), 치명(+45%), 치명 배율(+37%).",
+      "unlockFloor": 80,
+      "value": 154,
+      "critBonus": 45,
+      "critMult": 0.37,
+      "tags": [
+        "rarity_legendary",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_1s4893f",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    "90": {
+      "name": "용왕의 비늘",
+      "type": "hp",
+      "price": 6846,
+      "rarity": "legendary",
+      "desc": "90층 달성 해금. 체력(+630), 방어(+99), 피해 감소(+18%).",
+      "unlockFloor": 90,
+      "value": 630,
+      "def": 99,
+      "damageReduction": 0.18,
+      "tags": [
+        "rarity_legendary",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_gi9w41",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    "100": {
+      "name": "전설의 유산",
+      "type": "atk",
+      "price": 7546,
+      "rarity": "legendary",
+      "desc": "100층 달성! 전설의 유산. 공격(+154), 치명(+51%), 치명 배율(+42%).",
+      "unlockFloor": 100,
+      "value": 154,
+      "critBonus": 51,
+      "critMult": 0.42,
+      "tags": [
+        "rarity_legendary",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_173c4rr",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    }
+  },
+  "floorUnlocksHunter": {
+    "5": {
+      "name": "독수리의 눈",
+      "type": "ring",
+      "price": 212,
+      "rarity": "rare",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "tags": [
+        "rarity_rare",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "desc": "5층 달성 해금. 공격(+23), 치명(+4%), 치명 배율(+4%).",
+      "unlockFloor": 5,
+      "value": 23,
+      "critBonus": 4,
+      "critMult": 0.04,
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    "15": {
+      "name": "바람의 화살",
+      "type": "atk",
+      "price": 313,
+      "rarity": "rare",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "desc": "15층 달성 해금. 공격(+33), 치명(+4%), 치명 배율(+4%).",
+      "unlockFloor": 15,
+      "value": 33,
+      "critBonus": 4,
+      "critMult": 0.04,
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    "25": {
+      "name": "그림자 단검",
+      "type": "atk",
+      "price": 931,
+      "rarity": "epic",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "desc": "25층 달성 해금. 공격(+48), 치명(+10%), 치명 배율(+8%).",
+      "unlockFloor": 25,
+      "value": 48,
+      "critBonus": 10,
+      "critMult": 0.08,
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    "35": {
+      "name": "은신 망토",
+      "type": "hp",
+      "price": 1409,
+      "rarity": "epic",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "desc": "35층 달성 해금. 체력(+305), 방어(+47), 피해 감소(+11%).",
+      "unlockFloor": 35,
+      "value": 305,
+      "def": 47,
+      "damageReduction": 0.107,
+      "tags": [
+        "rarity_epic",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    "45": {
+      "name": "정령의 화살통",
+      "type": "atk",
+      "price": 4107,
+      "rarity": "legendary",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "desc": "45층 달성 해금. 공격(+90), 치명(+22%), 치명 배율(+22%).",
+      "unlockFloor": 45,
+      "value": 90,
+      "critBonus": 22,
+      "critMult": 0.22,
+      "tags": [
+        "rarity_legendary",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_5p8dtg",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    }
+  },
+  "floorUnlocksWizard": {
+    "5": {
+      "name": "마나의 수정",
+      "type": "atk",
+      "price": 237,
+      "rarity": "rare",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사",
+        "성직자"
+      ],
+      "desc": "5층 달성 해금. 공격(+37), 치명(+4%).",
+      "unlockFloor": 5,
+      "value": 37,
+      "critBonus": 4,
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    "15": {
+      "name": "고대의 서적",
+      "type": "atk",
+      "price": 222,
+      "rarity": "rare",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사",
+        "성직자"
+      ],
+      "desc": "15층 달성 해금. 공격(+22), 치명(+3%).",
+      "unlockFloor": 15,
+      "value": 22,
+      "critBonus": 3,
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    "25": {
+      "name": "혼돈의 보주",
+      "type": "atk",
+      "price": 910,
+      "rarity": "epic",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사",
+        "성직자"
+      ],
+      "desc": "25층 달성 해금. 공격(+44), 치명(+10%), 치명 배율(+7%).",
+      "unlockFloor": 25,
+      "value": 44,
+      "critBonus": 10,
+      "critMult": 0.07,
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    "35": {
+      "name": "시간의 모래시계",
+      "type": "hp",
+      "price": 1090,
+      "rarity": "epic",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사",
+        "성직자"
+      ],
+      "desc": "35층 달성 해금. 체력(+184), 방어(+23), 피해 감소(+6%).",
+      "unlockFloor": 35,
+      "value": 184,
+      "def": 23,
+      "damageReduction": 0.06,
+      "tags": [
+        "rarity_epic",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    "45": {
+      "name": "신계의 마법진",
+      "type": "atk",
+      "price": 4290,
+      "rarity": "legendary",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사",
+        "성직자"
+      ],
+      "desc": "45층 달성 해금. 공격(+107), 치명(+31%), 치명 배율(+25%).",
+      "unlockFloor": 45,
+      "value": 107,
+      "critBonus": 31,
+      "critMult": 0.25,
+      "tags": [
+        "rarity_legendary",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_l190ys",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    }
+  },
+  "relicPool": [
+    {
+      "id": "relic_warrior_berserk",
+      "name": "분노의 심장",
+      "desc": "체력 35% 이하일 때 피해 +45%.",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "rarity": "legendary",
+      "effect": "berserk_crit",
+      "price": 210
+    },
+    {
+      "id": "relic_warrior_shield",
+      "name": "철벽의 의지",
+      "desc": "방어 성공 시 체력 8% 회복 + 다음 공격 피해 25% 증가.",
+      "onlyFor": [
+        "워리어",
+        "나이트",
+        "버서커"
+      ],
+      "rarity": "epic",
+      "effect": "shield_empower",
+      "price": 155
+    },
+    {
+      "id": "relic_hunter_dodge",
+      "name": "그림자 반격",
+      "desc": "회피 성공 시 적 방어 일부 무시 반격(강화된 반격 피해).",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "rarity": "legendary",
+      "effect": "dodge_counter",
+      "price": 210
+    },
+    {
+      "id": "relic_hunter_execute",
+      "name": "처형자의 표식",
+      "desc": "적 체력 35% 이하일 때 피해 80% 증가.",
+      "onlyFor": [
+        "헌터",
+        "궁수",
+        "암살자"
+      ],
+      "rarity": "epic",
+      "effect": "execute",
+      "price": 150
+    },
+    {
+      "id": "relic_wizard_chain",
+      "name": "연쇄 마법진",
+      "desc": "치명타 시 연쇄 충전: 다음 공격 피해 35% 증가.",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사",
+        "성직자"
+      ],
+      "rarity": "legendary",
+      "effect": "chain_cast",
+      "price": 210
+    },
+    {
+      "id": "relic_wizard_barrier",
+      "name": "마력 방벽",
+      "desc": "방어막으로 피해 감소 시 반사 45% + 체력 5% 회복.",
+      "onlyFor": [
+        "마법사",
+        "위저드",
+        "소환사",
+        "성직자"
+      ],
+      "rarity": "epic",
+      "effect": "barrier_reflect",
+      "price": 150
+    },
+    {
+      "id": "relic_common_vampire",
+      "name": "뱀파이어의 반지",
+      "desc": "적 처치 시 체력 10% 회복 + 치명타 배율 영구 +3%.",
+      "onlyFor": null,
+      "rarity": "epic",
+      "effect": "kill_heal",
+      "price": 160
+    },
+    {
+      "id": "relic_common_gambler",
+      "name": "도박사의 주사위",
+      "desc": "전투 시작 시만 무작위(⅓씩): 공격 +22% · 치명 +18% · 또는 공격·방어·치명 일부 감소(이번 전투만).",
+      "onlyFor": null,
+      "rarity": "rare",
+      "effect": "gambler",
+      "price": 110
+    }
+  ],
+  "forgeRecipes": [
+    {
+      "name": "강화 철검",
+      "type": "atk",
+      "price": 134,
+      "rarity": "rare",
+      "desc": "대장간 합성. 공격(+19), 치명(+2%).",
+      "materials": 2,
+      "materialRarity": "common",
+      "successRate": 0.85,
+      "value": 19,
+      "critBonus": 2,
+      "tags": [
+        "rarity_rare",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "강화 갑주",
+      "type": "hp",
+      "price": 241,
+      "rarity": "rare",
+      "desc": "대장간 합성. 체력(+125), 방어(+15), 피해 감소(+3%).",
+      "materials": 2,
+      "materialRarity": "common",
+      "successRate": 0.85,
+      "value": 125,
+      "def": 15,
+      "damageReduction": 0.034,
+      "tags": [
+        "rarity_rare",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "강화 반지",
+      "type": "ring",
+      "price": 133,
+      "rarity": "rare",
+      "desc": "대장간 합성. 공격(+15), 치명(+2%), 치명 배율(+2%).",
+      "materials": 2,
+      "materialRarity": "common",
+      "successRate": 0.85,
+      "value": 15,
+      "critBonus": 2,
+      "critMult": 0.02,
+      "tags": [
+        "rarity_rare",
+        "type_ring",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "영웅의 무기",
+      "type": "atk",
+      "price": 572,
+      "rarity": "epic",
+      "desc": "대장간 합성. 공격(+64), 치명(+11%), 치명 배율(+10%).",
+      "materials": 2,
+      "materialRarity": "rare",
+      "successRate": 0.65,
+      "value": 64,
+      "critBonus": 11,
+      "critMult": 0.1,
+      "tags": [
+        "rarity_epic",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "영웅의 갑옷",
+      "type": "hp",
+      "price": 554,
+      "rarity": "epic",
+      "desc": "대장간 합성. 체력(+219), 방어(+26), 피해 감소(+8%).",
+      "materials": 2,
+      "materialRarity": "rare",
+      "successRate": 0.65,
+      "value": 219,
+      "def": 26,
+      "damageReduction": 0.077,
+      "tags": [
+        "rarity_epic",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true
+    },
+    {
+      "name": "전설의 파편",
+      "type": "atk",
+      "price": 1709,
+      "rarity": "legendary",
+      "desc": "대장간 합성. 공격(+79), 치명(+23%), 치명 배율(+22%).",
+      "materials": 3,
+      "materialRarity": "rare",
+      "successRate": 0.4,
+      "value": 79,
+      "critBonus": 23,
+      "critMult": 0.22,
+      "tags": [
+        "rarity_legendary",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_11qwdlf",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "불멸의 심장",
+      "type": "hp",
+      "price": 1889,
+      "rarity": "legendary",
+      "desc": "대장간 합성. 체력(+580), 방어(+89), 피해 감소(+18%).",
+      "materials": 3,
+      "materialRarity": "rare",
+      "successRate": 0.4,
+      "value": 580,
+      "def": 89,
+      "damageReduction": 0.18,
+      "tags": [
+        "rarity_legendary",
+        "type_hp",
+        "role_defense",
+        "synergy_guard"
+      ],
+      "itemRole": "defense",
+      "itemRoleLabel": "방어형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_10cd1ki",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    },
+    {
+      "name": "파멸의 각인",
+      "type": "atk",
+      "price": 1734,
+      "rarity": "legendary",
+      "desc": "대장간 합성. 공격(+96), 치명(+23%), 치명 배율(+22%).",
+      "materials": 2,
+      "materialRarity": "epic",
+      "successRate": 0.5,
+      "value": 96,
+      "critBonus": 23,
+      "critMult": 0.22,
+      "tags": [
+        "rarity_legendary",
+        "type_atk",
+        "role_offense",
+        "synergy_blade"
+      ],
+      "itemRole": "offense",
+      "itemRoleLabel": "공격형",
+      "_officialStatApplied": true,
+      "uniqueEffectId": "legendary_1c0osry",
+      "effectDescription": "전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다."
+    }
+  ],
+  "permanentUpgrades": [
+    {
+      "id": "hp_1",
+      "name": "체력 일차",
+      "desc": "체력 +20 영구 적용 (누적)",
+      "effect": {
+        "hp": 20
+      },
+      "price": 20,
+      "maxBuy": 1
+    },
+    {
+      "id": "hp_2",
+      "name": "체력 이차",
+      "desc": "체력 +40 영구 적용 (누적)",
+      "effect": {
+        "hp": 20
+      },
+      "price": 27,
+      "maxBuy": 1
+    },
+    {
+      "id": "hp_3",
+      "name": "체력 삼차",
+      "desc": "체력 +60 영구 적용 (누적)",
+      "effect": {
+        "hp": 20
+      },
+      "price": 36,
+      "maxBuy": 1
+    },
+    {
+      "id": "hp_4",
+      "name": "체력 사차",
+      "desc": "체력 +80 영구 적용 (누적)",
+      "effect": {
+        "hp": 20
+      },
+      "price": 49,
+      "maxBuy": 1
+    },
+    {
+      "id": "hp_5",
+      "name": "체력 오차",
+      "desc": "체력 +100 영구 적용 (누적)",
+      "effect": {
+        "hp": 20
+      },
+      "price": 66,
+      "maxBuy": 1
+    },
+    {
+      "id": "hp_6",
+      "name": "체력 육차",
+      "desc": "체력 +120 영구 적용 (누적)",
+      "effect": {
+        "hp": 20
+      },
+      "price": 89,
+      "maxBuy": 1
+    },
+    {
+      "id": "hp_7",
+      "name": "체력 칠차",
+      "desc": "체력 +140 영구 적용 (누적)",
+      "effect": {
+        "hp": 20
+      },
+      "price": 121,
+      "maxBuy": 1
+    },
+    {
+      "id": "hp_8",
+      "name": "체력 팔차",
+      "desc": "체력 +160 영구 적용 (누적)",
+      "effect": {
+        "hp": 20
+      },
+      "price": 163,
+      "maxBuy": 1
+    },
+    {
+      "id": "hp_9",
+      "name": "체력 구차",
+      "desc": "체력 +180 영구 적용 (누적)",
+      "effect": {
+        "hp": 20
+      },
+      "price": 220,
+      "maxBuy": 1
+    },
+    {
+      "id": "hp_10",
+      "name": "체력 십차",
+      "desc": "체력 +200 영구 적용 (누적)",
+      "effect": {
+        "hp": 20
+      },
+      "price": 297,
+      "maxBuy": 1
+    },
+    {
+      "id": "hp_11",
+      "name": "체력 십일차",
+      "desc": "체력 +220 영구 적용 (누적)",
+      "effect": {
+        "hp": 20
+      },
+      "price": 402,
+      "maxBuy": 1
+    },
+    {
+      "id": "hp_12",
+      "name": "체력 십이차",
+      "desc": "체력 +240 영구 적용 (누적)",
+      "effect": {
+        "hp": 20
+      },
+      "price": 542,
+      "maxBuy": 1
+    },
+    {
+      "id": "hp_13",
+      "name": "체력 십삼차",
+      "desc": "체력 +260 영구 적용 (누적)",
+      "effect": {
+        "hp": 20
+      },
+      "price": 732,
+      "maxBuy": 1
+    },
+    {
+      "id": "hp_14",
+      "name": "체력 십사차",
+      "desc": "체력 +280 영구 적용 (누적)",
+      "effect": {
+        "hp": 20
+      },
+      "price": 989,
+      "maxBuy": 1
+    },
+    {
+      "id": "hp_15",
+      "name": "체력 십오차",
+      "desc": "체력 +300 영구 적용 (누적)",
+      "effect": {
+        "hp": 20
+      },
+      "price": 1335,
+      "maxBuy": 1
+    },
+    {
+      "id": "hp_16",
+      "name": "체력 십육차",
+      "desc": "체력 +320 영구 적용 (누적)",
+      "effect": {
+        "hp": 20
+      },
+      "price": 1803,
+      "maxBuy": 1
+    },
+    {
+      "id": "hp_17",
+      "name": "체력 십칠차",
+      "desc": "체력 +340 영구 적용 (누적)",
+      "effect": {
+        "hp": 20
+      },
+      "price": 2434,
+      "maxBuy": 1
+    },
+    {
+      "id": "hp_18",
+      "name": "체력 십팔차",
+      "desc": "체력 +360 영구 적용 (누적)",
+      "effect": {
+        "hp": 20
+      },
+      "price": 3286,
+      "maxBuy": 1
+    },
+    {
+      "id": "hp_19",
+      "name": "체력 십구차",
+      "desc": "체력 +380 영구 적용 (누적)",
+      "effect": {
+        "hp": 20
+      },
+      "price": 4436,
+      "maxBuy": 1
+    },
+    {
+      "id": "hp_20",
+      "name": "체력 이십차",
+      "desc": "체력 +400 영구 적용 (누적)",
+      "effect": {
+        "hp": 20
+      },
+      "price": 5989,
+      "maxBuy": 1
+    },
+    {
+      "id": "atk_1",
+      "name": "공격력 일차",
+      "desc": "공격력 +3 영구 적용 (누적)",
+      "effect": {
+        "atk": 3
+      },
+      "price": 30,
+      "maxBuy": 1
+    },
+    {
+      "id": "atk_2",
+      "name": "공격력 이차",
+      "desc": "공격력 +6 영구 적용 (누적)",
+      "effect": {
+        "atk": 3
+      },
+      "price": 42,
+      "maxBuy": 1
+    },
+    {
+      "id": "atk_3",
+      "name": "공격력 삼차",
+      "desc": "공격력 +9 영구 적용 (누적)",
+      "effect": {
+        "atk": 3
+      },
+      "price": 58,
+      "maxBuy": 1
+    },
+    {
+      "id": "atk_4",
+      "name": "공격력 사차",
+      "desc": "공격력 +12 영구 적용 (누적)",
+      "effect": {
+        "atk": 3
+      },
+      "price": 82,
+      "maxBuy": 1
+    },
+    {
+      "id": "atk_5",
+      "name": "공격력 오차",
+      "desc": "공격력 +15 영구 적용 (누적)",
+      "effect": {
+        "atk": 3
+      },
+      "price": 115,
+      "maxBuy": 1
+    },
+    {
+      "id": "atk_6",
+      "name": "공격력 육차",
+      "desc": "공격력 +18 영구 적용 (누적)",
+      "effect": {
+        "atk": 3
+      },
+      "price": 161,
+      "maxBuy": 1
+    },
+    {
+      "id": "atk_7",
+      "name": "공격력 칠차",
+      "desc": "공격력 +21 영구 적용 (누적)",
+      "effect": {
+        "atk": 3
+      },
+      "price": 225,
+      "maxBuy": 1
+    },
+    {
+      "id": "atk_8",
+      "name": "공격력 팔차",
+      "desc": "공격력 +24 영구 적용 (누적)",
+      "effect": {
+        "atk": 3
+      },
+      "price": 316,
+      "maxBuy": 1
+    },
+    {
+      "id": "atk_9",
+      "name": "공격력 구차",
+      "desc": "공격력 +27 영구 적용 (누적)",
+      "effect": {
+        "atk": 3
+      },
+      "price": 442,
+      "maxBuy": 1
+    },
+    {
+      "id": "atk_10",
+      "name": "공격력 십차",
+      "desc": "공격력 +30 영구 적용 (누적)",
+      "effect": {
+        "atk": 3
+      },
+      "price": 619,
+      "maxBuy": 1
+    },
+    {
+      "id": "atk_11",
+      "name": "공격력 십일차",
+      "desc": "공격력 +33 영구 적용 (누적)",
+      "effect": {
+        "atk": 3
+      },
+      "price": 867,
+      "maxBuy": 1
+    },
+    {
+      "id": "atk_12",
+      "name": "공격력 십이차",
+      "desc": "공격력 +36 영구 적용 (누적)",
+      "effect": {
+        "atk": 3
+      },
+      "price": 1214,
+      "maxBuy": 1
+    },
+    {
+      "id": "atk_13",
+      "name": "공격력 십삼차",
+      "desc": "공격력 +39 영구 적용 (누적)",
+      "effect": {
+        "atk": 3
+      },
+      "price": 1700,
+      "maxBuy": 1
+    },
+    {
+      "id": "atk_14",
+      "name": "공격력 십사차",
+      "desc": "공격력 +42 영구 적용 (누적)",
+      "effect": {
+        "atk": 3
+      },
+      "price": 2381,
+      "maxBuy": 1
+    },
+    {
+      "id": "atk_15",
+      "name": "공격력 십오차",
+      "desc": "공격력 +45 영구 적용 (누적)",
+      "effect": {
+        "atk": 3
+      },
+      "price": 3333,
+      "maxBuy": 1
+    },
+    {
+      "id": "atk_16",
+      "name": "공격력 십육차",
+      "desc": "공격력 +48 영구 적용 (누적)",
+      "effect": {
+        "atk": 3
+      },
+      "price": 4667,
+      "maxBuy": 1
+    },
+    {
+      "id": "atk_17",
+      "name": "공격력 십칠차",
+      "desc": "공격력 +51 영구 적용 (누적)",
+      "effect": {
+        "atk": 3
+      },
+      "price": 6533,
+      "maxBuy": 1
+    },
+    {
+      "id": "atk_18",
+      "name": "공격력 십팔차",
+      "desc": "공격력 +54 영구 적용 (누적)",
+      "effect": {
+        "atk": 3
+      },
+      "price": 9147,
+      "maxBuy": 1
+    },
+    {
+      "id": "atk_19",
+      "name": "공격력 십구차",
+      "desc": "공격력 +57 영구 적용 (누적)",
+      "effect": {
+        "atk": 3
+      },
+      "price": 12806,
+      "maxBuy": 1
+    },
+    {
+      "id": "atk_20",
+      "name": "공격력 이십차",
+      "desc": "공격력 +60 영구 적용 (누적)",
+      "effect": {
+        "atk": 3
+      },
+      "price": 17928,
+      "maxBuy": 1
+    },
+    {
+      "id": "def_1",
+      "name": "방어력 일차",
+      "desc": "방어력 +2 영구 적용 (누적)",
+      "effect": {
+        "def": 2
+      },
+      "price": 25,
+      "maxBuy": 1
+    },
+    {
+      "id": "def_2",
+      "name": "방어력 이차",
+      "desc": "방어력 +4 영구 적용 (누적)",
+      "effect": {
+        "def": 2
+      },
+      "price": 35,
+      "maxBuy": 1
+    },
+    {
+      "id": "def_3",
+      "name": "방어력 삼차",
+      "desc": "방어력 +6 영구 적용 (누적)",
+      "effect": {
+        "def": 2
+      },
+      "price": 48,
+      "maxBuy": 1
+    },
+    {
+      "id": "def_4",
+      "name": "방어력 사차",
+      "desc": "방어력 +8 영구 적용 (누적)",
+      "effect": {
+        "def": 2
+      },
+      "price": 68,
+      "maxBuy": 1
+    },
+    {
+      "id": "def_5",
+      "name": "방어력 오차",
+      "desc": "방어력 +10 영구 적용 (누적)",
+      "effect": {
+        "def": 2
+      },
+      "price": 96,
+      "maxBuy": 1
+    },
+    {
+      "id": "def_6",
+      "name": "방어력 육차",
+      "desc": "방어력 +12 영구 적용 (누적)",
+      "effect": {
+        "def": 2
+      },
+      "price": 134,
+      "maxBuy": 1
+    },
+    {
+      "id": "def_7",
+      "name": "방어력 칠차",
+      "desc": "방어력 +14 영구 적용 (누적)",
+      "effect": {
+        "def": 2
+      },
+      "price": 188,
+      "maxBuy": 1
+    },
+    {
+      "id": "def_8",
+      "name": "방어력 팔차",
+      "desc": "방어력 +16 영구 적용 (누적)",
+      "effect": {
+        "def": 2
+      },
+      "price": 263,
+      "maxBuy": 1
+    },
+    {
+      "id": "def_9",
+      "name": "방어력 구차",
+      "desc": "방어력 +18 영구 적용 (누적)",
+      "effect": {
+        "def": 2
+      },
+      "price": 368,
+      "maxBuy": 1
+    },
+    {
+      "id": "def_10",
+      "name": "방어력 십차",
+      "desc": "방어력 +20 영구 적용 (누적)",
+      "effect": {
+        "def": 2
+      },
+      "price": 516,
+      "maxBuy": 1
+    },
+    {
+      "id": "def_11",
+      "name": "방어력 십일차",
+      "desc": "방어력 +22 영구 적용 (누적)",
+      "effect": {
+        "def": 2
+      },
+      "price": 723,
+      "maxBuy": 1
+    },
+    {
+      "id": "def_12",
+      "name": "방어력 십이차",
+      "desc": "방어력 +24 영구 적용 (누적)",
+      "effect": {
+        "def": 2
+      },
+      "price": 1012,
+      "maxBuy": 1
+    },
+    {
+      "id": "def_13",
+      "name": "방어력 십삼차",
+      "desc": "방어력 +26 영구 적용 (누적)",
+      "effect": {
+        "def": 2
+      },
+      "price": 1417,
+      "maxBuy": 1
+    },
+    {
+      "id": "def_14",
+      "name": "방어력 십사차",
+      "desc": "방어력 +28 영구 적용 (누적)",
+      "effect": {
+        "def": 2
+      },
+      "price": 1984,
+      "maxBuy": 1
+    },
+    {
+      "id": "def_15",
+      "name": "방어력 십오차",
+      "desc": "방어력 +30 영구 적용 (누적)",
+      "effect": {
+        "def": 2
+      },
+      "price": 2778,
+      "maxBuy": 1
+    },
+    {
+      "id": "def_16",
+      "name": "방어력 십육차",
+      "desc": "방어력 +32 영구 적용 (누적)",
+      "effect": {
+        "def": 2
+      },
+      "price": 3889,
+      "maxBuy": 1
+    },
+    {
+      "id": "def_17",
+      "name": "방어력 십칠차",
+      "desc": "방어력 +34 영구 적용 (누적)",
+      "effect": {
+        "def": 2
+      },
+      "price": 5444,
+      "maxBuy": 1
+    },
+    {
+      "id": "def_18",
+      "name": "방어력 십팔차",
+      "desc": "방어력 +36 영구 적용 (누적)",
+      "effect": {
+        "def": 2
+      },
+      "price": 7622,
+      "maxBuy": 1
+    },
+    {
+      "id": "def_19",
+      "name": "방어력 십구차",
+      "desc": "방어력 +38 영구 적용 (누적)",
+      "effect": {
+        "def": 2
+      },
+      "price": 10671,
+      "maxBuy": 1
+    },
+    {
+      "id": "def_20",
+      "name": "방어력 이십차",
+      "desc": "방어력 +40 영구 적용 (누적)",
+      "effect": {
+        "def": 2
+      },
+      "price": 14940,
+      "maxBuy": 1
+    }
+  ],
+  "synergyRules": [
+    {
+      "id": "syn_role_offense_blade",
+      "name": "전투 공명",
+      "fromTag": "role_offense",
+      "needCount": 2,
+      "bonus": {
+        "atk": 18,
+        "crit": 4
+      },
+      "effectDesc": "공격형 2개: 공격+18, 치명+4%",
+      "detailDesc": "공격형 장비가 동시에 2개 이상 장착되면 발동합니다. 무기·공격 반지·공격 룬 빌드의 화력을 끌어올립니다."
+    },
+    {
+      "id": "syn_role_guard",
+      "name": "수호 공명",
+      "fromTag": "role_defense",
+      "needCount": 2,
+      "bonus": {
+        "hp": 70,
+        "def": 10
+      },
+      "effectDesc": "방어형 2개: 체력+70, 방어+10",
+      "detailDesc": "방어형 장비가 동시에 2개 이상 장착되면 발동합니다. 갑옷·방패·수호 룬 중심의 생존력을 보강합니다."
+    },
+    {
+      "id": "syn_role_utility",
+      "name": "풍요 공명",
+      "fromTag": "role_utility",
+      "needCount": 2,
+      "bonus": {
+        "hp": 35,
+        "critMult": 0.08
+      },
+      "effectDesc": "유틸형 2개: 체력+35, 치명배율+8%",
+      "detailDesc": "유틸형 장비가 동시에 2개 이상 장착되면 발동합니다. 골드·흡혈·포션 보조 장비를 전투 가치로 이어 줍니다."
+    },
+    {
+      "id": "syn_common_echo",
+      "name": "잔향 공명",
+      "fromTag": "rarity_common",
+      "needCount": 3,
+      "bonus": {
+        "def": 8,
+        "hp": 30
+      },
+      "effectDesc": "일반 3개: 방어+8, 체력+30",
+      "detailDesc": "인벤토리에 일반(common) 등급 장비가 동시에 3개 이상 장착되면 발동합니다. 방어력과 체력이 추가로 오릅니다."
+    },
+    {
+      "id": "syn_rare_oath",
+      "name": "서약 공명",
+      "fromTag": "rarity_rare",
+      "needCount": 2,
+      "bonus": {
+        "atk": 14,
+        "def": 6
+      },
+      "effectDesc": "희귀 2개: 공격+14, 방어+6",
+      "detailDesc": "인벤토리에 희귀(rare) 등급 장비가 동시에 2개 이상 장착되면 발동합니다. 공격력과 방어력이 추가로 오릅니다."
+    },
+    {
+      "id": "syn_epic_hymn",
+      "name": "찬가 공명",
+      "fromTag": "rarity_epic",
+      "needCount": 2,
+      "bonus": {
+        "crit": 8,
+        "critMult": 0.18
+      },
+      "effectDesc": "영웅 2개: 치명+8%, 치명배율+18%",
+      "detailDesc": "인벤토리에 에픽(epic) 등급 장비가 동시에 2개 이상 장착되면 발동합니다. 치명타 확률과 치명타 배율이 추가로 오릅니다."
+    },
+    {
+      "id": "syn_legend_glory",
+      "name": "영광 공명",
+      "fromTag": "rarity_legendary",
+      "needCount": 2,
+      "bonus": {
+        "atk": 26,
+        "hp": 70,
+        "def": 12
+      },
+      "effectDesc": "전설 2개: 공격+26, 체력+70, 방어+12",
+      "detailDesc": "인벤토리에 전설(legendary) 등급 장비가 동시에 2개 이상 장착되면 발동합니다. 공격·체력·방어가 크게 추가됩니다."
+    }
+  ]
+});
+if (typeof globalThis !== 'undefined') globalThis.RESTORED_ITEM_DATA = RESTORED_ITEM_DATA;
+if (typeof module !== 'undefined' && module.exports) module.exports = RESTORED_ITEM_DATA;
+
+
+// ===== data.js =====
+'use strict';
+
+/*
+ * 순수 턴제 RPG 데이터 v3.5
+ * 기존 스토리/직업/장비 데이터는 제거되었다. 아래 호환 키는 기존 DOM 렌더러가
+ * 단일 인간 모험가를 표시하기 위해 필요한 최소 계약만 제공한다.
  */
-const relations = {
-    '워리어':  { weak: '마법사', strong: '헌터' },
-    '헌터':   { weak: '워리어', strong: '마법사' },
-    '마법사':  { weak: '헌터',  strong: '워리어' },
-    '나이트':  { weak: '마법사', strong: '헌터' },
-    '버서커':  { weak: '마법사', strong: '헌터' },
-    '궁수':   { weak: '워리어', strong: '마법사' },
-    '암살자':  { weak: '워리어', strong: '마법사' },
-    '위저드':  { weak: '헌터',  strong: '워리어' },
-    '소환사':  { weak: '헌터',  strong: '워리어' },
-    '성직자':  { weak: '헌터',  strong: '워리어' },
-};
+
+const RULESET_VERSION = '3.5';
+const HUMAN_JOB_KEY = 'Human';
+const MAX_DUNGEON_FLOOR = 100;
+const STAGES_PER_FLOOR = 10;
+const LAST_SAFE_RETURN_FLOOR = 5;
+const LAST_SAFE_RETURN_STAGE = 10;
+const RESTORED_ITEMS = typeof globalThis !== 'undefined' && globalThis.RESTORED_ITEM_DATA
+    ? globalThis.RESTORED_ITEM_DATA
+    : typeof module !== 'undefined' && module.exports
+      ? require('./js/restoredItemData.js')
+      : {};
 
 const BALANCE = Object.freeze({
-    baseHitAccuracy: 90,
-    lifestealSoftCap: 0.85,
-    critSoftCap: 65,
-    critOverflowToMult: 0.05,
-    critMultHardCap: 5,
-    divinePowerMax: 20,
-    divineBlessingThreshold: 20,
-    divineBlessingDefBonus: 20,
-    divineBlessingLifestealBonus: 0.05,
-
+    statBaseCap: 100,
+    probabilityCap: 0.75,
+    divinityMin: -5,
+    divinityMax: 5,
+    distortionMin: 0,
+    distortionMax: 100,
+    maxDungeonFloor: MAX_DUNGEON_FLOOR,
+    stagesPerFloor: STAGES_PER_FLOOR,
+    lastSafeReturnFloor: LAST_SAFE_RETURN_FLOOR,
+    lastSafeReturnStage: LAST_SAFE_RETURN_STAGE,
+    baseHitAccuracy: 55,
+    permanentUpgradeGrowth: 1,
+    upgradeFloorEquivalent: 1,
+    critSoftCap: 0,
+    critOverflowToMult: 0,
+    critMultHardCap: 1,
+    lifestealSoftCap: 0,
+    divinePowerMax: 5,
+    divineBlessingThreshold: 5,
+    divineBlessingDefBonus: 0,
+    divineBlessingLifestealBonus: 0,
+    floorGrowth: Object.freeze({ atkPerFloor: 0, hpPerFloor: 0 }),
+    enemyScaling: Object.freeze({
+        pre30HpAtkStep: 0.045,
+        pre30DefStep: 0.03,
+        post30HpAtkStep: 0.03,
+        post30DefStep: 0.02,
+    }),
     enemyWallFloor: 30,
     enemyPreWallGrowth: 1.058,
     enemyPostWallGrowth: 1.067,
     enemyWallHpMult: 1.5,
     enemyWallAtkMult: 1.35,
     enemyWallDefMult: 2.18,
-    upgradeFloorEquivalent: 1.25,
-
-    rarityPower: {
-        common: 1.15,
-        rare: 1.85,
-        epic: 3.4,
-        legendary: 7,
-        legend: 7,
-    },
-    goldReward: {
-        normalBaseMin: 6,
-        normalBaseMax: 10,
-        floorStep: 3,
-        normalMultiplier: 1.3,
-        normalMin: 15,
-        bossMultiplier: 2.4,
-        bossFlatBonus: 20,
-        bossFloorBonus: 2,
-    },
-    shopPriceByRarity: {
-        common: { base: 40, floorStep: 2 },
-        rare: { base: 120, floorStep: 5 },
-        epic: { base: 400, floorStep: 15 },
-        legendary: { base: 1500, floorStep: 50 },
-    },
-    floorGrowth: {
-        atkPerFloor: 1,
-        hpPerFloor: 5,
-    },
-    equipmentFloorWeightStep: 0.005,
-    equipmentFloorWeightCap: 1.65,
-    equipmentBaseStats: {
-        weaponAtk: 14,
-        ringAtk: 11,
-        armorHp: 72,
-        armorDef: 10,
-        hybridDef: 4,
-        crit: 5,
-        critMult: 0.08,
-        lifesteal: 0.03,
-        prayerBonus: 1,
-        divinityGainBonus: 0.015,
-    },
+    goldReward: Object.freeze({
+        normalBaseMin: 0,
+        normalBaseMax: 0,
+        normalMultiplier: 1,
+        normalMin: 0,
+        normalCap: 0,
+        normalAffinityCap: 0,
+        bossMultiplier: 1,
+        bossFlatBonus: 0,
+        bossFloorBonus: 0,
+    }),
+    rarityPower: Object.freeze({ common: 1, rare: 1, epic: 1, legendary: 1, legend: 1 }),
+    shopPriceByRarity: Object.freeze({}),
 });
 
-const tacticalSkillChoices = Object.freeze({
-    parry: Object.freeze({
-        key: 'parry',
-        name: '패링',
-        type: 'defense',
-        icon: '🛡️',
-        shortDesc: '다음 피격 1회 무효화',
-        battleLog: '다음 적 공격을 한 번 무력화합니다.',
-    }),
-    focus: Object.freeze({
-        key: 'focus',
-        name: '집중 공격',
-        type: 'attack',
-        icon: '🎯',
-        shortDesc: '다음 공격 치명 확률 +60%',
-        critBonus: 60,
-        battleLog: '다음 공격의 치명타 확률이 크게 상승합니다.',
-    }),
-    barrier: Object.freeze({
-        key: 'barrier',
-        name: '방어막',
-        type: 'defense',
-        icon: '✨',
-        shortDesc: '다음 피격 1회 무효화',
-        battleLog: '붉은 마굴의 충격을 한 번 완전히 흘려냅니다.',
-    }),
+const STAT_KEYS = Object.freeze(['str', 'def', 'hp', 'int', 'wis', 'agi', 'divinity', 'distortion']);
+
+const statDefinitions = Object.freeze({
+    str: Object.freeze({ key: 'str', name: '힘', short: 'Str', min: 1, max: 100 }),
+    def: Object.freeze({ key: 'def', name: '방어력', short: 'Def', min: 1, max: 100 }),
+    hp: Object.freeze({ key: 'hp', name: '체력', short: 'Hp', min: 1, max: 100 }),
+    int: Object.freeze({ key: 'int', name: '지능', short: 'Int', min: 1, max: 100 }),
+    wis: Object.freeze({ key: 'wis', name: '지혜', short: 'Wis', min: 1, max: 100 }),
+    agi: Object.freeze({ key: 'agi', name: '민첩', short: 'Agi', min: 1, max: 100 }),
+    divinity: Object.freeze({ key: 'divinity', name: '성혼', short: 'Divinity', min: -5, max: 5 }),
+    distortion: Object.freeze({ key: 'distortion', name: '뒤틀림', short: 'Distortion', min: 0, max: 100 }),
 });
 
-const tacticalSkillMilestones = Object.freeze([
-    Object.freeze({ floor: 5, choices: Object.freeze(['parry', 'focus']) }),
-    Object.freeze({ floor: 15, choices: Object.freeze(['barrier', 'focus']) }),
-    Object.freeze({ floor: 30, choices: Object.freeze(['parry', 'barrier', 'focus']) }),
-]);
-
-const jobBase = {
-    Warrior: { name: '워리어', hp: 300, atk: 19, def: 10, color: '#ff4757' },
-    Hunter:  { name: '헌터',   hp: 245, atk: 25, def: 5,  color: '#2ed573' },
-    Wizard:  { name: '마법사', hp: 185, atk: 42, def: 3,  color: '#1e90ff' },
-    /** 동료 용병이 싸움. 단장은 직접 전투 불가에 가깝게 최하위 ATK */
-    MercenaryCaptain: { name: '용병단장', hp: 210, atk: 5, def: 5, color: '#e67e22' },
-};
-
-const introPrologueText = Object.freeze({
-    memoryPrompt:
-        '정신을 차리려 눈을 감자, 기억의 파편들이 스쳐 지나갑니다. 당신이 기억하는 마지막 기억은 무엇입니까?',
-    dangerPrompt:
-        '당신은 과거에 엄청난 사건들이 가득했던 존재였습니다. 지금은 어떤 일인지 과거의 일이 하나도 기억나지 않습니다.. 그리고 현재 당신의 앞에는 몬스터가 침을 흘리며 당신을 쳐다보고 있습니다!',
-    weaponPrompt:
-        '옆에는 금방이라도 부셔질 것 같은 무기들이 널부러져 있습니다. 시간이 별로 없습니다. 무엇을 집겠습니까?',
+const weaponTable = Object.freeze({
+    hammer: Object.freeze({ key: 'hammer', name: '망치', type: 'atk', value: 34, speed: 20, cooldownTurns: 2, partBreakBonus: 0.25 }),
+    sword: Object.freeze({ key: 'sword', name: '검', type: 'atk', value: 20, speed: 55, agilityExtraStrike: true }),
+    ranged: Object.freeze({ key: 'ranged', name: '활/총', type: 'atk', value: 18, speed: 60, weaknessMastery: true }),
+    staff: Object.freeze({ key: 'staff', name: '지팡이', type: 'atk', value: 14, speed: 50, magicFocus: true }),
+    greatScythe: Object.freeze({ key: 'greatScythe', name: '대낫', type: 'atk', value: 28, speed: 42, selfSacrifice: true, twistedLifesteal: true }),
 });
 
-const introMemoryChoices = Object.freeze({
-    betrayed_heroes: {
-        key: 'betrayed_heroes',
-        label: '나를 배신한 동료들의 차가운 눈빛',
-        raceKey: 'human',
-        baseJobKey: 'Warrior',
-    },
-    demon_lord_mockery: {
-        key: 'demon_lord_mockery',
-        label: '나를 멸시하던 마왕의 비웃음',
-        raceKey: 'demon',
-        baseJobKey: 'Wizard',
-    },
-    burning_tribe: {
-        key: 'burning_tribe',
-        label: '불타오르던 고향 부족의 불길',
-        raceKey: 'beastkin',
-        baseJobKey: 'Hunter',
-    },
+const armorTable = Object.freeze({
+    shield: Object.freeze({ key: 'shield', name: '방패', type: 'hp', value: 0, def: 14, nullifyChance: 0.08 }),
+    armor: Object.freeze({ key: 'armor', name: '갑옷', type: 'hp', value: 0, def: 18, mitigation: 0.25, nullifyChance: 0.05 }),
 });
 
-const raceStories = Object.freeze({
-    human: {
-        key: 'human',
-        name: '인간',
-        color: '#f1c40f',
-        summary: '배신당한 자',
-        past:
-            '인간 용사와 왕에게 이용당한 끝에 토사구팽당하고, 복수심만 남긴 채 마굴 아래로 떨어진 인간.',
-        fragments: {
-            runStart: [
-                '왕의 깃발 아래에서 들었던 환호가 아직 귓가에 남아 있다. 마지막에 돌아온 것은 축복이 아니라 처형 명령이었다.',
-                '당신을 용사라 부르던 인간들은 전쟁이 끝나자 가장 먼저 당신의 이름을 지웠다.',
-            ],
-            floorMilestones: {
-                5: ['녹슨 검날에 왕실 문장이 비친다. 당신은 그 문장을 지키기 위해 너무 많은 피를 흘렸다.'],
-                10: ['인간 용사의 얼굴이 떠오른다. 그는 당신의 어깨를 두드린 뒤, 같은 손으로 등을 밀었다.'],
-                20: ['왕의 명령서는 불타 사라졌지만 문장은 기억난다. “영웅은 전쟁 뒤에 가장 위험하다.”'],
-                30: ['마굴의 문이 닫히던 순간, 인간 왕은 눈을 피하지 않았다. 당신의 복수는 아직 시작도 하지 않았다.'],
-            },
-            relic: {
-                default: '유물이 손에 닿자 왕궁의 맹세문이 피 묻은 조롱처럼 되살아난다.',
-            },
-        },
-    },
-    demon: {
-        key: 'demon',
-        name: '마족',
-        color: '#e74c3c',
-        summary: '추방당한 군주',
-        past:
-            '마계의 군주였으나 흑막의 계략으로 권좌와 힘을 빼앗기고, 최하층 던전으로 추방당한 마족.',
-        fragments: {
-            runStart: [
-                '마기가 당신을 알아보고 낮게 떨린다. 그러나 그것은 복종이 아니라, 폐위된 군주를 향한 조롱에 가깝다.',
-                '왕좌의 감촉은 사라졌지만 빼앗긴 힘의 공백은 아직 심장 한가운데 남아 있다.',
-            ],
-            floorMilestones: {
-                5: ['벽에 새겨진 봉인문은 당신의 군단 문법을 흉내 냈다. 진짜 명령권자는 따로 있었다.'],
-                10: ['무너진 군기가 발밑에서 바스러진다. 부하들은 배신한 것이 아니라 누군가에게 조종당했다.'],
-                20: ['마계의 법정이 떠오른다. 당신의 죄명은 반역, 판결문에는 조력자의 인장이 희미하게 찍혀 있었다.'],
-                30: ['심층의 마기가 무릎 꿇으려다 멈춘다. 당신은 아직 군주지만, 왕관은 다른 손에 있다.'],
-            },
-            relic: {
-                default: '유물 안쪽에서 잃어버린 왕권의 명령 체계가 반응한다. 당신은 이것을 빼앗긴 적이 있다.',
-            },
-        },
-    },
-    beastkin: {
-        key: 'beastkin',
-        name: '수인',
-        color: '#2ed573',
-        summary: '짓밟힌 생존자',
-        past:
-            '전쟁의 참화 속에서 부족을 잃고, 살아남기 위해 힘을 갈망하며 마굴로 숨어 들어온 수인.',
-        fragments: {
-            runStart: [
-                '발밑의 진동이 전장을 떠올리게 한다. 부족의 울음소리는 사라졌지만 살아남으라는 본능만은 남았다.',
-                '당신은 도망친 것이 아니다. 언젠가 되돌아가기 위해 더 깊은 어둠으로 숨은 것이다.',
-            ],
-            floorMilestones: {
-                5: ['부서진 뼈장식이 흙 속에 묻혀 있다. 부족의 전사들이 여기까지 밀려왔던 흔적이다.'],
-                10: ['피 냄새 사이로 익숙한 약초 향이 섞인다. 치료받지 못한 아이들의 숨소리가 잠깐 들린다.'],
-                20: ['전쟁을 일으킨 자들은 힘을 숭배했다. 당신은 그들의 언어로 대답하기 위해 이를 악문다.'],
-                30: ['심층의 포효가 뼈를 울린다. 부족을 짓밟은 힘의 근원이 이 아래에서 아직 살아 있다.'],
-            },
-            relic: {
-                default: '유물이 손에 닿자 잃어버린 부족의 사냥 노래가 낮은 장송곡처럼 맴돈다.',
-            },
-        },
-    },
+const magicTable = Object.freeze({
+    lightning: Object.freeze({ key: 'lightning', name: '전기', school: 'holy' }),
+    fire: Object.freeze({ key: 'fire', name: '화염', school: 'holy' }),
+    poison: Object.freeze({ key: 'poison', name: '독', school: 'holy' }),
+    ice: Object.freeze({ key: 'ice', name: '얼음', school: 'holy' }),
+    water: Object.freeze({ key: 'water', name: '물', school: 'holy' }),
+    heal: Object.freeze({ key: 'heal', name: '힐', school: 'holy' }),
+    recreation: Object.freeze({ key: 'recreation', name: '재창조', school: 'twisted' }),
+    twistedFire: Object.freeze({ key: 'twistedFire', name: '뒤틀린 불', school: 'twisted' }),
+    twistedPoison: Object.freeze({ key: 'twistedPoison', name: '뒤틀린 독', school: 'twisted' }),
+    twistedIce: Object.freeze({ key: 'twistedIce', name: '뒤틀린 얼음', school: 'twisted' }),
 });
 
-const storyData = Object.freeze({
-    playerStateDefaults: Object.freeze({
-        corruption: 0,
-        purification: 0,
-    }),
-    routeTitles: Object.freeze({
-        neutral: null,
-        corruption: '마력을 탐하는 자',
-        purification: '진실을 가르는 자',
-    }),
-    endingTitles: Object.freeze({
-        demonKing: '마왕의 그릇',
-        hero: '환각을 깨뜨린 용사',
-    }),
-    choiceImpacts: Object.freeze({
-        trust_helper: Object.freeze({
-            corruption: 1,
-            purification: 0,
-            label: '조력자 신뢰',
-        }),
-        embrace_dark_power: Object.freeze({
-            corruption: 2,
-            purification: 0,
-            label: '어둠의 힘 수용',
-        }),
-        doubt_helper: Object.freeze({
-            corruption: 0,
-            purification: 1,
-            label: '조력자 의심',
-        }),
-        resist_hallucination: Object.freeze({
-            corruption: 0,
-            purification: 2,
-            label: '환각 저항',
-        }),
-    }),
-    milestones: Object.freeze({
-        30: Object.freeze({
-            key: 'bossLastWords30',
-            title: '30층 보스의 유언',
-            trigger: 'inner_monologue',
-            lines: Object.freeze([
-                '그 검을... 더는 고치지 마라... 조력자의 꼭두각시 녀석...',
-                '쓰러진 보스의 목소리는 저주가 아니라 경고에 가까웠다.',
-                '조력자가 말해 주지 않은 무언가가, 이 마굴의 중층부터 모습을 드러내기 시작한다.',
-            ]),
-        }),
-    }),
-    routeMilestones: Object.freeze([31, 40, 50, 60, 70, 80]),
-    routes: Object.freeze({
-        neutral: Object.freeze({
-            title: null,
-            milestones: Object.freeze({
-                31: Object.freeze([
-                    '30층 너머의 공기는 달라졌다. 조력자의 말과 보스의 유언이 머릿속에서 서로를 밀어낸다.',
-                    '아직 무엇도 확신할 수 없다. 다만 이제부터의 등반은 단순한 생존이 아니다.',
-                ]),
-                40: Object.freeze([
-                    '길은 위로 이어지지만, 기억은 계속 아래로 가라앉는다.',
-                    '복수와 의심 사이에서 당신의 손은 아직 어느 쪽도 완전히 붙잡지 못했다.',
-                ]),
-                50: Object.freeze([
-                    '마굴의 중층 끝에서 조력자의 조언은 더 친절해지고, 몬스터들의 눈빛은 더 인간적으로 변한다.',
-                    '어느 쪽이 거짓인지 판단하기에는 아직 피 냄새가 너무 짙다.',
-                ]),
-                60: Object.freeze([
-                    '심층의 문이 열릴수록 조력자의 목소리는 가까워지고, 보스들의 경고는 선명해진다.',
-                    '당신은 아직 선택하지 않았다. 그래서 마굴은 더 많은 환영을 준비한다.',
-                ]),
-                70: Object.freeze([
-                    '유물은 힘을 주지만 동시에 질문을 남긴다. 이 힘은 회복인가, 계승인가.',
-                ]),
-                80: Object.freeze([
-                    '심층의 마지막 봉인이 흔들린다. 이제 중립은 오래 버틸 수 없는 자세가 되었다.',
-                ]),
-            }),
-        }),
-        corruption: Object.freeze({
-            title: '마력을 탐하는 자',
-            milestones: Object.freeze({
-                31: Object.freeze([
-                    '조력자는 낮게 웃으며 말한다. “잘했다. 이제야 네게 어울리는 힘을 받아들이기 시작했군.”',
-                    '보스의 경고는 비겁한 패자의 변명처럼 들린다. 복수에는 더 많은 마력이 필요하다.',
-                ]),
-                40: Object.freeze([
-                    '조력자의 칭찬은 점점 달콤해진다. “너를 버린 자들이 이 모습을 보면 무릎 꿇을 것이다.”',
-                    '당신은 그 장면을 상상한다. 왕의 얼굴, 용사의 떨리는 손, 그리고 당신의 검 끝.',
-                ]),
-                50: Object.freeze([
-                    '몬스터의 비명이 짧게 끊길 때마다 마굴은 더 선명한 힘으로 답한다.',
-                    '죄책감은 약자의 언어다. 당신을 버린 세계에는 약속보다 공포가 더 잘 통한다.',
-                ]),
-                60: Object.freeze([
-                    '조력자는 말한다. “망설이지 마라. 이곳의 모든 피는 네 왕관을 위한 제물이다.”',
-                    '당신은 부정하지 않는다. 손에 감긴 마력은 이제 낯설지 않다.',
-                ]),
-                70: Object.freeze([
-                    '심층의 마력은 당신을 두려워하지 않는다. 오히려 오래 기다린 주인처럼 살갗에 스며든다.',
-                    '복수는 목표가 아니라 의식이 되어 간다.',
-                ]),
-                80: Object.freeze([
-                    '마굴의 마지막 봉인이 당신의 심장 박동에 맞춰 열린다.',
-                    '조력자는 속삭인다. “곧 완성된다. 네 분노가 곧 왕좌가 될 것이다.”',
-                ]),
-            }),
-        }),
-        purification: Object.freeze({
-            title: '진실을 가르는 자',
-            milestones: Object.freeze({
-                31: Object.freeze([
-                    '보스의 눈은 죽기 직전까지 당신이 아니라 조력자의 그림자를 보고 있었다.',
-                    '당신은 처음으로 검을 내려다본다. 이 무기는 적을 베는 도구인가, 누군가의 명령을 수행하는 사슬인가.',
-                ]),
-                40: Object.freeze([
-                    '벽의 그림자는 공격하지 않는다. 그 안에는 도망치다 쓰러진 몬스터들의 기억이 남아 있다.',
-                    '당신은 그들의 눈망울에서 슬픔을 본다. 괴물이라는 말만으로 지워지지 않는 감정이다.',
-                ]),
-                50: Object.freeze([
-                    '조력자의 설명은 완벽하지만, 완벽하기 때문에 더 수상하다.',
-                    '이 마굴의 적들은 모두 당신을 막으려 한다. 죽이려는 것이 아니라, 멈추게 하려는 것처럼.',
-                ]),
-                60: Object.freeze([
-                    '환각이 왕관과 복수를 보여 줄수록 당신은 그 뒤의 빈틈을 찾는다.',
-                    '분노는 아직 뜨겁지만, 이제 그것을 쥔 손은 조력자의 것이 아니다.',
-                ]),
-                70: Object.freeze([
-                    '몬스터 하나가 쓰러지기 전 아주 작게 고개를 젓는다. 당신은 그 뜻을 이해해 버렸다.',
-                    '이 등반이 구원이 아니라 학살이라면, 진짜 적은 꼭대기가 아니라 곁에 있다.',
-                ]),
-                80: Object.freeze([
-                    '심층의 마지막 문 앞에서 조력자의 목소리가 처음으로 갈라진다.',
-                    '당신은 환각을 베어 낸다. 남은 것은 복수보다 무거운 진실이다.',
-                ]),
-            }),
-        }),
-    }),
-    endings: Object.freeze({
-        demonKing: Object.freeze({
-            key: 'endingDemonKing',
-            title: '마왕화 엔딩 분기',
-            battleTitle: '마왕 계승식',
-            lines: Object.freeze([
-                '조력자는 더 이상 인간의 얼굴을 유지하지 않는다. 그는 무릎을 꿇고 당신을 올려다본다.',
-                '“훌륭하다. 네 분노와 욕망은 마왕의 그릇으로 손색이 없다.”',
-                '부서진 왕관이 허공에서 맞물린다. 최종전은 처단이 아니라 계승식으로 변한다.',
-            ]),
-        }),
-        hero: Object.freeze({
-            key: 'endingHero',
-            title: '용사화 엔딩 분기',
-            battleTitle: '환각 파쇄',
-            lines: Object.freeze([
-                '조력자가 펼친 환각이 왕관과 복수를 속삭인다. 당신은 그 모든 장면을 검등으로 깨뜨린다.',
-                '“나는 네가 만든 마왕이 아니다. 무고한 자들의 피값을 치르게 하러 왔다.”',
-                '진짜 악마가 모습을 드러낸다. 당신의 칼끝은 더 이상 복수심이 아니라 죗값을 향한다.',
-            ]),
-        }),
-    }),
+const bodyParts = Object.freeze(['head', 'torso', 'arm', 'leg', 'eye']);
+const monsterArchetypeTable = Object.freeze({
+    warrior: Object.freeze({ key: 'warrior', job: '워리어형', element: 'earth', strong: 'hunter', weak: 'mage', traitTags: Object.freeze(['warrior', 'earth']) }),
+    hunter: Object.freeze({ key: 'hunter', job: '헌터형', element: 'wind', strong: 'mage', weak: 'warrior', traitTags: Object.freeze(['hunter', 'wind']) }),
+    mage: Object.freeze({ key: 'mage', job: '마법사형', element: 'arcane', strong: 'warrior', weak: 'hunter', traitTags: Object.freeze(['mage', 'arcane']) }),
+    boss: Object.freeze({ key: 'boss', job: '보스', element: 'void', strong: null, weak: null, traitTags: Object.freeze(['boss', 'void']) }),
 });
 
-const introWeaponChoices = Object.freeze({
-    old_sword: {
-        key: 'old_sword',
-        label: '낡은 검',
-        jobKey: 'Warrior',
-        classKey: 'sword_warrior',
-        className: '검사',
-        color: '#ff4757',
-        desc: '녹슬었지만 균형이 남아 있는 검. 가장 정직하게 적을 베는 길.',
-    },
-    giant_hammer: {
-        key: 'giant_hammer',
-        label: '거대한 망치',
-        jobKey: 'Warrior',
-        classKey: 'hammer_vanguard',
-        className: '파쇄 전사',
-        color: '#d35400',
-        desc: '손잡이가 갈라진 대형 망치. 느리지만 한 번 맞으면 뼈째 부순다.',
-    },
-    broken_staff: {
-        key: 'broken_staff',
-        label: '부러진 지팡이',
-        jobKey: 'Wizard',
-        classKey: 'broken_staff_mage',
-        className: '마법사',
-        color: '#1e90ff',
-        desc: '끝이 부러진 지팡이. 불안정하지만 마력의 잔향이 살아 있다.',
-    },
-    snapped_bow: {
-        key: 'snapped_bow',
-        label: '줄 끊어진 활',
-        jobKey: 'Hunter',
-        classKey: 'desperate_archer',
-        className: '헌터',
-        color: '#2ed573',
-        desc: '끊어진 활줄을 임시로 묶었다. 거리와 약점을 읽는 자에게 맞다.',
-    },
-});
-
-const classStories = Object.freeze({
-    sword_warrior: {
-        jobKey: 'Warrior',
-        name: '검사',
-        intro: ['검을 쥐는 순간 손목이 먼저 자세를 잡는다. 당신은 이 움직임을 오래전에 배웠다.'],
-        floorMilestones: {
-            10: ['검날의 녹이 벗겨지며 오래된 검술의 감각이 조금 돌아온다.'],
-        },
-        relic: {
-            default: '유물이 검 손잡이와 공명한다. 잊었던 전장의 함성이 들린다.',
-        },
-    },
-    hammer_vanguard: {
-        jobKey: 'Warrior',
-        name: '파쇄 전사',
-        intro: ['망치를 들어 올리는 순간 어깨의 오래된 흉터가 뜨겁게 욱신거린다. 방어선을 부수던 기억이다.'],
-        floorMilestones: {
-            10: ['바닥의 균열을 따라 망치를 내리치고 싶은 충동이 인다. 이 무기는 문도, 방패도, 뼈도 부순다.'],
-        },
-        relic: {
-            default: '유물이 둔탁한 박동을 낸다. 무너뜨려야 할 성문 하나가 기억 속에서 열린다.',
-        },
-    },
-    broken_staff_mage: {
-        jobKey: 'Wizard',
-        name: '마법사',
-        intro: ['부러진 지팡이 끝에서 푸른 불꽃이 한 번 튄다. 주문은 기억나지 않지만 마력은 당신을 기억한다.'],
-        floorMilestones: {
-            10: ['벽의 룬을 읽는 순간 혀끝에 잊힌 주문의 첫 음절이 맴돈다.'],
-        },
-        relic: {
-            default: '유물이 지팡이의 균열을 따라 빛난다. 사라진 연구실의 냄새가 되살아난다.',
-        },
-    },
-    desperate_archer: {
-        jobKey: 'Hunter',
-        name: '헌터',
-        intro: ['끊어진 활줄을 묶자 손가락이 저릿하다. 불완전한 무기라도 급소를 노리기에는 충분하다.'],
-        floorMilestones: {
-            10: ['어둠 속 움직임이 선으로 보인다. 당신은 도망치는 적의 숨을 세는 법을 알고 있다.'],
-        },
-        relic: {
-            default: '유물이 활대에 닿자 오래된 사냥 표식이 시야 가장자리에 떠오른다.',
-        },
-    },
-});
-
-const promotionStories = Object.freeze({
-    '나이트': {
-        intro: ['갑옷의 무게가 낯설지 않다. 누군가를 지키지 못했던 기억이 방패 안쪽에서 울린다.'],
-        floorMilestones: {
-            30: ['통곡의 벽 앞에서 나이트의 맹세가 다시 세워진다. 이번에는 물러서지 않는다.'],
-        },
-    },
-    '버서커': {
-        intro: ['이성보다 먼저 피가 대답한다. 분노는 기억보다 깊은 곳에 남아 있었다.'],
-        floorMilestones: {
-            30: ['심층의 압박이 분노를 먹이 삼아 더 크게 타오른다.'],
-        },
-    },
-    '궁수': {
-        intro: ['시야가 길게 열린다. 숨 한 번에 거리, 바람, 심장 박동이 정렬된다.'],
-        floorMilestones: {
-            30: ['통곡의 벽 너머에서도 약점은 있다. 찾는 데 시간이 걸릴 뿐이다.'],
-        },
-    },
-    '암살자': {
-        intro: ['그림자가 당신을 피하지 않는다. 오히려 기다렸다는 듯 몸을 감싼다.'],
-        floorMilestones: {
-            30: ['이 깊이의 어둠은 적의 편이 아니다. 당신의 칼끝도 같은 어둠에서 나온다.'],
-        },
-    },
-    '위저드': {
-        intro: ['부서졌던 주문 체계가 다시 맞물린다. 세계가 잠깐 수식처럼 보인다.'],
-        floorMilestones: {
-            30: ['마굴의 심장이 뿜는 마력은 위험하지만, 읽을 수 있다면 무기가 된다.'],
-        },
-    },
-    '소환사': {
-        intro: ['비어 있던 곁에 낯선 기척이 선다. 당신은 혼자 싸우던 존재가 아니었다.'],
-        floorMilestones: {
-            30: ['심층의 문 너머에서 응답이 온다. 부름을 들은 것은 하나가 아니다.'],
-        },
-    },
-    '성직자': {
-        intro: ['기도의 말은 기억나지 않는다. 하지만 빛은 당신의 침묵에도 응답한다.'],
-        floorMilestones: {
-            30: ['통곡의 벽 앞에서 신성력이 흔들린다. 믿음이 아니라 선택을 시험하는 빛이다.'],
-        },
-    },
-});
-
-const floorStories = Object.freeze({
-    bands: [
-        {
-            key: 'middle_doubt',
-            title: '중층 - 의구심',
-            from: 31,
-            to: 50,
-            cadence: 4,
-            lines: [
-                '베이스캠프의 조력자는 위로 갈수록 기억이 선명해질 거라고 했다. 하지만 벽에 남은 흔적은 그 말을 비웃듯 반대로 이어진다.',
-                '돌바닥에 새겨진 표식이 낯익다. 당신이 도망친 흔적이 아니라, 누군가 당신을 이쪽으로 몰아넣은 흔적이다.',
-                '조력자가 건네준 지도와 기억 속 통로가 조금씩 어긋난다. 지도는 항상 더 위험한 방으로 당신을 인도하고 있었다.',
-                '잃어버린 목소리 하나가 돌아온다. “그를 믿지 마.” 누구의 경고였는지는 아직 떠오르지 않는다.',
-                '상층으로 오를수록 몬스터는 흉폭해지지만, 그보다 더 불편한 것은 조력자가 지나치게 많은 것을 알고 있다는 사실이다.',
-            ],
-        },
-        {
-            key: 'deep_truth',
-            title: '심층 - 진실',
-            from: 51,
-            to: 80,
-            cadence: 5,
-            lines: [
-                '유물의 표면에 조력자의 인장이 떠오른다. 그는 처음부터 이 물건들이 어디에 있는지 알고 있었다.',
-                '기억의 조각이 맞물린다. 당신은 유물을 모으는 사람이 아니라, 유물을 봉인하던 사람이었다.',
-                '베이스캠프에서 들었던 조언들이 하나의 명령문처럼 다시 들린다. 그는 당신을 돕는 척하며 봉인을 풀게 만들고 있었다.',
-                '심층의 문들은 당신의 피가 아니라 조력자가 준 표식에 반응한다. 열쇠는 당신이 아니라 그가 쥐고 있었다.',
-                '유물이 하나씩 모일수록 마굴의 심장은 더 크게 뛴다. 당신이 강해지는 만큼, 오래된 배신도 완성되어 간다.',
-                '기억 속에서 조력자의 얼굴이 선명해진다. 그는 구조자가 아니었다. 마지막 순간 당신의 등을 민 손이었다.',
-            ],
-        },
-        {
-            key: 'summit_eve',
-            title: '꼭대기 - 결전 전야',
-            from: 81,
-            to: 99,
-            cadence: 4,
-            lines: [
-                '모든 기억이 돌아온다. 처음 깨어났을 때 등 뒤에 흩어져 있던 파괴된 장비들은 쓰레기가 아니라, 원래 당신의 무기였다.',
-                '낡은 검, 망치, 지팡이, 활. 무엇을 집었든 그 잔해는 모두 한때 당신의 손에 맞춰져 있었다.',
-                '조력자는 당신의 무기를 부수고 기억을 가둔 뒤, 빈손의 당신에게 다시 무기를 고르게 했다. 선택은 자유가 아니라 실험이었다.',
-                '꼭대기로 이어지는 계단마다 배신의 장면이 또렷해진다. 이제 필요한 것은 해명이 아니라 처단이다.',
-                '마굴 전체가 떨린다. 유물은 봉인을 풀었고, 당신은 기억을 되찾았다. 남은 것은 배신자의 이름을 부르는 일뿐이다.',
-            ],
-        },
-    ],
-    milestones: {
-        31: ['30층의 벽을 넘자 공기가 달라진다. 조력자가 말한 “안전한 길”은 이곳 어디에도 보이지 않는다.'],
-        35: ['베이스캠프에서 들었던 농담과 같은 문장이 벽의 낡은 경고문에 새겨져 있다. 그는 이곳을 처음 보는 사람이 아니었다.'],
-        40: ['기억 속 누군가가 유물을 부수라고 외친다. 하지만 조력자는 늘 유물을 모으라고만 했다.'],
-        45: ['손바닥에 남은 오래된 상처가 지도의 붉은 표시와 겹친다. 당신은 이미 이 길을 한 번 올라갔었다.'],
-        50: ['중층의 끝에서 의심은 확신이 된다. 조력자의 설명은 너무 깔끔했고, 당신의 기억은 너무 피투성이였다.'],
-        51: ['심층의 첫 문이 열린다. 문에 새겨진 이름은 몬스터의 것이 아니라 조력자의 것이다.'],
-        55: ['유물 조각이 조력자의 목소리로 속삭인다. “조금만 더 모으면 된다.” 도움의 말이 아니라 조종의 명령이다.'],
-        60: ['심연의 보스가 쓰러진 자리에서 오래된 봉인문이 뜯겨 나간다. 당신이 이긴 것이 아니라, 누군가가 기다리던 문이 열린 것이다.'],
-        65: ['기억의 조각 속 조력자는 당신에게 칼을 겨누지 않았다. 그는 웃으며 당신의 무기를 등 뒤에서 부쉈다.'],
-        70: ['마굴의 심장은 당신이 들고 온 유물에 반응한다. 조력자는 당신을 전사로 만든 것이 아니라 운반책으로 만들었다.'],
-        75: ['베이스캠프의 불빛이 멀어질수록 거짓말은 선명해진다. 이제 돌아가도 그는 같은 미소로 다음 유물을 요구할 것이다.'],
-        80: ['심층의 마지막 봉인이 풀린다. 조력자가 원한 것은 당신의 생존이 아니라, 당신만 열 수 있는 문이었다.'],
-        81: ['꼭대기의 계단 앞에서 기억이 완전히 열린다. 당신은 패배자가 아니라 봉인을 지키던 마지막 수문장이었다.'],
-        85: ['등 뒤의 부서진 장비들이 하나의 형상을 이룬다. 그것들은 모두 원래 당신의 무기였고, 그가 산산조각 낸 증거였다.'],
-        90: ['바람 없는 통로에서 배신자의 이름이 울린다. 이제 그 이름은 공포가 아니라 목표다.'],
-        95: ['정상에 가까워질수록 몬스터들은 물러서지 않는다. 그들은 조력자를 지키는 것이 아니라, 풀려난 재앙을 두려워하고 있다.'],
-        99: ['마지막 문 앞에서 당신은 모든 선택을 다시 떠올린다. 이번에는 누가 무기를 고르게 만들었는지 알고 있다.'],
-        100: ['종착지의 문이 열린다. 베이스캠프의 조력자가 그 안에서 기다리고 있다. 더 이상 조력자라는 이름은 필요 없다.'],
-    },
-    relicClues: {
-        deep_truth: [
-            '유물 안쪽에 조력자의 봉인이 남아 있다. 그는 당신보다 먼저 이 유물들을 만졌고, 당신이 가져오기를 기다렸다.',
-            '기억의 조각이 유물에 비친다. 조력자는 “회복”이라는 말로 봉인 해제를 숨겼다.',
-            '유물은 당신을 강하게 만드는 동시에 꼭대기의 잠금을 푼다. 조력자는 두 결과를 모두 알고 있었다.',
-            '유물 속 목소리가 말한다. “모으지 마라.” 하지만 그 경고는 조력자의 주문에 눌려 아주 늦게 들려왔다.',
-        ],
-        summit_eve: [
-            '유물이 더 이상 조력자의 말을 흉내 내지 않는다. 이제 그것은 당신의 원래 사명을 기억하고 있다.',
-            '유물의 빛이 부서진 장비의 잔상을 비춘다. 당신은 처음부터 무기를 잃은 것이 아니라 빼앗긴 것이었다.',
-            '마지막 조각이 맞춰진다. 조력자가 원한 최종 열쇠는 유물이 아니라, 기억을 되찾은 당신 자신이다.',
-        ],
-        default: [
-            '유물이 차갑게 떨린다. 이 힘은 선물이 아니라 오래전에 당신이 봉인했던 경고다.',
-        ],
-    },
-    finalBossOpening: [
-        '100층. 종착지의 방 한가운데, 베이스캠프의 조력자가 익숙한 미소로 서 있다.',
-        '그는 당신이 모아 온 유물들을 바라보며 고개를 끄덕인다. “마침내 다 가져왔군.”',
-        '모든 기억이 완성된다. 그는 당신을 구한 자가 아니라, 당신을 배신하고 무기를 부순 뒤 기억을 봉인한 자였다.',
-        '조력자의 그림자가 거대한 형상으로 부풀어 오른다. 이제 마지막 전투가 시작된다.',
-    ],
-});
-
-/** 시작 시 동료 1명: 워리어/헌터/마법사 (고용 아이템 없음) — v6.6.3 기본 성장 상향 */
-const mercCompanionBases = {
-    워리어: { label: '선봉 검사', affinityJob: '워리어', dmgCoeff: 0.62, hpCoeff: 1.14 },
-    헌터: { label: '척후 궁수', affinityJob: '헌터', dmgCoeff: 0.64, hpCoeff: 1.05 },
-    마법사: { label: '견습 마도', affinityJob: '마법사', dmgCoeff: 0.66, hpCoeff: 0.98 },
-};
-
-/** 20~30층 1회: 용병 전직 (플레이어 전직보다 약한 배율) */
-const mercCompanionEvolutions = {
-    워리어: [
-        { name: '철기사대', pathJob: '나이트', dmgMult: 1.1, hpMult: 1.12, desc: '방어·체력 중시 (본가 나이트보다 약화).' },
-        { name: '광전 부대', pathJob: '버서커', dmgMult: 1.18, hpMult: 0.93, desc: '공격 특화 (본가 버서커보다 약화).' },
-    ],
-    헌터: [
-        { name: '저격 지원', pathJob: '궁수', dmgMult: 1.1, hpMult: 1.04, desc: '안정 딜.' },
-        { name: '암살 계약', pathJob: '암살자', dmgMult: 1.16, hpMult: 0.95, desc: '고딜.' },
-    ],
-    마법사: [
-        { name: '전투 마도', pathJob: '위저드', dmgMult: 1.14, hpMult: 0.96, desc: '마법 화력.' },
-        { name: '보조 소환', pathJob: '소환사', dmgMult: 1.06, hpMult: 1.1, desc: '체력·지원.' },
-    ],
-};
-
-const jobEvolutions = {
-    '워리어': [
-        { name: '나이트',  bonusAtk: 23, bonusDef: 18, bonusHp: 390, desc: '철벽 수호자. 방어력과 체력이 크게 증가한다.', ult: '신성한 강타' },
-        { name: '버서커',  bonusAtk: 37, bonusDef: 5,  bonusHp: 310, desc: '광전사. 공격력이 폭발하지만 체력이 줄어든다.', ult: '분노의 일격' },
-    ],
-    '헌터': [
-        { name: '궁수',   bonusAtk: 29, bonusDef: 6,  bonusHp: 330, bonusAcc: 12, desc: '원거리 특화. 공격력과 명중률이 상승한다.', ult: '폭풍화살' },
-        { name: '암살자', bonusAtk: 36, bonusDef: 4,  bonusHp: 285, desc: '그림자 암살자. 공격력이 크게 오르지만 방어가 약해진다.', ult: '그림자 찌르기' },
-    ],
-    '마법사': [
-        { name: '위저드',  bonusAtk: 50, bonusDef: 3,  bonusHp: 250, desc: '고위 마법사. 마법 공격력이 폭발적으로 증가한다.', ult: '메테오' },
-        { name: '소환사',  bonusAtk: 38, bonusDef: 10, bonusHp: 300, desc: '소환사. 소환수의 방어막으로 생존력이 증가한다.', ult: '차원 붕괴' },
-        { name: '성직자',  bonusAtk: 35, bonusDef: 11, bonusHp: 285, desc: '신성력으로 버틴다. 신성력은 최대 20스택까지 축적된다.', ult: '성광 심판' },
-    ],
-};
-
-// 궁극기 스펙 정의
-const ultSkills = {
-    '신성한 강타': { desc: '신성한 힘으로 적을 강타. 방어력 무시 초대형 피해.', dmgMult: 4.35, stackRequired: 4 },
-    '분노의 일격': { desc: '분노가 폭발하여 적에게 광기의 피해를 입힌다.', dmgMult: 4.65, stackRequired: 3 },
-    '폭풍화살':   { desc: '바람의 힘을 담아 적을 꿰뚫는다.', dmgMult: 4.05, stackRequired: 3 },
-    '그림자 찌르기': { desc: '그림자 속에서 나타나 치명적인 일격을 가한다.', dmgMult: 5.05, stackRequired: 4 },
-    '메테오':     { desc: '하늘에서 거대한 운석을 소환한다.', dmgMult: 4.45, stackRequired: 4 },
-    '차원 붕괴':  { desc: '차원을 찢어 적에게 혼돈의 피해를 입힌다.', dmgMult: 4.15, stackRequired: 4 },
-    '성광 심판': { desc: '신성한 빛이 적을 심판한다.', dmgMult: 4.25, stackRequired: 4 },
-};
-
-const floorUnlocks = {
-    10:  { name: "용기의 목걸이",     type: "hp",  value: 40, def: 5,  price: 60,  rarity: "rare",      desc: "10층 달성 해금. 체력(+40), 방어(+5)." },
-    20:  { name: "전사의 팔찌",       type: "ring", value: 18, price: 75,  rarity: "rare",      desc: "20층 달성 해금. 공격(+18)." },
-    30:  { name: "불사조의 깃털",     type: "hp",  value: 60, price: 90,  rarity: "epic",      regenPotion: true, desc: "30층 달성 해금. 체력(+60). 포션 효과 강화." },
-    40:  { name: "심연의 보석",       type: "atk", value: 25, price: 110, rarity: "epic",      lifesteal: 0.2, desc: "40층 달성 해금. 공격력(+25). 흡혈 20%." },
-    50:  { name: "천공의 갑옷",       type: "hp",  value: 100, def: 20, price: 150, rarity: "epic",     desc: "50층 달성 해금. 체력(+100), 방어(+20)." },
-    60:  { name: "파멸의 검",         type: "atk", value: 40, price: 160, rarity: "legendary", lifesteal: 0.3, desc: "60층 달성 해금. 공격력(+40). 흡혈 30%." },
-    70:  { name: "불멸의 흉갑",       type: "hp",  value: 120, def: 25, price: 180, rarity: "legendary", desc: "70층 달성 해금. 체력(+120), 방어(+25)." },
-    80:  { name: "신의 축복",         type: "atk", value: 55, price: 200, rarity: "legendary", desc: "80층 달성 해금. 공격력(+55), 명중률(+15%)." },
-    90:  { name: "용왕의 비늘",       type: "hp",  value: 150, def: 30, price: 220, rarity: "legendary", desc: "90층 달성 해금. 체력(+150), 방어(+30)." },
-    100: { name: "전설의 유산",       type: "atk", value: 80, price: 250, rarity: "legendary", lifesteal: 0.4, desc: "100층 달성! 전설의 유산. 공격력(+80), 명중률(+20%), 흡혈 40%." },
-    5:   { name: "철의 의지",   type: "hp",  value: 30, def: 8,  price: 50,  rarity: "rare", onlyFor: ["워리어","나이트","버서커"], desc: "5층 해금. 워리어 계열. 체력(+30), 방어(+8)." },
-    15:  { name: "광전사의 도끼", type: "atk", value: 20, price: 70, rarity: "rare", onlyFor: ["워리어","나이트","버서커"], desc: "15층 해금. 워리어 계열. 공격력(+20)." },
-    25:  { name: "성기사의 방패", type: "hp",  value: 50, def: 18, price: 100, rarity: "epic", onlyFor: ["워리어","나이트","버서커"], desc: "25층 해금. 워리어 계열. 체력(+50), 방어(+18)." },
-    35:  { name: "분노의 갑옷",  type: "hp",  value: 80, def: 22, price: 130, rarity: "epic", onlyFor: ["워리어","나이트","버서커"], desc: "35층 해금. 워리어 계열. 체력(+80), 방어(+22)." },
-    45:  { name: "전쟁신의 갑주", type: "hp",  value: 60, def: 28, price: 160, rarity: "legendary", onlyFor: ["워리어","나이트","버서커"], desc: "45층 해금. 워리어 계열. 체력(+60), 방어(+28)." },
-};
-
-const floorUnlocksHunter = {
-    5:  { name: "독수리의 눈",   type: "ring", value: 20, price: 50,  rarity: "rare", onlyFor: ["헌터","궁수","암살자"], tags: ["precision"], desc: "5층 해금. 헌터 계열. 명중률(+20%)." },
-    15: { name: "바람의 화살",   type: "atk", value: 18, price: 70,  rarity: "rare", onlyFor: ["헌터","궁수","암살자"], desc: "15층 해금. 헌터 계열. 공격력(+18)." },
-    25: { name: "그림자 단검",   type: "atk", value: 30, price: 100, rarity: "epic", onlyFor: ["헌터","궁수","암살자"], lifesteal: 0.2, desc: "25층 해금. 헌터 계열. 공격력(+30), 흡혈 20%." },
-    35: { name: "은신 망토", type: "hp",  value: 40, price: 120, rarity: "epic", onlyFor: ["헌터","궁수","암살자"], desc: "35층 해금. 헌터 계열. 체력(+40)." },
-    45: { name: "정령의 화살통", type: "atk", value: 45, price: 160, rarity: "legendary", onlyFor: ["헌터","궁수","암살자"], desc: "45층 해금. 헌터 계열. 공격력(+45)." },
-};
-
-const floorUnlocksWizard = {
-    5:  { name: "마나의 수정",   type: "atk", value: 15, price: 50,  rarity: "rare", onlyFor: ["마법사","위저드","소환사","성직자"], desc: "5층 해금. 마법사 계열. 공격력(+15)." },
-    15: { name: "고대의 서적",   type: "atk", value: 25, price: 70,  rarity: "rare", onlyFor: ["마법사","위저드","소환사","성직자"], desc: "15층 해금. 마법사 계열. 공격력(+25)." },
-    25: { name: "혼돈의 보주",   type: "atk", value: 38, price: 100, rarity: "epic", onlyFor: ["마법사","위저드","소환사","성직자"], desc: "25층 해금. 마법사 계열. 공격력(+38)." },
-    35: { name: "시간의 모래시계", type: "hp", value: 50, def: 10, price: 120, rarity: "epic", onlyFor: ["마법사","위저드","소환사","성직자"], desc: "35층 해금. 마법사 계열. 체력(+50), 방어(+10)." },
-    45: { name: "신계의 마법진", type: "atk", value: 60, price: 160, rarity: "legendary", onlyFor: ["마법사","위저드","소환사","성직자"], desc: "45층 해금. 마법사 계열. 공격력(+60)." },
-};
-
-const UPGRADE_ORDER_KO = ['일', '이', '삼', '사', '오', '육', '칠', '팔', '구', '십', '십일', '십이', '십삼', '십사', '십오', '십육', '십칠', '십팔', '십구', '이십'];
-function generateUpgrades(id, name, effectKey, baseEffect, baseCost, costMult) {
-    return Array.from({ length: 20 }, (_, i) => ({
-        id: `${id}_${i + 1}`,
-        name: `${name} ${UPGRADE_ORDER_KO[i]}차`,
-        desc: `${name} +${baseEffect * (i + 1)} 영구 적용 (누적)`,
-        effect: { [effectKey]: baseEffect },
-        price: Math.floor(baseCost * Math.pow(costMult, i)),
-        maxBuy: 1
-    }));
+function safeNumber(value, fallback) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : fallback;
 }
 
-/** 베이스캠프 영구 강화 — 체력/공격/방어만 (명중 제거 v7.0.1) */
-const permanentUpgrades = [
-    ...generateUpgrades('hp',  '체력',   'hp',     20,  20,  1.35),
-    ...generateUpgrades('atk', '공격력', 'atk',    3,   30,  1.4),
-    ...generateUpgrades('def', '방어력', 'def',    2,   25,  1.4),
-];
-
-/** 구 명중 영구강화 단계별 비용 (환불 전용, generateUpgrades와 동일 식) */
-function legacyAccUpgradePrice(level) {
-    const baseCost = 25,
-        costMult = 1.45;
-    return Math.floor(baseCost * Math.pow(costMult, Math.max(0, level - 1)));
+function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, safeNumber(value, min)));
 }
 
-/** 직업별 추가 장비 (희귀도별) */
-const equipmentPoolV651 = [
-    // 워리어 계열 — common x5
-    { name: "녹슨 철퇴", type: "atk", value: 7, def: 3, price: 28, rarity: "common", onlyFor: ["워리어","나이트","버서커"], tags: ["blade", "heavy"], desc: "공격(+7), 방어(+3)." },
-    { name: "훈련용 목검", type: "atk", value: 9, price: 32, rarity: "common", onlyFor: ["워리어","나이트","버서커"], desc: "공격(+9)." },
-    { name: "보병의 흉갑", type: "hp", value: 28, def: 6, price: 30, rarity: "common", onlyFor: ["워리어","나이트","버서커"], desc: "체력(+28), 방어(+6)." },
-    { name: "철벽 방패", type: "hp", value: 22, def: 8, price: 34, rarity: "common", onlyFor: ["워리어","나이트","버서커"], desc: "체력(+22), 방어(+8)." },
-    { name: "전장의 붕대", type: "hp", value: 35, price: 26, rarity: "common", onlyFor: ["워리어","나이트","버서커"], desc: "체력(+35)." },
-    // 워리어 — rare x5
-    { name: "기사단 양날검", type: "atk", value: 16, critBonus: 3, price: 62, rarity: "rare", onlyFor: ["워리어","나이트","버서커"], desc: "공격(+16), 치명(+3%)." },
-    { name: "가시 갑옷", type: "hp", value: 45, def: 10, price: 68, rarity: "rare", onlyFor: ["워리어","나이트","버서커"], desc: "체력(+45), 방어(+10)." },
-    { name: "광전사의 팔찌", type: "ring", value: 14, lifesteal: 0.06, price: 72, rarity: "rare", onlyFor: ["워리어","나이트","버서커"], tags: ["blood", "heavy"], desc: "공격(+14), 흡혈(6%)." },
-    { name: "수호 기사의 인장", type: "hp", value: 35, def: 14, price: 65, rarity: "rare", onlyFor: ["워리어","나이트","버서커"], desc: "체력(+35), 방어(+14)." },
-    { name: "철의 반지", type: "ring", value: 12, def: 5, price: 60, rarity: "rare", onlyFor: ["워리어","나이트","버서커"], desc: "공격(+12), 방어(+5)." },
-    // 워리어 — epic x5 (fix: use hp+def instead of invalid type def)
-    { name: "룬문자 대검", type: "atk", value: 24, critBonus: 5, price: 118, rarity: "epic", onlyFor: ["워리어","나이트","버서커"], desc: "공격(+24), 치명(+5%)." },
-    { name: "깊은 광산 판금", type: "hp", value: 70, def: 14, price: 115, rarity: "epic", onlyFor: ["워리어","나이트","버서커"], desc: "체력(+70), 방어(+14)." },
-    { name: "피의 맹세", type: "atk", value: 20, lifesteal: 0.1, price: 122, rarity: "epic", onlyFor: ["워리어","나이트","버서커"], desc: "공격(+20), 흡혈(10%)." },
-    { name: "성역의 방패", type: "hp", value: 55, def: 18, price: 120, rarity: "epic", onlyFor: ["워리어","나이트","버서커"], desc: "체력(+55), 방어(+18)." },
-    { name: "전장의 함성", type: "atk", value: 18, critMult: 0.12, price: 125, rarity: "epic", onlyFor: ["워리어","나이트","버서커"], desc: "공격(+18), 치명 배율(+12%)." },
-    // 워리어 — legendary x5
-    { name: "태양검 심연", type: "atk", value: 38, critBonus: 8, critMult: 0.15, price: 195, rarity: "legendary", onlyFor: ["워리어","나이트","버서커"], desc: "공격(+38), 치명(+8%), 배율(+15%)." },
-    { name: "불멸의 요새", type: "hp", value: 120, def: 24, price: 200, rarity: "legendary", onlyFor: ["워리어","나이트","버서커"], desc: "체력(+120), 방어(+24)." },
-    { name: "광기의 도끼 잔향", type: "atk", value: 42, lifesteal: 0.12, price: 205, rarity: "legendary", onlyFor: ["버서커"], desc: "버서커. 공격(+42), 흡혈(12%)." },
-    { name: "성기사의 성배", type: "hp", value: 90, def: 20, price: 198, rarity: "legendary", onlyFor: ["나이트"], desc: "나이트. 체력(+90), 방어(+20)." },
-    { name: "전쟁신의 유산", type: "atk", value: 35, def: 12, price: 210, rarity: "legendary", onlyFor: ["워리어","나이트","버서커"], desc: "공격(+35), 방어(+12)." },
-    // 헌터 계열 — common x5
-    { name: "나무 활", type: "atk", value: 8, price: 29, rarity: "common", onlyFor: ["헌터","궁수","암살자"], desc: "공격(+8)." },
-    { name: "가죽 장갑", type: "hp", value: 36, def: 4, price: 31, rarity: "common", onlyFor: ["헌터","궁수","암살자"], desc: "체력(+36), 방어(+4)." },
-    { name: "작은 단검", type: "atk", value: 10, critBonus: 2, price: 33, rarity: "common", onlyFor: ["헌터","궁수","암살자"], desc: "공격(+10), 치명(+2%)." },
-    { name: "숲길 장화", type: "hp", value: 32, price: 27, rarity: "common", onlyFor: ["헌터","궁수","암살자"], desc: "체력(+32)." },
-    { name: "독침 화살", type: "atk", value: 9, lifesteal: 0.04, price: 35, rarity: "common", onlyFor: ["헌터","궁수","암살자"], desc: "공격(+9), 흡혈(4%)." },
-    // 헌터 — rare x5
-    { name: "바람의 시위", type: "ring", value: 16, critBonus: 4, price: 66, rarity: "rare", onlyFor: ["헌터","궁수","암살자"], desc: "명중(+16%), 치명(+4%)." },
-    { name: "그림자 가면", type: "atk", value: 17, critMult: 0.15, price: 74, rarity: "rare", onlyFor: ["헌터","궁수","암살자"], desc: "공격(+17), 치명 배율(+15%)." },
-    { name: "맹금의 깃털", type: "atk", value: 15, price: 69, rarity: "rare", onlyFor: ["헌터","궁수","암살자"], desc: "공격(+15), 명중(+8%)." },
-    { name: "그림자 장화", type: "hp", value: 38, def: 5, price: 71, rarity: "rare", onlyFor: ["헌터","궁수","암살자"], desc: "체력(+38), 방어(+5)." },
-    { name: "독니 화살", type: "atk", value: 16, lifesteal: 0.08, price: 73, rarity: "rare", onlyFor: ["헌터","궁수","암살자"], desc: "공격(+16), 흡혈(8%)." },
-    // 헌터 — epic x5
-    { name: "폭풍 시위", type: "atk", value: 26, price: 124, rarity: "epic", onlyFor: ["궁수"], desc: "궁수. 공격(+26), 명중(+12%)." },
-    { name: "암흑 각오", type: "atk", value: 30, critMult: 0.28, price: 128, rarity: "epic", onlyFor: ["암살자"], desc: "암살자. 공격(+30), 치명 배율(+28%)." },
-    { name: "정찰병의 망원경", type: "ring", value: 22, critBonus: 6, price: 119, rarity: "epic", onlyFor: ["헌터","궁수","암살자"], desc: "명중(+22%), 치명(+6%)." },
-    { name: "맹독 가죽", type: "atk", value: 24, lifesteal: 0.1, price: 126, rarity: "epic", onlyFor: ["헌터","궁수","암살자"], desc: "공격(+24), 흡혈(10%)." },
-    { name: "천둥 화살", type: "atk", value: 28, critBonus: 7, price: 127, rarity: "epic", onlyFor: ["헌터","궁수","암살자"], desc: "공격(+28), 치명(+7%)." },
-    // 헌터 — legendary x5
-    { name: "별빛 석궁", type: "atk", value: 40, critBonus: 9, price: 202, rarity: "legendary", onlyFor: ["궁수"], desc: "궁수. 공격(+40), 명중(+15%), 치명(+9%)." },
-    { name: "심연의 낫", type: "atk", value: 44, critMult: 0.35, lifesteal: 0.1, price: 208, rarity: "legendary", onlyFor: ["암살자"], desc: "암살자. 공격(+44), 배율(+35%), 흡혈(10%)." },
-    { name: "천둥신의 활시위", type: "atk", value: 36, critMult: 0.22, price: 198, rarity: "legendary", onlyFor: ["헌터","궁수","암살자"], desc: "공격(+36), 치명 배율(+22%)." },
-    { name: "바람의 군주", type: "atk", value: 38, price: 204, rarity: "legendary", onlyFor: ["헌터","궁수","암살자"], desc: "공격(+38), 명중(+14%)." },
-    { name: "피의 계약서", type: "atk", value: 32, lifesteal: 0.14, critBonus: 8, price: 206, rarity: "legendary", onlyFor: ["헌터","궁수","암살자"], desc: "공격(+32), 흡혈(14%), 치명(+8%)." },
-    // 마법사 계열 — common x5
-    { name: "마나 잔류석", type: "atk", value: 9, price: 30, rarity: "common", onlyFor: ["마법사","위저드","소환사"], tags: ["arcane"], desc: "공격(+9)." },
-    { name: "초급 주문서", type: "atk", value: 7, critBonus: 2, price: 28, rarity: "common", onlyFor: ["마법사","위저드","소환사"], desc: "공격(+7), 치명(+2%)." },
-    { name: "마도 학도 로브", type: "hp", value: 40, def: 5, price: 32, rarity: "common", onlyFor: ["마법사","위저드","소환사"], desc: "체력(+40), 방어(+5)." },
-    { name: "정령 가루", type: "atk", value: 8, critMult: 0.08, price: 31, rarity: "common", onlyFor: ["마법사","위저드","소환사"], desc: "공격(+8), 치명 배율(+8%)." },
-    { name: "마력 전도체", type: "atk", value: 11, price: 34, rarity: "common", onlyFor: ["마법사","위저드","소환사"], desc: "공격(+11)." },
-    // 마법사 — rare x5
-    { name: "고대 룬스톤", type: "atk", value: 18, critMult: 0.18, price: 71, rarity: "rare", onlyFor: ["마법사","위저드","소환사"], desc: "공격(+18), 치명 배율(+18%)." },
-    { name: "마력 증폭 링", type: "atk", value: 16, lifesteal: 0.06, price: 73, rarity: "rare", onlyFor: ["마법사","위저드","소환사"], desc: "공격(+16), 흡혈(6%)." },
-    { name: "시간의 모래", type: "hp", value: 48, def: 7, price: 70, rarity: "rare", onlyFor: ["마법사","위저드","소환사"], desc: "체력(+48), 방어(+7)." },
-    { name: "번개 인장", type: "atk", value: 19, critBonus: 4, price: 72, rarity: "rare", onlyFor: ["마법사","위저드","소환사"], desc: "공격(+19), 치명(+4%)." },
-    { name: "심연의 페이지", type: "atk", value: 17, critMult: 0.14, price: 74, rarity: "rare", onlyFor: ["마법사","위저드","소환사"], desc: "공격(+17), 치명 배율(+14%)." },
-    // 마법사 — epic x5
-    { name: "성역 마도서", type: "atk", value: 32, critMult: 0.32, price: 128, rarity: "epic", onlyFor: ["위저드"], desc: "위저드. 공격(+32), 치명 배율(+32%)." },
-    { name: "소환진 외피", type: "hp", value: 75, def: 11, lifesteal: 0.1, price: 124, rarity: "epic", onlyFor: ["소환사"], desc: "소환사. 체력(+75), 방어(+11), 흡혈(10%)." },
-    { name: "혼돈 보주", type: "atk", value: 27, critBonus: 7, price: 121, rarity: "epic", onlyFor: ["마법사","위저드","소환사"], desc: "공격(+27), 치명(+7%)." },
-    { name: "별무리 로브", type: "hp", value: 62, def: 9, price: 119, rarity: "epic", onlyFor: ["마법사","위저드","소환사"], desc: "체력(+62), 방어(+9)." },
-    { name: "마력 폭풍 지팡이", type: "atk", value: 30, critMult: 0.25, price: 126, rarity: "epic", onlyFor: ["마법사","위저드","소환사"], desc: "공격(+30), 치명 배율(+25%)." },
-    // 마법사 — legendary x5
-    { name: "천공의 지팡이", type: "atk", value: 42, critMult: 0.38, price: 205, rarity: "legendary", onlyFor: ["위저드"], desc: "위저드. 공격(+42), 치명 배율(+38%)." },
-    { name: "차원문 인장", type: "hp", value: 95, def: 14, lifesteal: 0.12, price: 200, rarity: "legendary", onlyFor: ["소환사"], desc: "소환사. 체력(+95), 방어(+14), 흡혈(12%)." },
-    { name: "마도 제국의 왕관", type: "atk", value: 36, critBonus: 10, price: 198, rarity: "legendary", onlyFor: ["마법사","위저드","소환사"], desc: "공격(+36), 치명(+10%)." },
-    { name: "불멸의 마력 심장", type: "atk", value: 34, critMult: 0.3, price: 202, rarity: "legendary", onlyFor: ["마법사","위저드","소환사"], desc: "공격(+34), 치명 배율(+30%)." },
-    { name: "세계수의 잎새", type: "hp", value: 85, def: 12, price: 196, rarity: "legendary", onlyFor: ["마법사","위저드","소환사"], desc: "체력(+85), 방어(+12)." },
-];
+function randomIntInclusive(min, max, random) {
+    const rng = typeof random === 'function' ? random : Math.random;
+    return Math.floor(rng() * (max - min + 1)) + min;
+}
 
-/** v7.0.3 — 상점 풀 확장 (밸런스 조정된 저~중 스탯) */
-const equipmentPoolExtra703 = [
-    { name: "낡은 끈", type: "hp", value: 6, price: 10, rarity: "common", desc: "공용. 체력(+6)." },
-    { name: "조각난 화살촉", type: "atk", value: 3, price: 11, rarity: "common", desc: "공용. 공격(+3)." },
-    { name: "구리 반지", type: "ring", value: 2, price: 12, rarity: "common", onlyFor: ["워리어", "나이트", "버서커"], desc: "워계. 공격(+2)." },
-    { name: "이끼 낀 돌", type: "hp", value: 9, def: 1, price: 13, rarity: "common", desc: "공용. 체력(+9), 방어(+1)." },
-    { name: "가죽 끈", type: "ring", value: 4, price: 14, rarity: "common", desc: "공용. 명중(+4%)." },
-    { name: "작은 철못", type: "atk", value: 4, price: 15, rarity: "common", onlyFor: ["헌터", "궁수", "암살자"], desc: "헌계. 공격(+4)." },
-    { name: "마른 허브", type: "hp", value: 7, price: 11, rarity: "common", onlyFor: ["마법사", "위저드", "소환사"], tags: ["arcane"], desc: "마계. 체력(+7)." },
-    { name: "부서진 수정", type: "atk", value: 4, critBonus: 1, price: 16, rarity: "common", onlyFor: ["마법사", "위저드", "소환사"], desc: "마계. 공격(+4), 치명(+1%)." },
-    { name: "녹슨 못", type: "atk", value: 3, def: 1, price: 12, rarity: "common", desc: "공용. 공격(+3), 방어(+1)." },
-    { name: "짚신", type: "hp", value: 8, price: 10, rarity: "common", desc: "공용. 체력(+8)." },
-    { name: "유리 조각", type: "atk", value: 5, critBonus: 1, price: 18, rarity: "common", desc: "공용. 공격(+5), 치명(+1%)." },
-    { name: "작은 방울", type: "ring", value: 5, price: 17, rarity: "common", desc: "공용. 명중(+5%)." },
-    { name: "밧줄 조각", type: "hp", value: 10, price: 14, rarity: "common", desc: "공용. 체력(+10)." },
-    { name: "납 동전", type: "atk", value: 4, price: 13, rarity: "common", desc: "공용. 공격(+4)." },
-    { name: "마른 고기", type: "hp", value: 11, price: 15, rarity: "common", lifesteal: 0.02, desc: "공용. 체력(+11), 흡혈(2%)." },
-    { name: "작은 방패 파편", type: "hp", value: 9, def: 2, price: 19, rarity: "common", onlyFor: ["워리어", "나이트", "버서커"], tags: ["heavy"], desc: "워계. 체력(+9), 방어(+2)." },
-    { name: "깃털 화살", type: "atk", value: 5, price: 20, rarity: "common", onlyFor: ["헌터", "궁수", "암살자"], tags: ["precision"], desc: "헌계. 공격(+5), 명중(+3%)." },
-    { name: "연습용 구슬", type: "atk", value: 5, critMult: 0.04, price: 21, rarity: "common", onlyFor: ["마법사", "위저드", "소환사"], desc: "마계. 공격(+5), 치명 배율(+4%)." },
-    { name: "청동 팔찌", type: "atk", value: 6, def: 1, price: 22, rarity: "rare", desc: "공용. 공격(+6), 방어(+1)." },
-    { name: "은박 반지", type: "ring", value: 14, price: 24, rarity: "rare", desc: "공용. 공격(+14)." },
-    { name: "가는 철검", type: "atk", value: 7, critBonus: 2, price: 26, rarity: "rare", onlyFor: ["워리어", "나이트", "버서커"], desc: "워계. 공격(+7), 치명(+2%)." },
-    { name: "사냥꾼 주머니", type: "atk", value: 6, lifesteal: 0.03, price: 27, rarity: "rare", onlyFor: ["헌터", "궁수", "암살자"], desc: "헌계. 공격(+6), 흡혈(3%)." },
-    { name: "마력 잔물결", type: "atk", value: 6, price: 25, rarity: "rare", onlyFor: ["마법사", "위저드", "소환사"], desc: "마계. 공격(+6)." },
-    { name: "단단한 가죽", type: "hp", value: 16, def: 2, price: 28, rarity: "rare", desc: "공용. 체력(+16), 방어(+2)." },
-    { name: "바람 깃털", type: "ring", value: 8, critBonus: 1, price: 29, rarity: "rare", desc: "공용. 명중(+8%), 치명(+1%)." },
-    { name: "작은 붉은 수정", type: "atk", value: 8, price: 32, rarity: "rare", desc: "공용. 공격(+8)." },
-    { name: "강철 버클", type: "hp", value: 13, def: 3, price: 31, rarity: "rare", onlyFor: ["워리어", "나이트", "버서커"], desc: "워계. 체력(+13), 방어(+3)." },
-    { name: "야간 투시경", type: "ring", value: 9, price: 33, rarity: "rare", onlyFor: ["헌터", "궁수", "암살자"], desc: "헌계. 명중(+9%)." },
-    { name: "마나 잔디", type: "hp", value: 18, price: 34, rarity: "rare", onlyFor: ["마법사", "위저드", "소환사"], desc: "마계. 체력(+18)." },
-    { name: "냉기 결정", type: "atk", value: 9, critBonus: 2, price: 38, rarity: "epic", onlyFor: ["마법사", "위저드", "소환사"], desc: "마계. 공격(+9), 치명(+2%)." },
-    { name: "강철 너클", type: "atk", value: 10, critMult: 0.06, price: 39, rarity: "epic", onlyFor: ["워리어", "나이트", "버서커"], desc: "워계. 공격(+10), 치명 배율(+6%)." },
-    { name: "독침 통", type: "atk", value: 9, lifesteal: 0.05, price: 40, rarity: "epic", onlyFor: ["헌터", "궁수", "암살자"], desc: "헌계. 공격(+9), 흡혈(5%)." },
-    { name: "별무늬 천", type: "hp", value: 22, price: 41, rarity: "epic", desc: "공용. 체력(+22)." },
-    { name: "암흑 가루", type: "atk", value: 11, price: 44, rarity: "epic", desc: "공용. 공격(+11), 명중(+4%)." },
-    { name: "은빛 고리", type: "atk", value: 10, def: 2, price: 42, rarity: "epic", desc: "공용. 공격(+10), 방어(+2)." },
-    { name: "화염 잔재", type: "atk", value: 12, critBonus: 3, price: 48, rarity: "epic", desc: "공용. 공격(+12), 치명(+3%)." },
-    { name: "빛바랜 망토", type: "hp", value: 20, def: 3, price: 46, rarity: "epic", desc: "공용. 체력(+20), 방어(+3)." },
-    { name: "수정 렌즈", type: "ring", value: 11, critBonus: 2, price: 47, rarity: "epic", desc: "공용. 명중(+11%), 치명(+2%)." },
-    { name: "천상의 파편", type: "atk", value: 14, critMult: 0.08, price: 52, rarity: "legendary", desc: "전설. 공격(+14), 치명 배율(+8%)." },
-    { name: "고대 철판", type: "hp", value: 28, def: 5, price: 54, rarity: "legendary", desc: "전설. 체력(+28), 방어(+5)." },
-    { name: "폭풍의 씨앗", type: "atk", value: 13, price: 53, rarity: "legendary", onlyFor: ["마법사", "위저드", "소환사"], desc: "마계. 공격(+13), 명중(+5%)." },
-    { name: "용해액 병", type: "atk", value: 12, lifesteal: 0.07, price: 51, rarity: "legendary", onlyFor: ["헌터", "궁수", "암살자"], desc: "헌계. 공격(+12), 흡혈(7%)." },
-    { name: "성스러운 철", type: "atk", value: 13, def: 3, price: 55, rarity: "legendary", onlyFor: ["워리어", "나이트", "버서커"], desc: "워계. 공격(+13), 방어(+3)." },
-    { name: "심해 비늘", type: "hp", value: 26, lifesteal: 0.06, price: 56, rarity: "legendary", desc: "전설. 체력(+26), 흡혈(6%)." },
-    { name: "얼음 핵", type: "atk", value: 14, critBonus: 3, price: 57, rarity: "legendary", desc: "전설. 공격(+14), 치명(+3%)." },
-    { name: "시간의 가루", type: "hp", value: 24, def: 4, price: 58, rarity: "legendary", desc: "전설. 체력(+24), 방어(+4)." },
-    { name: "혼령 실", type: "atk", value: 11, critMult: 0.09, price: 50, rarity: "epic", desc: "공용. 공격(+11), 치명 배율(+9%)." },
-    { name: "태양 가루", type: "ring", value: 10, price: 45, rarity: "epic", desc: "공용. 명중(+10%)." },
-    { name: "암석 심장", type: "hp", value: 30, price: 59, rarity: "legendary", desc: "전설. 체력(+30)." },
-    { name: "유리한 거래", type: "atk", value: 9, price: 36, rarity: "rare", desc: "공용. 공격(+9)." },
-    { name: "잊힌 인장", type: "hp", value: 17, def: 2, price: 37, rarity: "rare", desc: "공용. 체력(+17), 방어(+2)." },
-    { name: "바람의 조각", type: "atk", value: 8, price: 35, rarity: "rare", desc: "공용. 공격(+8), 명중(+4%)." },
-    { name: "대지의 알", type: "hp", value: 19, price: 43, rarity: "epic", desc: "공용. 체력(+19)." },
-    { name: "불꽃 심지", type: "atk", value: 10, critBonus: 2, price: 49, rarity: "epic", desc: "공용. 공격(+10), 치명(+2%)." },
-];
+function rollHumanStartingStats(random) {
+    return {
+        str: randomIntInclusive(1, 30, random),
+        def: randomIntInclusive(1, 30, random),
+        hp: randomIntInclusive(1, 30, random),
+        int: randomIntInclusive(1, 30, random),
+        wis: randomIntInclusive(1, 30, random),
+        agi: randomIntInclusive(1, 30, random),
+        divinity: 0,
+        distortion: 0,
+    };
+}
 
-/** 직업 전용 장비 추가 (워·헌·마 각 50종, 이름 중복 없음) — 접미사를 무기/갑옷/반지로 분리해 슬롯과 이름 일치 */
-const equipmentPoolS1Extra = (function generateEquipmentPoolS1Extra() {
-    const W = ['워리어', '나이트', '버서커'];
-    const H = ['헌터', '궁수', '암살자'];
-    const Z = ['마법사', '위저드', '소환사'];
-    const wP = ['철벽','강철','용병','성역','전장','파쇄','불굴','수호','심연','맹세','야수','검은','붉은','푸른','금빛','은빛','전설','파멸','천벌','신성','맹렬','철기','용맹','빛의','어둠','불꽃','얼음','폭풍','번개','대지','하늘','재앙','구원','철의','강철심','불굴','수호','심연','야수','맹렬','성기사','광전','성역','검은철','붉은장','푸른빛','은빛','금빛','낡은','전장','맹세'];
-    const wWeapon = ['대검','도끼','창','너클','철퇴','양날검','장검','모닝스타','리치','그레이트소드','전장검','언월도'];
-    const wArmor = ['흉갑','각반','투구','손갑','망토','부츠','갑옷','방패','벨트','요새','유산'];
-    const wRing = ['링','인장','휘장','방울','반지'];
-    const hP = ['바람','그림자','맹금','독','야생','달빛','별빛','숲','늪','절벽','저격','추적','은신','암살','날렵','민첩','독수리','뱀','여우','늑대','새벽','황혼','서리','폭풍','번개','유령','맹독','은빛','금빛','진홍','밤','안개','이슬','빙결','화염','천둥','유성','유령','침묵','속삭임','날쌤','예리','냉기','불꽃','질풍','신속','급습','매복'];
-    const hWeapon = ['활','단검','화살','시위','석궁','쇠뇌','표창','비수','투척칼','독침','함정'];
-    const hArmor = ['망토','장갑','부츠','화살통','목걸이','가죽','띠','깃털'];
-    const hRing = ['반지','주머니','표식','망원경','눈','휘장','링'];
-    const zP = ['고대','마나','별','심연','시간','공허','불꽃','얼음','번개','혼돈','성스러운','금지된','잊힌','비밀','대마도','소환','차원','천공','심장','눈동자','지팡이','보주','룬','인장','페이지','서적','모래','수정','수호','파동','잔향','심연','성역','마력','주문','봉인','파괴','정화','저주','축복','각성','각인','결계','마도','영혼','불사','불멸','환영','심연'];
-    const zWeapon = ['지팡이','보주','페이지','마력봉','각인','결정','파편','구슬','주문봉'];
-    const zArmor = ['로브','모래시계','수정','수호진','결계','주문서','마도서','장막','목걸이','심장','문자 봉인석'];
-    const zRing = ['링','인장','구슬','장식핀','주술목'];
-    const out = [];
-    function nameForSlot(i, pArr, weaponS, armorS, ringS, slotKind) {
-        const a = pArr[(i * 7) % pArr.length];
-        const pick = (arr) => arr[(i * 11) % arr.length];
-        if (slotKind === 'weapon') return `${a} ${pick(weaponS)}`;
-        if (slotKind === 'armor') return `${a} ${pick(armorS)}`;
-        return `${a} ${pick(ringS)}`;
+function normalizeHumanStats(raw) {
+    const source = raw || {};
+    return {
+        str: clamp(source.str, 1, 100),
+        def: clamp(source.def, 1, 100),
+        hp: clamp(source.hp, 1, 100),
+        int: clamp(source.int, 1, 100),
+        wis: clamp(source.wis, 1, 100),
+        agi: clamp(source.agi, 1, 100),
+        divinity: clamp(source.divinity, -5, 5),
+        distortion: clamp(source.distortion, 0, 100),
+    };
+}
+
+function getMaxHpFromStat(hpStat) {
+    return 50 + clamp(hpStat, 1, 100) * 5;
+}
+
+function createDungeonProgress(floor, stage) {
+    return {
+        floor: clamp(Math.floor(safeNumber(floor, 1)), 1, MAX_DUNGEON_FLOOR),
+        stage: clamp(Math.floor(safeNumber(stage, 1)), 1, STAGES_PER_FLOOR),
+    };
+}
+
+function normalizeDungeonProgress(raw) {
+    return createDungeonProgress(raw && raw.floor, raw && raw.stage);
+}
+
+function getDungeonPositionKey(progress) {
+    const normalized = normalizeDungeonProgress(progress);
+    return `${normalized.floor}-${normalized.stage}`;
+}
+
+function formatDungeonPosition(progress) {
+    const normalized = normalizeDungeonProgress(progress);
+    return `${normalized.floor}-${normalized.stage}층`;
+}
+
+function advanceDungeonProgress(progress) {
+    const current = normalizeDungeonProgress(progress);
+    if (current.floor === MAX_DUNGEON_FLOOR && current.stage === STAGES_PER_FLOOR) {
+        return { ...current, completed: true };
     }
-    function addLine(jobArr, tag, jobKey, i, pArr, weaponS, armorS, ringS) {
-        const rar = i % 25 === 0 ? 'legendary' : i % 6 === 0 ? 'epic' : i % 2 === 0 ? 'rare' : 'common';
-        const v = 6 + (i * 7) % 28;
-        const p = 22 + i * 2 + (rar === 'legendary' ? 100 : rar === 'epic' ? 40 : 0);
-        const k = i % 6;
-        const tg = tag ? [tag] : undefined;
-        const slotNm = k === 1 ? 'armor' : k === 3 ? 'ring' : 'weapon';
-        const nm = nameForSlot(i, pArr, weaponS, armorS, ringS, slotNm);
-        if (k === 0) {
-            const d = Math.floor(v / 10);
-            out.push({
-                name: nm,
-                type: 'atk',
-                value: v,
-                def: d,
-                price: p,
-                rarity: rar,
-                onlyFor: jobArr,
-                tags: tg,
-                desc: `공격(+${v}), 방어(+${d}).`,
-            });
-        } else if (k === 1) {
-            const df = 4 + (i % 12);
-            out.push({
-                name: nm,
-                type: 'hp',
-                value: v * 2,
-                def: df,
-                price: p,
-                rarity: rar,
-                onlyFor: jobArr,
-                tags: tg,
-                desc: `체력(+${v * 2}), 방어(+${df}).`,
-            });
-        } else if (k === 2) {
-            const cb = 2 + (i % 9);
-            out.push({
-                name: nm,
-                type: 'atk',
-                value: v,
-                critBonus: cb,
-                price: p,
-                rarity: rar,
-                onlyFor: jobArr,
-                tags: tg,
-                desc: `공격(+${v}), 치명(+${cb}%).`,
-            });
-        } else if (k === 3) {
-            const ac = 10 + (i % 15);
-            out.push({
-                name: nm,
-                type: 'ring',
-                value: ac,
-                price: p,
-                rarity: rar,
-                onlyFor: jobArr,
-                tags: tg,
-                desc: `반지 공격(+${ac}).`,
-            });
-        } else if (k === 4) {
-            const ls = Math.round((0.04 + (i % 9) * 0.012) * 1000) / 1000;
-            out.push({
-                name: nm,
-                type: 'atk',
-                value: v,
-                lifesteal: ls,
-                price: p,
-                rarity: rar,
-                onlyFor: jobArr,
-                tags: tg,
-                desc: `공격(+${v}), 흡혈(${Math.round(ls * 100)}%).`,
-            });
-        } else {
-            const cm = Math.round((0.06 + (i % 8) * 0.03) * 100) / 100;
-            out.push({
-                name: nm,
-                type: 'atk',
-                value: v,
-                critMult: cm,
-                price: p,
-                rarity: rar,
-                onlyFor: jobArr,
-                tags: tg,
-                desc: `공격(+${v}), 치명 배율(+${Math.round(cm * 100)}%).`,
-            });
-        }
+    if (current.stage < STAGES_PER_FLOOR) return { floor: current.floor, stage: current.stage + 1, completed: false };
+    return { floor: current.floor + 1, stage: 1, completed: false };
+}
+
+function canReturnToBaseCamp(progress) {
+    const current = normalizeDungeonProgress(progress);
+    return current.floor <= LAST_SAFE_RETURN_FLOOR;
+}
+
+function hasCrossedPointOfNoReturn(progress) {
+    const current = normalizeDungeonProgress(progress);
+    return current.floor >= 6;
+}
+
+function createHumanAdventurer(options) {
+    const input = options || {};
+    const stats = input.stats ? normalizeHumanStats(input.stats) : rollHumanStartingStats(input.random);
+    const maxHp = getMaxHpFromStat(stats.hp);
+    return {
+        id: input.id || `human-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+        name: input.name || '인간 모험가',
+        species: 'human',
+        jobKey: HUMAN_JOB_KEY,
+        classKey: null,
+        baseJob: '인간 모험가',
+        stats,
+        hp: clamp(input.hp == null ? maxHp : input.hp, 0, maxHp),
+        maxHp,
+        progress: normalizeDungeonProgress(input.progress),
+        permanentDeath: false,
+        equipment: {
+            weapon: input.weapon || null,
+            armor: input.armor || null,
+            accessories: Array.isArray(input.accessories) ? input.accessories.slice() : [],
+        },
+        magic: Array.isArray(input.magic) ? input.magic.slice() : [],
+        skills: Array.isArray(input.skills) ? input.skills.slice() : [],
+        mastery: input.mastery && typeof input.mastery === 'object' ? JSON.parse(JSON.stringify(input.mastery)) : {},
+        statuses: [],
+        body: Object.fromEntries(bodyParts.map((part) => [part, { destroyed: false, twisted: false, indestructible: false }])),
+        createdAt: input.createdAt || Date.now(),
+    };
+}
+
+function snapshotAdventurerForGhost(actor, progress, killedBy) {
+    const source = actor || {};
+    const normalizedProgress = normalizeDungeonProgress(progress || source.progress);
+    let completeSnapshot = {};
+    try {
+        completeSnapshot = JSON.parse(JSON.stringify(source));
+    } catch (_error) {
+        completeSnapshot = {};
     }
-    for (let i = 1; i <= 50; i++) addLine(W, 'heavy', 'w', i, wP, wWeapon, wArmor, wRing);
-    for (let i = 1; i <= 50; i++) addLine(H, 'precision', 'h', i, hP, hWeapon, hArmor, hRing);
-    for (let i = 1; i <= 50; i++) addLine(Z, 'arcane', 'm', i, zP, zWeapon, zArmor, zRing);
-    return out;
-})();
+    return {
+        ghostId: `ghost-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+        sourceActorId: source.id || source.metaSlotId || null,
+        name: source.name || '이름 없는 망령',
+        monsterName: `${source.name || '이름 없는 모험가'}의 망령`,
+        type: 'playerGhost',
+        position: normalizedProgress,
+        positionKey: getDungeonPositionKey(normalizedProgress),
+        killedBy: killedBy || null,
+        stats: normalizeHumanStats(source.stats || {
+            str: source.atk,
+            def: source.def,
+            hp: Math.max(1, Math.round((source.maxHp - 50) / 5)),
+            int: source.int,
+            wis: source.wis,
+            agi: source.agi,
+            divinity: source.divinity,
+            distortion: source.distortion,
+        }),
+        currentHp: Math.max(1, safeNumber(source.maxHp, getMaxHpFromStat(source.stats && source.stats.hp))),
+        maxHp: Math.max(1, safeNumber(source.maxHp, getMaxHpFromStat(source.stats && source.stats.hp))),
+        equipment: JSON.parse(JSON.stringify(source.equipment || {
+            weapon: source.weapon || null,
+            armor: source.armor || null,
+            accessories: source.accessories || [],
+        })),
+        magic: JSON.parse(JSON.stringify(source.magic || [])),
+        skills: JSON.parse(JSON.stringify(source.skills || [])),
+        mastery: JSON.parse(JSON.stringify(source.mastery || {})),
+        statuses: JSON.parse(JSON.stringify(source.statuses || [])),
+        body: JSON.parse(JSON.stringify(source.body || {})),
+        items: JSON.parse(JSON.stringify(source.items || [])),
+        relics: JSON.parse(JSON.stringify(source.relics || [])),
+        behaviorLogger: JSON.parse(JSON.stringify(source.behaviorLogger || [])),
+        behaviorMatrix: source.behaviorMatrix ? JSON.parse(JSON.stringify(source.behaviorMatrix)) : null,
+        fullSpec: completeSnapshot,
+        archivedAt: Date.now(),
+    };
+}
 
-/** 성직자 전용 장비 60종 — 신성력 획득 보너스(divinityGainBonus) 일부 포함 */
-const equipmentPoolPriest = (function genPriestPool() {
-    const out = [];
-    const rc = ['common', 'common', 'rare', 'epic', 'legendary'];
-    const roots = ['공명의', '서약의', '찬가의', '축성의', '은총의', '심판의', '계시의', '영광의'];
-    const marks = ['인장', '성배', '잔향', '빛결', '유성', '서광', '성운', '찬란'];
-    for (let i = 0; i < 60; i++) {
-        const r = rc[i % 5];
-        const typ = i % 3 === 0 ? 'atk' : i % 3 === 1 ? 'hp' : 'ring';
-        const nm = `${roots[Math.floor(i / 8)]} ${marks[i % 8]}`;
-        const base = 4 + (i % 20);
-        const prayerBonus = r === 'epic' || r === 'legendary' ? 2 : 1;
-        const o = {
-            name: nm,
-            type: typ,
-            rarity: r,
-            onlyFor: ['성직자'],
-            price: 0,
-            prayerBonus,
-            desc: '',
-        };
-        if (typ === 'atk') o.value = base + 2;
-        else if (typ === 'hp') o.value = base * 3 + 8;
-        else o.value = 5 + (i % 16);
+function capProbability(value) {
+    return clamp(value, 0, BALANCE.probabilityCap);
+}
 
-        const mod = i % 4;
-        if (mod === 0) {
-            o.value = (o.value || 0) + (r === 'legendary' ? 14 : r === 'epic' ? 10 : r === 'rare' ? 7 : 4);
-        } else if (mod === 1) {
-            o.def = (o.def || 0) + (r === 'legendary' ? 26 : r === 'epic' ? 18 : r === 'rare' ? 12 : 7);
-        } else if (mod === 2) {
-            o.critBonus = (o.critBonus || 0) + (r === 'legendary' ? 9 : r === 'epic' ? 6 : r === 'rare' ? 4 : 2);
-        } else {
-            o.critMult = (o.critMult || 0) + (r === 'legendary' ? 0.22 : r === 'epic' ? 0.14 : r === 'rare' ? 0.09 : 0.05);
-        }
-        if (i % 6 === 0) o.divinityGainBonus = 0.04 + (r === 'legendary' ? 0.08 : r === 'epic' ? 0.05 : r === 'rare' ? 0.03 : 0.01);
-        if (i % 11 === 0) {
-            o.lifesteal = (o.lifesteal || 0) + (r === 'legendary' ? 0.1 : r === 'epic' ? 0.07 : r === 'rare' ? 0.05 : 0.03);
-        }
-        if (i % 13 === 0) {
-            o.critMult = (o.critMult || 0) + (r === 'legendary' ? 0.1 : r === 'epic' ? 0.08 : r === 'rare' ? 0.05 : 0.03);
-        }
-        if (i % 7 === 0 && typ === 'hp') {
-            o.def = (o.def || 0) + (r === 'legendary' ? 6 : r === 'epic' ? 5 : 4);
-        }
-        if (i % 9 === 0 && (typ === 'atk' || typ === 'ring')) {
-            o.critBonus = (o.critBonus || 0) + (r === 'legendary' ? 5 : r === 'epic' ? 4 : r === 'rare' ? 3 : 2);
-        }
-        o.tags = [`rarity_${r}`, `type_${typ}`, `synergy_priest`];
-        out.push(o);
-    }
-    return out;
-})();
-
-/** 룬 전용 칸 1개 — 등급별 고정 상점가. 골드·도주 유틸 및 소량 전투 스탯. */
-const runePool = [
-    { name: '구리 각인 룬', type: 'rune', rarity: 'common', goldGainBonus: 0.025, desc: '공용. 골드 획득(+2.5%).' },
-    { name: '바람의 은빛 룬', type: 'rune', rarity: 'common', fleeBonus: 0.07, desc: '공용. 패닉 도주 시 층 하락 완화(+7% 발동).' },
-    { name: '불꽃 박석 룬', type: 'rune', rarity: 'common', value: 4, desc: '공용. 공격(+4).' },
-    { name: '청동 수호 룬', type: 'rune', rarity: 'rare', hpBonus: 32, def: 5, desc: '공용. 체력(+32), 방어(+5).' },
-    { name: '매매의 황금 룬', type: 'rune', rarity: 'rare', goldGainBonus: 0.055, desc: '공용. 골드 획득(+5.5%).' },
-    { name: '그림자 도피 룬', type: 'rune', rarity: 'rare', fleeBonus: 0.12, desc: '공용. 패닉 도주 하락 완화(+12%).' },
-    { name: '심연 파열 룬', type: 'rune', rarity: 'epic', value: 12, critBonus: 4, desc: '공용. 공격(+12), 치명(+4%).' },
-    { name: '대지 심장 룬', type: 'rune', rarity: 'epic', hpBonus: 52, def: 10, goldGainBonus: 0.04, desc: '공용. 체력(+52), 방어(+10), 골드(+4%).' },
-    { name: '유물 잔광 룬', type: 'rune', rarity: 'legendary', value: 18, critMult: 0.12, goldGainBonus: 0.085, desc: '공용. 공격(+18), 치명 배율(+12%), 골드(+8.5%).' },
-    { name: '공허 이탈 룬', type: 'rune', rarity: 'legendary', fleeBonus: 0.2, goldGainBonus: 0.06, desc: '공용. 도주 하락 완화(+20%), 골드(+6%).' },
-];
-
-const equipmentPool = [
-    // ===== 워리어 전용 =====
-    { name: "거인족의 대검",      type: "atk", value: 21, price: 90,  rarity: "epic",   onlyFor: ["워리어","나이트","버서커"], critBonus: 6,  desc: "워리어 계열. 공격력(+21). 치명타 확률(+6%)." },
-    { name: "찬빛 합금 흉갑",        type: "hp",  value: 80, def: 16, price: 90,  rarity: "epic",   onlyFor: ["워리어","나이트","버서커"], desc: "워리어 계열. 체력(+80), 방어(+16)." },
-    { name: "용사의 방패",        type: "hp",  value: 50, def: 14, price: 60,  rarity: "rare",   onlyFor: ["워리어","나이트","버서커"], desc: "워리어 계열. 체력(+50), 방어(+14)." },
-    { name: "전쟁의 도끼",        type: "atk", value: 18, price: 70,  rarity: "rare",   onlyFor: ["워리어","나이트","버서커"], critBonus: 4,  desc: "워리어 계열. 공격력(+18). 치명타 확률(+4%)." },
-    { name: "분노의 투구",        type: "hp",  value: 55, def: 8, price: 50,  rarity: "common", onlyFor: ["워리어","나이트","버서커"], desc: "워리어 계열. 체력(+55), 방어(+8)." },
-    { name: "철벽의 각반",        type: "hp",  value: 30, def: 10, price: 45,  rarity: "common", onlyFor: ["워리어","나이트","버서커"], desc: "워리어 계열. 체력(+30), 방어(+10)." },
-    { name: "강철 팔찌",          type: "ring", value: 8,  def: 6,  price: 40,  rarity: "common", onlyFor: ["워리어","나이트","버서커"], desc: "워리어 계열. 공격(+8), 방어(+6)." },
-    { name: "파괴자의 도끼",      type: "atk", value: 35, price: 130, rarity: "epic",   onlyFor: ["버서커"], critBonus: 10, desc: "버서커 전용. 공격력(+35). 치명타 확률(+10%)." },
-    { name: "성기사의 검",        type: "atk", value: 28, def: 8, price: 120, rarity: "epic",   onlyFor: ["나이트"], desc: "나이트 전용. 공격력(+28), 방어(+8)." },
-
-    // ===== 헌터 전용 =====
-    { name: "정령왕의 활",        type: "atk", value: 22, price: 95,  rarity: "epic",   onlyFor: ["헌터","궁수","암살자"], critBonus: 8,  desc: "헌터 계열. 공격력(+22). 치명타 확률(+8%)." },
-    { name: "은신 단검",      type: "atk", value: 18, price: 70,  rarity: "rare",   onlyFor: ["헌터","궁수","암살자"], critMult: 0.25, desc: "헌터 계열. 공격력(+18). 치명타 배율(+25%)." },
-    { name: "독화살 통",          type: "atk", value: 14, price: 55,  rarity: "rare",   onlyFor: ["헌터","궁수","암살자"], desc: "헌터 계열. 공격력(+14)." },
-    { name: "그림자 망토",        type: "hp",  value: 40, def: 4, price: 45,  rarity: "common", onlyFor: ["헌터","궁수","암살자"], desc: "헌터 계열. 체력(+40), 방어(+4)." },
-    { name: "사냥꾼의 장갑",      type: "hp",  value: 52, def: 5, price: 50,  rarity: "common", onlyFor: ["헌터","궁수","암살자"], desc: "헌터 계열. 체력(+52), 방어(+5)." },
-    { name: "바람의 신발",        type: "hp",  value: 38, def: 4, price: 35,  rarity: "common", onlyFor: ["헌터","궁수","암살자"], desc: "헌터 계열. 체력(+38), 방어(+4)." },
-    { name: "독이 묻은 화살촉",   type: "atk", value: 10, price: 40,  rarity: "common", onlyFor: ["헌터","궁수","암살자"], lifesteal: 0.08, desc: "헌터 계열. 공격력(+10). 흡혈(8%)." },
-    { name: "폭풍의 활",          type: "atk", value: 32, price: 120, rarity: "epic",   onlyFor: ["궁수"], critBonus: 6, desc: "궁수 전용. 공격력(+32). 치명타(+6%), 명중(+10%)." },
-    { name: "그림자 쌍검",        type: "atk", value: 28, price: 110, rarity: "epic",   onlyFor: ["암살자"], critMult: 0.4, lifesteal: 0.12, desc: "암살자 전용. 공격력(+28). 치명타 배율(+40%), 흡혈(12%)." },
-
-    // ===== 마법사 전용 =====
-    { name: "고대 마도 지팡이",  type: "atk", value: 28, price: 100, rarity: "epic",   onlyFor: ["마법사","위저드","소환사"], critMult: 0.4, desc: "마법사 계열. 공격력(+28). 치명타 배율(+40%)." },
-    { name: "학자의 로브",        type: "hp",  value: 50, def: 6, price: 45,  rarity: "common", onlyFor: ["마법사","위저드","소환사"], desc: "마법사 계열. 체력(+50), 방어(+6)." },
-    { name: "마력 증폭기",        type: "atk", value: 20, price: 75,  rarity: "rare",   onlyFor: ["마법사","위저드","소환사"], critMult: 0.25, desc: "마법사 계열. 공격력(+20). 치명타 배율(+25%)." },
-    { name: "정령의 로브",        type: "hp",  value: 65, def: 8, price: 65,  rarity: "rare",   onlyFor: ["마법사","위저드","소환사"], desc: "마법사 계열. 체력(+65), 방어(+8)." },
-    { name: "마력 수정",      type: "atk", value: 15, price: 50,  rarity: "common", onlyFor: ["마법사","위저드","소환사"], desc: "마법사 계열. 공격력(+15)." },
-    { name: "마력 구슬",          type: "atk", value: 10, price: 35,  rarity: "common", onlyFor: ["마법사","위저드","소환사"], desc: "마법사 계열. 공격력(+10)." },
-    { name: "마력 봉인 관",      type: "atk", value: 8,  price: 30,  rarity: "common", onlyFor: ["마법사","위저드","소환사"], critBonus: 3, desc: "마법사 계열. 공격력(+8). 치명타 확률(+3%)." },
-    { name: "고대 마법진",        type: "atk", value: 38, price: 130, rarity: "epic",   onlyFor: ["위저드"], critMult: 0.5, desc: "위저드 전용. 공격력(+38). 치명타 배율(+50%)." },
-    { name: "차원 부름 인장",      type: "hp",  value: 80, def: 12, price: 120, rarity: "epic",   onlyFor: ["소환사"], lifesteal: 0.15, desc: "소환사 전용. 체력(+80), 방어(+12). 흡혈(15%)." },
-
-    // ===== 공용 =====
-    { name: "드래곤의 심장",      type: "hp",  value: 130, def: 14, price: 180, rarity: "legendary", desc: "전설. 체력(+130), 방어(+14)." },
-    { name: "빛의 잔광검",         type: "atk", value: 45, price: 200, rarity: "legendary", critBonus: 10, critMult: 0.3, desc: "전설. 공격력(+45), 명중(+10%), 치명타 확률(+10%), 배율(+30%)." },
-    { name: "흡혈 반지",          type: "ring", value: 8,  price: 60,  rarity: "rare",   lifesteal: 0.15, desc: "공용. 공격(+8). 흡혈(15%)." },
-    { name: "흡혈 망토",          type: "hp",  value: 35, price: 75,  rarity: "rare",   lifesteal: 0.25, desc: "공용. 체력(+35). 흡혈(25%)." },
-    { name: "저주받은 검",        type: "atk", value: 38, price: 100, rarity: "epic",   penalty: { '워리어': 15, '헌터': 20, '마법사': 25 }, critBonus: 12, desc: "공용. 공격력(+38). 치명타(+12%). 명중률 대폭 하락." },
-    { name: "바람의 부츠",        type: "hp",  value: 48, def: 6, price: 55,  rarity: "rare",   desc: "공용. 체력(+48), 방어(+6)." },
-    { name: "중갑옷",             type: "hp",  value: 75, def: 12, price: 65,  rarity: "rare",   penalty: { '마법사': 20, '헌터': 15 }, desc: "공용. 체력(+75), 방어(+12). 마법사·헌터는 명중률 감소." },
-    { name: "낡은 가죽 갑옷",     type: "hp",  value: 35, def: 4,  price: 25,  rarity: "common", desc: "공용. 체력(+35), 방어(+4)." },
-    { name: "회복의 목걸이",      type: "hp",  value: 20, price: 40,  rarity: "common", regenPotion: true, desc: "공용. 체력(+20). 포션 사용 시 2턴간 서서히 회복." },
-    { name: "대지의 반지",        type: "ring", value: 45, def: 5,  price: 50,  rarity: "common", desc: "공용. 공격(+45), 방어(+5)." },
-    { name: "수련자의 검",        type: "atk", value: 6,  price: 20,  rarity: "common", desc: "공용. 공격력(+6)." },
-    { name: "견습 갑옷",          type: "hp",  value: 25, def: 3,  price: 20,  rarity: "common", desc: "공용. 체력(+25), 방어(+3)." },
-    { name: "행운의 동전",        type: "ring", value: 8,  price: 25,  rarity: "common", critBonus: 2, desc: "공용. 명중률(+8%), 치명타 확률(+2%)." },
-    { name: "불꽃 반지",          type: "ring", value: 12, price: 45,  rarity: "common", critBonus: 3, desc: "공용. 공격(+12), 치명(+3%)." },
-    { name: "생명의 돌",          type: "hp",  value: 55, price: 45,  rarity: "rare",   desc: "공용. 체력(+55)." },
-    { name: "전투 반지",          type: "ring", value: 14, def: 4, price: 55,  rarity: "rare",   desc: "공용. 공격(+14), 방어(+4)." },
-    { name: "용의 비늘 조각",     type: "hp",  value: 60, def: 8,  price: 70,  rarity: "rare",   desc: "공용. 체력(+60), 방어(+8)." },
-    { name: "고대 유물 파편",     type: "atk", value: 18, price: 65,  rarity: "rare",   desc: "공용. 공격력(+18), 명중률(+5%)." },
-    { name: "피의 에센스",        type: "atk", value: 20, price: 80,  rarity: "epic",   lifesteal: 0.18, critBonus: 5, desc: "공용. 공격력(+20). 흡혈(18%), 치명타(+5%)." },
-    { name: "불사의 갑옷",        type: "hp",  value: 90, def: 15, price: 140, rarity: "epic",   desc: "공용. 체력(+90), 방어(+15)." },
-    { name: "번개의 반지",        type: "ring", value: 25, price: 110, rarity: "epic",   critBonus: 8, critMult: 0.2, desc: "공용. 공격(+25). 치명(+8%), 배율(+20%)." },
-    { name: "폭군의 갑옷",        type: "hp",  value: 110, def: 20, price: 170, rarity: "legendary", critBonus: 5, desc: "전설. 체력(+110), 방어(+20), 치명타(+5%)." },
-    { name: "세계수의 가지",      type: "hp",  value: 80, price: 150, rarity: "legendary", regenPotion: true, lifesteal: 0.2, desc: "전설. 체력(+80). 포션 강화, 흡혈(20%)." },
-    ...equipmentPoolV651,
-    ...equipmentPoolExtra703,
-    ...equipmentPoolS1Extra,
-    ...equipmentPoolPriest,
-    ...runePool,
-];
-
-/**
- * v7 시너지(리워크): 등급별 아이템 조합 시 추가 효과
- * @type {{id:string,name:string,fromTag:string,needCount:number,bonus:{atk?:number,hp?:number,def?:number,acc?:number,crit?:number,critMult?:number},effectDesc:string}[]}
+/*
+ * 기존 DOM 렌더러 호환 계약. 직업 선택지는 하나뿐이며 스토리/전직 데이터는 비어 있다.
  */
-const synergyRules = [
-    {
-        id: 'syn_role_offense_blade',
-        name: '전투 공명',
-        fromTag: 'role_offense',
-        needCount: 2,
-        bonus: { atk: 18, crit: 4 },
-        effectDesc: '공격형 2개: 공격+18, 치명+4%',
-        detailDesc:
-            '공격형 장비가 동시에 2개 이상 장착되면 발동합니다. 무기·공격 반지·공격 룬 빌드의 화력을 끌어올립니다.',
-    },
-    {
-        id: 'syn_role_guard',
-        name: '수호 공명',
-        fromTag: 'role_defense',
-        needCount: 2,
-        bonus: { hp: 70, def: 10 },
-        effectDesc: '방어형 2개: 체력+70, 방어+10',
-        detailDesc:
-            '방어형 장비가 동시에 2개 이상 장착되면 발동합니다. 갑옷·방패·수호 룬 중심의 생존력을 보강합니다.',
-    },
-    {
-        id: 'syn_role_utility',
-        name: '풍요 공명',
-        fromTag: 'role_utility',
-        needCount: 2,
-        bonus: { hp: 35, critMult: 0.08 },
-        effectDesc: '유틸형 2개: 체력+35, 치명배율+8%',
-        detailDesc:
-            '유틸형 장비가 동시에 2개 이상 장착되면 발동합니다. 골드·흡혈·포션 보조 장비를 전투 가치로 이어 줍니다.',
-    },
-    {
-        id: 'syn_common_echo',
-        name: '잔향 공명',
-        fromTag: 'rarity_common',
-        needCount: 3,
-        bonus: { def: 8, hp: 30 },
-        effectDesc: '일반 3개: 방어+8, 체력+30',
-        detailDesc:
-            '인벤토리에 일반(common) 등급 장비가 동시에 3개 이상 장착되면 발동합니다. 방어력과 체력이 추가로 오릅니다.',
-    },
-    {
-        id: 'syn_rare_oath',
-        name: '서약 공명',
-        fromTag: 'rarity_rare',
-        needCount: 2,
-        bonus: { atk: 14, def: 6 },
-        effectDesc: '희귀 2개: 공격+14, 방어+6',
-        detailDesc:
-            '인벤토리에 희귀(rare) 등급 장비가 동시에 2개 이상 장착되면 발동합니다. 공격력과 방어력이 추가로 오릅니다.',
-    },
-    {
-        id: 'syn_epic_hymn',
-        name: '찬가 공명',
-        fromTag: 'rarity_epic',
-        needCount: 2,
-        bonus: { crit: 8, critMult: 0.18 },
-        effectDesc: '영웅 2개: 치명+8%, 치명배율+18%',
-        detailDesc:
-            '인벤토리에 에픽(epic) 등급 장비가 동시에 2개 이상 장착되면 발동합니다. 치명타 확률과 치명타 배율이 추가로 오릅니다.',
-    },
-    {
-        id: 'syn_legend_glory',
-        name: '영광 공명',
-        fromTag: 'rarity_legendary',
-        needCount: 2,
-        bonus: { atk: 26, hp: 70, def: 12 },
-        effectDesc: '전설 2개: 공격+26, 체력+70, 방어+12',
-        detailDesc:
-            '인벤토리에 전설(legendary) 등급 장비가 동시에 2개 이상 장착되면 발동합니다. 공격·체력·방어가 크게 추가됩니다.',
-    },
-];
+const jobBase = Object.freeze({
+    Human: Object.freeze({ name: '인간 모험가', hp: 50, atk: 1, def: 1, color: '#d8d8d8' }),
+});
+const jobEvolutions = Object.freeze({});
+const relations = Object.freeze({});
+const raceStories = Object.freeze({
+    human: Object.freeze({ key: 'human', name: '인간', color: '#d8d8d8', summary: '단 한 명의 인간 모험가', fragments: Object.freeze({}) }),
+});
+const classStories = Object.freeze({});
+const promotionStories = Object.freeze({});
+const floorStories = Object.freeze({ bands: Object.freeze([]), milestones: Object.freeze({}), relicClues: Object.freeze({}), finalBossOpening: Object.freeze([]) });
+const storyData = Object.freeze({
+    playerStateDefaults: Object.freeze({ corruption: 0, purification: 0 }),
+    routeTitles: Object.freeze({ neutral: null }),
+    endingTitles: Object.freeze({}),
+    choiceImpacts: Object.freeze({}),
+});
+const introMemoryChoices = Object.freeze({
+    human: Object.freeze({ key: 'human', label: '아무것도 기억나지 않는다', raceKey: 'human', baseJobKey: HUMAN_JOB_KEY }),
+});
+const introWeaponChoices = Object.freeze({
+    unarmed: Object.freeze({ key: 'unarmed', label: '빈손', className: '인간 모험가', classKey: null, jobKey: HUMAN_JOB_KEY }),
+});
+const introPrologueText = Object.freeze({
+    memoryPrompt: '기억은 없다. 한 명의 인간 모험가가 미궁 앞에 서 있다.',
+    dangerPrompt: '앞으로 나아가거나 죽는다.',
+    weaponPrompt: '아직 장비가 없다.',
+});
+const tacticalSkillChoices = Object.freeze({});
+const tacticalSkillMilestones = Object.freeze([]);
+const equipmentPool = JSON.parse(JSON.stringify(RESTORED_ITEMS.equipmentPool || []));
+const relicPool = JSON.parse(JSON.stringify(RESTORED_ITEMS.relicPool || []));
+const forgeRecipes = JSON.parse(JSON.stringify(RESTORED_ITEMS.forgeRecipes || []));
+const permanentUpgrades = JSON.parse(JSON.stringify(RESTORED_ITEMS.permanentUpgrades || []));
+const floorUnlocks = JSON.parse(JSON.stringify(RESTORED_ITEMS.floorUnlocks || {}));
+const floorUnlocksHunter = JSON.parse(JSON.stringify(RESTORED_ITEMS.floorUnlocksHunter || {}));
+const floorUnlocksWizard = JSON.parse(JSON.stringify(RESTORED_ITEMS.floorUnlocksWizard || {}));
+const synergyRules = JSON.parse(JSON.stringify(RESTORED_ITEMS.synergyRules || []));
+const ultSkills = {};
+const mercCompanionBases = {};
+const mercEvolutions = {};
 
-const relicPool = [
-    { id: 'relic_warrior_berserk', name: "분노의 심장",    desc: "체력 35% 이하일 때 피해 +45%.", onlyFor: ["워리어","나이트","버서커"], rarity: "legendary", effect: "berserk_crit",    price: 210 },
-    { id: 'relic_warrior_shield',  name: "철벽의 의지",    desc: "방어 성공 시 체력 8% 회복 + 다음 공격 피해 25% 증가.", onlyFor: ["워리어","나이트","버서커"], rarity: "epic",      effect: "shield_empower",  price: 155 },
-    { id: 'relic_hunter_dodge',    name: "그림자 반격",    desc: "회피 성공 시 적 방어 일부 무시 반격(강화된 반격 피해).", onlyFor: ["헌터","궁수","암살자"], rarity: "legendary", effect: "dodge_counter", price: 210 },
-    { id: 'relic_hunter_execute',  name: "처형자의 표식",  desc: "적 체력 35% 이하일 때 피해 80% 증가.", onlyFor: ["헌터","궁수","암살자"], rarity: "epic",      effect: "execute",         price: 150 },
-    { id: 'relic_wizard_chain',    name: "연쇄 마법진",    desc: "치명타 시 연쇄 충전: 다음 공격 피해 35% 증가.", onlyFor: ["마법사","위저드","소환사","성직자"], rarity: "legendary", effect: "chain_cast",     price: 210 },
-    { id: 'relic_wizard_barrier',  name: "마력 방벽",      desc: "방어막으로 피해 감소 시 반사 45% + 체력 5% 회복.", onlyFor: ["마법사","위저드","소환사","성직자"], rarity: "epic",      effect: "barrier_reflect", price: 150 },
-    { id: 'relic_common_vampire',  name: "뱀파이어의 반지", desc: "적 처치 시 체력 10% 회복 + 치명타 배율 영구 +3%.", onlyFor: null, rarity: "epic",      effect: "kill_heal",       price: 160 },
-    { id: 'relic_common_gambler',  name: "도박사의 주사위", desc: "전투 시작 시만 무작위(⅓씩): 공격 +22% · 치명 +18% · 또는 공격·방어·치명 일부 감소(이번 전투만).", onlyFor: null, rarity: "rare", effect: "gambler", price: 110 },
-];
-
-// 대장간 합성 레시피
-const forgeRecipes = [
-    { name: "강화 철검",     type: "atk", value: 28, def: 0,  price: 0, rarity: "rare",      desc: "대장간 합성. 공격력(+28).",          materials: 2, materialRarity: "common", successRate: 0.85 },
-    { name: "강화 갑주",     type: "hp",  value: 70, def: 12, price: 0, rarity: "rare",      desc: "대장간 합성. 체력(+70), 방어(+12).", materials: 2, materialRarity: "common", successRate: 0.85 },
-    { name: "강화 반지",     type: "ring", value: 22, price: 0, rarity: "rare",      desc: "대장간 합성. 명중률(+22%)",          materials: 2, materialRarity: "common", successRate: 0.85, critBonus: 4 },
-    { name: "영웅의 무기",   type: "atk", value: 42, price: 0, rarity: "epic",      desc: "대장간 합성. 공격력(+42).",          materials: 2, materialRarity: "rare",   successRate: 0.65, critBonus: 8 },
-    { name: "영웅의 갑옷",   type: "hp",  value: 100, def: 18, price: 0, rarity: "epic",     desc: "대장간 합성. 체력(+100), 방어(+18).", materials: 2, materialRarity: "rare", successRate: 0.65 },
-    { name: "전설의 파편",   type: "atk", value: 60, price: 0, rarity: "legendary", desc: "대장간 합성. 공격력(+60). 치명타(+12%).", materials: 3, materialRarity: "rare", successRate: 0.40, critBonus: 12 },
-    { name: "불멸의 심장",   type: "hp",  value: 140, def: 22, price: 0, rarity: "legendary", desc: "대장간 합성. 체력(+140), 방어(+22).", materials: 3, materialRarity: "rare", successRate: 0.40 },
-    { name: "파멸의 각인",   type: "atk", value: 50, price: 0, rarity: "legendary", desc: "대장간 합성. 공격력(+50). 흡혈(25%), 치명타 배율(+40%).", materials: 2, materialRarity: "epic", successRate: 0.50, lifesteal: 0.25, critMult: 0.4 },
-];
-
-/** 비유물 장비 스탯 설명 줄 생성 */
-function buildEquipmentStatParts(it) {
+function buildStarterEquipmentSet() {
+    return [];
+}
+function applyStarterGearStats(item) {
+    return item;
+}
+function isStarterGearItem() {
+    return false;
+}
+function normalizeRarityKey(value) {
+    const key = String(value || 'common').toLowerCase();
+    return key === 'legend' ? 'legendary' : ['common', 'rare', 'epic', 'legendary'].includes(key) ? key : 'common';
+}
+function computeEquipmentGoldPrice(item, floorRef) {
+    if (item && Number.isFinite(Number(item.price)) && Number(item.price) > 0) return Math.floor(Number(item.price));
+    const floorValue = floorRef && typeof floorRef === 'object'
+        ? Number(floorRef.shopFloor || floorRef.priceFloor || floorRef.floor || 1)
+        : Number(floorRef || 1);
+    const base = { common: 40, rare: 110, epic: 360, legendary: 1200 }[normalizeRarityKey(item && item.rarity)] || 40;
+    return Math.max(1, Math.floor(base + Math.max(1, floorValue) * 2));
+}
+function computeFloorGoldReward(floorRef, options) {
+    const depth = Math.max(1, Number(floorRef) || 1);
+    return Math.max(1, Math.floor((10 + depth * 2) * (options && options.isBoss ? 2.4 : 1)));
+}
+function applyOfficialStatsToEquipmentItem(item) {
+    if (item && (!Number.isFinite(Number(item.price)) || Number(item.price) <= 0)) {
+        item.price = computeEquipmentGoldPrice(item, 1);
+    }
+    return item;
+}
+function clampEquipmentItemStatsToRarityCaps(item) {
+    return item;
+}
+function buildEquipmentStatParts(item) {
+    if (!item) return [];
     const parts = [];
-    if (it.type === 'rune') {
-        if (typeof it.value === 'number' && it.value) parts.push(`공격(+${it.value})`);
-        if (typeof it.hpBonus === 'number' && it.hpBonus) parts.push(`체력(+${it.hpBonus})`);
-        if (typeof it.def === 'number' && it.def !== 0) parts.push(it.def > 0 ? `방어(+${it.def})` : `방어(${it.def})`);
-        if (typeof it.damageReduction === 'number') parts.push(`피해 감소(+${Math.round(it.damageReduction * 100)}%)`);
-        if (typeof it.critBonus === 'number') parts.push(`치명(+${it.critBonus}%)`);
-        if (typeof it.critMult === 'number') parts.push(`치명 배율(+${Math.round(it.critMult * 100)}%)`);
-        if (typeof it.lifesteal === 'number') parts.push(`흡혈(${Math.round(it.lifesteal * 100)}%)`);
-        if (typeof it.goldGainBonus === 'number') parts.push(`골드 획득(+${Math.round(it.goldGainBonus * 100)}%)`);
-        if (typeof it.potionHealBonus === 'number') parts.push(`포션 회복(+${Math.round(it.potionHealBonus * 100)}%)`);
-        if (typeof it.fleeBonus === 'number') parts.push(`도주 완화(${Math.round(it.fleeBonus * 100)}%)`);
-        return parts;
-    }
-    if ((it.type === 'atk' || it.type === 'ring') && typeof it.value === 'number') parts.push(`공격(+${it.value})`);
-    if (it.type === 'hp' && typeof it.value === 'number') parts.push(`체력(+${it.value})`);
-    if (typeof it.hpBonus === 'number' && it.hpBonus) parts.push(`체력(+${it.hpBonus})`);
-    if (typeof it.def === 'number' && it.def !== 0) {
-        parts.push(it.def > 0 ? `방어(+${it.def})` : `방어(${it.def})`);
-    }
-    if (typeof it.damageReduction === 'number') parts.push(`피해 감소(+${Math.round(it.damageReduction * 100)}%)`);
-    if (typeof it.critBonus === 'number') parts.push(`치명(+${it.critBonus}%)`);
-    if (typeof it.critMult === 'number') parts.push(`치명 배율(+${Math.round(it.critMult * 100)}%)`);
-    if (typeof it.lifesteal === 'number') parts.push(`흡혈(${Math.round(it.lifesteal * 100)}%)`);
-    if (typeof it.goldGainBonus === 'number') parts.push(`골드 획득(+${Math.round(it.goldGainBonus * 100)}%)`);
-    if (typeof it.potionHealBonus === 'number') parts.push(`포션 회복(+${Math.round(it.potionHealBonus * 100)}%)`);
-    if (typeof it.fleeBonus === 'number') parts.push(`도주 완화(${Math.round(it.fleeBonus * 100)}%)`);
-    if (typeof it.divinityGainBonus === 'number') parts.push(`신성 획득(+${Math.round(it.divinityGainBonus * 100)}%)`);
+    if ((item.type === 'atk' || item.type === 'ring' || item.type === 'rune') && Number(item.value)) parts.push(`공격(+${item.value})`);
+    if (item.type === 'hp' && Number(item.value)) parts.push(`체력(+${item.value})`);
+    if (Number(item.hpBonus)) parts.push(`체력(+${item.hpBonus})`);
+    if (Number(item.def)) parts.push(`방어(${item.def > 0 ? '+' : ''}${item.def})`);
+    if (Number(item.critBonus)) parts.push(`치명(+${item.critBonus}%)`);
+    if (Number(item.critMult)) parts.push(`치명 배율(+${Math.round(item.critMult * 100)}%)`);
+    if (Number(item.lifesteal)) parts.push(`흡혈(${Math.round(item.lifesteal * 100)}%)`);
+    if (Number(item.damageReduction)) parts.push(`피해 감소(+${Math.round(item.damageReduction * 100)}%)`);
+    if (Number(item.goldGainBonus)) parts.push(`골드 획득(+${Math.round(item.goldGainBonus * 100)}%)`);
+    if (Number(item.potionHealBonus)) parts.push(`포션 회복(+${Math.round(item.potionHealBonus * 100)}%)`);
+    if (Number(item.fleeBonus)) parts.push(`도주 완화(${Math.round(item.fleeBonus * 100)}%)`);
     return parts;
 }
-
-function rebuildEquipmentDesc(it, opts) {
-    if (!it || it.type === 'relic') return;
-    if (it.type === 'rune') {
-        const parts = buildEquipmentStatParts(it);
-        it.desc = parts.length ? `룬. ${parts.join(', ')}.` : (it.desc || '');
-        return;
-    }
-    const parts = buildEquipmentStatParts(it);
-    const s = parts.join(', ');
-    if (opts && opts.floorUnlockKey != null) {
-        const fk = Number(opts.floorUnlockKey);
-        let base =
-            fk === 100 ? `100층 달성! 전설의 유산. ${s}.` : `${fk}층 달성 해금. ${s}.`;
-        if (it.regenPotion) base += ' 포션 효과 강화.';
-        it.desc = base;
-        return;
-    }
-    if (opts && opts.forgeRecipe) {
-        it.desc = `대장간 합성. ${s}.`;
-        return;
-    }
-    if (it.prayerBonus != null) {
-        it.desc = `기도 보너스(+${it.prayerBonus}), ${s}.`;
-        return;
-    }
-    if (it.regenPotion) {
-        it.desc = s ? `${s}. 포션 효과 강화.` : '포션 효과 강화.';
-        return;
-    }
-    it.desc = s ? `${s}.` : (it.desc || '');
+function rebuildEquipmentDesc(item) {
+    if (!item) return item;
+    const parts = buildEquipmentStatParts(item);
+    if (parts.length) item.desc = `${parts.join(', ')}.`;
+    return item;
 }
-
-function getRarityPowerMultiplier(rk) {
-    const key = normalizeRarityKey(rk);
-    return (BALANCE.rarityPower && BALANCE.rarityPower[key]) || BALANCE.rarityPower.common;
-}
-
-function normalizeRarityKey(rk) {
-    const key = String(rk || 'common').toLowerCase();
-    if (key === 'legend') return 'legendary';
-    if (key === 'rare' || key === 'epic' || key === 'legendary') return key;
-    return 'common';
-}
-
-function getRarityBaseGoldPrice(rk) {
-    const key = normalizeRarityKey(rk);
-    return getShopPriceForRarity(key, 1);
-}
-
-function normalizeBalanceFloor(floorRef, fallback) {
-    const raw = floorRef == null ? fallback : floorRef;
-    const n = Number(raw);
-    if (Number.isFinite(n) && n > 0) return Math.floor(n);
-    const fb = Number(fallback);
-    if (Number.isFinite(fb) && fb > 0) return Math.floor(fb);
-    return 1;
-}
-
-function getFloorGrowthStep() {
-    const cfg = BALANCE.floorGrowth || {};
-    return {
-        atk: Math.max(0, Math.floor(_safeNumForPrice(cfg.atkPerFloor, 1))),
-        hp: Math.max(0, Math.floor(_safeNumForPrice(cfg.hpPerFloor, 5))),
-    };
-}
-
-function normalizeFloorGrowth(raw) {
-    const out = raw && typeof raw === 'object' ? raw : {};
-    const floors = Math.max(0, Math.floor(Number(out.floors) || 0));
-    const atk = Math.max(0, Math.floor(Number(out.atk) || 0));
-    const hp = Math.max(0, Math.floor(Number(out.hp) || 0));
-    return { floors, atk, hp };
-}
-
-function computeFloorGrowthForClears(clearCount) {
-    const floors = Math.max(0, Math.floor(Number(clearCount) || 0));
-    const step = getFloorGrowthStep();
-    return {
-        floors,
-        atk: floors * step.atk,
-        hp: floors * step.hp,
-    };
-}
-
-function getTacticalSkillDef(skillKey) {
-    const key = String(skillKey || '').trim();
-    return key ? tacticalSkillChoices[key] || null : null;
-}
-
-function getTacticalSkillMilestoneForFloor(floorRef) {
-    const f = normalizeBalanceFloor(floorRef, 1);
-    return tacticalSkillMilestones.find((m) => m && m.floor === f) || null;
-}
-
-function createDefaultPlayerState() {
-    const d = storyData && storyData.playerStateDefaults ? storyData.playerStateDefaults : {};
-    return {
-        corruption: Math.max(0, Math.floor(Number(d.corruption) || 0)),
-        purification: Math.max(0, Math.floor(Number(d.purification) || 0)),
-    };
-}
-
 function normalizePlayerState(raw) {
-    const src = raw && typeof raw === 'object' ? raw : {};
-    return {
-        corruption: Math.max(0, Math.floor(Number(src.corruption) || 0)),
-        purification: Math.max(0, Math.floor(Number(src.purification) || 0)),
-    };
+    const source = raw || {};
+    return { corruption: Math.max(0, Math.floor(safeNumber(source.corruption, 0))), purification: Math.max(0, Math.floor(safeNumber(source.purification, 0))) };
 }
-
-function getStoryRouteKey(playerStateRef) {
-    const st = normalizePlayerState(playerStateRef);
-    if (st.corruption > st.purification) return 'corruption';
-    if (st.purification > st.corruption) return 'purification';
-    return 'neutral';
+function normalizeFloorGrowth(raw) {
+    const source = raw || {};
+    return { floors: Math.max(0, Math.floor(safeNumber(source.floors, 0))), atk: 0, hp: 0 };
 }
-
-function getStoryEndingKey(playerStateRef) {
-    return getStoryRouteKey(playerStateRef) === 'purification' ? 'hero' : 'demonKing';
-}
-
-function getStoryTitleForState(playerStateRef, floorRef) {
-    const f = normalizeBalanceFloor(floorRef, 1);
-    const route = getStoryRouteKey(playerStateRef);
-    if (f >= 31 && f < 100) {
-        return (storyData.routeTitles && storyData.routeTitles[route]) || null;
-    }
-    if (f >= 100) {
-        const endingKey = getStoryEndingKey(playerStateRef);
-        return (storyData.endingTitles && storyData.endingTitles[endingKey]) || null;
-    }
+function getStoryTitleForState() {
     return null;
 }
-
-function getStoryChoiceImpact(choiceKey) {
-    const key = String(choiceKey || '').trim();
-    if (!key || !storyData.choiceImpacts || !storyData.choiceImpacts[key]) return null;
-    const raw = storyData.choiceImpacts[key];
-    return Object.freeze({
-        corruption: Math.max(0, Math.floor(Number(raw.corruption) || 0)),
-        purification: Math.max(0, Math.floor(Number(raw.purification) || 0)),
-        label: raw.label || key,
-    });
+function getEnemyScalingForFloor(floor) {
+    const step = Math.max(0, Math.floor(safeNumber(floor, 1)) - 1);
+    return { hpAtk: 1 + step * 0.045, def: 1 + step * 0.03 };
+}
+function getBossMultiplier() {
+    return { hp: 1.5, atk: 1.25, def: 1.15 };
+}
+function getBossSoftWallCalibration() {
+    return { hp: 1, atk: 1, def: 1 };
 }
 
-function getRouteMilestoneFloor(floorRef) {
-    const f = normalizeBalanceFloor(floorRef, 1);
-    const milestones = Array.isArray(storyData.routeMilestones) ? storyData.routeMilestones : [];
-    if (milestones.includes(f)) return f;
-    return null;
-}
-
-function getStoryMilestoneDef(floorRef, playerStateRef) {
-    const f = normalizeBalanceFloor(floorRef, 1);
-    if (storyData.milestones && storyData.milestones[f]) {
-        const def = storyData.milestones[f];
-        return {
-            key: def.key || `common:${f}`,
-            route: 'common',
-            title: def.title || `${f}층 기억`,
-            trigger: def.trigger || null,
-            lines: Array.isArray(def.lines) ? Array.from(def.lines) : [],
-            titleOverride: null,
-        };
-    }
-    if (f >= 31 && f <= 80) {
-        const route = getStoryRouteKey(playerStateRef);
-        const milestoneFloor = getRouteMilestoneFloor(f);
-        if (!milestoneFloor) return null;
-        const routeData = storyData.routes && storyData.routes[route] ? storyData.routes[route] : storyData.routes.neutral;
-        const lines =
-            routeData && routeData.milestones && routeData.milestones[milestoneFloor]
-                ? Array.from(routeData.milestones[milestoneFloor])
-                : [];
-        if (!lines.length) return null;
-        return {
-            key: `${route}:${milestoneFloor}`,
-            route,
-            title: routeData.title ? `${milestoneFloor}층 · ${routeData.title}` : `${milestoneFloor}층 갈림길`,
-            trigger: 'route_monologue',
-            lines,
-            titleOverride: routeData.title || null,
-        };
-    }
-    if (f === 100) {
-        const endingKey = getStoryEndingKey(playerStateRef);
-        const ending = storyData.endings && storyData.endings[endingKey] ? storyData.endings[endingKey] : null;
-        if (!ending) return null;
-        return {
-            key: ending.key || `ending:${endingKey}`,
-            route: endingKey,
-            title: ending.title || '최종 대면',
-            trigger: 'ending_branch',
-            lines: Array.isArray(ending.lines) ? Array.from(ending.lines) : [],
-            titleOverride: (storyData.endingTitles && storyData.endingTitles[endingKey]) || null,
-            battleTitle: ending.battleTitle || null,
-        };
-    }
-    return null;
-}
-
-function getShopPriceForRarity(rk, floorRef) {
-    const key = normalizeRarityKey(rk);
-    const f = normalizeBalanceFloor(floorRef, 1);
-    const table = BALANCE.shopPriceByRarity || {};
-    const spec = table[key] || table.common || { base: 40, floorStep: 2 };
-    const base = _safeNumForPrice(spec.base, 40);
-    const step = _safeNumForPrice(spec.floorStep, 2);
-    return Math.max(1, Math.floor(base + f * step));
-}
-
-function clampShopPriceToRarityOrder(rk, price, floorRef) {
-    const order = ['common', 'rare', 'epic', 'legendary'];
-    const key = normalizeRarityKey(rk);
-    const idx = order.indexOf(key);
-    if (idx < 0) return Math.max(1, Math.floor(_safeNumForPrice(price, 1)));
-    const f = normalizeBalanceFloor(floorRef, 1);
-    let out = Math.max(1, Math.floor(_safeNumForPrice(price, getShopPriceForRarity(key, f))));
-    if (idx > 0) {
-        const lowerTierPrice = getShopPriceForRarity(order[idx - 1], f);
-        out = Math.max(out, lowerTierPrice + 1);
-    }
-    if (idx < order.length - 1) {
-        const upperTierPrice = getShopPriceForRarity(order[idx + 1], f);
-        out = Math.min(out, upperTierPrice - 1);
-    }
-    return Math.max(1, out);
-}
-
-function getPriceFloorReference(it, explicitFloorRef) {
-    if (explicitFloorRef && typeof explicitFloorRef === 'object') {
-        const candidates = [
-            explicitFloorRef.shopFloor,
-            explicitFloorRef.priceFloor,
-            explicitFloorRef.currentFloor,
-            explicitFloorRef.floor,
-        ];
-        for (const raw of candidates) {
-            const n = Number(raw);
-            if (Number.isFinite(n) && n > 0) return Math.floor(n);
-        }
-    } else {
-        const n = Number(explicitFloorRef);
-        if (Number.isFinite(n) && n > 0) return Math.floor(n);
-    }
-    return getEquipmentFloorReference(it);
-}
-
-function computeFloorGoldReward(floorRef, opts) {
-    const cfg = BALANCE.goldReward || {};
-    const f = normalizeBalanceFloor(floorRef, 1);
-    const minBase = Math.floor(_safeNumForPrice(cfg.normalBaseMin, 6));
-    const maxBase = Math.max(minBase, Math.floor(_safeNumForPrice(cfg.normalBaseMax, 10)));
-    const spread = maxBase - minBase + 1;
-    const rolledBase = minBase + Math.floor(Math.random() * spread);
-    const floorStep = _safeNumForPrice(cfg.floorStep, 3);
-    const normalMin = _safeNumForPrice(cfg.normalMin, 15);
-    const normalMultiplier = _safeNumForPrice(cfg.normalMultiplier, 1);
-    let gain = Math.max(normalMin, rolledBase + f * floorStep) * normalMultiplier;
-    if (opts && opts.isBoss) {
-        gain = gain * _safeNumForPrice(cfg.bossMultiplier, 2.4)
-            + _safeNumForPrice(cfg.bossFlatBonus, 20)
-            + f * _safeNumForPrice(cfg.bossFloorBonus, 2);
-    }
-    if (opts && Number.isFinite(Number(opts.multiplier))) {
-        gain *= Number(opts.multiplier);
-    }
-    return Math.max(1, Math.floor(gain));
-}
-
-function getEquipmentFloorReference(it) {
-    if (!it) return 1;
-    const candidates = [it.unlockFloor, it.floorUnlock, it.requiredFloor, it.minFloor, it.floor];
-    for (const raw of candidates) {
-        const n = Number(raw);
-        if (Number.isFinite(n) && n > 0) return Math.floor(n);
-    }
-    return 1;
-}
-
-function getEquipmentFloorWeight(it) {
-    const floorRef = getEquipmentFloorReference(it);
-    const step = _safeNumForPrice(BALANCE.equipmentFloorWeightStep, 0.005);
-    const cap = _safeNumForPrice(BALANCE.equipmentFloorWeightCap, 1.45);
-    const raw = 1 + Math.max(0, floorRef - 1) * step;
-    return Math.min(cap, Math.max(1, raw));
-}
-
-function getEquipmentPowerScale(it) {
-    return getRarityPowerMultiplier(it && it.rarity) * getEquipmentFloorWeight(it);
-}
-
-function buildStableEquipmentEffectId(it) {
-    const raw = `${String((it && it.name) || 'legendary').trim()}|${String((it && it.type) || 'gear')}`;
-    let h = 2166136261;
-    for (let i = 0; i < raw.length; i++) {
-        h ^= raw.charCodeAt(i);
-        h = Math.imul(h, 16777619);
-    }
-    return `legendary_${(h >>> 0).toString(36)}`;
-}
-
-function ensureLegendaryUniqueEffectPlaceholder(it) {
-    if (!it || normalizeRarityKey(it.rarity) !== 'legendary' || it.type === 'rune' || it.type === 'relic') {
-        if (it && normalizeRarityKey(it.rarity) !== 'legendary') {
-            delete it.uniqueEffectId;
-            delete it.effectDescription;
-        }
-        return it;
-    }
-    if (!it.uniqueEffectId) it.uniqueEffectId = buildStableEquipmentEffectId(it);
-    if (!it.effectDescription) {
-        it.effectDescription = '전설 고유 효과 슬롯. 추후 전용 패시브 또는 발동 효과를 연결할 수 있습니다.';
-    }
-    return it;
-}
-
-/** 등급별 총 예산(pt): 일반 1x, 희귀 1.5x, 영웅 2.5x, 전설 4.5x */
-const BASE_EQUIPMENT_BUDGET = 48;
-const BUDGET_BY_RARITY = {
-    common: Math.round(BASE_EQUIPMENT_BUDGET * getRarityPowerMultiplier('common')),
-    rare: Math.round(BASE_EQUIPMENT_BUDGET * getRarityPowerMultiplier('rare')),
-    epic: Math.round(BASE_EQUIPMENT_BUDGET * getRarityPowerMultiplier('epic')),
-    legendary: Math.round(BASE_EQUIPMENT_BUDGET * getRarityPowerMultiplier('legendary')),
-    legend: Math.round(BASE_EQUIPMENT_BUDGET * getRarityPowerMultiplier('legend')),
-};
-
-/** 등급별 스탯 상한도 동일한 희귀도 파워 배율을 기준으로 확장 */
-function _statMaxForRarity(rk) {
-    const m = getRarityPowerMultiplier(rk);
-    return {
-        atk: Math.round(22 * m),
-        hp: Math.round(90 * m),
-        def: Math.round(16 * m),
-        crit: Math.round(14 * m),
-        cm: Math.round(12 * m),
-        ls: Math.round(10 * m),
-    };
-}
-
-/**
- * 1pt = 0.01 예산 스케일 단위. 원본 비용: 공격1, 방0.5, 체0.2, 치명1%3, 배율1%10
- * 흡혈은 표에 없어 1%=5원본pt로 처리.
- */
-const STAT_COST_X100 = {
-    atk: 100,
-    def: 50,
-    hp: 20,
-    crit: 300,
-    cm: 1000,
-    ls: 500,
-};
-
-function _budgetHashSeed(str) {
-    let h = 2166136261;
-    const s = String(str || '');
-    for (let i = 0; i < s.length; i++) {
-        h ^= s.charCodeAt(i);
-        h = Math.imul(h, 16777619);
-    }
-    return h >>> 0;
-}
-
-function _budgetMulberry32(seed) {
-    return function rnd() {
-        let t = (seed += 0x6d2b79f5);
-        t = Math.imul(t ^ (t >>> 15), t | 1);
-        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-}
-
-/** 태그·원본 필드·타입으로 배분 채널 결정 (반지·무기는 atk 채널) */
-function _snapshotStatChannels(it) {
-    const tags = Array.isArray(it.tags) ? it.tags : [];
-    const t = it.type;
-    const ch = {
-        atk: t === 'atk' || t === 'ring',
-        hp: t === 'hp',
-        def: false,
-        crit: false,
-        cm: false,
-        ls: false,
-    };
-    if (typeof it.def === 'number' && it.def !== 0) ch.def = true;
-    if (typeof it.critBonus === 'number' && it.critBonus > 0) ch.crit = true;
-    if (typeof it.critMult === 'number' && it.critMult > 0) ch.cm = true;
-    if (typeof it.lifesteal === 'number' && it.lifesteal > 0) ch.ls = true;
-    for (const g of tags) {
-        if (g === 'heavy') ch.def = true;
-        if (g === 'precision') ch.crit = true;
-        if (g === 'arcane') {
-            ch.crit = true;
-            ch.cm = true;
-        }
-        if (g === 'blood') ch.ls = true;
-        if (g === 'blade') ch.crit = true;
-    }
-    return ch;
-}
-
-/** 데이터에 `itemConcept: 'berserker' | 'assassin' | 'vampire' | 'tank' | 'hybrid'` 로 재정의 가능 */
-const ITEM_CONCEPT_LABEL_KO = {
-    berserker: '극딜/광전사',
-    assassin: '치명/암살',
-    vampire: '흡혈/생존',
-    tank: '탱커/수호',
-    hybrid: '유틸/하이브리드',
-};
-
-function _detectItemConcept(it) {
-    if (it && it.itemConcept && ITEM_CONCEPT_LABEL_KO[it.itemConcept]) return it.itemConcept;
-    const n = String((it && it.name) || '');
-    const t = it && it.type;
-    if (/파멸|광기|파쇄|맹렬|전쟁신의 유산|광전사의|광기의|극딜/.test(n)) return 'berserker';
-    if ((t === 'atk' || t === 'ring') && /분노/.test(n)) return 'berserker';
-    if (/저주/.test(n) && /검|도끼|철퇴|너클/.test(n)) return 'berserker';
-    if (/암살|그림자 단검|급소|처형|심연의 낫|독니|맹금|암흑 각오|폭풍 시위|정찰병의 망원경/.test(n)) return 'assassin';
-    if (/피의|흡혈|맹세|계약서|포식|뱀파이어|심해 비늘|용해액|그림자 단검|맹독 가죽|피의 계약|생명의 돌|세계수의 가지/.test(n)) return 'vampire';
-    if (/방패|요새|흉갑|갑옷|암석|성기사의 성배|불멸의 요새|용왕|수호|성역의 방패|깊은 광산 판금|고대 철판|세계수의 잎새|암석 심장|천공의 갑옷|불멸의 흉갑/.test(n)) return 'tank';
-    if (/신의 축복|전설의 유산|마도 제국의 왕관|시간의 모래시계|별무리|천상의 파편|혼령 실|태양 가루|은빛 고리|대지의 알/.test(n)) return 'hybrid';
-    if (it && it.type === 'hp' && /방패|갑옷|흉갑|요새|비늘|망토|로브|심장|판금|방어|붕대|알|천/.test(n)) return 'tank';
-    if (it && (it.type === 'atk' || it.type === 'ring') && /룬|별|천공|마도|보주|지팡이|활|화살|석궁|심연|혼돈|마력 폭풍|성역 마도서/.test(n)) return 'assassin';
-    return 'hybrid';
-}
-
-function _narrowChannelsForConcept(it, ch, concept) {
-    const c = { ...ch };
-    const n = String((it && it.name) || '');
-    const t = it && it.type;
-    if (concept === 'berserker' && (t === 'atk' || t === 'ring')) {
-        c.def = false;
-        if (!/맹세|흡혈|피의|계약|피/.test(n)) c.ls = false;
-    }
-    if (concept === 'assassin') {
-        c.def = false;
-        if (!/피|흡혈|독|맹독|그림자 단검/.test(n)) c.ls = false;
-    }
-    if (concept === 'tank' && t === 'hp') {
-        c.crit = false;
-        c.cm = false;
-        if (!/비늘|심해|피|흡혈|생명|소환진/.test(n)) c.ls = false;
-    }
-    if (concept === 'vampire') {
-        if (!/심연|암살|급소|혼돈|보주/.test(n)) c.crit = false;
-        if (!/심연|차원|마도|별/.test(n)) c.cm = false;
-    }
-    if (/저주/.test(n) && (t === 'atk' || t === 'ring')) c.def = false;
-    return c;
-}
-
-function _conceptStatWeights(concept, ch, it, rnd) {
-    const j = () => 0.92 + rnd() * 0.16;
-    const w = { atk: 0, hp: 0, def: 0, crit: 0, cm: 0, ls: 0 };
-    const name = String((it && it.name) || '');
-    const h = (_budgetHashSeed(name + '|' + concept) % 1000) / 8000;
-
-    if (concept === 'berserker') {
-        if (ch.atk) w.atk = (6.4 + h) * j();
-        if (ch.crit) w.crit = (0.85 + h * 2) * j();
-        if (ch.cm) w.cm = (0.5 + h) * j();
-        if (ch.ls) w.ls = 0.32 * j();
-        if (ch.hp) w.hp = 1.4 * j();
-        if (ch.def) w.def = 0.12 * j();
-    } else if (concept === 'assassin') {
-        if (ch.atk) w.atk = (2.1 + h * 3) * j();
-        if (ch.crit) w.crit = (4.6 + h * 2) * j();
-        if (ch.cm) w.cm = (3.9 + h * 2) * j();
-        if (ch.ls) w.ls = 0.45 * j();
-        if (ch.def) w.def = 0.18 * j();
-        if (ch.hp) w.hp = 1.1 * j();
-    } else if (concept === 'vampire') {
-        if (ch.ls) w.ls = (5.6 + h) * j();
-        if (ch.hp) w.hp = (3.9 + h * 2) * j();
-        if (ch.atk) w.atk = (2.1 + h) * j();
-        if (ch.def) w.def = 1.15 * j();
-        if (ch.crit) w.crit = 0.75 * j();
-        if (ch.cm) w.cm = 0.65 * j();
-    } else if (concept === 'tank') {
-        if (ch.hp) w.hp = (5.1 + h * 2) * j();
-        if (ch.def) w.def = (5.3 + h * 2) * j();
-        if (ch.atk) w.atk = 0.32 * j();
-        if (ch.ls) w.ls = 0.38 * j();
-        if (ch.crit) w.crit = 0.14 * j();
-        if (ch.cm) w.cm = 0.11 * j();
-    } else {
-        if (ch.atk) w.atk = (2 + h) * j();
-        if (ch.hp) w.hp = (2 + h) * j();
-        if (ch.def) w.def = (1.55 + h) * j();
-        if (ch.crit) w.crit = (1.35 + h) * j();
-        if (ch.cm) w.cm = (1.35 + h) * j();
-        if (ch.ls) w.ls = (1.15 + h) * j();
-    }
-    for (const k of Object.keys(w)) if (!ch[k]) w[k] = 0;
-    return w;
-}
-
-function _uniquifyStatWeights(w, name) {
-    const h = _budgetHashSeed(String(name || 'item'));
-    const keys = ['atk', 'hp', 'def', 'crit', 'cm', 'ls'];
-    const o = {};
-    keys.forEach((k, i) => {
-        const bump = 1 + (((h >> (i * 4)) & 0x1f) / 240);
-        o[k] = (w[k] || 0) * bump;
-    });
-    return o;
-}
-
-/** [파멸·피·저주] / [신·축복·불사·용왕] / [번개·별·시간] — 데이터 `keywordTheme: 'ruin'|'divine'|'arcane'` 로 덮어쓰기 가능 */
-function _detectKeywordTheme(it) {
-    if (it && it.keywordTheme && /^(ruin|divine|arcane)$/.test(it.keywordTheme)) return it.keywordTheme;
-    const n = String((it && it.name) || '');
-    if (/신|축복|불사|용왕/.test(n)) return 'divine';
-    if (/번개|별|시간/.test(n)) return 'arcane';
-    if (/파멸|저주|피의|핏물|진홍|뱀파이어의|계약서|포식/.test(n)) return 'ruin';
-    return null;
-}
-
-const KEYWORD_THEME_LABEL_KO = {
-    ruin: '[파멸·피·저주]',
-    divine: '[신·축복·불사·용왕]',
-    arcane: '[번개·별·시간]',
-};
-
-function _applyKeywordThemeToWeights(w, theme, ch) {
-    if (!theme) return w;
-    const o = { atk: w.atk || 0, hp: w.hp || 0, def: w.def || 0, crit: w.crit || 0, cm: w.cm || 0, ls: w.ls || 0 };
-    const pri = { ruin: ['atk', 'crit', 'ls'], divine: ['hp', 'def'], arcane: ['crit', 'cm'] };
-    const boost = 2.35;
-    const cut = 0.42;
-    const P = pri[theme];
-    if (!P) return w;
-    for (const k of P) {
-        if (ch[k]) o[k] *= boost;
-    }
-    for (const k of Object.keys(o)) {
-        if (!P.includes(k) && ch[k]) o[k] *= cut;
-    }
-    for (const k of Object.keys(o)) if (!ch[k]) o[k] = 0;
-    return o;
-}
-
-function _pickSecondaryChannel(it, ch, rnd) {
-    const n = String((it && it.name) || '');
-    const pools = [
-        [/파멸|저주|피의|피\b|뱀파이어/.test(n), ['crit', 'ls', 'cm', 'def']],
-        [/신|축복|불사|용왕/.test(n), ['def', 'crit', 'cm', 'ls']],
-        [/번개|별|시간/.test(n), ['cm', 'crit', 'ls', 'def']],
-    ];
-    let order = ['crit', 'def', 'cm', 'ls'];
-    for (const [ok, ord] of pools) {
-        if (ok) {
-            order = ord;
-            break;
-        }
-    }
-    const sec = ['def', 'crit', 'cm', 'ls'];
-    for (const k of order) {
-        if (sec.includes(k) && !ch[k]) return k;
-    }
-    return sec[Math.floor(rnd() * 4)];
-}
-
-function _dropSecondaryChannel(it, ch, secList, rnd) {
-    const n = String((it && it.name) || '');
-    const lowFirst = ['ls', 'def', 'crit', 'cm'];
-    if (/흡혈|피|맹세/.test(n)) lowFirst.splice(lowFirst.indexOf('ls'), 1);
-    for (const k of lowFirst) {
-        if (secList.includes(k)) return k;
-    }
-    return secList[secList.length - 1];
-}
-
-/**
- * 에픽/전설: 스탯 라인 2~4개 (주스탯 1 + 부스탯 1~3)
- */
-function _enforceEpicLegendChannelBounds(ch, it, rk, rnd) {
-    const rkLo = String(rk || '').toLowerCase();
-    if (!['epic', 'legendary', 'legend'].includes(rkLo)) return ch;
-    const out = { ...ch };
-    const secKeys = ['def', 'crit', 'cm', 'ls'];
-    let sec = secKeys.filter((k) => out[k]);
-    if (!(out.atk || out.hp)) return out;
-    while (sec.length < 1) {
-        const add = _pickSecondaryChannel(it, out, rnd);
-        out[add] = true;
-        sec = secKeys.filter((k) => out[k]);
-    }
-    while (sec.length > 3) {
-        const drop = _dropSecondaryChannel(it, out, sec, rnd);
-        out[drop] = false;
-        sec = secKeys.filter((k) => out[k]);
-    }
-    return out;
-}
-
-/** 할당 직후 각 스탯에 [0.85, 1.15] 무작위 배율 */
-function _applyVar15PctToAllocatedStats(a, rnd, it) {
-    const roll = () => 0.85 + rnd() * 0.3;
-    const round1 = (x) => Math.max(0, Math.round((Number(x) || 0) * 10) / 10);
-    if (a.atk > 0) a.atk = Math.max(1, Math.round(a.atk * roll()));
-    if (a.hp > 0) a.hp = Math.max(1, Math.round(a.hp * roll()));
-    if (a.def !== 0) a.def = Math.round(a.def * roll());
-    if (a.crit > 0) a.crit = round1(a.crit * roll());
-    if (a.cm > 0) a.cm = Math.max(1, Math.round(a.cm * roll()));
-    if (a.ls > 0) a.ls = Math.max(1, Math.round(a.ls * roll()));
-    return a;
-}
-
-function _countAllocatedStatLines(it, a) {
-    let n = 0;
-    if ((it.type === 'atk' || it.type === 'ring') && a.atk > 0) n++;
-    if (it.type === 'hp' && a.hp > 0) n++;
-    if (a.def !== 0 && a.def != null) n++;
-    if (a.crit > 0) n++;
-    if (a.cm > 0) n++;
-    if (a.ls > 0) n++;
-    return n;
-}
-
-function _ensureEpicLegendChannelMinimums(a, ch, rk, rnd) {
-    const rkLo = String(rk || '').toLowerCase();
-    if (!['epic', 'legendary', 'legend'].includes(rkLo)) return a;
-    if (ch.crit && a.crit < 0.4) a.crit = Math.round((0.6 + rnd() * 2.2) * 10) / 10;
-    if (ch.cm && a.cm < 4) a.cm = 4 + Math.floor(rnd() * 18);
-    if (ch.ls && a.ls < 3) a.ls = 3 + Math.floor(rnd() * 12);
-    if (ch.def && a.def === 0) a.def = 1 + Math.floor(rnd() * 5);
-    return a;
-}
-
-function _ensureMinStatLinesAfterRoll(it, a, ch, rk, rnd) {
-    const rkLo = String(rk || '').toLowerCase();
-    if (!['epic', 'legendary', 'legend'].includes(rkLo)) return a;
-    let guard = 0;
-    while (_countAllocatedStatLines(it, a) < 2 && guard++ < 12) {
-        if (ch.crit && a.crit <= 0) a.crit = Math.round((0.5 + rnd() * 2) * 10) / 10;
-        else if (ch.def && a.def === 0) a.def = 1 + Math.floor(rnd() * 3);
-        else if (ch.ls && a.ls <= 0) a.ls = 3 + Math.floor(rnd() * 8);
-        else if (ch.cm && a.cm <= 0) a.cm = 5 + Math.floor(rnd() * 15);
-        else if ((it.type === 'atk' || it.type === 'ring') && a.atk <= 1) a.atk += 1 + Math.floor(rnd() * 3);
-        else if (it.type === 'hp' && a.hp <= 1) a.hp += 2 + Math.floor(rnd() * 6);
-        else break;
-    }
-    return a;
-}
-
-function _applyRuinTradeoff(it, a, theme, rnd) {
-    if (theme !== 'ruin') return a;
-    const n = String((it && it.name) || '');
-    const t = it && it.type;
-    if (rnd() < 0.55 && (t === 'atk' || t === 'ring') && a.def >= 0) {
-        a.def = -Math.max(3, Math.min(14, Math.floor(4 + rnd() * 10)));
-    }
-    if (rnd() < 0.35 && t === 'hp' && a.hp > 5) {
-        a.hp = Math.max(1, Math.floor(a.hp * (0.88 + rnd() * 0.08)));
-    }
-    if (/저주/.test(n) && rnd() < 0.7) {
-        const pen = it.penalty;
-        if (!pen || typeof pen !== 'object' || Object.keys(pen).length === 0) {
-            const base = 4 + Math.floor(rnd() * 6);
-            it.penalty = { 워리어: base, 헌터: base + 4, 마법사: base + 8 };
-        }
-    }
-    return a;
-}
-
-/**
- * 아이템 이름(한글 키워드) + 등급으로 스탯 채널 가중 — 공격/체력 주채널은 타입이 유지되고 부가로 방어·치명·배율·흡혈을 섞음.
- * @param {boolean} [strictFill=true] 일반·희귀: 부가 스탯 최소 개수 보장. 에픽/전설은 false로 붕어빵 완화.
- */
-function _mergeNamePersonalityChannels(it, ch, strictFill) {
-    const name = String(it.name || '');
-    const t = it.type;
-    const out = { atk: !!ch.atk, hp: !!ch.hp, def: !!ch.def, crit: !!ch.crit, cm: !!ch.cm, ls: !!ch.ls };
-    const mark = (key) => {
-        if (key === 'atk' && t !== 'atk' && t !== 'ring') return;
-        if (key === 'hp' && t !== 'hp') return;
-        out[key] = true;
-    };
-    if (/피|흡혈|포식|뱀파이어|생명|핏물|혈|진홍|붉은|핏방울|피의|심장|에센스/.test(name)) mark('ls');
-    if (/갑옷|흉갑|방패|철벽|요새|각반|부츠|망토|로브|갑주|방어|수호|성역|판금|흉장|케이프|비늘|갑피|방어구|장갑|요새|벽|붕대|심장|거북|철판|고대 철/.test(name)) mark('def');
-    if (/검|도끼|창|활|화살|단검|너클|철퇴|지팡이|보주|석궁|쇠뇌|무기|타격|파쇄|파멸|양날|대검|리치|모닝|그레이트|장검|언월|비수|표창|함정|독침|시위|화살통|끈|못|동전|촉|화살/.test(name)) {
-        if (t === 'atk' || t === 'ring') mark('atk');
-        mark('crit');
-    }
-    if (/치명|급소|암살|약점|명중|독수리|별빛|심연|예리|날카|급습|매복|저격|추적|은신|그림자|맹금|독니|처형|표식|조준|시위|눈|망원경/.test(name)) mark('crit');
-    if (/룬|마도|폭풍|심판|각성|천공|영광|성스|신성|금빛|별무리|차원|혼돈|보주|페이지|서적|마력|마나|수정|주문|봉인|결계|불꽃|얼음|번개|천둥|유성|운석|잔류|가루|모래|결정|핵|폭군|제국|왕관|심장/.test(name)) {
-        mark('cm');
-        mark('crit');
-    }
-    if (/마나|마력|정령|고대|학도|보조|소환|잔향|수호진|암흑|혼령|시간|별|초급|주문서/.test(name)) {
-        mark('cm');
-    }
-    if (/독|맹독|화염|얼음|번개|천둥|폭풍|유리|수정 렌즈|렌즈/.test(name)) mark('crit');
-
-    if (strictFill !== false) {
-        const sec = ['def', 'crit', 'cm', 'ls'];
-        const seed = _budgetHashSeed(name + '|' + String(t) + '|sec');
-        const rnd = _budgetMulberry32(seed);
-        let secCount = sec.filter((k) => out[k]).length;
-        let guard = 0;
-        while (secCount < 2 && guard++ < 16) {
-            out[sec[Math.floor(rnd() * 4)]] = true;
-            secCount = sec.filter((k) => out[k]).length;
-        }
-        const rk = String(it.rarity || '').toLowerCase();
-        if ((rk === 'epic' || rk === 'legendary' || rk === 'legend') && secCount < 3) {
-            for (const pick of sec) {
-                if (!out[pick]) {
-                    out[pick] = true;
-                    break;
-                }
-            }
-        }
-    }
-    return out;
-}
-
-function _safeNumForPrice(v, fb) {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : fb;
-}
-
-function _roundScaledStat(v, minValue) {
-    const min = minValue == null ? 0 : minValue;
-    return Math.max(min, Math.round(Number.isFinite(v) ? v : 0));
-}
-
-function _fixedDecimals(v, digits) {
-    const n = Number(v);
-    return Number((Number.isFinite(n) ? n : 0).toFixed(digits));
-}
-
-function _hasOwnStat(it, key) {
-    return !!it && Object.prototype.hasOwnProperty.call(it, key);
-}
-
-const EQUIPMENT_ROLE_LABELS = Object.freeze({
-    offense: '공격형',
-    defense: '방어형',
-    utility: '유틸형',
+const TURN_RPG_DATA = Object.freeze({
+    version: RULESET_VERSION,
+    maxFloor: MAX_DUNGEON_FLOOR,
+    stagesPerFloor: STAGES_PER_FLOOR,
+    statDefinitions,
+    weaponTable,
+    armorTable,
+    magicTable,
+    monsterArchetypeTable,
 });
 
-const EQUIPMENT_ROLE_TAGS = Object.freeze({
-    offense: ['role_offense', 'synergy_blade'],
-    defense: ['role_defense', 'synergy_guard'],
-    utility: ['role_utility', 'synergy_utility'],
-});
-
-const LEGACY_CONCEPT_TAGS = new Set(['blade', 'heavy', 'precision', 'arcane', 'blood']);
-
-function getEquipmentRoleLabel(role) {
-    return EQUIPMENT_ROLE_LABELS[role] || EQUIPMENT_ROLE_LABELS.offense;
-}
-
-function detectEquipmentRole(it) {
-    if (!it) return 'offense';
-    const explicit = String(it.itemRole || it.equipmentRole || '').toLowerCase();
-    if (explicit === 'offense' || explicit === 'defense' || explicit === 'utility') return explicit;
-    const n = String(it.name || '');
-    const t = String(it.type || '');
-    const weaponRx =
-        /검|도끼|창|활|화살|단검|너클|철퇴|지팡이|보주|시위|석궁|쇠뇌|표창|비수|독침|대검|양날검|마력봉|주문봉|파열|파멸|폭풍|번개|천둥|화염|냉기|얼음|심연|혼돈|전쟁|광전|분노|전사의|전장|맹렬|처형|암살|급소|저격|추적|조준|눈|렌즈|망원경/;
-    const defenseRx =
-        /갑옷|갑주|흉갑|갑옷|방패|방어|수호|성역|철벽|요새|불멸|판금|비늘|짚신|장화|부츠|로브|망토|가죽|외피|장갑|투구|각반|벨트|버클|붕대|갑피|철판|대지|암석|바위|심장|성배|성기사|세계수|결계|수호진/;
-    const utilityRx =
-        /풍요|도둑|황금|행운|상인|매매|거래|동전|보물|회복|포션|치유|허브|흡혈|피의|피\b|혈|뱀파이어|생명|에센스|계약|맹세|도피|이탈|공허|바람의 은빛|도주|탈출|재생/;
-    if (t === 'rune') {
-        if (/방어|수호|대지|심장|결계|방패|철벽/.test(n)) return 'defense';
-        if (/공격|파열|불꽃|번개|심연|화염|냉기|폭풍/.test(n)) return 'offense';
-        return 'utility';
-    }
-    const hasWeaponConcept = weaponRx.test(n);
-    const hasDefenseConcept = defenseRx.test(n);
-    const hasUtilityConcept = utilityRx.test(n);
-    if (t === 'hp') {
-        if (hasUtilityConcept && /회복|포션|치유|허브|흡혈|피의|피\b|혈|뱀파이어|생명|에센스|계약|맹세|재생|세계수/.test(n)) {
-            return 'utility';
-        }
-        return 'defense';
-    }
-    if (t === 'ring') {
-        if (hasUtilityConcept) return 'utility';
-        if (hasDefenseConcept) return 'defense';
-        return 'offense';
-    }
-    if (t === 'atk') {
-        if (hasUtilityConcept && !hasWeaponConcept) return 'utility';
-        return 'offense';
-    }
-    if (hasUtilityConcept) return 'utility';
-    if (hasDefenseConcept) return 'defense';
-    if (hasWeaponConcept) return 'offense';
-    return 'offense';
-}
-
-function normalizeEquipmentTagsForRole(it, role) {
-    if (!it) return;
-    const rk = normalizeRarityKey(it.rarity);
-    const base = Array.isArray(it.tags) ? it.tags : [];
-    const kept = base
-        .map((t) => String(t || '').trim())
-        .filter((t) => {
-            if (!t) return false;
-            if (LEGACY_CONCEPT_TAGS.has(t)) return false;
-            if (/^role_/i.test(t) || /^synergy_/i.test(t)) return false;
-            if (/^rarity_/i.test(t) || /^type_/i.test(t)) return false;
-            return true;
-        });
-    it.tags = Array.from(
-        new Set([
-            ...kept,
-            `rarity_${rk}`,
-            `type_${String(it.type || 'gear')}`,
-            ...(EQUIPMENT_ROLE_TAGS[role] || EQUIPMENT_ROLE_TAGS.offense),
-        ])
-    );
-    it.itemRole = role;
-    it.itemRoleLabel = getEquipmentRoleLabel(role);
-}
-
-function clearEquipmentGeneratedStats(it) {
-    [
-        'value',
-        'hpBonus',
-        'def',
-        'critBonus',
-        'critMult',
-        'lifesteal',
-        'goldGainBonus',
-        'fleeBonus',
-        'damageReduction',
-        'potionHealBonus',
-        'divinityGainBonus',
-        'prayerBonus',
-        'regenPotion',
-        'penalty',
-    ].forEach((key) => {
-        delete it[key];
+if (typeof globalThis !== 'undefined') {
+    Object.assign(globalThis, {
+        RULESET_VERSION,
+        HUMAN_JOB_KEY,
+        MAX_DUNGEON_FLOOR,
+        STAGES_PER_FLOOR,
+        LAST_SAFE_RETURN_FLOOR,
+        LAST_SAFE_RETURN_STAGE,
+        TURN_RPG_DATA,
+        rollHumanStartingStats,
+        normalizeHumanStats,
+        createHumanAdventurer,
+        createDungeonProgress,
+        normalizeDungeonProgress,
+        getDungeonPositionKey,
+        formatDungeonPosition,
+        advanceDungeonProgress,
+        canReturnToBaseCamp,
+        hasCrossedPointOfNoReturn,
+        snapshotAdventurerForGhost,
+        capProbability,
+        monsterArchetypeTable,
     });
 }
 
-function stripStatsOutsideRole(it, role) {
-    if (!it) return it;
-    const r = role || detectEquipmentRole(it);
-    if (r === 'offense') {
-        delete it.hpBonus;
-        delete it.def;
-        delete it.damageReduction;
-        delete it.lifesteal;
-        delete it.goldGainBonus;
-        delete it.fleeBonus;
-        delete it.potionHealBonus;
-        delete it.divinityGainBonus;
-        delete it.prayerBonus;
-        delete it.regenPotion;
-        if (it.type === 'hp') delete it.value;
-    } else if (r === 'defense') {
-        if (it.type !== 'hp') delete it.value;
-        delete it.critBonus;
-        delete it.critMult;
-        delete it.lifesteal;
-        delete it.goldGainBonus;
-        delete it.fleeBonus;
-        delete it.potionHealBonus;
-        delete it.divinityGainBonus;
-        delete it.prayerBonus;
-        delete it.regenPotion;
-        delete it.penalty;
-    } else {
-        delete it.value;
-        delete it.hpBonus;
-        delete it.def;
-        delete it.damageReduction;
-        delete it.critBonus;
-        delete it.critMult;
-        delete it.divinityGainBonus;
-        delete it.prayerBonus;
-        delete it.penalty;
-    }
-    return it;
-}
-
-function getEquipmentQualityMultiplier(it, rnd) {
-    const roll = typeof rnd === 'function' ? rnd() : 0.5;
-    const name = String((it && it.name) || '');
-    let q = 0.74 + roll * 0.68;
-    if (/명품|왕|제국|전설|영광|천공|태양|세계수|불멸|심연|파멸|용왕|전쟁신/.test(name)) q += 0.14;
-    if (/낡은|녹슨|부서진|조각난|작은|마른|짚신|유리|끈|못|파편/.test(name)) q -= 0.14;
-    return Math.max(0.62, Math.min(1.55, q));
-}
-
-function getRoleScale(it, rnd) {
-    return getRarityPowerMultiplier(it && it.rarity) * getEquipmentFloorWeight(it) * getEquipmentQualityMultiplier(it, rnd);
-}
-
-function assignOffenseStats(it, scale, rnd) {
-    const rk = normalizeRarityKey(it.rarity);
-    const name = String(it.name || '');
-    const mainBase = it.type === 'ring' ? 9 : it.type === 'rune' ? 8 : 13;
-    it.value = _roundScaledStat(mainBase * scale * (0.88 + rnd() * 0.24), 1);
-    const wantsCrit = /치명|급소|암살|약점|눈|렌즈|망원경|독수리|표식|조준|예리|날카|심연|그림자|처형/.test(name);
-    const wantsCritMult = /마도|폭풍|천공|별|번개|천둥|혼돈|보주|지팡이|파멸|마력|각성|심판|왕관/.test(name);
-    if (rk !== 'common' || wantsCrit || rnd() > 0.42) {
-        it.critBonus = _roundScaledStat((rk === 'legendary' ? 3.4 : rk === 'epic' ? 2.5 : rk === 'rare' ? 1.55 : 0.85) * scale, 1);
-    }
-    if (rk === 'legendary' || rk === 'epic' || wantsCritMult || rnd() > 0.55) {
-        it.critMult = _fixedDecimals((rk === 'legendary' ? 0.028 : rk === 'epic' ? 0.022 : 0.015) * scale, 2);
-    }
-}
-
-function assignDefenseStats(it, scale, rnd) {
-    const rk = normalizeRarityKey(it.rarity);
-    const hp = _roundScaledStat(54 * scale * (0.9 + rnd() * 0.24), 1);
-    if (it.type === 'hp') it.value = hp;
-    else it.hpBonus = hp;
-    it.def = _roundScaledStat(7.5 * scale * (0.82 + rnd() * 0.36), 1);
-    const reductionBase = rk === 'legendary' ? 0.024 : rk === 'epic' ? 0.019 : rk === 'rare' ? 0.014 : 0.009;
-    it.damageReduction = _fixedDecimals(Math.min(0.18, Math.max(0.01, reductionBase * scale)), 3);
-}
-
-function assignUtilityStats(it, scale, rnd) {
-    const rk = normalizeRarityKey(it.rarity);
-    const name = String(it.name || '');
-    const wantsGold = /풍요|황금|행운|도둑|상인|매매|거래|동전|보물|유산|잔광/.test(name);
-    const wantsLifesteal = /흡혈|피의|피\b|혈|뱀파이어|에센스|계약|맹세|생명|심장/.test(name);
-    const wantsPotion = /회복|포션|치유|허브|세계수|재생|불사조/.test(name);
-    const wantsFlee = /도피|이탈|공허|바람|도주|탈출/.test(name);
-    const picks = [];
-    if (wantsGold) picks.push('gold');
-    if (wantsLifesteal) picks.push('lifesteal');
-    if (wantsPotion) picks.push('potion');
-    if (wantsFlee) picks.push('flee');
-    if (!picks.length) {
-        const order = ['gold', 'lifesteal', 'potion', 'flee'];
-        picks.push(order[Math.floor(rnd() * order.length)]);
-    }
-    if ((rk === 'epic' || rk === 'legendary') && picks.length < 2) {
-        const extra = ['gold', 'lifesteal', 'potion', 'flee'].find((x) => !picks.includes(x));
-        if (extra) picks.push(extra);
-    }
-    if (rk === 'legendary' && picks.length < 3) {
-        const extra = ['gold', 'lifesteal', 'potion', 'flee'].find((x) => !picks.includes(x));
-        if (extra) picks.push(extra);
-    }
-    const mult = 0.8 + rnd() * 0.32;
-    if (picks.includes('gold')) {
-        it.goldGainBonus = _fixedDecimals(Math.min(0.35, Math.max(0.025, 0.018 * scale * mult)), 3);
-    }
-    if (picks.includes('lifesteal')) {
-        it.lifesteal = _fixedDecimals(Math.min(0.3, Math.max(0.025, 0.016 * scale * mult)), 3);
-    }
-    if (picks.includes('potion')) {
-        it.potionHealBonus = _fixedDecimals(Math.min(0.45, Math.max(0.08, 0.03 * scale * mult)), 3);
-    }
-    if (picks.includes('flee')) {
-        it.fleeBonus = _fixedDecimals(Math.min(0.3, Math.max(0.05, 0.02 * scale * mult)), 3);
-    }
-}
-
-function applyRoleBoundStatsToEquipmentItem(it) {
-    const role = detectEquipmentRole(it);
-    const seed = _budgetHashSeed(`${String(it.name || '')}|${String(it.type || '')}|${normalizeRarityKey(it.rarity)}|${getEquipmentFloorReference(it)}|role`);
-    const rnd = _budgetMulberry32(seed);
-    clearEquipmentGeneratedStats(it);
-    const scale = getRoleScale(it, rnd);
-    if (role === 'defense') assignDefenseStats(it, scale, rnd);
-    else if (role === 'utility') assignUtilityStats(it, scale, rnd);
-    else assignOffenseStats(it, scale, rnd);
-    normalizeEquipmentTagsForRole(it, role);
-    stripStatsOutsideRole(it, role);
-    return it;
-}
-
-function computeEquipmentStatValueScore(it) {
-    if (!it) return 0;
-    const hpValue = (it.type === 'hp' ? safeNumberForStatScore(it.value) : 0) + safeNumberForStatScore(it.hpBonus);
-    const atkValue = (it.type === 'atk' || it.type === 'ring' || it.type === 'rune') ? safeNumberForStatScore(it.value) : 0;
-    return (
-        atkValue * 1.55 +
-        hpValue * 0.23 +
-        Math.max(0, safeNumberForStatScore(it.def)) * 2.4 +
-        Math.max(0, safeNumberForStatScore(it.critBonus)) * 4.8 +
-        Math.max(0, safeNumberForStatScore(it.critMult)) * 100 * 2.8 +
-        Math.max(0, safeNumberForStatScore(it.damageReduction)) * 100 * 6.8 +
-        Math.max(0, safeNumberForStatScore(it.lifesteal)) * 100 * 4.5 +
-        Math.max(0, safeNumberForStatScore(it.goldGainBonus)) * 100 * 3.7 +
-        Math.max(0, safeNumberForStatScore(it.potionHealBonus)) * 100 * 2.8 +
-        Math.max(0, safeNumberForStatScore(it.fleeBonus)) * 100 * 1.8
-    );
-}
-
-function safeNumberForStatScore(v) {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : 0;
-}
-
-function _ensureMinPercentStat(it, key, minValue, digits) {
-    if (!it) return;
-    const cur = Number(it[key]);
-    const safe = Number.isFinite(cur) ? cur : 0;
-    it[key] = _fixedDecimals(Math.max(safe, minValue), digits);
-}
-
-function _ensureMinFlatStat(it, key, minValue) {
-    if (!it) return;
-    const cur = Number(it[key]);
-    const safe = Number.isFinite(cur) ? cur : 0;
-    it[key] = Math.max(Math.floor(safe), minValue);
-}
-
-function applyHighRarityMeritStats(it) {
-    if (!it || it.type === 'relic' || it.type === 'merc') return it;
-    const rk = normalizeRarityKey(it.rarity);
-    if (rk !== 'epic' && rk !== 'legendary') return it;
-    const isLegendary = rk === 'legendary';
-    const role = detectEquipmentRole(it);
-    if (role === 'offense') {
-        _ensureMinFlatStat(it, 'critBonus', isLegendary ? 16 : 10);
-        if (isLegendary) _ensureMinPercentStat(it, 'critMult', 0.22, 2);
-    } else if (role === 'defense') {
-        _ensureMinPercentStat(it, 'damageReduction', isLegendary ? 0.1 : 0.055, 3);
-    } else {
-        if (!it.goldGainBonus && !it.lifesteal && !it.potionHealBonus && !it.fleeBonus) {
-            it.goldGainBonus = isLegendary ? 0.22 : 0.14;
-        }
-    }
-    stripStatsOutsideRole(it, role);
-    return it;
-}
-
-/**
- * 공식 가격: 등급별 기준가 + 현재 층수 계수.
- * 등급 간 가격 역전을 막기 위해 하위 등급은 상위 등급 가격 미만으로 클램프한다.
- */
-function computeEquipmentGoldPrice(it, explicitFloorRef) {
-    if (!it) return 0;
-    const key = normalizeRarityKey(it.rarity);
-    const priceFloor = getPriceFloorReference(it, explicitFloorRef);
-    const basePrice = getShopPriceForRarity(key, priceFloor);
-    const statScore = computeEquipmentStatValueScore(it);
-    const baselineScore = {
-        common: 10,
-        rare: 42,
-        epic: 85,
-        legendary: 170,
-    }[key] || 10;
-    const rarityCoeff = {
-        common: 3,
-        rare: 2,
-        epic: 1.2,
-        legendary: 0.72,
-    }[key] || 3;
-    const floorCoeff = rarityCoeff + Math.min(1.4, Math.max(1, priceFloor) * 0.035);
-    const rolePremium = it.itemRole === 'utility' ? 1.08 : it.itemRole === 'defense' ? 1.03 : 1;
-    const premiumScore = Math.max(0, statScore - baselineScore);
-    const rawPrice = basePrice + Math.round((premiumScore * floorCoeff + statScore * 0.22) * rolePremium);
-    return clampShopPriceToRarityOrder(key, rawPrice, priceFloor);
-}
-
-function _jitterWeights(base, rnd) {
-    const out = {};
-    const VAR = 0.2;
-    for (const k of Object.keys(base)) {
-        const v = base[k];
-        if (v <= 0) {
-            out[k] = 0;
-            continue;
-        }
-        const m = 1 - VAR + rnd() * (2 * VAR);
-        out[k] = v * m;
-    }
-    let sum = 0;
-    for (const k of Object.keys(out)) sum += out[k];
-    if (sum <= 0) return out;
-    for (const k of Object.keys(out)) out[k] /= sum;
-    return out;
-}
-
-function _baseWeightsFromChannels(ch) {
-    return {
-        atk: ch.atk ? 2.4 : 0,
-        hp: ch.hp ? 2.4 : 0,
-        def: ch.def ? 1.35 : 0,
-        crit: ch.crit ? 1.05 : 0,
-        cm: ch.cm ? 1.05 : 0,
-        ls: ch.ls ? 0.95 : 0,
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        RULESET_VERSION,
+        HUMAN_JOB_KEY,
+        MAX_DUNGEON_FLOOR,
+        STAGES_PER_FLOOR,
+        LAST_SAFE_RETURN_FLOOR,
+        LAST_SAFE_RETURN_STAGE,
+        BALANCE,
+        STAT_KEYS,
+        statDefinitions,
+        weaponTable,
+        armorTable,
+        magicTable,
+        monsterArchetypeTable,
+        rollHumanStartingStats,
+        normalizeHumanStats,
+        getMaxHpFromStat,
+        createHumanAdventurer,
+        createDungeonProgress,
+        normalizeDungeonProgress,
+        getDungeonPositionKey,
+        formatDungeonPosition,
+        advanceDungeonProgress,
+        canReturnToBaseCamp,
+        hasCrossedPointOfNoReturn,
+        snapshotAdventurerForGhost,
+        capProbability,
+        TURN_RPG_DATA,
     };
 }
 
-/**
- * 예산 Bx(= 원 pt ×100)를 채널에 맞춰 100% 소비. 반환: 원 단위 스탯 정수·비율
- * @param {object} [it] 있으면 컨셉 가중·이름 기반 미세 차별 적용
+
+// ===== rpg_v7.js =====
+'use strict';
+
+/*
+ * v3.5 캠페인 저장소.
+ * 파일명은 기존 번들 순서를 보존하기 위해 유지하지만 v7 데이터와 마이그레이션은 사용하지 않는다.
  */
-function _allocateBudgetToStats(Bx, ch, rnd, rarityKey, it) {
-    const concept = it && (it.itemConceptKey || _detectItemConcept(it));
-    const theme = it && (it.keywordThemeKey || _detectKeywordTheme(it));
-    let w0 =
-        it && concept
-            ? _conceptStatWeights(concept, ch, it, rnd)
-            : _baseWeightsFromChannels(ch);
-    if (it && concept) {
-        w0 = _uniquifyStatWeights(
-            w0,
-            `${String(it.name || '')}|${String(it.rarity || '')}|${String(it.type || '')}|${concept}`,
-        );
-        if (theme) w0 = _applyKeywordThemeToWeights(w0, theme, ch);
-    }
-    const keys = ['atk', 'hp', 'def', 'crit', 'cm', 'ls'];
-    const mask = {
-        atk: ch.atk,
-        hp: ch.hp,
-        def: ch.def,
-        crit: ch.crit,
-        cm: ch.cm,
-        ls: ch.ls,
-    };
-    let baseSum = 0;
-    for (const k of keys) {
-        if (mask[k]) baseSum += w0[k];
-    }
-    if (baseSum <= 0) {
-        if (ch.atk) mask.atk = true;
-        else if (ch.hp) mask.hp = true;
-        w0 = _baseWeightsFromChannels(ch);
-        for (const k of keys) {
-            if (!mask[k]) w0[k] = 0;
-            else if (!(k in w0) || w0[k] === 0) w0[k] = 1;
-        }
-    }
-    const filtered = {};
-    for (const k of keys) filtered[k] = mask[k] ? w0[k] : 0;
-    const w = _jitterWeights(filtered, rnd);
-
-    const C = STAT_COST_X100;
-    const res = { atk: 0, hp: 0, def: 0, crit: 0, cm: 0, ls: 0 };
-    let Brem = Bx;
-    if (ch.atk) {
-        res.atk = 1;
-        Brem -= C.atk;
-    }
-    if (ch.hp) {
-        res.hp = 1;
-        Brem -= C.hp;
-    }
-    if (Brem < 0) Brem = 0;
-
-    const parts = [];
-    const STAT_MAX = _statMaxForRarity(rarityKey);
-    if (ch.atk) {
-        const pool = Brem * w.atk;
-        const u = pool / C.atk;
-        parts.push({ key: 'atk', u, cost: C.atk });
-    }
-    if (ch.hp) {
-        const pool = Brem * w.hp;
-        const u = pool / C.hp;
-        parts.push({ key: 'hp', u, cost: C.hp });
-    }
-    if (ch.def) {
-        const pool = Brem * w.def;
-        const u = pool / C.def;
-        parts.push({ key: 'def', u, cost: C.def });
-    }
-    if (ch.crit) {
-        const pool = Brem * w.crit;
-        const u = pool / C.crit;
-        parts.push({ key: 'crit', u, cost: C.crit });
-    }
-    if (ch.cm) {
-        const pool = Brem * w.cm;
-        const u = pool / C.cm;
-        parts.push({ key: 'cm', u, cost: C.cm });
-    }
-    if (ch.ls) {
-        const pool = Brem * w.ls;
-        const u = pool / C.ls;
-        parts.push({ key: 'ls', u, cost: C.ls });
-    }
-
-    const remArr = [];
-    for (const p of parts) {
-        const baseKey = p.key;
-        const existing = res[baseKey];
-        const u = Number.isFinite(p.u) ? p.u : 0;
-        const fl = Math.max(0, Math.floor(u));
-        const r = u - fl;
-        const room = Math.max(0, STAT_MAX[baseKey] - existing);
-        const add = Math.min(fl, room);
-        res[baseKey] = existing + add;
-        remArr.push({ key: p.key, cost: p.cost, max: STAT_MAX[p.key], r });
-    }
-
-    const costOf = (k) => C[k];
-    let spent = 0;
-    for (const k of Object.keys(res)) {
-        spent += res[k] * costOf(k);
-    }
-    let left = Bx - spent;
-
-    remArr.sort((a, b) => b.r - a.r);
-    let rr = 0;
-    while (left > 0 && remArr.length) {
-        let progressed = false;
-        for (let k = 0; k < remArr.length; k++) {
-            const p = remArr[(rr + k) % remArr.length];
-            if (p.cost <= left && res[p.key] < p.max) {
-                res[p.key]++;
-                left -= p.cost;
-                rr = (rr + k + 1) % remArr.length;
-                progressed = true;
-                break;
-            }
-        }
-        if (!progressed) break;
-    }
-
-    if (left > 0) {
-        const allow = { atk: ch.atk, hp: ch.hp, def: ch.def, crit: ch.crit, cm: ch.cm, ls: ch.ls };
-        const tryAdd = [
-            ['hp', C.hp],
-            ['atk', C.atk],
-            ['def', C.def],
-            ['crit', C.crit],
-            ['cm', C.cm],
-            ['ls', C.ls],
-        ];
-        let guard2 = 0;
-        while (left > 0 && guard2++ < 50000) {
-            let ok = false;
-            for (const [key, cst] of tryAdd) {
-                if (!allow[key]) continue;
-                if (cst <= left && res[key] < STAT_MAX[key]) {
-                    res[key]++;
-                    left -= cst;
-                    ok = true;
-                    break;
-                }
-            }
-            if (!ok) break;
-        }
-    }
-
-    return res;
-}
-
-/**
- * 비유물 장비 공식화:
- * 기본 수치 × 등급 배율 × 층 가중치로 무기·방어구·반지를 전부 재계산한다.
- */
-function applyOfficialStatsToEquipmentItem(it, opts) {
-    if (!it) return it;
-    const o = opts || {};
-    if (it.type === 'relic' || String(it.rarity || '').toLowerCase() === 'relic') return it;
-    if (!['atk', 'hp', 'ring', 'rune'].includes(String(it.type || ''))) return it;
-    if (o.floorUnlockKey != null) {
-        const floorRef = Number(o.floorUnlockKey);
-        if (Number.isFinite(floorRef) && floorRef > 0) it.unlockFloor = Math.floor(floorRef);
-    }
-
-    delete it.itemConceptKey;
-    delete it.keywordThemeKey;
-    delete it._itemConceptLabelKo;
-    delete it._keywordThemeLabelKo;
-
-    applyRoleBoundStatsToEquipmentItem(it);
-    applyHighRarityMeritStats(it);
-    it._officialStatApplied = true;
-    clampEquipmentItemStatsToRarityCaps(it);
-    ensureLegendaryUniqueEffectPlaceholder(it);
-    it.price = computeEquipmentGoldPrice(
-        it,
-        o.floorUnlockKey != null ? { priceFloor: Number(o.floorUnlockKey) } : undefined,
-    );
-    if (o.rebuildDesc !== false) rebuildEquipmentDesc(it, o);
-    return it;
-}
-
-/** 저장 데이터·구버전 보정: 등급 상한으로 장비 수치 클램프 후 설명 갱신 */
-function clampEquipmentItemStatsToRarityCaps(it) {
-    if (!it || it.type === 'relic' || it.type === 'merc') return it;
-    if (!['atk', 'hp', 'ring', 'rune'].includes(String(it.type || ''))) return it;
-    const role = detectEquipmentRole(it);
-    stripStatsOutsideRole(it, role);
-    normalizeEquipmentTagsForRole(it, role);
-    const rk = normalizeRarityKey(it.rarity);
-    const M = _statMaxForRarity(rk);
-    if (typeof it.value === 'number') {
-        if (it.type === 'hp') it.value = Math.max(1, Math.min(M.hp, it.value));
-        else if (it.type === 'atk' || it.type === 'ring') it.value = Math.max(1, Math.min(M.atk, it.value));
-        else if (it.type === 'rune') it.value = Math.max(1, Math.min(M.atk, it.value));
-    }
-    if (typeof it.hpBonus === 'number') {
-        it.hpBonus = Math.max(1, Math.min(M.hp, it.hpBonus));
-    }
-    if (typeof it.def === 'number') {
-        it.def = Math.min(M.def, Math.max(0, it.def));
-    }
-    if (typeof it.critBonus === 'number') it.critBonus = Math.min(M.crit, Math.max(0, it.critBonus));
-    if (typeof it.critMult === 'number') it.critMult = Math.min(M.cm / 100, Math.max(0, it.critMult));
-    if (typeof it.lifesteal === 'number') it.lifesteal = Math.min(M.ls / 100, Math.max(0, it.lifesteal));
-    if (typeof it.damageReduction === 'number') {
-        const reductionCap = rk === 'legendary' ? 0.2 : rk === 'epic' ? 0.13 : rk === 'rare' ? 0.075 : 0.04;
-        it.damageReduction = Math.min(reductionCap, Math.max(0, it.damageReduction));
-    }
-    if (typeof it.goldGainBonus === 'number') {
-        const goldCap = rk === 'legendary' ? 0.35 : rk === 'epic' ? 0.22 : rk === 'rare' ? 0.08 : 0.04;
-        it.goldGainBonus = Math.min(goldCap, Math.max(0, it.goldGainBonus));
-    }
-    if (typeof it.potionHealBonus === 'number') {
-        const potionCap = rk === 'legendary' ? 0.5 : rk === 'epic' ? 0.32 : rk === 'rare' ? 0.2 : 0.12;
-        it.potionHealBonus = Math.min(potionCap, Math.max(0, it.potionHealBonus));
-    }
-    if (typeof it.fleeBonus === 'number') {
-        const fleeCap = rk === 'legendary' ? 0.3 : rk === 'epic' ? 0.18 : rk === 'rare' ? 0.12 : 0.07;
-        it.fleeBonus = Math.min(fleeCap, Math.max(0, it.fleeBonus));
-    }
-    return it;
-}
-
-if (typeof window !== 'undefined') {
-    window.applyOfficialStatsToEquipmentItem = applyOfficialStatsToEquipmentItem;
-    window.clampEquipmentItemStatsToRarityCaps = clampEquipmentItemStatsToRarityCaps;
-    window.computeEquipmentGoldPrice = computeEquipmentGoldPrice;
-    window.computeFloorGoldReward = computeFloorGoldReward;
-    window.normalizeFloorGrowth = normalizeFloorGrowth;
-    window.computeFloorGrowthForClears = computeFloorGrowthForClears;
-    window.getFloorGrowthStep = getFloorGrowthStep;
-    window.tacticalSkillChoices = tacticalSkillChoices;
-    window.tacticalSkillMilestones = tacticalSkillMilestones;
-    window.getTacticalSkillDef = getTacticalSkillDef;
-    window.getTacticalSkillMilestoneForFloor = getTacticalSkillMilestoneForFloor;
-    window.storyData = storyData;
-    window.createDefaultPlayerState = createDefaultPlayerState;
-    window.normalizePlayerState = normalizePlayerState;
-    window.getStoryRouteKey = getStoryRouteKey;
-    window.getStoryEndingKey = getStoryEndingKey;
-    window.getStoryTitleForState = getStoryTitleForState;
-    window.getStoryChoiceImpact = getStoryChoiceImpact;
-    window.getStoryMilestoneDef = getStoryMilestoneDef;
-    window.RUNE_POOL_COUNT = typeof runePool !== 'undefined' ? runePool.length : 0;
-}
-
-/** 공식 기반 스탯 테이블 적용 (비유물 전용) */
-(function applyOfficialStatTable() {
-    function runOne(it, opts) {
-        if (!it) return;
-        applyOfficialStatsToEquipmentItem(it, opts);
-    }
-    if (typeof equipmentPool !== 'undefined' && Array.isArray(equipmentPool)) {
-        equipmentPool.forEach((it) => runOne(it, {}));
-    }
-    function applyObj(obj) {
-        if (!obj) return;
-        Object.keys(obj).forEach((k) => {
-            runOne(obj[k], { floorUnlockKey: k });
-        });
-    }
-    applyObj(typeof floorUnlocks !== 'undefined' ? floorUnlocks : null);
-    applyObj(typeof floorUnlocksHunter !== 'undefined' ? floorUnlocksHunter : null);
-    applyObj(typeof floorUnlocksWizard !== 'undefined' ? floorUnlocksWizard : null);
-    if (typeof forgeRecipes !== 'undefined' && Array.isArray(forgeRecipes)) {
-        forgeRecipes.forEach((it) => runOne(it, { forgeRecipe: true }));
-    }
-})();
-
-// ---- rpg_v7.js ----
-/**
- * 던전 v7 — 메타 진행(다중 캐릭터·테크트리·베이스캠프·퀘스트·시너지)
- * game.js에서 MetaRPG.* 호출
- */
-(function (global) {
-    const STORAGE_KEY = 'dungeon_meta_v7';
-    /** 레거시 단일 저장 키 — migrate 후 파일 슬롯으로 이관 */
-    const LEGACY_META_KEY = 'dungeon_meta_v7';
+(function installCampaignStore(global) {
+    const STORAGE_KEY = 'turn_rpg_campaign_v35';
+    const GHOST_STORAGE_KEY = 'turn_rpg_ghosts_v35';
+    const SNAPSHOT_STORAGE_KEY = 'turn_rpg_snapshot_v35';
+    const ACTIVE_FILE_KEY = 'turn_rpg_active_file_v35';
     const SAVE_SLOT_COUNT = 3;
-    const ACTIVE_FILE_KEY = 'dungeon_meta_v7_active_file';
-    const FILE_MIG_FLAG = 'dungeon_meta_v7_file_migrated_v2';
+    const MAX_SLOTS = 1;
+    const BASE_CAMP_FLOORS = [1, 2, 3, 4, 5];
+    const TECH_NODES = [];
+    const FLOOR_QUESTS = {};
 
-    function slotFileKey(i) {
-        return 'dungeon_meta_v7_f' + i;
+    function clone(value) {
+        return value == null ? value : JSON.parse(JSON.stringify(value));
     }
 
-    function getActiveFileIndex() {
-        const v = parseInt(localStorage.getItem(ACTIVE_FILE_KEY) || '0', 10);
-        return v >= 0 && v < SAVE_SLOT_COUNT ? v : 0;
-    }
-
-    function migrateLegacyMetaToFileSlots() {
-        if (localStorage.getItem(FILE_MIG_FLAG)) return;
-        try {
-            const leg = localStorage.getItem(LEGACY_META_KEY);
-            if (leg && !localStorage.getItem(slotFileKey(0))) {
-                localStorage.setItem(slotFileKey(0), leg);
-            }
-        } catch (e) {
-            /* ignore */
-        }
-        localStorage.setItem(FILE_MIG_FLAG, '1');
-    }
-
-    const MAX_SLOTS = 4;
-
-    /** 30층 이상에서 상점을 통해서만 베이스캠프 UI (레거시 호환: 층>=30) */
-    const BASE_CAMP_FLOORS = [30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100];
-
-    function uid() {
-        return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-    }
-
-    function defaultMeta() {
+    function emptyMeta() {
         return {
-            version: 1,
+            version: RULESET_VERSION,
             savedGold: 0,
             activeSlotId: null,
             slots: [],
+            deadAdventurers: [],
         };
     }
 
-    function ensureSlotV703(s) {
-        if (!s) return;
-        if (!s.campPerma) s.campPerma = { hp: 0, atk: 0, def: 0, crit: 0, cm: 0 };
-        if (s.reincarnationCount == null) s.reincarnationCount = 0;
-        if (!s.rebirthStatBonus) s.rebirthStatBonus = { hp: 0, atk: 0, def: 0, acc: 0 };
-        if (!s.rebirthPctBonus) s.rebirthPctBonus = { atkPct: 0, defPct: 0, critMultPct: 0 };
-        if (s.bestFloor == null) s.bestFloor = 1;
-        s.floorGrowth = normalizeSlotFloorGrowth(s.floorGrowth);
-        s.playerState = normalizeSlotPlayerState(s.playerState);
-        s.tacticalSkills = uniqueStringArray(s.tacticalSkills);
-        s.tacticalSkillMilestonesClaimed = uniqueNumberArray(s.tacticalSkillMilestonesClaimed);
-        s.promotionHistory = uniqueStringArray(s.promotionHistory);
-        s.rescuedItems = normalizeRescuedItems(s.rescuedItems);
-        /** A/B 라인 고정 제거 — 테크는 직업 내 노드 자유 조합 */
-        if (s.techLine === 'A' || s.techLine === 'B') s.techLine = null;
+    function loadJson(key, fallback) {
+        try {
+            const parsed = JSON.parse(localStorage.getItem(key) || 'null');
+            return parsed == null ? fallback : parsed;
+        } catch (_error) {
+            return fallback;
+        }
     }
 
-    function normalizeSlotFloorGrowth(raw) {
-        if (typeof normalizeFloorGrowth === 'function') return normalizeFloorGrowth(raw);
-        const src = raw && typeof raw === 'object' ? raw : {};
+    function saveJson(key, value) {
+        localStorage.setItem(key, JSON.stringify(value));
+        return value;
+    }
+
+    function normalizeSlot(slot) {
+        if (!slot || typeof slot !== 'object') return null;
+        const stats = slot.stats ? normalizeHumanStats(slot.stats) : rollHumanStartingStats();
+        const maxHp = Math.max(1, Number(slot.maxHp) || (50 + stats.hp * 5));
         return {
-            floors: Math.max(0, Math.floor(Number(src.floors) || 0)),
-            atk: Math.max(0, Math.floor(Number(src.atk) || 0)),
-            hp: Math.max(0, Math.floor(Number(src.hp) || 0)),
+            id: slot.id || `human-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+            name: slot.name || '인간 모험가',
+            species: 'human',
+            jobKey: HUMAN_JOB_KEY,
+            classKey: null,
+            baseJob: '인간 모험가',
+            originBaseJobKey: HUMAN_JOB_KEY,
+            introWeaponKey: null,
+            stats,
+            hp: Math.min(maxHp, Math.max(0, Number(slot.hp == null ? maxHp : slot.hp) || 0)),
+            maxHp,
+            progress: normalizeDungeonProgress(slot.progress),
+            permanentDeath: !!slot.permanentDeath,
+            diedAt: slot.diedAt || null,
+            deathPosition: slot.deathPosition ? normalizeDungeonProgress(slot.deathPosition) : null,
+            ghostId: slot.ghostId || null,
+            equipment: clone(slot.equipment || { weapon: null, armor: null, accessories: [] }),
+            magic: clone(slot.magic || []),
+            skills: clone(slot.skills || []),
+            mastery: clone(slot.mastery || {}),
+            statuses: clone(slot.statuses || []),
+            body: clone(slot.body || {}),
+            items: clone(slot.items || []),
+            relics: clone(slot.relics || []),
+            behaviorLogger: clone(slot.behaviorLogger || []),
+            behaviorMatrix: clone(slot.behaviorMatrix || null),
+            level: 1,
+            exp: 0,
+            bestFloor: Math.max(1, Number(slot.bestFloor) || 1),
+            bestStage: Math.max(1, Number(slot.bestStage) || 1),
+            techBonus: { hp: 0, atk: 0, def: 0, acc: 0, crit: 0, critMult: 0 },
+            campPerma: { hp: 0, atk: 0, def: 0, crit: 0, cm: 0 },
+            rebirthStatBonus: { hp: 0, atk: 0, def: 0, acc: 0 },
+            rebirthPctBonus: { atkPct: 0, defPct: 0, critMultPct: 0 },
+            floorGrowth: { floors: 0, atk: 0, hp: 0 },
+            playerState: { corruption: 0, purification: 0 },
+            tacticalSkills: [],
+            tacticalSkillMilestonesClaimed: [],
+            promotionHistory: [],
+            currentPromotion: null,
+            starterEquipment: [],
+            rescuedItems: [],
+            createdAt: slot.createdAt || Date.now(),
         };
-    }
-
-    function normalizeSlotPlayerState(raw) {
-        if (typeof normalizePlayerState === 'function') return normalizePlayerState(raw);
-        const src = raw && typeof raw === 'object' ? raw : {};
-        return {
-            corruption: Math.max(0, Math.floor(Number(src.corruption) || 0)),
-            purification: Math.max(0, Math.floor(Number(src.purification) || 0)),
-        };
-    }
-
-    function uniqueStringArray(raw) {
-        const arr = Array.isArray(raw) ? raw : [];
-        return Array.from(new Set(arr.map((x) => String(x || '').trim()).filter(Boolean)));
-    }
-
-    function uniqueNumberArray(raw) {
-        const arr = Array.isArray(raw) ? raw : [];
-        return Array.from(
-            new Set(
-                arr
-                    .map((x) => Math.floor(Number(x) || 0))
-                    .filter((x) => Number.isFinite(x) && x > 0)
-            )
-        );
-    }
-
-    function normalizeRescuedItems(raw) {
-        const arr = Array.isArray(raw) ? raw : [];
-        return arr
-            .filter((it) => it && typeof it === 'object' && ['atk', 'hp', 'ring', 'rune'].includes(String(it.type || '')))
-            .slice(0, 12)
-            .map((it) => {
-                try {
-                    const copy = JSON.parse(JSON.stringify(it));
-                    if (copy.type === 'merc') return null;
-                    return copy;
-                } catch (e) {
-                    return null;
-                }
-            })
-            .filter(Boolean);
     }
 
     function loadMeta() {
-        migrateLegacyMetaToFileSlots();
-        try {
-            const raw = localStorage.getItem(slotFileKey(getActiveFileIndex()));
-            if (!raw) return defaultMeta();
-            const o = JSON.parse(raw);
-            if (!o || typeof o !== 'object') return defaultMeta();
-            if (!Array.isArray(o.slots)) o.slots = [];
-            if (o.savedGold == null) o.savedGold = 0;
-            o.slots.forEach(ensureSlotV703);
-            return o;
-        } catch (e) {
-            return defaultMeta();
+        const raw = loadJson(STORAGE_KEY, emptyMeta());
+        const meta = raw && raw.version === RULESET_VERSION ? raw : emptyMeta();
+        meta.slots = Array.isArray(meta.slots) ? meta.slots.map(normalizeSlot).filter(Boolean) : [];
+        meta.deadAdventurers = Array.isArray(meta.deadAdventurers)
+            ? meta.deadAdventurers.map(normalizeSlot).filter(Boolean)
+            : [];
+        if (!meta.slots.some((slot) => slot.id === meta.activeSlotId && !slot.permanentDeath)) {
+            const living = meta.slots.find((slot) => !slot.permanentDeath);
+            meta.activeSlotId = living ? living.id : null;
         }
+        meta.savedGold = Math.max(0, Number(meta.savedGold) || 0);
+        return meta;
     }
 
-    function saveMeta(m) {
-        localStorage.setItem(slotFileKey(getActiveFileIndex()), JSON.stringify(m));
+    function saveMeta(meta) {
+        const next = meta && typeof meta === 'object' ? meta : emptyMeta();
+        next.version = RULESET_VERSION;
+        next.slots = Array.isArray(next.slots) ? next.slots.map(normalizeSlot).filter(Boolean) : [];
+        next.deadAdventurers = Array.isArray(next.deadAdventurers)
+            ? next.deadAdventurers.map(normalizeSlot).filter(Boolean)
+            : [];
+        return saveJson(STORAGE_KEY, next);
     }
-
-    function setActiveSaveFileIndex(i) {
-        if (i < 0 || i >= SAVE_SLOT_COUNT) return false;
-        localStorage.setItem(ACTIVE_FILE_KEY, String(i));
-        return true;
-    }
-
-    function clearSaveFile(i) {
-        if (i < 0 || i >= SAVE_SLOT_COUNT) return false;
-        localStorage.removeItem(slotFileKey(i));
-        return true;
-    }
-
-    function getSaveFileSlotCount() {
-        return SAVE_SLOT_COUNT;
-    }
-
-    /** 현재 활성 파일을 바꾸지 않고 i번 슬롯 메타만 읽기 (허브 UI용) */
-    function peekMetaAtFileIndex(i) {
-        migrateLegacyMetaToFileSlots();
-        if (i < 0 || i >= SAVE_SLOT_COUNT) return defaultMeta();
-        try {
-            const raw = localStorage.getItem(slotFileKey(i));
-            if (!raw) return defaultMeta();
-            const o = JSON.parse(raw);
-            if (!o || typeof o !== 'object') return defaultMeta();
-            if (!Array.isArray(o.slots)) o.slots = [];
-            if (o.savedGold == null) o.savedGold = 0;
-            o.slots.forEach(ensureSlotV703);
-            return o;
-        } catch (e) {
-            return defaultMeta();
-        }
-    }
-
-    /** 구 v6 영구 강화 → 첫 슬롯으로 1회 이관 */
-    function migrateLegacyOnce() {
-        if (localStorage.getItem('meta_v7_legacy_migrated')) return;
-        const m = loadMeta();
-        if (m.slots.length > 0) {
-            localStorage.setItem('meta_v7_legacy_migrated', '1');
-            return;
-        }
-        try {
-            const ps = JSON.parse(localStorage.getItem('perma_stats') || '{}');
-            const sg = parseInt(localStorage.getItem('saved_gold') || '0', 10) || 0;
-            const hp = Math.max(0, Number(ps.hp) || 0);
-            const atk = Math.max(0, Number(ps.atk) || 0);
-            const def = Math.max(0, Number(ps.def) || 0);
-            const acc = Math.max(0, Number(ps.acc) || 0);
-            if (hp + atk + def + acc > 0 || sg > 0) {
-                m.slots.push({
-                    id: uid(),
-                    name: '이전 모험가',
-                    jobKey: 'Warrior',
-                    techLine: null,
-                    techPurchased: [],
-                    legacyPerma: { hp, atk, def, acc },
-                    extraPerma: { hp: 0, atk: 0, def: 0, acc: 0 },
-                    campPerma: { hp: 0, atk: 0, def: 0, crit: 0, cm: 0 },
-                    level: 1,
-                    exp: 0,
-                    metaPenalty: { hp: 0, atk: 0, def: 0, acc: 0 },
-                    questFlags: {},
-                    reincarnationCount: 0,
-                    rebirthStatBonus: { hp: 0, atk: 0, def: 0, acc: 0 },
-                });
-                m.activeSlotId = m.slots[0].id;
-                m.savedGold = sg;
-                saveMeta(m);
-            }
-        } catch (e) { /* ignore */ }
-        localStorage.setItem('meta_v7_legacy_migrated', '1');
-    }
-
-    /** 테크 노드 정의 — line A/B는 생성 시 고정, 변경 불가 */
-    function buildTechNodes() {
-        const W = 'Warrior',
-            H = 'Hunter',
-            Wz = 'Wizard',
-            Mc = 'MercenaryCaptain';
-        const nodes = [
-            // Warrior A — 화력
-            { id: 'W_A_1', jobKey: W, line: 'A', name: '침투: 근력 I', cost: 60, requires: [], effect: { atk: 4 } },
-            { id: 'W_A_2', jobKey: W, line: 'A', name: '침투: 근력 II', cost: 110, requires: ['W_A_1'], effect: { atk: 7 } },
-            { id: 'W_A_3', jobKey: W, line: 'A', name: '침투: 치명 각성', cost: 160, requires: ['W_A_2'], effect: { atk: 5, acc: 3 } },
-            // Warrior B — 생존
-            { id: 'W_B_1', jobKey: W, line: 'B', name: '철벽: 체력 I', cost: 60, requires: [], effect: { hp: 45 } },
-            { id: 'W_B_2', jobKey: W, line: 'B', name: '철벽: 방어', cost: 110, requires: ['W_B_1'], effect: { hp: 35, def: 3 } },
-            { id: 'W_B_3', jobKey: W, line: 'B', name: '철벽: 불굴', cost: 160, requires: ['W_B_2'], effect: { def: 5, hp: 40 } },
-            // Hunter A
-            { id: 'H_A_1', jobKey: H, line: 'A', name: '추적: 민첩', cost: 60, requires: [], effect: { atk: 3, acc: 4 } },
-            { id: 'H_A_2', jobKey: H, line: 'A', name: '추적: 약점', cost: 110, requires: ['H_A_1'], effect: { atk: 8 } },
-            { id: 'H_A_3', jobKey: H, line: 'A', name: '추적: 일격', cost: 160, requires: ['H_A_2'], effect: { atk: 6, acc: 5 } },
-            // Hunter B
-            { id: 'H_B_1', jobKey: H, line: 'B', name: '은신: 체력', cost: 60, requires: [], effect: { hp: 40 } },
-            { id: 'H_B_2', jobKey: H, line: 'B', name: '은신: 회피 명중', cost: 110, requires: ['H_B_1'], effect: { acc: 10, hp: 25 } },
-            { id: 'H_B_3', jobKey: H, line: 'B', name: '은신: 흡혈 각성', cost: 160, requires: ['H_B_2'], effect: { atk: 5, hp: 30 } },
-            // Wizard A
-            { id: 'Z_A_1', jobKey: Wz, line: 'A', name: '마도: 파괴 I', cost: 60, requires: [], effect: { atk: 6 } },
-            { id: 'Z_A_2', jobKey: Wz, line: 'A', name: '마도: 파괴 II', cost: 110, requires: ['Z_A_1'], effect: { atk: 10 } },
-            { id: 'Z_A_3', jobKey: Wz, line: 'A', name: '마도: 폭풍', cost: 160, requires: ['Z_A_2'], effect: { atk: 8, acc: 4 } },
-            // Wizard B
-            { id: 'Z_B_1', jobKey: Wz, line: 'B', name: '결계: 체력', cost: 60, requires: [], effect: { hp: 35, def: 2 } },
-            { id: 'Z_B_2', jobKey: Wz, line: 'B', name: '결계: 방벽', cost: 110, requires: ['Z_B_1'], effect: { hp: 50, def: 3 } },
-            { id: 'Z_B_3', jobKey: Wz, line: 'B', name: '결계: 봉인', cost: 160, requires: ['Z_B_2'], effect: { def: 6, hp: 40 } },
-            // MercenaryCaptain (지휘·생존)
-            { id: 'M_A_1', jobKey: Mc, line: 'A', name: '지휘: 보급', cost: 60, requires: [], effect: { atk: 2, hp: 30 } },
-            { id: 'M_A_2', jobKey: Mc, line: 'A', name: '지휘: 전술', cost: 110, requires: ['M_A_1'], effect: { atk: 4, acc: 5 } },
-            { id: 'M_B_1', jobKey: Mc, line: 'B', name: '생존: 체력', cost: 60, requires: [], effect: { hp: 55 } },
-            { id: 'M_B_2', jobKey: Mc, line: 'B', name: '생존: 방어', cost: 110, requires: ['M_B_1'], effect: { hp: 45, def: 4 } },
-        ];
-        return nodes;
-    }
-
-    const TECH_NODES = buildTechNodes();
 
     function getSlotById(id) {
-        const m = loadMeta();
-        return m.slots.find((s) => s.id === id) || null;
+        return loadMeta().slots.find((slot) => slot.id === id) || null;
     }
 
-    function getCampStatGrowthBonus(slot, key, level) {
-        const lv = Math.max(0, Number(level) || 0);
-        if (!slot || lv <= 0) return 0;
-        const job = typeof jobBase !== 'undefined' ? jobBase[slot.jobKey] : null;
-        if (!job) return 0;
-        const floorEquivalent = lv * ((typeof BALANCE !== 'undefined' && BALANCE.upgradeFloorEquivalent) || 1.25);
-        const perFloorGrowth = (typeof BALANCE !== 'undefined' && BALANCE.enemyPostWallGrowth) || 1.065;
-        const growth = Math.pow(perFloorGrowth, floorEquivalent) - 1;
-        const ref = {
-            hp: Math.max(1, Number(job.hp) || 1),
-            atk: Math.max(1, Number(job.atk) || 1),
-            def: Math.max(8, Number(job.def) || 1),
-        }[key];
-        return Math.floor(ref * growth);
-    }
-
-    function recalcTechBonus(slot) {
-        const bought = new Set(slot.techPurchased || []);
-        const techMult = 1 + Math.min(3, slot.reincarnationCount || 0) * 0.05;
-        let hp = 0,
-            atk = 0,
-            def = 0,
-            acc = 0;
-        const jb = slot.jobKey;
-        for (const n of TECH_NODES) {
-            if (!bought.has(n.id)) continue;
-            if (n.jobKey !== jb) continue;
-            const e = n.effect || {};
-            hp += (e.hp || 0) * techMult;
-            atk += (e.atk || 0) * techMult;
-            def += (e.def || 0) * techMult;
-            acc += (e.acc || 0) * techMult;
+    function createCharacter(name) {
+        const meta = loadMeta();
+        if (meta.slots.some((slot) => !slot.permanentDeath)) {
+            return { ok: false, msg: '살아 있는 인간 모험가는 한 명만 존재할 수 있습니다.' };
         }
-        const cp = slot.campPerma || { hp: 0, atk: 0, def: 0, crit: 0, cm: 0 };
-        /** 베이스캠프 영구: 1단계 ≈ 1.25층 성장분, 4단계 ≈ 5층 돌파분 */
-        hp += getCampStatGrowthBonus(slot, 'hp', cp.hp || 0);
-        atk += getCampStatGrowthBonus(slot, 'atk', cp.atk || 0);
-        def += getCampStatGrowthBonus(slot, 'def', cp.def || 0);
-        const critFromCamp = (cp.crit || 0) * 1.0;
-        const cmFromCamp = (cp.cm || 0) * 0.1;
-        const leg = slot.legacyPerma || { hp: 0, atk: 0, def: 0, acc: 0 };
-        const ex = slot.extraPerma || { hp: 0, atk: 0, def: 0, acc: 0 };
-        const pen = slot.metaPenalty || { hp: 0, atk: 0, def: 0, acc: 0 };
-        slot.techBonus = {
-            hp: Math.max(0, hp + (leg.hp || 0) + (ex.hp || 0) - (pen.hp || 0)),
-            atk: Math.max(0, atk + (leg.atk || 0) + (ex.atk || 0) - (pen.atk || 0)),
-            def: Math.max(0, def + (leg.def || 0) + (ex.def || 0) - (pen.def || 0)),
-            acc: Math.max(0, acc + (leg.acc || 0) + (ex.acc || 0) - (pen.acc || 0)),
-            crit: critFromCamp,
-            critMult: cmFromCamp,
-        };
+        const actor = createHumanAdventurer({ name: name || '인간 모험가' });
+        const slot = normalizeSlot(actor);
+        meta.slots.push(slot);
+        meta.activeSlotId = slot.id;
+        saveMeta(meta);
+        clearRunSnapshot(slot.id);
+        return { ok: true, slot: clone(slot), rolledStats: clone(slot.stats) };
     }
 
-    function getTechNodesForSlot(slot) {
-        if (!slot || !slot.jobKey) return [];
-        return TECH_NODES.filter((n) => n.jobKey === slot.jobKey);
-    }
-
-    function canPurchaseNode(slot, nodeId) {
-        const n = TECH_NODES.find((x) => x.id === nodeId);
-        if (!n || n.jobKey !== slot.jobKey) return false;
-        if ((slot.techPurchased || []).includes(nodeId)) return false;
-        const bought = new Set(slot.techPurchased || []);
-        for (const r of n.requires || []) {
-            if (!bought.has(r)) return false;
-        }
+    function setActiveSlot(id) {
+        const meta = loadMeta();
+        const slot = meta.slots.find((entry) => entry.id === id);
+        if (!slot || slot.permanentDeath) return false;
+        meta.activeSlotId = id;
+        saveMeta(meta);
         return true;
     }
 
-    function purchaseTechNode(slotId, nodeId) {
-        const m = loadMeta();
-        const slot = m.slots.find((s) => s.id === slotId);
-        if (!slot) return { ok: false, msg: '슬롯 없음' };
-        if (!canPurchaseNode(slot, nodeId)) return { ok: false, msg: '구매 불가(선행 또는 라인 불일치)' };
-        const n = TECH_NODES.find((x) => x.id === nodeId);
-        const cost = n.cost || 0;
-        if (m.savedGold < cost) return { ok: false, msg: '보존 골드 부족' };
-        m.savedGold -= cost;
-        slot.techPurchased = slot.techPurchased || [];
-        slot.techPurchased.push(nodeId);
-        recalcTechBonus(slot);
-        saveMeta(m);
-        return { ok: true, msg: n.name };
-    }
-
-    function expToNextLevel(lv) {
-        return Math.floor(32 + lv * 18 + lv * lv * 0.35);
-    }
-
-    function addExpToSlot(slotId, amount) {
-        const m = loadMeta();
-        const slot = m.slots.find((s) => s.id === slotId);
-        if (!slot) return null;
-        slot.level = Math.max(1, slot.level || 1);
-        slot.exp = Math.max(0, (slot.exp || 0) + amount);
-        let need = expToNextLevel(slot.level);
-        while (slot.exp >= need) {
-            slot.exp -= need;
-            slot.level += 1;
-            need = expToNextLevel(slot.level);
+    function syncRunProgress(id, patch) {
+        const meta = loadMeta();
+        const slot = meta.slots.find((entry) => entry.id === id);
+        if (!slot || slot.permanentDeath) return false;
+        const source = patch || {};
+        if (source.stats) slot.stats = normalizeHumanStats(source.stats);
+        if (source.progress) slot.progress = normalizeDungeonProgress(source.progress);
+        if (source.hp != null) slot.hp = Math.max(0, Number(source.hp) || 0);
+        if (source.maxHp != null) slot.maxHp = Math.max(1, Number(source.maxHp) || 1);
+        for (const key of ['equipment', 'magic', 'skills', 'mastery', 'statuses', 'body', 'items', 'relics', 'behaviorLogger', 'behaviorMatrix']) {
+            if (source[key] != null) slot[key] = clone(source[key]);
         }
-        saveMeta(m);
-        return { level: slot.level, exp: slot.exp, need };
+        slot.bestFloor = Math.max(slot.bestFloor || 1, slot.progress.floor);
+        slot.bestStage = slot.bestFloor === slot.progress.floor
+            ? Math.max(slot.bestStage || 1, slot.progress.stage)
+            : slot.bestStage;
+        saveMeta(meta);
+        return clone(slot);
     }
 
-    /** 레벨에 따른 런타임 보너스 (소량) */
-    function getLevelRuntimeBonus(level) {
-        const lv = Math.max(1, level || 1);
-        return {
-            hp: Math.floor((lv - 1) * 4),
-            atk: Math.floor((lv - 1) * 0.6),
-            def: Math.floor((lv - 1) * 0.35),
-            acc: Math.floor((lv - 1) * 0.25),
+    function loadGhostArchive() {
+        const raw = loadJson(GHOST_STORAGE_KEY, {});
+        return raw && typeof raw === 'object' ? raw : {};
+    }
+
+    function saveGhostArchive(archive) {
+        return saveJson(GHOST_STORAGE_KEY, archive || {});
+    }
+
+    function archiveGhost(actor, progress, killedBy) {
+        const ghost = snapshotAdventurerForGhost(actor, progress, killedBy);
+        const archive = loadGhostArchive();
+        const key = ghost.positionKey;
+        if (!Array.isArray(archive[key])) archive[key] = [];
+        archive[key].push(ghost);
+        saveGhostArchive(archive);
+        return clone(ghost);
+    }
+
+    function getGhostsAt(progress) {
+        const key = getDungeonPositionKey(progress);
+        const archive = loadGhostArchive();
+        return clone(Array.isArray(archive[key]) ? archive[key] : []);
+    }
+
+    function getGhostCombatPower(ghost) {
+        const stats = normalizeHumanStats(ghost && ghost.stats || {});
+        const statScore = stats.str + stats.def + stats.hp + stats.int + stats.wis + stats.agi;
+        const items = Array.isArray(ghost && ghost.items)
+            ? ghost.items
+            : ghost && ghost.fullSpec && Array.isArray(ghost.fullSpec.items)
+              ? ghost.fullSpec.items
+              : [];
+        const equipmentScore = items.reduce((sum, item) => {
+            if (!item) return sum;
+            const attack = item.type === 'atk' || item.type === 'ring' || item.type === 'rune' ? Number(item.value) || 0 : 0;
+            const hp = item.type === 'hp' ? Number(item.value) || 0 : Number(item.hpBonus) || 0;
+            return sum + attack + hp / 5 + (Number(item.def) || 0) * 2 +
+                (Number(item.critBonus) || 0) * 1.5 +
+                (Number(item.critMult) || 0) * 60 +
+                (Number(item.lifesteal) || 0) * 100 +
+                (Number(item.damageReduction) || 0) * 120;
+        }, 0);
+        const magic = Array.isArray(ghost && ghost.magic) ? ghost.magic : [];
+        const mastery = ghost && ghost.mastery && typeof ghost.mastery === 'object' ? ghost.mastery : {};
+        const magicMastery = Number(mastery.magic || mastery.holyMagic || mastery.twistedMagic) || 0;
+        const magicScore = magic.length * 15 + magicMastery * 0.5;
+        return Math.max(1, statScore + equipmentScore + magicScore);
+    }
+
+    function getGhostEncounter(progress, random) {
+        const ghosts = getGhostsAt(progress);
+        if (!ghosts.length) return null;
+        const rng = typeof random === 'function' ? random : Math.random;
+        const weighted = ghosts.map((ghost) => ({ ghost, weight: getGhostCombatPower(ghost) }));
+        const total = weighted.reduce((sum, entry) => sum + entry.weight, 0);
+        let roll = rng() * total;
+        for (const entry of weighted) {
+            roll -= entry.weight;
+            if (roll <= 0) return clone(entry.ghost);
+        }
+        return clone(weighted[weighted.length - 1].ghost);
+    }
+
+    function markPermanentDeath(slotId, actor, progress, killedBy) {
+        const meta = loadMeta();
+        const slot = meta.slots.find((entry) => entry.id === slotId);
+        if (!slot || slot.permanentDeath) return slot ? { slot: clone(slot), ghost: null } : null;
+        const fullActor = {
+            ...clone(slot),
+            ...clone(actor || {}),
+            id: slot.id,
+            stats: normalizeHumanStats((actor && actor.stats) || slot.stats),
+            progress: normalizeDungeonProgress(progress || (actor && actor.progress) || slot.progress),
         };
+        const ghost = archiveGhost(fullActor, fullActor.progress, killedBy);
+        slot.permanentDeath = true;
+        slot.hp = 0;
+        slot.diedAt = Date.now();
+        slot.deathPosition = normalizeDungeonProgress(fullActor.progress);
+        slot.ghostId = ghost.ghostId;
+        slot.progress = normalizeDungeonProgress(fullActor.progress);
+        slot.stats = clone(fullActor.stats);
+        slot.equipment = clone(fullActor.equipment || slot.equipment);
+        slot.magic = clone(fullActor.magic || slot.magic);
+        slot.skills = clone(fullActor.skills || slot.skills);
+        slot.mastery = clone(fullActor.mastery || slot.mastery);
+        slot.statuses = clone(fullActor.statuses || slot.statuses);
+        slot.body = clone(fullActor.body || slot.body);
+        slot.items = clone(fullActor.items || slot.items);
+        slot.relics = clone(fullActor.relics || slot.relics);
+        slot.behaviorLogger = clone(fullActor.behaviorLogger || slot.behaviorLogger);
+        slot.behaviorMatrix = clone(fullActor.behaviorMatrix || slot.behaviorMatrix);
+        meta.deadAdventurers = Array.isArray(meta.deadAdventurers) ? meta.deadAdventurers : [];
+        meta.deadAdventurers.push(clone(slot));
+        meta.slots = meta.slots.filter((entry) => entry.id !== slotId);
+        if (meta.activeSlotId === slotId) meta.activeSlotId = null;
+        saveMeta(meta);
+        clearRunSnapshot(slotId);
+        return { slot: clone(slot), ghost };
     }
 
-    function hasJobSlot(jobKey) {
-        const m = loadMeta();
-        return m.slots.some((s) => s.jobKey === jobKey);
+    function getSnapshotMap() {
+        const value = loadJson(SNAPSHOT_STORAGE_KEY, {});
+        return value && typeof value === 'object' ? value : {};
     }
 
-    function getRebirthGoldCost(slot) {
-        const c = slot.reincarnationCount || 0;
-        if (c >= 3) return Infinity;
-        return 6000 + c * 10000;
-    }
-
-    function getRebirthMinFloor() {
-        return 500;
-    }
-
-    function updateBestFloor(slotId, floor) {
-        const m = loadMeta();
-        const slot = m.slots.find((s) => s.id === slotId);
-        if (!slot) return 1;
-        const f = Math.max(1, Math.floor(Number(floor) || 1));
-        slot.bestFloor = Math.max(1, slot.bestFloor || 1, f);
-        saveMeta(m);
-        return slot.bestFloor;
-    }
-
-    /** 환생: 런 아이템·영구강화(캠프) 초기화, 환생 보너스 누적, 최대 3회 */
-    function applyReincarnation(slotId, options) {
-        const m = loadMeta();
-        const slot = m.slots.find((s) => s.id === slotId);
-        if (!slot) return { ok: false, msg: '슬롯 없음' };
-        const cur = slot.reincarnationCount || 0;
-        if (cur >= 3) return { ok: false, msg: '환생은 최대 3회까지입니다.' };
-        const needFloor = getRebirthMinFloor();
-        const bestFloor = Math.max(1, slot.bestFloor || 1);
-        if (bestFloor < needFloor) return { ok: false, msg: '환생 조건 미달 (최고 ' + bestFloor + '층, 필요 ' + needFloor + '층)' };
-        const cost = getRebirthGoldCost(slot);
-        if (options && options.payGold && m.savedGold < cost) return { ok: false, msg: '보존 골드 부족 (' + cost + 'G 필요)' };
-        if (options && options.payGold) m.savedGold = Math.max(0, m.savedGold - cost);
-        slot.reincarnationCount = cur + 1;
-        /** 환생 후 이전 런 스냅샷·체크포인트 제거 (저장 런 잔존 버그 방지) */
-        slot.runSnapshot = null;
-        slot.runCheckpointMeta = { level: 1, exp: 0 };
-        slot.level = 1;
-        slot.exp = 0;
-        /** 영구 연구(테크)도 환생 시 초기화 */
-        slot.techLine = null;
-        slot.techPurchased = [];
-        slot.campPerma = { hp: 0, atk: 0, def: 0, crit: 0, cm: 0 };
-        slot.legacyPerma = { hp: 0, atk: 0, def: 0, acc: 0 };
-        slot.extraPerma = { hp: 0, atk: 0, def: 0, acc: 0 };
-        slot.metaPenalty = { hp: 0, atk: 0, def: 0, acc: 0 };
-        slot.questFlags = {};
-        slot.floorGrowth = normalizeSlotFloorGrowth(null);
-        slot.playerState = normalizeSlotPlayerState(null);
-        slot.tacticalSkills = [];
-        slot.tacticalSkillMilestonesClaimed = [];
-        slot.rescuedItems = [];
-        slot.rebirthStatBonus = slot.rebirthStatBonus || { hp: 0, atk: 0, def: 0, acc: 0 };
-        slot.rebirthPctBonus = slot.rebirthPctBonus || { atkPct: 0, defPct: 0, critMultPct: 0 };
-        slot.rebirthPctBonus.atkPct += 10;
-        slot.rebirthPctBonus.defPct += 10;
-        slot.rebirthPctBonus.critMultPct += 10;
-        recalcTechBonus(slot);
-        saveMeta(m);
-        return { ok: true, cost };
-    }
-
-    function createCharacter(name, jobKey, options) {
-        const m = loadMeta();
-        if (m.slots.length >= MAX_SLOTS) return { ok: false, msg: '슬롯 가득 (최대 ' + MAX_SLOTS + ')' };
-        const opt = options && typeof options === 'object' ? options : {};
-        const raceKey =
-            opt.raceKey && typeof raceStories !== 'undefined' && raceStories[opt.raceKey] ? opt.raceKey : null;
-        const memoryKey =
-            opt.memoryKey && typeof introMemoryChoices !== 'undefined' && introMemoryChoices[opt.memoryKey]
-                ? opt.memoryKey
-                : null;
-        const originBaseJobKey =
-            opt.originBaseJobKey && typeof jobBase !== 'undefined' && jobBase[opt.originBaseJobKey]
-                ? opt.originBaseJobKey
-                : memoryKey && typeof introMemoryChoices !== 'undefined'
-                  ? introMemoryChoices[memoryKey].baseJobKey
-                  : jobKey;
-        const weaponKey =
-            opt.weaponKey && typeof introWeaponChoices !== 'undefined' && introWeaponChoices[opt.weaponKey]
-                ? opt.weaponKey
-                : null;
-        const classKey =
-            opt.classKey && typeof classStories !== 'undefined' && classStories[opt.classKey]
-                ? opt.classKey
-                : weaponKey && typeof introWeaponChoices !== 'undefined'
-                  ? introWeaponChoices[weaponKey].classKey
-                  : jobKey;
-        const slot = {
-            id: uid(),
-            name: name || '무명',
-            jobKey,
-            raceKey,
-            memoryKey,
-            originBaseJobKey,
-            introWeaponKey: weaponKey,
-            classKey,
-            currentPromotion: null,
-            promotionHistory: [],
-            playerState: normalizeSlotPlayerState(opt.playerState),
-            storyFlags: {},
-            storyLog: [],
-            techLine: null,
-            techPurchased: [],
-            legacyPerma: { hp: 0, atk: 0, def: 0, acc: 0 },
-            extraPerma: { hp: 0, atk: 0, def: 0, acc: 0 },
-            campPerma: { hp: 0, atk: 0, def: 0, crit: 0, cm: 0 },
-            level: 1,
-            exp: 0,
-            metaPenalty: { hp: 0, atk: 0, def: 0, acc: 0 },
-            questFlags: {},
-            reincarnationCount: 0,
-            rebirthStatBonus: { hp: 0, atk: 0, def: 0, acc: 0 },
-            rebirthPctBonus: { atkPct: 0, defPct: 0, critMultPct: 0 },
-            bestFloor: 1,
-            floorGrowth: normalizeSlotFloorGrowth(null),
-            tacticalSkills: [],
-            tacticalSkillMilestonesClaimed: [],
-            rescuedItems: [],
-        };
-        recalcTechBonus(slot);
-        m.slots.push(slot);
-        m.activeSlotId = slot.id;
-        saveMeta(m);
-        return { ok: true, slot };
-    }
-
-    function applyQuestPenalty(slotId, penalty) {
-        const m = loadMeta();
-        const slot = m.slots.find((s) => s.id === slotId);
-        if (!slot) return;
-        slot.metaPenalty = slot.metaPenalty || { hp: 0, atk: 0, def: 0, acc: 0 };
-        const p = penalty || {};
-        if (p.hp) slot.metaPenalty.hp += p.hp;
-        if (p.atk) slot.metaPenalty.atk += p.atk;
-        if (p.def) slot.metaPenalty.def += p.def;
-        if (p.acc) slot.metaPenalty.acc += p.acc;
-        if (p.goldLoss && m.savedGold > 0) {
-            m.savedGold = Math.max(0, Math.floor(m.savedGold * (1 - p.goldLoss)));
-        }
-        recalcTechBonus(slot);
-        saveMeta(m);
-    }
-
-    function grantQuestReward(slotId, reward, questId) {
-        const m = loadMeta();
-        const slot = m.slots.find((s) => s.id === slotId);
-        if (!slot || !reward) return;
-        if (reward.perma) {
-            slot.extraPerma = slot.extraPerma || { hp: 0, atk: 0, def: 0, acc: 0 };
-            if (reward.perma.hp) slot.extraPerma.hp += reward.perma.hp;
-            if (reward.perma.atk) slot.extraPerma.atk += reward.perma.atk;
-            if (reward.perma.def) slot.extraPerma.def += reward.perma.def;
-            if (reward.perma.acc) slot.extraPerma.acc += reward.perma.acc;
-        }
-        if (questId) {
-            slot.questFlags = slot.questFlags || {};
-            slot.questFlags[questId] = true;
-        }
-        recalcTechBonus(slot);
-        saveMeta(m);
-    }
-
-    /** 장착 아이템 시너지 — data.js synergyRules(등급 조합) + 아이템 tags */
-    function computeSynergyBonuses(player) {
-        const out = { atk: 0, hp: 0, def: 0, acc: 0, crit: 0, critMult: 0, desc: [], progress: [] };
-        if (!player || !player.items) return out;
-        const tags = new Set();
-        const tagCounts = {};
-        for (const it of player.items) {
-            if (!it) continue;
-            const tg = it.tags || it.tagList;
-            if (Array.isArray(tg)) {
-                tg.forEach((t) => {
-                    tags.add(t);
-                    tagCounts[t] = (tagCounts[t] || 0) + 1;
-                });
-            }
-            // 기본 태그 자동 부여(등급/타입 기반)
-            if (it.rarity) {
-                const rt = 'rarity_' + String(it.rarity);
-                tags.add(rt);
-                tagCounts[rt] = (tagCounts[rt] || 0) + 1;
-            }
-            if (it.type) {
-                const tt = 'type_' + String(it.type);
-                tags.add(tt);
-                tagCounts[tt] = (tagCounts[tt] || 0) + 1;
-            }
-        }
-        const rules = typeof synergyRules !== 'undefined' ? synergyRules : [];
-        for (const rule of rules) {
-            if (!rule) continue;
-            let cur = 0,
-                need = 0,
-                ok = false;
-            if (rule.fromTag && rule.needCount) {
-                cur = tagCounts[rule.fromTag] || 0;
-                need = rule.needCount;
-                ok = cur >= need;
-            } else if (rule.needTags) {
-                const req = Array.isArray(rule.needTags) ? rule.needTags : [];
-                need = req.length;
-                cur = req.filter((t) => tags.has(t)).length;
-                ok = need > 0 && cur >= need;
-            } else {
-                continue;
-            }
-            out.progress.push({
-                id: rule.id || '',
-                name: rule.name || '시너지',
-                cur,
-                need,
-                active: ok,
-                effectDesc: rule.effectDesc || '',
-                detailDesc: rule.detailDesc || '',
-                bonus: rule.bonus || {},
-            });
-            if (!ok) continue;
-            const b = rule.bonus || {};
-            out.atk += b.atk || 0;
-            out.hp += b.hp || 0;
-            out.def += b.def || 0;
-            out.acc += b.acc || 0;
-            out.crit += b.crit || 0;
-            out.critMult += b.critMult || 0;
-            if (rule.name) out.desc.push(rule.name);
-        }
-        return out;
-    }
-
-    /** 층별 리스크 퀘스트 정의 */
-    const FLOOR_QUESTS = {
-        12: {
-            id: 'q12',
-            title: '심연의 시험',
-            desc: '이 층에서 <b>연속 2전 승리</b> 없이 패배하면 패널티.',
-            needWins: 2,
-            reward: { perma: { atk: 3, hp: 20 } },
-            failPenalty: { atk: 2, hp: 15, goldLoss: 0.15 },
-        },
-        20: {
-            id: 'q20',
-            title: '보스 토벌',
-            desc: '<b>20층 보스</b>를 처치하면 보상. 층 이탈 시 실패.',
-            needBoss: 1,
-            reward: { perma: { def: 4, atk: 4 } },
-            failPenalty: { def: 3, atk: 3, goldLoss: 0.2 },
-        },
-    };
-
-    function isBaseCampFloor(f) {
-        return typeof f === 'number' && f >= 30;
-    }
-
-    function markRunCheckpoint(slotId) {
-        const m = loadMeta();
-        const slot = m.slots.find((s) => s.id === slotId);
-        if (!slot) return;
-        slot.runCheckpointMeta = { level: Math.max(1, slot.level || 1), exp: Math.max(0, slot.exp || 0) };
-        saveMeta(m);
-    }
-
-    function revertRunToCheckpoint(slotId) {
-        const m = loadMeta();
-        const slot = m.slots.find((s) => s.id === slotId);
-        if (!slot || !slot.runCheckpointMeta) return;
-        const c = slot.runCheckpointMeta;
-        slot.level = Math.max(1, c.level || 1);
-        slot.exp = Math.max(0, c.exp || 0);
-        saveMeta(m);
-    }
-
-    function syncRunProgress(slotId, progress) {
-        const m = loadMeta();
-        const slot = m.slots.find((s) => s.id === slotId);
-        if (!slot) return null;
-        const p = progress && typeof progress === 'object' ? progress : {};
-        if (p.floorGrowth) slot.floorGrowth = normalizeSlotFloorGrowth(p.floorGrowth);
-        if (p.playerState) slot.playerState = normalizeSlotPlayerState(p.playerState);
-        if (Array.isArray(p.tacticalSkills)) slot.tacticalSkills = uniqueStringArray(p.tacticalSkills);
-        if (Array.isArray(p.tacticalSkillMilestonesClaimed)) {
-            slot.tacticalSkillMilestonesClaimed = uniqueNumberArray(p.tacticalSkillMilestonesClaimed);
-        }
-        if (p.currentPromotion) {
-            slot.currentPromotion = String(p.currentPromotion);
-            slot.promotionHistory = uniqueStringArray([...(slot.promotionHistory || []), slot.currentPromotion]);
-        }
-        saveMeta(m);
-        return slot;
-    }
-
-    function grantTacticalSkillToSlot(slotId, skillKey, milestoneFloor) {
-        const key = String(skillKey || '').trim();
-        if (!key) return { ok: false, msg: '스킬 없음' };
-        if (typeof getTacticalSkillDef === 'function' && !getTacticalSkillDef(key)) {
-            return { ok: false, msg: '정의되지 않은 스킬' };
-        }
-        const m = loadMeta();
-        const slot = m.slots.find((s) => s.id === slotId);
-        if (!slot) return { ok: false, msg: '슬롯 없음' };
-        slot.tacticalSkills = uniqueStringArray([...(slot.tacticalSkills || []), key]);
-        const mf = Math.floor(Number(milestoneFloor) || 0);
-        if (mf > 0) {
-            slot.tacticalSkillMilestonesClaimed = uniqueNumberArray([...(slot.tacticalSkillMilestonesClaimed || []), mf]);
-        }
-        saveMeta(m);
-        return { ok: true, skillKey: key, skills: slot.tacticalSkills };
-    }
-
-    function setRunSnapshot(slotId, obj) {
-        const m = loadMeta();
-        const slot = m.slots.find((s) => s.id === slotId);
-        if (!slot) return;
-        if (obj && obj.player) {
-            const p = obj.player;
-            if (p.floorGrowth) slot.floorGrowth = normalizeSlotFloorGrowth(p.floorGrowth);
-            if (p.playerState) slot.playerState = normalizeSlotPlayerState(p.playerState);
-            if (Array.isArray(p.tacticalSkills)) slot.tacticalSkills = uniqueStringArray(p.tacticalSkills);
-            if (Array.isArray(p.tacticalSkillMilestonesClaimed)) {
-                slot.tacticalSkillMilestonesClaimed = uniqueNumberArray(p.tacticalSkillMilestonesClaimed);
-            }
-            if (p.currentPromotion) {
-                slot.currentPromotion = String(p.currentPromotion);
-                slot.promotionHistory = uniqueStringArray([...(slot.promotionHistory || []), slot.currentPromotion]);
-            }
-        }
-        slot.runSnapshot = obj;
-        saveMeta(m);
-    }
-
-    function clearRunSnapshot(slotId) {
-        const m = loadMeta();
-        const slot = m.slots.find((s) => s.id === slotId);
-        if (!slot) return;
-        slot.runSnapshot = null;
-        saveMeta(m);
-    }
-
-    function preserveRescueInventory(slotId, items) {
-        const m = loadMeta();
-        const slot = m.slots.find((s) => s.id === slotId);
-        if (!slot) return 0;
-        slot.rescuedItems = normalizeRescuedItems(items);
-        slot.runSnapshot = null;
-        slot.runCheckpointMeta = { level: Math.max(1, slot.level || 1), exp: Math.max(0, slot.exp || 0) };
-        saveMeta(m);
-        return slot.rescuedItems.length;
-    }
-
-    function getRescuedItems(slotId) {
+    function setRunSnapshot(slotId, payload) {
         const slot = getSlotById(slotId);
-        return slot ? normalizeRescuedItems(slot.rescuedItems) : [];
-    }
-
-    /** 저장 런 스냅샷 제거 + 런 체크포인트·메타 레벨·EXP 초기화 (저장 삭제 확정 시) */
-    function wipeSavedRunAndResetMetaLevel(slotId) {
-        const m = loadMeta();
-        const slot = m.slots.find((s) => s.id === slotId);
-        if (!slot) return;
-        slot.runSnapshot = null;
-        slot.runCheckpointMeta = { level: 1, exp: 0 };
-        slot.level = 1;
-        slot.exp = 0;
-        slot.floorGrowth = normalizeSlotFloorGrowth(null);
-        slot.tacticalSkills = [];
-        slot.tacticalSkillMilestonesClaimed = [];
-        slot.rescuedItems = [];
-        recalcTechBonus(slot);
-        saveMeta(m);
+        const progress = normalizeDungeonProgress(payload && payload.player && payload.player.progress || slot && slot.progress);
+        if (!slot || slot.permanentDeath || !canReturnToBaseCamp(progress)) return false;
+        const map = getSnapshotMap();
+        map[slotId] = clone(payload);
+        saveJson(SNAPSHOT_STORAGE_KEY, map);
+        return true;
     }
 
     function getRunSnapshot(slotId) {
         const slot = getSlotById(slotId);
-        return slot && slot.runSnapshot ? slot.runSnapshot : null;
+        if (!slot || slot.permanentDeath) return null;
+        const map = getSnapshotMap();
+        return clone(map[slotId] || null);
     }
 
-    /** 보존 골드 없이 테크만 구매 처리 (런 골드는 game.js에서 차감) */
-    function commitTechPurchase(slotId, nodeId) {
-        const m = loadMeta();
-        const slot = m.slots.find((s) => s.id === slotId);
-        if (!slot) return { ok: false, msg: '슬롯 없음' };
-        if (!canPurchaseNode(slot, nodeId)) return { ok: false, msg: '구매 불가(선행 또는 라인 불일치)' };
-        const n = TECH_NODES.find((x) => x.id === nodeId);
-        if (!n) return { ok: false, msg: '노드 없음' };
-        slot.techPurchased = slot.techPurchased || [];
-        slot.techPurchased.push(nodeId);
-        recalcTechBonus(slot);
-        saveMeta(m);
-        return { ok: true, msg: n.name, cost: n.cost || 0 };
+    function clearRunSnapshot(slotId) {
+        const map = getSnapshotMap();
+        delete map[slotId];
+        saveJson(SNAPSHOT_STORAGE_KEY, map);
     }
 
-    function getTechNodeById(nodeId) {
-        return TECH_NODES.find((x) => x.id === nodeId) || null;
+    function updateBestFloor(slotId, floor, stage) {
+        const meta = loadMeta();
+        const slot = meta.slots.find((entry) => entry.id === slotId);
+        if (!slot) return false;
+        const progress = normalizeDungeonProgress({ floor, stage: stage || 1 });
+        if (progress.floor > slot.bestFloor || (progress.floor === slot.bestFloor && progress.stage > slot.bestStage)) {
+            slot.bestFloor = progress.floor;
+            slot.bestStage = progress.stage;
+        }
+        slot.progress = progress;
+        saveMeta(meta);
+        return true;
+    }
+
+    function isBaseCampFloor(floorRef) {
+        const progress = typeof floorRef === 'object'
+            ? normalizeDungeonProgress(floorRef)
+            : normalizeDungeonProgress({ floor: floorRef, stage: 1 });
+        return canReturnToBaseCamp(progress);
+    }
+
+    function getActiveFileIndex() {
+        const value = Number(localStorage.getItem(ACTIVE_FILE_KEY));
+        return Number.isInteger(value) && value >= 0 && value < SAVE_SLOT_COUNT ? value : 0;
+    }
+    function setActiveSaveFileIndex(index) {
+        const value = Math.max(0, Math.min(SAVE_SLOT_COUNT - 1, Math.floor(Number(index) || 0)));
+        localStorage.setItem(ACTIVE_FILE_KEY, String(value));
+        return true;
+    }
+    function clearSaveFile() {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(SNAPSHOT_STORAGE_KEY);
+        return true;
     }
 
     const MetaRPG = {
         STORAGE_KEY,
+        GHOST_STORAGE_KEY,
         SAVE_SLOT_COUNT,
-        LEGACY_META_KEY,
-        slotFileKey,
-        getActiveFileIndex,
-        setActiveSaveFileIndex,
-        clearSaveFile,
-        getSaveFileSlotCount,
-        peekMetaAtFileIndex,
         MAX_SLOTS,
         BASE_CAMP_FLOORS,
         TECH_NODES,
         FLOOR_QUESTS,
         loadMeta,
         saveMeta,
-        migrateLegacyOnce,
         getSlotById,
-        recalcTechBonus,
-        getCampStatGrowthBonus,
-        getTechNodesForSlot,
-        canPurchaseNode,
-        purchaseTechNode,
-        expToNextLevel,
-        addExpToSlot,
-        getLevelRuntimeBonus,
         createCharacter,
-        applyQuestPenalty,
-        grantQuestReward,
-        computeSynergyBonuses,
-        isBaseCampFloor,
-        expToNextLevel,
-        hasJobSlot,
-        getRebirthGoldCost,
-        getRebirthMinFloor,
-        updateBestFloor,
-        applyReincarnation,
-        markRunCheckpoint,
-        revertRunToCheckpoint,
+        setActiveSlot,
         syncRunProgress,
-        grantTacticalSkillToSlot,
+        archiveGhost,
+        getGhostsAt,
+        getGhostEncounter,
+        getGhostCombatPower,
+        markPermanentDeath,
         setRunSnapshot,
-        clearRunSnapshot,
-        preserveRescueInventory,
-        getRescuedItems,
-        wipeSavedRunAndResetMetaLevel,
         getRunSnapshot,
-        commitTechPurchase,
-        getTechNodeById,
-        setActiveSlot(id) {
-            const m = loadMeta();
-            if (!m.slots.some((s) => s.id === id)) return false;
-            m.activeSlotId = id;
-            saveMeta(m);
+        clearRunSnapshot,
+        updateBestFloor,
+        isBaseCampFloor,
+        getActiveFileIndex,
+        setActiveSaveFileIndex,
+        clearSaveFile,
+        getSaveFileSlotCount: () => SAVE_SLOT_COUNT,
+        peekMetaAtFileIndex: () => loadMeta(),
+        slotFileKey: () => STORAGE_KEY,
+        recalcTechBonus(slot) {
+            if (slot) slot.techBonus = { hp: 0, atk: 0, def: 0, acc: 0, crit: 0, critMult: 0 };
+            return slot && slot.techBonus;
+        },
+        getCampStatGrowthBonus: () => 0,
+        getTechNodesForSlot: () => [],
+        canPurchaseNode: () => false,
+        purchaseTechNode: () => ({ ok: false }),
+        commitTechPurchase: () => ({ ok: false }),
+        getTechNodeById: () => null,
+        expToNextLevel: () => Infinity,
+        addExpToSlot: () => ({ level: 1, exp: 0, need: Infinity }),
+        getLevelRuntimeBonus: () => ({ hp: 0, atk: 0, def: 0, acc: 0 }),
+        getRebirthGoldCost: () => Infinity,
+        getRebirthMinFloor: () => Infinity,
+        applyReincarnation: () => ({ ok: false, msg: '영구 데스 규칙에서는 환생할 수 없습니다.' }),
+        applyQuestPenalty: () => false,
+        grantQuestReward: () => false,
+        computeSynergyBonuses: () => ({ atk: 0, hp: 0, def: 0, acc: 0, crit: 0, critMult: 0, desc: [], progress: [] }),
+        hasJobSlot: () => loadMeta().slots.some((slot) => !slot.permanentDeath),
+        markRunCheckpoint: () => false,
+        revertRunToCheckpoint: () => false,
+        grantTacticalSkillToSlot: () => false,
+        preserveRescueInventory: () => 0,
+        getRescuedItems: () => [],
+        wipeSavedRunAndResetMetaLevel(slotId) {
+            clearRunSnapshot(slotId);
             return true;
         },
         deleteSlot(id) {
-            const m = loadMeta();
-            const i = m.slots.findIndex((s) => s.id === id);
-            if (i < 0) return false;
-            m.slots.splice(i, 1);
-            if (m.activeSlotId === id) m.activeSlotId = m.slots[0] ? m.slots[0].id : null;
-            saveMeta(m);
+            const meta = loadMeta();
+            const index = meta.slots.findIndex((slot) => slot.id === id);
+            if (index < 0) return false;
+            meta.slots.splice(index, 1);
+            if (meta.activeSlotId === id) meta.activeSlotId = null;
+            saveMeta(meta);
+            clearRunSnapshot(id);
             return true;
         },
-        addSavedGold(amount) {
-            const m = loadMeta();
-            m.savedGold = Math.max(0, (m.savedGold || 0) + amount);
-            saveMeta(m);
-            return m.savedGold;
+        addSavedGold() {
+            return 0;
         },
+        migrateLegacyOnce: () => false,
     };
 
-    migrateLegacyOnce();
     global.MetaRPG = MetaRPG;
     global.BASE_CAMP_FLOORS = BASE_CAMP_FLOORS;
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -3463,9 +11160,10 @@ if (typeof window !== 'undefined') {
 const MetaRPG = (typeof window !== 'undefined' ? window.MetaRPG : globalThis.MetaRPG);
 const BASE_CAMP_FLOORS = (typeof window !== 'undefined' ? window.BASE_CAMP_FLOORS : globalThis.BASE_CAMP_FLOORS);
 
-// ---- js/state.js ----
+
+// ===== js/state.js =====
 // Global runtime state (single source of truth)
-let floor = 1, gold = 0, player = null, enemy = null;
+let floor = 1, dungeonStage = 1, gold = 0, player = null, enemy = null;
 let playerState = typeof createDefaultPlayerState === 'function'
     ? createDefaultPlayerState()
     : { corruption: 0, purification: 0 };
@@ -3477,7 +11175,7 @@ let currentPotionOffer = null;
 let lastEnemyJob = "";
 let rerollCost = 10;
 let currentUser = null;
-const RANK_BASE_JOBS = ['워리어', '헌터', '마법사', '용병단장'];
+const RANK_BASE_JOBS = ['인간 모험가'];
 let rankRealtimeUnsubs = [];
 let rankRealtimeCache = {};
 window._combatLogHistory = [];
@@ -3496,7 +11194,8 @@ const DIVINE_BLESSING_DEF_BONUS = (typeof BALANCE !== 'undefined' && BALANCE.div
 const DIVINE_BLESSING_LIFESTEAL_BONUS =
     (typeof BALANCE !== 'undefined' && BALANCE.divineBlessingLifestealBonus) || 0.05;
 
-// ---- js/vfx.js ----
+
+// ===== js/vfx.js =====
 // VFX/animation module (stage 1 split)
 function getCombatTargetCard(side) {
     return document.getElementById(side === 'player' ? 'player-card' : 'enemy-card');
@@ -3754,516 +11453,332 @@ window.showMissFloat = showMissFloat;
 window.playJobAttackVfx = playJobAttackVfx;
 window.consumeHunterEvasionMissPenalty = consumeHunterEvasionMissPenalty;
 
-// ---- js/player.js ----
-// Player domain module (stage 3 split)
+
+// ===== js/player.js =====
+'use strict';
+
+// 단일 인간 모험가 런타임 어댑터. 직업/전직/치명타/환생 보정은 사용하지 않는다.
+function safeNum(value, fallback) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : fallback;
+}
+
+function ensureHumanRuntimeShape(actor) {
+    if (!actor) return actor;
+    actor.stats = normalizeHumanStats(actor.stats || {
+        str: actor.atk,
+        def: actor.def,
+        hp: Math.max(1, Math.round((safeNum(actor.maxHp, 55) - 50) / 5)),
+        int: actor.int,
+        wis: actor.wis,
+        agi: actor.agi,
+        divinity: actor.divinity,
+        distortion: actor.distortion,
+    });
+    actor.maxHp = Math.max(1, safeNum(actor.maxHp, 50 + actor.stats.hp * 5));
+    actor.curHp = Math.min(actor.maxHp, Math.max(0, safeNum(actor.curHp, actor.maxHp)));
+    actor.atk = Math.max(1, safeNum(actor.atk, actor.stats.str));
+    actor.def = Math.max(0, safeNum(actor.def, actor.stats.def));
+    actor.int = actor.stats.int;
+    actor.wis = actor.stats.wis;
+    actor.agi = actor.stats.agi;
+    actor.divinity = actor.stats.divinity;
+    actor.distortion = actor.stats.distortion;
+    actor.progress = normalizeDungeonProgress(actor.progress || { floor, stage: dungeonStage });
+    actor.jobKey = HUMAN_JOB_KEY;
+    actor.baseJob = '인간 모험가';
+    actor.classKey = null;
+    actor.items = Array.isArray(actor.items) ? actor.items : [];
+    actor.equipment = actor.equipment || { weapon: null, armor: null, accessories: [] };
+    actor.magic = Array.isArray(actor.magic) ? actor.magic : [];
+    actor.skills = Array.isArray(actor.skills) ? actor.skills : [];
+    actor.mastery = actor.mastery && typeof actor.mastery === 'object' ? actor.mastery : {};
+    actor.statuses = Array.isArray(actor.statuses) ? actor.statuses : [];
+    actor.body = actor.body && typeof actor.body === 'object'
+        ? actor.body
+        : Object.fromEntries(bodyParts.map((part) => [part, { destroyed: false, twisted: false, indestructible: false }]));
+    actor.extraDef = Math.max(0, safeNum(actor.extraDef, 0));
+    actor.crit = Math.max(0, safeNum(actor.crit, 0));
+    actor.critMult = Math.max(1, safeNum(actor.critMult, 1));
+    actor.lifesteal = Math.max(0, safeNum(actor.lifesteal, 0));
+    actor.damageReduction = Math.max(0, safeNum(actor.damageReduction, 0));
+    actor.potionHealBonus = Math.max(0, safeNum(actor.potionHealBonus, 0));
+    return actor;
+}
+
 function ensurePlayerSynergyBonuses() {
-    if (!player) return;
-    if (typeof MetaRPG !== 'undefined' && MetaRPG.computeSynergyBonuses) {
-        player._syn = MetaRPG.computeSynergyBonuses(player);
-    } else {
-        player._syn = { atk: 0, hp: 0, def: 0, acc: 0, crit: 0, critMult: 0, desc: [], progress: [] };
-    }
+    if (player) player._syn = { atk: 0, hp: 0, def: 0, acc: 0, crit: 0, critMult: 0, desc: [], progress: [] };
+    return player && player._syn;
 }
-
 function getEffectiveMaxHp() {
-    if (!player) return 1;
-    ensurePlayerSynergyBonuses();
-    return Math.max(1, safeNum(player.maxHp, 1) + safeNum(player._syn && player._syn.hp, 0));
+    return player ? ensureHumanRuntimeShape(player).maxHp : 1;
 }
-
-function getRawCritChance(extraCrit) {
-    if (!player) return Math.max(0, safeNum(extraCrit, 0));
-    ensurePlayerSynergyBonuses();
-    return Math.max(
-        0,
-        safeNum(player.crit, 1) +
-            safeNum(player._relicTempCrit, 0) +
-            safeNum(player._syn && player._syn.crit, 0) +
-            safeNum(extraCrit, 0)
-    );
+function getEffectiveAttackPower() {
+    return player ? ensureHumanRuntimeShape(player).atk : 1;
 }
-
-function getCritOverflowForMult(extraCrit) {
-    return Math.max(0, getRawCritChance(extraCrit) - CRIT_SOFT_CAP);
+function getTotalPlayerDefenseForHit() {
+    return player ? ensureHumanRuntimeShape(player).def + safeNum(player.extraDef, 0) : 0;
 }
-
-function getCritOverflowMultBonus(extraCrit) {
-    return getCritOverflowForMult(extraCrit) * CRIT_OVERFLOW_TO_MULT;
-}
-
-function clampCritMultiplier(value) {
-    return Math.min(CRIT_MULT_HARD_CAP, Math.max(1, safeNum(value, 1.8)));
-}
-
-function getCritBaseMultBeforeOverflow(extraMult) {
-    if (player) ensurePlayerSynergyBonuses();
-    const base = safeNum(player && player.critMult, 1.8);
-    const syn = safeNum(player && player._syn && player._syn.critMult, 0);
-    return (base > 0 ? base : 1.8) + syn + safeNum(extraMult, 0);
-}
-
-function getEffectiveCritMult() {
-    return clampCritMultiplier(getCritBaseMultBeforeOverflow(0) + getCritOverflowMultBonus(0));
-}
-
-function applyRebirthPctBonusToPlayer(slot) {
-    if (!player || !slot) return;
-    const rb = slot.rebirthPctBonus || { atkPct: 0, defPct: 0, critMultPct: 0 };
-    const atkPct = Math.max(0, safeNum(rb.atkPct, 0));
-    const defPct = Math.max(0, safeNum(rb.defPct, 0));
-    const cmPct = Math.max(0, safeNum(rb.critMultPct, 0));
-    if (atkPct > 0) player.atk = Math.ceil(player.atk * (1 + atkPct / 100));
-    if (defPct > 0) player.def = Math.ceil(player.def * (1 + defPct / 100));
-    if (cmPct > 0) player.critMult = safeNum((player.critMult * (1 + cmPct / 100)).toFixed(4), player.critMult);
-}
-
-function applyOwnedEquipmentItemBonuses(it) {
-    if (!it || it.type === 'merc') return;
-    if (it.type === 'rune') {
-        if (typeof it.value === 'number' && it.value) {
-            player.atk = Math.max(1, safeNum(player.atk, 1) + safeNum(it.value, 0));
-        }
-        if (typeof it.hpBonus === 'number' && it.hpBonus) {
-            const add = safeNum(it.hpBonus, 0);
-            player.maxHp = Math.max(1, safeNum(player.maxHp, 1) + add);
-            player.curHp = safeNum(player.curHp, 0) + add;
-        }
-        if (it.def) player.extraDef = safeNum(player.extraDef, 0) + safeNum(it.def, 0);
-        if (it.lifesteal) player.lifesteal = safeNum(player.lifesteal, 0) + safeNum(it.lifesteal, 0);
-        if (it.critBonus) player.crit = safeNum(player.crit, 1) + safeNum(it.critBonus, 0);
-        if (it.critMult) player.critMult = safeNum(player.critMult, 1.8) + safeNum(it.critMult, 0);
-        if (it.damageReduction) player.damageReduction = safeNum(player.damageReduction, 0) + safeNum(it.damageReduction, 0);
-        if (it.potionHealBonus) player.potionHealBonus = safeNum(player.potionHealBonus, 0) + safeNum(it.potionHealBonus, 0);
-        if (it.regenPotion) player.hasRegenPotion = true;
-        return;
-    }
-    if (it.type === 'atk' || it.type === 'ring') {
-        player.atk = Math.max(1, safeNum(player.atk, 1) + safeNum(it.value, 0));
-    }
-    if (it.type === 'hp') {
-        const add = safeNum(it.value, 0);
-        player.maxHp = Math.max(1, safeNum(player.maxHp, 1) + add);
-        player.curHp = safeNum(player.curHp, 0) + add;
-    }
-    if (it.type !== 'rune' && typeof it.hpBonus === 'number' && it.hpBonus) {
-        const add = safeNum(it.hpBonus, 0);
-        player.maxHp = Math.max(1, safeNum(player.maxHp, 1) + add);
-        player.curHp = safeNum(player.curHp, 0) + add;
-    }
-    if (it.def) player.extraDef = safeNum(player.extraDef, 0) + safeNum(it.def, 0);
-    if (it.lifesteal) player.lifesteal = safeNum(player.lifesteal, 0) + safeNum(it.lifesteal, 0);
-    if (it.critBonus) player.crit = safeNum(player.crit, 1) + safeNum(it.critBonus, 0);
-    if (it.critMult) player.critMult = safeNum(player.critMult, 1.8) + safeNum(it.critMult, 0);
-    if (it.damageReduction) player.damageReduction = safeNum(player.damageReduction, 0) + safeNum(it.damageReduction, 0);
-    if (it.potionHealBonus) player.potionHealBonus = safeNum(player.potionHealBonus, 0) + safeNum(it.potionHealBonus, 0);
-    if (it.penalty && it.penalty[player.name]) {
-        player.acc -= safeNum(it.penalty[player.name], 0);
-    }
-}
-
-function fullResyncPlayerCombatStatsFromMetaAndInventory() {
-    if (!player || typeof MetaRPG === 'undefined' || !player.metaSlotId) return;
-    const slot = MetaRPG.getSlotById(player.metaSlotId);
-    if (!slot) return;
-    MetaRPG.recalcTechBonus(slot);
-    const tb = slot.techBonus || { hp: 0, atk: 0, def: 0, acc: 0, crit: 0, critMult: 0 };
-    const lb = MetaRPG.getLevelRuntimeBonus(slot.level || 1);
-    const rs = slot.rebirthStatBonus || { hp: 0, atk: 0, def: 0, acc: 0 };
-    const jk = slot.jobKey;
-    const job = jobBase[jk];
-    if (!job) return;
-
-    let atk;
-    let def;
-    let maxHp;
-    let acc;
-    if (player.evolved) {
-        const evols = jobEvolutions[player.baseJob];
-        const evol = evols && evols.find((e) => e.name === player.name);
-        if (evol) {
-            atk = safeNum(evol.bonusAtk, job.atk) + safeNum(rs.atk, 0) + safeNum(tb.atk, 0) + safeNum(lb.atk, 0);
-            def = safeNum(evol.bonusDef, job.def) + safeNum(rs.def, 0) + safeNum(tb.def, 0) + safeNum(lb.def, 0);
-            maxHp = (evol.bonusHp != null ? evol.bonusHp : job.hp) + safeNum(rs.hp, 0) + safeNum(tb.hp, 0) + safeNum(lb.hp, 0);
-            acc = (evol.bonusAcc != null ? evol.bonusAcc : 0) + safeNum(rs.acc, 0) + safeNum(tb.acc, 0) + safeNum(lb.acc, 0);
-        } else {
-            atk = job.atk + safeNum(rs.atk, 0) + safeNum(tb.atk, 0) + safeNum(lb.atk, 0);
-            def = job.def + safeNum(rs.def, 0) + safeNum(tb.def, 0) + safeNum(lb.def, 0);
-            maxHp = job.hp + safeNum(rs.hp, 0) + safeNum(tb.hp, 0) + safeNum(lb.hp, 0);
-            acc = safeNum(rs.acc, 0) + safeNum(tb.acc, 0) + safeNum(lb.acc, 0);
-        }
-    } else {
-        atk = job.atk + safeNum(rs.atk, 0) + safeNum(tb.atk, 0) + safeNum(lb.atk, 0);
-        def = job.def + safeNum(rs.def, 0) + safeNum(tb.def, 0) + safeNum(lb.def, 0);
-        maxHp = job.hp + safeNum(rs.hp, 0) + safeNum(tb.hp, 0) + safeNum(lb.hp, 0);
-        acc = safeNum(rs.acc, 0) + safeNum(tb.acc, 0) + safeNum(lb.acc, 0);
-    }
-
-    const fg = typeof normalizeFloorGrowth === 'function'
-        ? normalizeFloorGrowth(player.floorGrowth || slot.floorGrowth)
-        : {
-              floors: Math.max(0, Math.floor(safeNum(player.floorGrowth && player.floorGrowth.floors, 0))),
-              atk: Math.max(0, Math.floor(safeNum(player.floorGrowth && player.floorGrowth.atk, 0))),
-              hp: Math.max(0, Math.floor(safeNum(player.floorGrowth && player.floorGrowth.hp, 0))),
-          };
-    player.floorGrowth = fg;
-    atk += fg.atk;
-    maxHp += fg.hp;
-
-    player.atk = atk;
-    player.def = def;
-    player.maxHp = maxHp;
-    player.curHp = Math.min(safeNum(player.curHp, maxHp), maxHp);
-    player.acc = acc;
-    player.crit = 1 + safeNum(tb.crit, 0);
-    player.critMult = 1.8 + safeNum(tb.critMult, 0);
-    player.lifesteal = 0;
-    player.extraDef = 0;
-    player.extraAtk = 0;
-    player.damageReduction = 0;
-    player.potionHealBonus = 0;
-
-    applyRebirthPctBonusToPlayer(slot);
-
-    for (const it of player.items || []) {
-        applyOwnedEquipmentItemBonuses(it);
-    }
-    player.hasRegenPotion = !!(player.items || []).some((x) => x && x.regenPotion && x.type !== 'merc');
-
-    recalcPlayerDivineGainMult();
-}
-
+function getRawCritChance(extraCrit) { return player ? safeNum(player.crit, 0) + safeNum(extraCrit, 0) : 0; }
+function getCritOverflowForMult() { return 0; }
+function getCritOverflowMultBonus() { return 0; }
+function clampCritMultiplier(value) { return Math.max(1, safeNum(value, 1)); }
+function getCritBaseMultBeforeOverflow(extraMult) { return player ? player.critMult + safeNum(extraMult, 0) : 1; }
+function getEffectiveCritMult() { return player ? clampCritMultiplier(player.critMult) : 1; }
 function getCritInfo() {
     const rawCrit = getRawCritChance(0);
-    const isBerserkCrit = false;
-    const effectiveCrit = Math.min(CRIT_SOFT_CAP, rawCrit);
-    return { rawCrit, effectiveCrit, isBerserkCrit };
+    return { rawCrit, effectiveCrit: Math.min(75, rawCrit), overflow: Math.max(0, rawCrit - 75), overflowMult: 0 };
 }
-
-function getLifestealEffective() {
-    const r = safeNum(player && player.lifesteal, 0);
-    const priestBonus = player && player.priestBlessed ? DIVINE_BLESSING_LIFESTEAL_BONUS : 0;
-    return Math.min(LIFESTEAL_SOFT_CAP, Math.max(0, r + priestBonus));
-}
-
-function getLifestealOverflowAtk() {
-    const r = safeNum(player && player.lifesteal, 0);
-    if (r <= LIFESTEAL_SOFT_CAP) return 0;
-    return Math.floor((r - LIFESTEAL_SOFT_CAP) * 100);
-}
-
+function getLifestealEffective() { return player ? Math.min(0.85, safeNum(player.lifesteal, 0)) : 0; }
+function getLifestealOverflowAtk() { return 0; }
 function getPlayerDamageReduction() {
-    return Math.min(0.55, Math.max(0, safeNum(player && player.damageReduction, 0)));
+    return player ? Math.min(0.6, safeNum(player.damageReduction, 0)) : 0;
 }
-
-function getPlayerPotionHealMultiplier() {
-    return 1 + Math.min(0.8, Math.max(0, safeNum(player && player.potionHealBonus, 0)));
+function getPlayerPotionHealMultiplier() { return player ? 1 + safeNum(player.potionHealBonus, 0) : 1; }
+function applyRebirthPctBonusToPlayer() { return player; }
+function applyOwnedEquipmentItemBonuses() { return player; }
+function fullResyncPlayerCombatStatsFromMetaAndInventory() {
+    if (!player) return null;
+    ensureHumanRuntimeShape(player);
+    const previousHp = player.curHp;
+    let attack = player.stats.str;
+    let maxHp = 50 + player.stats.hp * 5;
+    let extraDef = 0;
+    let crit = 0;
+    let critMult = 1;
+    let lifesteal = 0;
+    let damageReduction = 0;
+    let potionHealBonus = 0;
+    for (const item of player.items || []) {
+        if (!item) continue;
+        if (item.type === 'atk' || item.type === 'ring' || item.type === 'rune') attack += safeNum(item.value, 0);
+        if (item.type === 'hp') maxHp += safeNum(item.value, 0);
+        maxHp += safeNum(item.hpBonus, 0);
+        extraDef += safeNum(item.def, 0);
+        crit += safeNum(item.critBonus, 0);
+        critMult += safeNum(item.critMult, 0);
+        lifesteal += safeNum(item.lifesteal, 0);
+        damageReduction += safeNum(item.damageReduction, 0);
+        potionHealBonus += safeNum(item.potionHealBonus, 0);
+    }
+    player.atk = Math.max(1, attack);
+    player.def = player.stats.def;
+    player.extraDef = Math.max(0, extraDef);
+    player.maxHp = Math.max(1, maxHp);
+    player.curHp = Math.min(player.maxHp, Math.max(0, previousHp));
+    player.crit = Math.max(0, crit);
+    player.critMult = Math.max(1, critMult);
+    player.lifesteal = Math.max(0, lifesteal);
+    player.damageReduction = Math.max(0, damageReduction);
+    player.potionHealBonus = Math.max(0, potionHealBonus);
+    return player;
 }
-
-function isPriestJob() {
-    return player && player.name === '성직자';
-}
-
-function isPriestBlessed() {
-    return !!(player && player.priestBlessed);
-}
-
-function isChosenPriest() {
-    return !!(player && player.chosenPriest);
-}
-
-function formatDivinePowerForDisplay(v) {
-    const x = clampDivinePower(v);
-    const i = Math.floor(x);
-    const frac = x - i;
-    if (frac >= 0.1 && frac <= 0.4) return i;
-    if (frac >= 0.5 && frac <= 0.9) return i + 1;
-    if (frac > 0.4 && frac < 0.5) return Math.round(x);
-    return i;
-}
-
-function clampDivinePower(v) {
-    return Math.max(0, Math.min(DIVINE_POWER_MAX, safeNum(v, 0)));
-}
-
+function isPriestJob() { return false; }
+function isPriestBlessed() { return false; }
+function isChosenPriest() { return false; }
+function formatDivinePowerForDisplay(value) { return String(Math.round(safeNum(value, 0) * 10) / 10); }
+function clampDivinePower(value) { return Math.max(-5, Math.min(5, safeNum(value, 0))); }
 function normalizeDivineState() {
-    if (!player) return;
-    if (!isPriestJob()) {
-        player.divinePower = 0;
-        player.divineGainMult = 1;
-        player.prayerBonusFlat = 0;
-        player.priestBlessed = false;
-        player.chosenPriest = false;
-        player.priestNextCrit = false;
-        return;
+    if (player) {
+        ensureHumanRuntimeShape(player);
+        player.stats.divinity = clampDivinePower(player.stats.divinity);
+        player.divinity = player.stats.divinity;
     }
-    player.divinePower = clampDivinePower(player.divinePower);
-    const blessed = player.divinePower >= DIVINE_BLESSING_THRESHOLD;
-    player.priestBlessed = blessed;
-    player.chosenPriest = false;
-    if (!blessed) player.priestNextCrit = false;
 }
-
-function getDivineAtkBonus() {
-    if (!isPriestJob()) return 0;
-    return 0;
-}
-
-function getDivineDefBonus() {
-    if (!isPriestJob()) return 0;
-    return isPriestBlessed() ? DIVINE_BLESSING_DEF_BONUS : 0;
-}
-
-function recalcPlayerDivineGainMult() {
-    if (!player || !isPriestJob()) {
-        if (player) {
-            player.divineGainMult = 1;
-            player.prayerBonusFlat = 0;
-        }
-        return;
-    }
-    let m = 1;
-    let p = 0;
-    for (const it of player.items || []) {
-        if (it && it.divinityGainBonus != null) m += safeNum(it.divinityGainBonus, 0);
-        if (it && it.prayerBonus != null) p += safeNum(it.prayerBonus, 0);
-    }
-    player.divineGainMult = m;
-    player.prayerBonusFlat = Math.max(0, p);
-    normalizeDivineState();
-}
-
+function getDivineAtkBonus() { return 0; }
+function getDivineDefBonus() { return 0; }
+function recalcPlayerDivineGainMult() { return 1; }
 function addDivinePower(amount) {
-    if (!isPriestJob()) return 0;
-    normalizeDivineState();
-    const before = clampDivinePower(player.divinePower);
-    const wasBlessed = !!player.priestBlessed;
-    const after = clampDivinePower(before + safeNum(amount, 0));
-    player.divinePower = after;
-    if (!wasBlessed && after >= DIVINE_BLESSING_THRESHOLD) {
-        player.priestBlessed = true;
-        player.priestNextCrit = true;
-        writeLog(
-            `[신성] ✨ ${DIVINE_BLESSING_THRESHOLD}스택 달성! <b>신의 가호</b> (흡혈+${Math.round(
-                DIVINE_BLESSING_LIFESTEAL_BONUS * 100
-            )}%, 방어+${DIVINE_BLESSING_DEF_BONUS}, 다음 공격 확정 치명)`
-        );
-    }
-    return after - before;
-}
-
-function getEffectiveAttackPower() {
     if (!player) return 0;
-    let base = safeNum(player.atk, 0) + safeNum(player.extraAtk, 0) + getLifestealOverflowAtk();
-    if (player._syn && player._syn.atk) base += safeNum(player._syn.atk, 0);
-    if (player._mercBattleAtkDebuff) base = Math.max(1, Math.floor(base * (1 + player._mercBattleAtkDebuff)));
-    base += getDivineAtkBonus();
-    return Math.max(1, base);
+    ensureHumanRuntimeShape(player);
+    const before = player.stats.divinity;
+    player.stats.divinity = clampDivinePower(before + safeNum(amount, 0));
+    player.divinity = player.stats.divinity;
+    return player.stats.divinity - before;
+}
+function getPlayerGoldGainMult() { return 1; }
+function getPlayerFleeBonus() { return 0; }
+
+Object.assign(window, {
+    safeNum,
+    ensureHumanRuntimeShape,
+    ensurePlayerSynergyBonuses,
+    getEffectiveMaxHp,
+    getEffectiveAttackPower,
+    getTotalPlayerDefenseForHit,
+    getRawCritChance,
+    getCritOverflowForMult,
+    getCritOverflowMultBonus,
+    clampCritMultiplier,
+    getCritBaseMultBeforeOverflow,
+    getEffectiveCritMult,
+    getCritInfo,
+    getLifestealEffective,
+    getLifestealOverflowAtk,
+    getPlayerDamageReduction,
+    getPlayerPotionHealMultiplier,
+    applyRebirthPctBonusToPlayer,
+    applyOwnedEquipmentItemBonuses,
+    fullResyncPlayerCombatStatsFromMetaAndInventory,
+    isPriestJob,
+    isPriestBlessed,
+    isChosenPriest,
+    formatDivinePowerForDisplay,
+    clampDivinePower,
+    normalizeDivineState,
+    getDivineAtkBonus,
+    getDivineDefBonus,
+    recalcPlayerDivineGainMult,
+    addDivinePower,
+    getPlayerGoldGainMult,
+    getPlayerFleeBonus,
+});
+
+
+// ===== js/enemy.js =====
+'use strict';
+
+function getCurrentDungeonProgress() {
+    if (player && player.progress) return normalizeDungeonProgress(player.progress);
+    return normalizeDungeonProgress({ floor, stage: dungeonStage });
 }
 
-function getTotalPlayerDefenseForHit() {
-    if (!player) return 0;
-    let d =
-        safeNum(player.def, 0) +
-        safeNum(player.extraDef, 0) +
-        safeNum(player._syn && player._syn.def, 0) +
-        getDivineDefBonus();
-    d -= safeNum(player._relicGamblerDefSub, 0);
-    return Math.max(0, d);
-}
-
-window.ensurePlayerSynergyBonuses = ensurePlayerSynergyBonuses;
-window.getEffectiveMaxHp = getEffectiveMaxHp;
-window.getRawCritChance = getRawCritChance;
-window.getCritOverflowForMult = getCritOverflowForMult;
-window.getCritOverflowMultBonus = getCritOverflowMultBonus;
-window.clampCritMultiplier = clampCritMultiplier;
-window.getCritBaseMultBeforeOverflow = getCritBaseMultBeforeOverflow;
-window.getEffectiveCritMult = getEffectiveCritMult;
-window.applyRebirthPctBonusToPlayer = applyRebirthPctBonusToPlayer;
-window.applyOwnedEquipmentItemBonuses = applyOwnedEquipmentItemBonuses;
-window.fullResyncPlayerCombatStatsFromMetaAndInventory = fullResyncPlayerCombatStatsFromMetaAndInventory;
-window.getCritInfo = getCritInfo;
-window.getLifestealEffective = getLifestealEffective;
-window.getLifestealOverflowAtk = getLifestealOverflowAtk;
-window.getPlayerDamageReduction = getPlayerDamageReduction;
-window.getPlayerPotionHealMultiplier = getPlayerPotionHealMultiplier;
-window.isPriestJob = isPriestJob;
-window.isPriestBlessed = isPriestBlessed;
-window.isChosenPriest = isChosenPriest;
-window.formatDivinePowerForDisplay = formatDivinePowerForDisplay;
-window.clampDivinePower = clampDivinePower;
-window.normalizeDivineState = normalizeDivineState;
-window.getDivineAtkBonus = getDivineAtkBonus;
-window.getDivineDefBonus = getDivineDefBonus;
-window.recalcPlayerDivineGainMult = recalcPlayerDivineGainMult;
-window.addDivinePower = addDivinePower;
-window.getEffectiveAttackPower = getEffectiveAttackPower;
-window.getTotalPlayerDefenseForHit = getTotalPlayerDefenseForHit;
-
-function sumOwnedItemBonuses(field) {
-    if (!player || !Array.isArray(player.items)) return 0;
-    let s = 0;
-    for (const it of player.items) {
-        if (it && it.type !== 'merc' && typeof it[field] === 'number') s += safeNum(it[field], 0);
-    }
-    return s;
-}
-
-function getPlayerGoldGainMult() {
-    return 1 + sumOwnedItemBonuses('goldGainBonus');
-}
-
-/** 패닉 도주 시 층 하락 완화 확률(합산, 상한 55%) */
-function getPlayerFleeBonus() {
-    return Math.min(0.55, sumOwnedItemBonuses('fleeBonus'));
-}
-
-window.getPlayerGoldGainMult = getPlayerGoldGainMult;
-window.getPlayerFleeBonus = getPlayerFleeBonus;
-
-// ---- js/enemy.js ----
-// Enemy domain module (stage 3 split)
-function getEnemyScalingForFloor(floorValue) {
-    const f = Math.max(1, Math.floor(safeNum(floorValue, 1)));
+function buildEnemyStatsForFloor(floorRef, isBoss, stageRef) {
+    const majorFloor = Math.max(1, Math.min(MAX_DUNGEON_FLOOR, Math.floor(safeNum(floorRef, 1))));
+    const stage = Math.max(1, Math.min(STAGES_PER_FLOOR, Math.floor(safeNum(stageRef, 1))));
+    const effectiveFloor = majorFloor + (stage - 1) / STAGES_PER_FLOOR;
     const wallFloor = BALANCE.enemyWallFloor || 30;
-    const preFloors = Math.max(0, Math.min(f - 1, wallFloor - 1));
-    const postFloors = Math.max(0, f - wallFloor);
-    const pre = Math.pow(BALANCE.enemyPreWallGrowth || 1.055, preFloors);
-    const post = Math.pow(BALANCE.enemyPostWallGrowth || 1.065, postFloors);
-    const wall = f >= wallFloor;
+    const preFloors = Math.max(0, Math.min(effectiveFloor - 1, wallFloor - 1));
+    const postFloors = Math.max(0, effectiveFloor - wallFloor);
+    const pre = Math.pow(BALANCE.enemyPreWallGrowth || 1.058, preFloors);
+    const post = Math.pow(BALANCE.enemyPostWallGrowth || 1.067, postFloors);
+    const wall = effectiveFloor >= wallFloor;
+    const hpScale = pre * post * (wall ? BALANCE.enemyWallHpMult || 1.5 : 1);
+    const atkScale = pre * post * (wall ? BALANCE.enemyWallAtkMult || 1.35 : 1);
+    const defScale =
+        Math.pow((BALANCE.enemyPreWallGrowth || 1.058) - 0.012, preFloors) *
+        Math.pow((BALANCE.enemyPostWallGrowth || 1.067) - 0.007, postFloors) *
+        (wall ? BALANCE.enemyWallDefMult || 2.18 : 1);
+    const wave = 1 + ((stage - 1) - 4.5) * 0.008;
+    const boss = isBoss ? { hp: 2.65, atk: 1.72, def: 1.65 } : { hp: 1, atk: 1, def: 1 };
+    const originalHp = Math.max(1, Math.floor((44 + effectiveFloor * 4.5) * hpScale * boss.hp * wave));
+    const originalAtk = Math.max(1, Math.floor((6 + effectiveFloor * 0.55) * atkScale * boss.atk * wave));
+    const originalDef = Math.max(0, Math.floor((1 + effectiveFloor * 0.22) * defScale * boss.def));
     return {
-        hp: pre * post * (wall ? BALANCE.enemyWallHpMult || 2.2 : 1),
-        atk: pre * post * (wall ? BALANCE.enemyWallAtkMult || 2.0 : 1),
-        def: Math.pow((BALANCE.enemyPreWallGrowth || 1.055) - 0.012, preFloors) *
-            Math.pow((BALANCE.enemyPostWallGrowth || 1.065) - 0.007, postFloors) *
-            (wall ? BALANCE.enemyWallDefMult || 2.1 : 1),
+        hp: Math.max(1, Math.floor(originalHp * 0.75)),
+        atk: Math.max(1, Math.floor(originalAtk * 0.75)),
+        def: originalDef,
+        originalHp,
+        originalAtk,
+        str: Math.min(100, Math.max(1, originalAtk)),
+        hpStat: Math.min(100, Math.max(1, Math.round((originalHp - 50) / 5))),
+        int: Math.min(100, Math.max(1, Math.floor(5 + effectiveFloor * 0.4))),
+        wis: Math.min(100, Math.max(1, Math.floor(5 + effectiveFloor * 0.38))),
+        agi: Math.min(100, Math.max(1, Math.floor(8 + effectiveFloor * 0.5))),
     };
 }
 
-function buildEnemyStatsForFloor(floorValue, isBoss) {
-    const f = Math.max(1, Math.floor(safeNum(floorValue, 1)));
-    const s = getEnemyScalingForFloor(f);
-    const wave = 1 + ((f % 5) - 2) * 0.025;
-    const boss = isBoss ? { hp: 2.65, atk: 1.72, def: 1.65 } : { hp: 1, atk: 1, def: 1 };
+function ghostToEnemy(ghost) {
+    const stats = normalizeHumanStats(ghost.stats);
+    const fullSpec = JSON.parse(JSON.stringify(ghost.fullSpec || {}));
     return {
-        hp: Math.max(1, Math.floor((44 + f * 4.5) * s.hp * boss.hp * wave)),
-        atk: Math.max(1, Math.floor((6 + f * 0.55) * s.atk * boss.atk * wave)),
-        def: Math.max(0, Math.floor((1 + f * 0.22) * s.def * boss.def)),
+        ...fullSpec,
+        id: ghost.ghostId,
+        ghostId: ghost.ghostId,
+        isPlayerGhost: true,
+        name: ghost.monsterName,
+        job: '망령',
+        hp: ghost.maxHp,
+        curHp: ghost.maxHp,
+        atk: Math.max(1, safeNum(fullSpec.atk, stats.str)),
+        def: Math.max(0, safeNum(fullSpec.def, stats.def)),
+        extraDef: Math.max(0, safeNum(fullSpec.extraDef, 0)),
+        stats,
+        equipment: JSON.parse(JSON.stringify(ghost.equipment || {})),
+        magic: JSON.parse(JSON.stringify(ghost.magic || [])),
+        skills: JSON.parse(JSON.stringify(ghost.skills || [])),
+        mastery: JSON.parse(JSON.stringify(ghost.mastery || {})),
+        statuses: JSON.parse(JSON.stringify(ghost.statuses || [])),
+        body: JSON.parse(JSON.stringify(ghost.body || {})),
+        items: JSON.parse(JSON.stringify(ghost.items || [])),
+        relics: JSON.parse(JSON.stringify(ghost.relics || [])),
+        behaviorLogger: JSON.parse(JSON.stringify(ghost.behaviorLogger || [])),
+        behaviorMatrix: ghost.behaviorMatrix ? JSON.parse(JSON.stringify(ghost.behaviorMatrix)) : null,
+        sourceSnapshot: JSON.parse(JSON.stringify(ghost)),
+        isBoss: false,
+        turnCount: 0,
+    };
+}
+
+function createDepthMonster(progress) {
+    const current = normalizeDungeonProgress(progress);
+    const isBoss = current.stage === STAGES_PER_FLOOR;
+    const stats = buildEnemyStatsForFloor(current.floor, isBoss, current.stage);
+    const archetypes = [monsterArchetypeTable.warrior, monsterArchetypeTable.hunter, monsterArchetypeTable.mage];
+    const archetype = isBoss
+        ? monsterArchetypeTable.boss
+        : archetypes[Math.floor(Math.random() * archetypes.length)];
+    return {
+        id: `monster-${current.floor}-${current.stage}-${Date.now().toString(36)}`,
+        name: isBoss ? `👑 [보스] ${current.floor}-${current.stage}층 군주` : `[${archetype.job}] ${current.floor}-${current.stage}층 괴수`,
+        job: archetype.job,
+        archetype: archetype.key,
+        element: archetype.element,
+        affinity: { strong: archetype.strong, weak: archetype.weak },
+        traitTags: Array.from(archetype.traitTags || [archetype.key, archetype.element]),
+        hp: stats.hp,
+        curHp: stats.hp,
+        atk: stats.atk,
+        def: stats.def,
+        stats: {
+            str: stats.str,
+            def: Math.min(100, stats.def),
+            hp: stats.hpStat,
+            int: stats.int,
+            wis: stats.wis,
+            agi: stats.agi,
+            divinity: 0,
+            distortion: Math.min(100, current.floor),
+        },
+        equipment: { weapon: null, armor: null, accessories: [] },
+        magic: [],
+        skills: [],
+        mastery: {},
+        statuses: [],
+        body: Object.fromEntries(bodyParts.map((part) => [part, { destroyed: false, twisted: false, indestructible: false }])),
+        isBoss,
+        turnCount: 0,
     };
 }
 
 function spawnEnemy() {
-    setCombatProcessing(false);
-    window._victoryState = null;
-    window._victoryContinueFn = null;
-    if (pendingShop) { pendingShop=false; return openShop(); }
-    window._encounterPhaseActive = false;
-    hideEncounterPhaseUI();
-    defendingTurns=0; dodgingTurns=0; shieldedTurns=0;
-    regenTurns=0; regenAmount=0; potionUsedThisTurn=false;
-    if (player) { player.mercRegenTurns = 0; player.mercRegenAmount = 0; }
-
-    if (player && player.mercNextBattleDebuff && typeof player.mercNextBattleDebuff.atkPct === 'number') {
-        player._mercBattleAtkDebuff = player.mercNextBattleDebuff.atkPct;
-    } else if (player) {
-        player._mercBattleAtkDebuff = 0;
-    }
-    if (player) player.mercNextBattleDebuff = null;
-
-    if (player) {
-        player._relicTempCrit = 0;
-        player.extraAtk = 0;
-        player._relicGamblerDefSub = 0;
-        player.tacticalSkillUses = {};
-        player.tacticalFocusReady = false;
-        player.tacticalParryReady = false;
-        player.tacticalBarrierReady = false;
-    }
-    if (player && player.relics && player.relics.includes('gambler')) {
-        const pa = safeNum(player.atk, 0);
-        const totalDefBase = safeNum(player.def, 0) + safeNum(player.extraDef, 0);
-        const r = Math.random();
-        if (r < 1 / 3) {
-            player.extraAtk = Math.floor(pa * 0.22);
-            writeLog(`[유물] 🎲 도박사의 주사위: 공격력 +22% (이번 전투)`);
-        } else if (r < 2 / 3) {
-            player._relicTempCrit = 18;
-            writeLog(`[유물] 🎲 도박사의 주사위: 치명타 확률 +18% (이번 전투)`);
-        } else {
-            player.extraAtk = -Math.max(1, Math.floor(pa * 0.12));
-            player._relicGamblerDefSub = Math.max(4, Math.floor(totalDefBase * 0.1));
-            player._relicTempCrit = -12;
-            writeLog(
-                `[유물] 🎲 도박사의 주사위: 불길한 눈! 공격·방어·치명 약화 (이번 전투만, 공격 약 -12%·방어 -${player._relicGamblerDefSub}·치명 -12%)`
-            );
-        }
-    }
-
-    if (floor%10===0) {
-        const stats = buildEnemyStatsForFloor(floor, true);
-        const bossHp = stats.hp;
-        const bossAtk = stats.atk;
-        const bossDef = stats.def;
-        if (floor === 100 && typeof emitFinalBossOpeningStory === 'function') emitFinalBossOpeningStory();
-        enemy={name:floor === 100 ? '👑 [최종보스] 배신한 조력자' : `👑 [보스] ${floor}층 군주`,job:'보스',hp:bossHp,curHp:bossHp,atk:bossAtk,def:bossDef,isBoss:true,turnCount:1,bossCharge:false,weakPoint:false,_aiGuardedTurns:0,_hunterEvasionTurns:0};
-        writeLog(floor === 100 ? '🚨 최종전: 배신한 조력자가 본모습을 드러냈습니다!' : `🚨 경고: ${floor}층의 지배자가 나타났습니다!`);
-    } else {
-        const eJobs=['워리어','헌터','마법사'];
-        let rj=eJobs[Math.floor(Math.random()*eJobs.length)];
-        if(rj===lastEnemyJob) rj=eJobs[Math.floor(Math.random()*eJobs.length)];
-        lastEnemyJob=rj;
-        const stats = buildEnemyStatsForFloor(floor, false);
-        let mh = stats.hp;
-        let ma = stats.atk;
-        let md = stats.def;
-        enemy={name:`[${rj}형] ${floor}층 괴수`,job:rj,hp:Math.floor(mh),curHp:Math.floor(mh),atk:Math.floor(ma),def:Math.floor(md),isBoss:false,weakPoint:false,_aiGuardedTurns:0,_hunterEvasionTurns:0};
-    }
-    if (enemy && window._pendingEncounterCombatMod) {
-        const mod = window._pendingEncounterCombatMod;
-        if (typeof mod.enemyHpMul === 'number' && mod.enemyHpMul > 0) {
-            enemy.curHp = Math.max(1, Math.floor(safeNum(enemy.curHp, 1) * mod.enemyHpMul));
-        }
-        window._pendingEncounterCombatMod = null;
-    }
-    if (isMercenaryCaptainJob() && player.mercCompanionKind && !player.fieldMerc && player.mercCooldownTurns <= 0) {
-        player.fieldMerc = buildFieldMercFromTemplate();
-        const ratio = player.mercReviveAt90Percent ? 0.9 : 1;
-        player.fieldMerc.mercHp = Math.max(1, Math.floor(player.fieldMerc.mercMaxHp * ratio));
-        const hpNote = ratio < 1 ? ' · 부상 복귀 90%' : ' · 만전';
+    const progress = getCurrentDungeonProgress();
+    floor = progress.floor;
+    dungeonStage = progress.stage;
+    const ghost = typeof MetaRPG !== 'undefined' ? MetaRPG.getGhostEncounter(progress) : null;
+    enemy = ghost ? ghostToEnemy(ghost) : createDepthMonster(progress);
+    if (typeof writeLog === 'function') {
         writeLog(
-            `[용병] 동료 <b>${player.fieldMerc.sourceName}</b> 전개! 상성: <b>${player.fieldMerc.mercAffinityJob}</b>${hpNote} (${player.fieldMerc.mercHp}/${player.fieldMerc.mercMaxHp})`
+            ghost
+                ? `[망령] ${formatDungeonPosition(progress)}에 박제된 <b>${enemy.name}</b>이 나타났습니다. 사망 당시의 모든 스펙을 유지합니다.`
+                : `[진행] ${formatDungeonPosition(progress)} — ${enemy.name} 출현`
         );
-        player.mercReviveAt90Percent = false;
     }
-    if (player) player._playerMissStreak = 0;
-    tryActivateFloorQuest();
-    player._awaitPlayerTurn = true;
-    updateUi(); renderActions();
+    if (typeof updateUi === 'function') updateUi();
+    if (typeof renderActions === 'function') renderActions();
+    return enemy;
 }
 
-function tryActivateFloorQuest() {
-    if (!player || !player.metaSlotId || typeof MetaRPG === 'undefined') return;
-    const qdef = MetaRPG.FLOOR_QUESTS[floor];
-    if (!qdef) {
-        player.activeQuest = null;
-        return;
-    }
-    const slot = MetaRPG.getSlotById(player.metaSlotId);
-    if (slot && slot.questFlags && slot.questFlags[qdef.id]) {
-        player.activeQuest = null;
-        return;
-    }
-    player.activeQuest = { id: qdef.id, title: qdef.title };
-    player._questWins = 0;
-    writeLog(`[특수 퀘스트] <b>${qdef.title}</b> — ${qdef.desc}`);
-}
+Object.assign(window, {
+    getCurrentDungeonProgress,
+    buildEnemyStatsForFloor,
+    ghostToEnemy,
+    createDepthMonster,
+    spawnEnemy,
+});
 
-window.spawnEnemy = spawnEnemy;
-window.tryActivateFloorQuest = tryActivateFloorQuest;
-window.getEnemyScalingForFloor = getEnemyScalingForFloor;
-window.buildEnemyStatsForFloor = buildEnemyStatsForFloor;
 
-// ---- js/uiManager.js ----
+// ===== js/uiManager.js =====
 // UI manager module (stage 1 split)
 const BASE_JOB_TITLE_NAMES = Object.freeze({
     Warrior: '워리어',
@@ -5070,6 +12585,12 @@ function syncPlayerRunProgressToMeta() {
         playerState: player.playerState,
         tacticalSkills: player.tacticalSkills,
         tacticalSkillMilestonesClaimed: player.tacticalSkillMilestonesClaimed,
+        starterEquipment: (player.items || []).filter((it) => {
+            if (!it) return false;
+            return typeof isStarterGearItem === 'function'
+                ? isStarterGearItem(it)
+                : !!(it.isStarterGear || it.starterGearKind);
+        }),
         currentPromotion: player.currentPromotion || null,
     });
 }
@@ -5558,7 +13079,7 @@ auth.onAuthStateChanged((user) => {
 
 /** 베이스캠프 영구 강화 — 무한 단계, 슬롯 전용 */
 function getCampPermaNextPrice(key, level) {
-    const growth = (typeof BALANCE !== 'undefined' && BALANCE.enemyPostWallGrowth) || 1.065;
+    const growth = (typeof BALANCE !== 'undefined' && BALANCE.permanentUpgradeGrowth) || 1.065;
     const floorEq = (typeof BALANCE !== 'undefined' && BALANCE.upgradeFloorEquivalent) || 1.25;
     const tempo = Math.max(1.28, Math.pow(growth, floorEq * 5.2));
     const T = {
@@ -6227,7 +13748,7 @@ function showPreGameScreen() {
     document.getElementById('start-area').innerHTML = `
         <div style="text-align:center; margin-bottom:16px;">
             <h2 style="color:#f1c40f; margin-bottom:5px;">⚔️ 로그라이트 허브</h2>
-            <p style="color:#9b59b6;font-size:0.88em;margin:0 0 8px;font-weight:700;">시즌 1</p>
+            <p style="color:#9b59b6;font-size:0.88em;margin:0 0 8px;font-weight:700;">시즌 2</p>
             ${saveFileBar}
             <p style="color:#888; font-size:0.85em;">무한 층 · 베이스캠프에서만 영구 성장</p>
             ${globalUnlocked.length > 0 ? `<p style="color:#f1c40f;font-size:0.8em;">🔓 공용 해금: ${globalUnlocked.join(', ')}층</p>` : ''}
@@ -6450,7 +13971,38 @@ function initRunFromMetaSlot(options) {
     const baseDef = job.def + tb.def + lb.def + (rs.def || 0);
     const baseAcc = tb.acc + lb.acc + (rs.acc || 0);
     const rescuedItems = typeof MetaRPG.getRescuedItems === 'function' ? MetaRPG.getRescuedItems(slot.id) : [];
-    rescuedItems.forEach((it) => {
+    const starterItems = Array.isArray(slot.starterEquipment)
+        ? slot.starterEquipment
+              .map((it) => {
+                  try {
+                      const copy = JSON.parse(JSON.stringify(it));
+                      if (typeof applyStarterGearStats === 'function') applyStarterGearStats(copy);
+                      return copy;
+                  } catch (e) {
+                      return null;
+                  }
+              })
+              .filter(Boolean)
+        : typeof buildStarterEquipmentSet === 'function'
+          ? buildStarterEquipmentSet({
+                raceKey: slot.raceKey,
+                weaponKey: slot.introWeaponKey,
+                classKey: slot.classKey,
+                jobKey: slot.jobKey,
+            })
+          : [];
+    const runItems = [...rescuedItems];
+    starterItems.forEach((it) => {
+        if (!it) return;
+        const kind = it.starterGearKind;
+        const exists = runItems.some((owned) => {
+            if (!owned) return false;
+            if (typeof isStarterGearItem === 'function' && !isStarterGearItem(owned)) return false;
+            return owned.starterGearKind === kind;
+        });
+        if (!exists) runItems.push(it);
+    });
+    runItems.forEach((it) => {
         if (!it || it.type === 'merc') return;
         if (typeof applyOfficialStatsToEquipmentItem === 'function') applyOfficialStatsToEquipmentItem(it, { rebuildDesc: true });
         else if (typeof clampEquipmentItemStatsToRarityCaps === 'function') clampEquipmentItemStatsToRarityCaps(it);
@@ -6476,7 +14028,7 @@ function initRunFromMetaSlot(options) {
         metaSlotId: slot.id,
         runLevel: lv,
         runExp: slot.exp || 0,
-        items: rescuedItems,
+        items: runItems,
         relics: [],
         extraAtk: 0,
         _relicGamblerDefSub: 0,
@@ -6550,8 +14102,10 @@ function initRunFromMetaSlot(options) {
     enterBattleLayout();
     loadCollection();
     emitRunStartStory(slot);
-    if (player.items.length) {
+    if (rescuedItems.length) {
         writeLog(`[구조] 베이스캠프에 보존된 장비 ${player.items.length}개를 장착한 채 1층부터 재등반합니다.`);
+    } else if (starterItems.length) {
+        writeLog('[장비] 부서지기 직전의 고유 무기와 다 해진 고유 갑옷을 자동 장착했습니다.');
     }
     if (jb === 'MercenaryCaptain') {
         MetaRPG.markRunCheckpoint(slot.id);
@@ -7562,6 +15116,7 @@ function getEquipSlotKind(it) {
     if (it.type === 'atk') return 'weapon';
     if (it.type === 'hp') return 'armor';
     if (it.type === 'ring') return 'ring';
+    if (it.type === 'util') return 'ring';
     if (it.type === 'rune') return 'rune';
     return null;
 }
@@ -8053,14 +15608,17 @@ function renderInventoryPanel() {
             const rarityInfo = rl[rarity] || rl.common;
             const bp = Math.max(0, safeNum(it._buyPrice != null ? it._buyPrice : it.price, 0));
             const rf = Math.floor(bp * 0.5);
+            const starterGear = typeof isStarterGearItem === 'function' ? isStarterGearItem(it) : !!(it.isStarterGear || it.starterGearKind);
             html += `<div class="inventory-slot-cell inventory-slot-cell-filled" style="--rarity-color:${rarityInfo.color};">
                 <div class="inventory-item-top">
                     <span class="inventory-item-rarity" style="background:${rarityInfo.bg};color:${rarityInfo.color};">${rarityInfo.label}</span>
-                    <button type="button" class="inventory-sell-btn" onclick="sellItemByUid('${escapeJsSingleQuoteString(it._uid)}')">판매</button>
+                    ${starterGear
+                        ? '<span class="inventory-item-price" style="margin:0;color:#f1c40f;">고유</span>'
+                        : `<button type="button" class="inventory-sell-btn" onclick="sellItemByUid('${escapeJsSingleQuoteString(it._uid)}')">판매</button>`}
                 </div>
                 <div class="inventory-item-name">${formatShopItemName(it.name)}</div>
                 <div class="inventory-item-desc">${formatShopItemDesc(it.desc)}</div>
-                <div class="inventory-item-price">판매가 <b>${rf}G</b></div>
+                <div class="inventory-item-price">${starterGear ? '상점에서 수리 및 복원 가능' : `판매가 <b>${rf}G</b>`}</div>
             </div>`;
         }
         html += `</div></section>`;
@@ -8097,937 +15655,50 @@ window.startInfiniteMode=()=>{
 /** 사망 처리: 보존 골드·퀘스트 페널티 후 허브로 */
 // stage 4 split: moved to js/combatLogic.js
 
-// ---- js/encounter.js ----
-// Encounter module (stage 2 split)
-const _PANIC_RARITY_ORDER = { common: 0, rare: 1, epic: 2, legendary: 3, relic: 4 };
-const ENCOUNTER_SCENE_WEIGHTS = {
-    monster: 60,
-    treasure: 10,
-    rest: 8,
-    altar: 14,
-};
-let restockCrossroadActive = false;
-let restockCrossroadContext = null;
-let resumeAfterRestockCrossroad = null;
 
-function isBossFloorNumber(floorValue) {
-    const floorNum = Math.max(1, Math.floor(safeNum(floorValue, 1)));
-    return floorNum % 10 === 0;
-}
+// ===== js/encounter.js =====
+'use strict';
 
-function startBossFloorCombat(opts) {
-    pendingShop = false;
-    restockCrossroadActive = false;
-    restockCrossroadContext = null;
-    resumeAfterRestockCrossroad = null;
-    window._encounterPhaseActive = false;
-    window._encounterPhaseScene = null;
-    window._pendingEncounterCombatMod = null;
-    const enterBoss = () => {
-        const shop = document.getElementById('shop-area');
-        const battle = document.getElementById('battle-area');
-        if (shop) shop.style.display = 'none';
-        if (battle) battle.style.display = 'block';
-        hideEncounterPhaseUI();
-        spawnEnemy();
-    };
-    if (opts && opts.immediate) enterBoss();
-    else transitionMainView(enterBoss);
-}
-
-function rollEncounterSceneType() {
-    const r = Math.random() * 100;
-    const m = ENCOUNTER_SCENE_WEIGHTS.monster;
-    const t = m + ENCOUNTER_SCENE_WEIGHTS.treasure;
-    const rs = t + ENCOUNTER_SCENE_WEIGHTS.rest;
-    const a = rs + ENCOUNTER_SCENE_WEIGHTS.altar;
-    if (r < m) return 'monster';
-    if (r < t) return 'treasure';
-    if (r < rs) return 'rest';
-    if (r < a) return 'altar';
-    return 'monster';
-}
-
-function getPanicRunSacrificeItems() {
-    if (!player || !Array.isArray(player.items)) return [];
-    return player.items.filter(
-        (it) => it && getEquipSlotKind(it) && it.type !== 'merc' && it.type !== 'rune'
-    );
-}
-
-function pickLowestRaritySacrificeItem() {
-    const list = getPanicRunSacrificeItems();
-    if (!list.length) return null;
-    return [...list].sort(
-        (a, b) => (_PANIC_RARITY_ORDER[a.rarity] ?? 9) - (_PANIC_RARITY_ORDER[b.rarity] ?? 9)
-    )[0];
-}
-
-function buildMonsterEncounterHtml() {
-    const sac = getPanicRunSacrificeItems();
-    const canFlee = sac.length > 0;
-    const fleeDisabled = canFlee ? '' : ' disabled';
-    const fleeHint = canFlee
-        ? ''
-        : '<p style="color:#888;font-size:0.82em;margin:10px 0 0;line-height:1.45;">인벤토리에 희생할 <b>장비</b>(무기·갑옷·반지)가 없습니다. 도망할 수 없습니다.</p>';
-    return `
-<div style="padding:18px 16px;background:#141820;border:1px solid #2a3548;border-radius:12px;text-align:center;max-width:520px;margin:0 auto;">
-  <p style="color:#b8c0d8;font-size:0.95em;line-height:1.55;margin:0 0 8px;">어둠 속에서 적의 기척이 느껴집니다...</p>
-  <p style="color:#e0e0e0;font-size:1.05em;font-weight:700;margin:0 0 18px;">${floor}층 — 전투를 피할지, 맞서 싸울지 선택하세요.</p>
-  <div style="display:flex;flex-direction:column;gap:10px;align-items:stretch;">
-    <button type="button" onclick="ambushEncounterEnemy()" style="background:#8e44ad;color:#fff;padding:12px 16px;font-weight:800;border:none;border-radius:8px;cursor:pointer;font-size:0.95em;">🗡️ 기습하기 (성공 50%)</button>
-    <button type="button" onclick="enterCombatFromEncounter()" style="background:#c0392b;color:#fff;padding:12px 16px;font-weight:800;border:none;border-radius:8px;cursor:pointer;font-size:0.95em;">⚔️ 전투 돌입</button>
-    <button type="button" onclick="openPanicRunSacrificeModal()"${fleeDisabled} style="background:#34495e;color:#e0e0e0;padding:12px 16px;font-weight:700;border:1px solid #4a6278;border-radius:8px;cursor:pointer;font-size:0.95em;">⚡ 장비 던지고 도망치기</button>
-  </div>
-  ${fleeHint}
-</div>`;
-}
-
-function buildTreasureEncounterHtml() {
-    return `
-<div style="padding:18px 16px;background:#1a1a12;border:1px solid #5a4b1f;border-radius:12px;text-align:center;max-width:520px;margin:0 auto;">
-  <p style="color:#f1c40f;font-size:1.06em;font-weight:800;margin:0 0 8px;">📦 보물/함정 방</p>
-  <p style="color:#d8d0b8;font-size:0.95em;line-height:1.55;margin:0 0 16px;">몬스터는 없고 낡은 보물상자가 있습니다.</p>
-  <div style="display:flex;flex-direction:column;gap:10px;">
-    <button type="button" onclick="resolveTreasureChest(true)" style="background:#f39c12;color:#111;padding:12px 16px;font-weight:800;border:none;border-radius:8px;cursor:pointer;font-size:0.95em;">🗝️ 상자를 연다</button>
-    <button type="button" onclick="resolveTreasureChest(false)" style="background:#555;color:#ddd;padding:11px 16px;font-weight:700;border:none;border-radius:8px;cursor:pointer;font-size:0.92em;">🚶 무시하고 지나간다</button>
-  </div>
-</div>`;
-}
-
-function buildRestEncounterHtml() {
-    return `
-<div style="padding:18px 16px;background:#142018;border:1px solid #2f5a38;border-radius:12px;text-align:center;max-width:520px;margin:0 auto;">
-  <p style="color:#2ed573;font-size:1.05em;font-weight:800;margin:0 0 8px;">🛌 안전한 휴식처</p>
-  <p style="color:#c9e8d3;font-size:0.94em;line-height:1.55;margin:0 0 16px;">잠시 몸을 숨길 수 있는 공간입니다. 숨을 고르고 다음 층으로 향할 수 있습니다.</p>
-  <button type="button" onclick="resolveRestSpot()" style="background:#2ed573;color:#111;padding:12px 16px;font-weight:800;border:none;border-radius:8px;cursor:pointer;font-size:0.95em;">🫧 잠시 쉰 뒤 이동</button>
-</div>`;
-}
-
-function buildAltarEncounterHtml() {
-    const opts = buildAltarEncounterOptions();
-    const cards = opts
-        .map(
-            (o, i) => `<button type="button" class="altar-option-card" onclick="resolveAltarOption(${i})">
-  <span class="altar-option-title">${escapeHtml(o.title)}</span>
-  <span class="altar-option-desc">${escapeHtml(o.desc)}</span>
-</button>`
-        )
-        .join('');
-    window._altarEncounterOptions = opts;
-    return `
-<div style="padding:18px 16px;background:#1a101b;border:1px solid #6d2f71;border-radius:12px;text-align:center;max-width:560px;margin:0 auto;">
-  <p style="color:#d980fa;font-size:1.06em;font-weight:800;margin:0 0 8px;">🩸 수상한 제단</p>
-  <p style="color:#d8c7de;font-size:0.93em;line-height:1.55;margin:0 0 14px;">수상한 제단이 붉은빛을 뿜고 있습니다. 대가를 치르고 각인을 새길 수 있습니다.</p>
-  <div class="altar-options-wrap">${cards}</div>
-  <button type="button" onclick="skipAltarOption()" style="margin-top:10px;background:#444;color:#ddd;padding:9px 14px;border:none;border-radius:8px;cursor:pointer;">제단에서 물러난다</button>
-</div>`;
-}
-
-function buildEncounterPhaseHtml(sceneType) {
-    if (sceneType === 'treasure') return buildTreasureEncounterHtml();
-    if (sceneType === 'rest') return buildRestEncounterHtml();
-    if (sceneType === 'altar') return buildAltarEncounterHtml();
-    return buildMonsterEncounterHtml();
-}
-
-function isRestockCrossroadFloor(f) {
-    const floorNum = Math.max(1, Math.floor(safeNum(f, 1)));
-    return floorNum > 1 && floorNum % 3 === 0 && !isBossFloorNumber(floorNum);
-}
-
-function hasSeenRestockCrossroad(f) {
-    if (!player) return true;
-    const floorNum = Math.max(1, Math.floor(safeNum(f, 1)));
-    return Array.isArray(player._restockCrossroadsSeen) && player._restockCrossroadsSeen.includes(floorNum);
-}
-
-function markRestockCrossroadSeen(f) {
-    if (!player) return;
-    const floorNum = Math.max(1, Math.floor(safeNum(f, 1)));
-    if (!Array.isArray(player._restockCrossroadsSeen)) player._restockCrossroadsSeen = [];
-    if (!player._restockCrossroadsSeen.includes(floorNum)) player._restockCrossroadsSeen.push(floorNum);
-    if (player._restockCrossroadsSeen.length > 40) player._restockCrossroadsSeen = player._restockCrossroadsSeen.slice(-40);
-}
-
-function buildRestockCrossroadHtml() {
-    return `
-<div class="restock-crossroad-card">
-  <p class="restock-crossroad-kicker">${floor}층 재정비 분기점</p>
-  <h2 class="restock-crossroad-title">희미한 등불</h2>
-  <p class="restock-crossroad-copy">저 멀리 희미한 등불과 함께 조력자의 상점이 보입니다. 몬스터들의 기운도 강해지고 있습니다. 당신은 어떻게 하겠습니까?</p>
-  <div class="restock-crossroad-actions">
-    <button type="button" class="restock-crossroad-btn restock-crossroad-btn--shop" onclick="resolveRestockCrossroad('shop')">상점에 진입하여 재정비한다</button>
-    <button type="button" class="restock-crossroad-btn restock-crossroad-btn--climb" onclick="resolveRestockCrossroad('climb')">상점을 무시하고 계속 등반한다</button>
-  </div>
-</div>`;
-}
-
+// v3.5에는 전투 외 랜덤 인카운터, 직업 이벤트, 전직 이벤트가 없다.
 function hideEncounterPhaseUI() {
-    const ep = document.getElementById('encounter-phase');
-    const hud = document.getElementById('battle-hud');
-    if (ep) {
-        ep.style.display = 'none';
-        ep.replaceChildren();
-    }
-    if (hud) hud.style.display = 'block';
-}
-
-function renderRestockCrossroad(opts) {
-    setCombatProcessing(false);
-    restockCrossroadActive = true;
     window._encounterPhaseActive = false;
     window._encounterPhaseScene = null;
-    window._pendingEncounterCombatMod = null;
-    enemy = null;
-    const renderCrossroad = () => {
-        const ep = document.getElementById('encounter-phase');
-        const hud = document.getElementById('battle-hud');
-        if (ep) {
-            ep.replaceChildren();
-            ep.style.display = 'block';
-            ep.insertAdjacentHTML('beforeend', buildRestockCrossroadHtml());
-        }
-        if (hud) hud.style.display = 'none';
-        updateUi();
-        renderActions();
-    };
-    if (opts && opts.immediate) renderCrossroad();
-    else transitionMainView(renderCrossroad);
-}
-
-function maybeStartRestockCrossroad(clearedFloor, flowKind, extraContext) {
-    if (isBossFloorNumber(floor)) return false;
-    if (!player || !isRestockCrossroadFloor(floor) || hasSeenRestockCrossroad(floor)) return false;
-    markRestockCrossroadSeen(floor);
-    restockCrossroadContext = {
-        clearedFloor: Math.max(1, Math.floor(safeNum(clearedFloor, floor - 1))),
-        flowKind: flowKind || 'encounter',
-        defeatedBoss: !!(extraContext && extraContext.defeatedBoss),
-    };
-    renderRestockCrossroad();
-    return true;
-}
-
-function resumeRestockCrossroadContext(context, opts) {
-    const ctx = context || {};
-    if (ctx.flowKind === 'battle') {
-        winBattleContinueFrom(ctx.clearedFloor, {
-            skipCrossroad: true,
-            immediate: !!(opts && opts.immediate),
-            defeatedBoss: !!ctx.defeatedBoss,
-        });
-        return;
-    }
-    beginFloorEncounter(opts && opts.immediate ? { immediate: true } : undefined);
-}
-
-window.resolveRestockCrossroad = function resolveRestockCrossroad(choice) {
-    if (!player || !restockCrossroadActive) return;
-    const context = restockCrossroadContext || {
-        clearedFloor: Math.max(1, floor - 1),
-        flowKind: 'encounter',
-        defeatedBoss: false,
-    };
-    restockCrossroadActive = false;
-    restockCrossroadContext = null;
-    if (choice === 'shop') {
-        resumeAfterRestockCrossroad = context;
-        writeLog('[분기점] 조력자의 상점에 들러 재정비하기로 했습니다.');
-        openShop();
-        return;
-    }
-    writeLog('[분기점] 상점을 지나치고 위험한 등반을 계속합니다.');
-    resumeRestockCrossroadContext(context);
-};
-
-function beginFloorEncounter(opts) {
-    setCombatProcessing(false);
-    if (isBossFloorNumber(floor)) {
-        startBossFloorCombat(opts);
-        return;
-    }
-    if (pendingShop) {
-        spawnEnemy();
-        return;
-    }
-    if (restockCrossroadActive) {
-        renderRestockCrossroad(opts);
-        return;
-    }
-    const scene = window._encounterPhaseScene || rollEncounterSceneType();
-    window._encounterPhaseScene = scene;
-    window._encounterPhaseActive = true;
-    enemy = null;
-    const renderEncounter = () => {
-        const ep = document.getElementById('encounter-phase');
-        const hud = document.getElementById('battle-hud');
-        if (ep) {
-            ep.replaceChildren();
-            ep.style.display = 'block';
-            ep.insertAdjacentHTML('beforeend', buildEncounterPhaseHtml(scene));
-        }
-        if (hud) hud.style.display = 'none';
-        updateUi();
-        renderActions();
-    };
-    if (opts && opts.immediate) renderEncounter();
-    else transitionMainView(renderEncounter);
-}
-
-window.enterCombatFromEncounter = function enterCombatFromEncounter() {
-    if (!player) return;
-    window._encounterPhaseActive = false;
-    window._encounterPhaseScene = null;
-    window._pendingEncounterCombatMod = null;
-    transitionMainView(() => {
-        hideEncounterPhaseUI();
-        spawnEnemy();
-    });
-};
-
-window.ambushEncounterEnemy = function ambushEncounterEnemy() {
-    if (!player || !window._encounterPhaseActive) return;
-    const success = Math.random() < 0.5;
-    window._encounterPhaseActive = false;
-    window._encounterPhaseScene = null;
-    if (success) {
-        window._pendingEncounterCombatMod = { enemyHpMul: 0.8 };
-        writeLog('[기습] ✅ 적의 허를 찔렀습니다! 적 체력이 20% 깎인 상태로 전투를 시작합니다.');
-    } else {
-        window._pendingEncounterCombatMod = null;
-        const lossPct = 0.1 + Math.random() * 0.05;
-        const dmg = Math.max(1, Math.floor(getEffectiveMaxHp() * lossPct));
-        player.curHp = Math.max(1, safeNum(player.curHp, 1) - dmg);
-        writeLog(`[기습] ❌ 발각되었습니다! 허둥지둥 물러나며 체력 ${dmg}를 잃었습니다.`);
-    }
-    transitionMainView(() => {
-        hideEncounterPhaseUI();
-        spawnEnemy();
-    });
-};
-
-window.openPanicRunSacrificeModal = function openPanicRunSacrificeModal() {
-    const list = getPanicRunSacrificeItems();
-    if (!list.length) return writeLog('[도망] 희생할 장비가 없습니다.');
-    const ov = document.createElement('div');
-    ov.id = 'panic-run-overlay';
-    ov.style.cssText =
-        'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:10050;display:flex;align-items:center;justify-content:center;padding:16px;';
-    const rows = list
-        .map((it) => {
-            ensureOwnedItemUid(it);
-            const rk = it.rarity || 'common';
-            const col = rk === 'legendary' ? '#e74c3c' : rk === 'epic' ? '#a55eea' : rk === 'rare' ? '#1e90ff' : '#888';
-            return `<button type="button" onclick="executePanicRunSacrifice('${escapeJsSingleQuoteString(it._uid)}')" style="width:100%;margin-bottom:8px;padding:10px 12px;text-align:left;background:#1a1a2e;border:1px solid #444;border-radius:8px;cursor:pointer;color:#e0e0e0;">
-            <span style="color:${col};font-weight:800;font-size:0.75em;">${rk.toUpperCase()}</span> <b>${escapeHtml(it.name)}</b>
-            <span style="color:#666;font-size:0.8em;display:block;margin-top:4px;">이 장비를 던져 적의 시야를 가립니다.</span>
-          </button>`;
-        })
-        .join('');
-    ov.innerHTML = `
-      <div style="background:#121a24;border:2px solid #1e90ff;border-radius:12px;padding:22px;max-width:420px;width:100%;max-height:90vh;overflow-y:auto;">
-        <h3 style="color:#1e90ff;margin:0 0 8px;">⚡ 무엇을 던질까?</h3>
-        <p style="color:#888;font-size:0.85em;margin:0 0 14px;line-height:1.45;">한 장비를 희생해야 도망을 시도할 수 있습니다. 선택 후 현재 층에서 <b>2~3층 아래</b>로 떨어집니다.</p>
-        ${rows}
-        <button type="button" onclick="executePanicRunAuto()" style="width:100%;margin-top:5px;padding:10px;background:#2c3e50;color:#ecf0f1;border:1px solid #555;border-radius:8px;cursor:pointer;font-weight:700;">🎲 가장 낮은 등급 장비 자동 희생</button>
-        <button type="button" onclick="closePanicRunModal()" style="width:100%;margin-top:10px;padding:8px;background:#333;color:#aaa;border:none;border-radius:8px;cursor:pointer;">취소</button>
-      </div>`;
-    document.body.appendChild(ov);
-};
-
-window.closePanicRunModal = function closePanicRunModal() {
-    const ov = document.getElementById('panic-run-overlay');
-    if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
-};
-
-window.executePanicRunAuto = function executePanicRunAuto() {
-    const it = pickLowestRaritySacrificeItem();
-    if (!it) return writeLog('[도망] 희생할 장비가 없습니다.');
-    ensureOwnedItemUid(it);
-    executePanicRunSacrifice(it._uid);
-};
-
-window.executePanicRunSacrifice = function executePanicRunSacrifice(uid) {
-    if (!player || !uid || !window._encounterPhaseActive) return;
-    closePanicRunModal();
-    const idx = player.items.findIndex((x) => x && x._uid === uid);
-    if (idx < 0) return writeLog('[도망] 아이템을 찾을 수 없습니다.');
-    const it = player.items[idx];
-    if (!getEquipSlotKind(it)) return writeLog('[도망] 장비만 희생할 수 있습니다.');
-    const itemName = it.name;
-    removeOwnedItemEffects(it);
-    player.items.splice(idx, 1);
-    if (player.metaSlotId && typeof fullResyncPlayerCombatStatsFromMetaAndInventory === 'function') {
-        fullResyncPlayerCombatStatsFromMetaAndInventory();
-    }
-    failActiveQuestIfLeavingFloor();
-    let drop = Math.random() < 0.5 ? 2 : 3;
-    const fleeRollBonus = typeof getPlayerFleeBonus === 'function' ? getPlayerFleeBonus() : 0;
-    if (fleeRollBonus > 0 && Math.random() < fleeRollBonus) {
-        drop = Math.max(1, drop - 1);
-    }
-    const fromFloor = floor;
-    floor = Math.max(1, floor - drop);
-    writeLog(
-        `[패닉] 💨 <b>${escapeHtml(itemName)}</b>을(를) 적에게 집어 던지고 뒤도 돌아보지 않고 미친 듯이 도망쳤습니다… <b style="color:#ff4757;">${fromFloor}층 → ${floor}층</b>으로 굴러떨어졌습니다. (하락 ${drop}층)`
-    );
-    if (player && player.metaSlotId && typeof MetaRPG !== 'undefined') MetaRPG.markRunCheckpoint(player.metaSlotId);
-    window._encounterPhaseScene = null;
-    beginFloorEncounter();
-};
-
-window.resolveTreasureChest = function resolveTreasureChest(openChest) {
-    if (!player || !window._encounterPhaseActive) return;
-    window._encounterPhaseScene = null;
-    if (!openChest) {
-        writeLog('[탐험] 상자를 무시하고 조용히 다음 통로로 향했습니다.');
-        return advanceFloorAfterNonCombatEncounter();
-    }
-    const roll = Math.random();
-    if (roll < 0.45) {
-        const goldMult = typeof getPlayerGoldGainMult === 'function' ? getPlayerGoldGainMult() : 1;
-        const baseGain = typeof computeFloorGoldReward === 'function'
-            ? computeFloorGoldReward(floor, { multiplier: 1.1 })
-            : Math.max(15, 6 + Math.floor(Math.random() * 5) + floor * 3);
-        const gain = Math.floor(baseGain * goldMult);
-        gold += gain;
-        totalGoldEarned += gain;
-        writeLog(`[보물] 💰 녹슨 상자에서 ${gain}G를 찾았습니다.`);
-    } else if (roll < 0.75) {
-        player.potions = Math.max(0, safeNum(player.potions, 0)) + 1;
-        writeLog('[보물] 🧪 포션 1개를 발견했습니다.');
-    } else {
-        const dmg = Math.max(1, Math.floor(getEffectiveMaxHp() * (0.1 + Math.random() * 0.08)));
-        player.curHp = Math.max(1, safeNum(player.curHp, 1) - dmg);
-        writeLog(`[함정] ☠️ 독침 함정! 체력 ${dmg}를 잃었습니다.`);
-    }
-    advanceFloorAfterNonCombatEncounter();
-};
-
-window.resolveRestSpot = function resolveRestSpot() {
-    if (!player || !window._encounterPhaseActive) return;
-    window._encounterPhaseScene = null;
-    const heal = Math.max(1, Math.floor(getEffectiveMaxHp() * (0.1 + Math.random() * 0.06)));
-    player.curHp = Math.min(getEffectiveMaxHp(), safeNum(player.curHp, 0) + heal);
-    writeLog(`[휴식] 🌿 숨을 고르며 체력 ${heal} 회복.`);
-    advanceFloorAfterNonCombatEncounter();
-};
-
-function buildAltarEncounterOptions() {
-    const options = [
-        {
-            key: 'atk_to_crit',
-            title: '공격력 15% 희생 → 치명타 확률 20% 증가',
-            desc: '날 선 각인이 공격 대신 치명을 부릅니다.',
-            apply: () => {
-                const loss = Math.max(1, Math.floor(safeNum(player.atk, 1) * 0.15));
-                player.atk = Math.max(1, safeNum(player.atk, 1) - loss);
-                player.crit = safeNum(player.crit, 1) + 20;
-                return { text: `공격력 ${loss} 희생 → 치명타 확률 +20%` };
-            },
-        },
-        {
-            key: 'hp_to_def',
-            title: '최대 체력 18% 희생 → 방어 22% 증가',
-            desc: '피를 바친 대신 육신이 단단해집니다.',
-            apply: () => {
-                const hpLoss = Math.max(1, Math.floor(safeNum(player.maxHp, 1) * 0.18));
-                player.maxHp = Math.max(1, safeNum(player.maxHp, 1) - hpLoss);
-                player.curHp = Math.min(player.maxHp, safeNum(player.curHp, 1));
-                const gain = Math.max(1, Math.floor((safeNum(player.def, 0) + safeNum(player.extraDef, 0)) * 0.22));
-                player.extraDef = safeNum(player.extraDef, 0) + gain;
-                return { text: `최대 체력 ${hpLoss} 희생 → 방어 +${gain}` };
-            },
-        },
-        {
-            key: 'def_to_atk',
-            title: '방어 20% 희생 → 공격력 18% 증가',
-            desc: '안전을 버리고 살기를 얻습니다.',
-            apply: () => {
-                const defTotal = safeNum(player.def, 0) + safeNum(player.extraDef, 0);
-                const loss = Math.max(1, Math.floor(defTotal * 0.2));
-                const fromExtra = Math.min(loss, safeNum(player.extraDef, 0));
-                player.extraDef = safeNum(player.extraDef, 0) - fromExtra;
-                const rem = loss - fromExtra;
-                if (rem > 0) player.def = Math.max(0, safeNum(player.def, 0) - rem);
-                const gain = Math.max(1, Math.floor(safeNum(player.atk, 1) * 0.18));
-                player.atk = safeNum(player.atk, 1) + gain;
-                return { text: `방어 ${loss} 희생 → 공격력 +${gain}` };
-            },
-        },
-    ];
-    if (Math.random() < 0.05) {
-        options.push({
-            key: 'golden_coupon',
-            title: '모든 스탯 10% 희생 → 황금 쿠폰 획득',
-            desc: '다음 상점에서 첫 구매가 0G가 됩니다.',
-            apply: () => {
-                const atkLoss = Math.max(1, Math.floor(safeNum(player.atk, 1) * 0.1));
-                const hpLoss = Math.max(1, Math.floor(safeNum(player.maxHp, 1) * 0.1));
-                const defTotal = safeNum(player.def, 0) + safeNum(player.extraDef, 0);
-                const defLoss = Math.max(1, Math.floor(defTotal * 0.1));
-                player.atk = Math.max(1, safeNum(player.atk, 1) - atkLoss);
-                player.maxHp = Math.max(1, safeNum(player.maxHp, 1) - hpLoss);
-                player.curHp = Math.min(player.maxHp, safeNum(player.curHp, 1));
-                const fromExtra = Math.min(defLoss, safeNum(player.extraDef, 0));
-                player.extraDef = safeNum(player.extraDef, 0) - fromExtra;
-                const rem = defLoss - fromExtra;
-                if (rem > 0) player.def = Math.max(0, safeNum(player.def, 0) - rem);
-                player.freeShopCoupon = true;
-                return { text: `모든 스탯 10% 희생 → 황금 쿠폰 획득` };
-            },
-        });
-    }
-    return options.sort(() => Math.random() - 0.5).slice(0, 3);
-}
-
-function pushPassiveContractHistory(msg) {
-    if (!player) return;
-    if (!Array.isArray(player.passiveContractHistory)) player.passiveContractHistory = [];
-    player.passiveContractHistory.unshift(`[${floor}F] ${msg}`);
-    if (player.passiveContractHistory.length > 30) player.passiveContractHistory.length = 30;
-}
-
-window.resolveAltarOption = function resolveAltarOption(idx) {
-    if (!player || !window._encounterPhaseActive) return;
-    const opts = window._altarEncounterOptions || [];
-    const opt = opts[idx];
-    if (!opt || typeof opt.apply !== 'function') return;
-    const result = opt.apply();
-    if (player.metaSlotId && typeof fullResyncPlayerCombatStatsFromMetaAndInventory === 'function') {
-        fullResyncPlayerCombatStatsFromMetaAndInventory();
-    }
-    const txt = (result && result.text) || opt.title;
-    writeLog(`[제단] 🩸 ${txt}`);
-    pushPassiveContractHistory(txt);
-    window._encounterPhaseScene = null;
-    advanceFloorAfterNonCombatEncounter();
-};
-
-window.skipAltarOption = function skipAltarOption() {
-    if (!window._encounterPhaseActive) return;
-    writeLog('[제단] 기묘한 속삭임을 외면하고 지나쳤습니다.');
-    window._encounterPhaseScene = null;
-    advanceFloorAfterNonCombatEncounter();
-};
-
-function advanceFloorAfterNonCombatEncounter() {
-    if (!player) return;
-    window._encounterPhaseActive = false;
-    failActiveQuestIfLeavingFloor();
-    const prevFloor = floor;
-    floor++;
-    checkFloorUnlock(prevFloor);
-    if (player && player.metaSlotId && typeof MetaRPG !== 'undefined' && MetaRPG.updateBestFloor) {
-        MetaRPG.updateBestFloor(player.metaSlotId, prevFloor);
-    }
-    if (isMercenaryCaptainJob() && prevFloor >= 19 && prevFloor <= 30 && !player.mercEvolutionChosen) {
-        setTimeout(() => showMercEvolutionChoice(() => beginFloorEncounter()), 300);
-        return;
-    }
-    if (maybeStartRestockCrossroad(prevFloor, 'encounter')) return;
-    beginFloorEncounter();
-}
-
-// ===================== 이벤트 층 =====================
-function checkEventFloor(f) {
-    // 15, 25, 35, 45, 55, 65, 75, 85, 95층 = 이벤트 층
-    const eventFloors = [15, 25, 35, 45, 55, 65, 75, 85, 95];
-    return eventFloors.includes(f);
-}
-
-function showEventFloor() {
-    const roll = Math.random();
-    // 20% 대장간, 15% 스킬 이벤트, 65% 스탯 변환
-    if (roll < 0.20) {
-        showForgeEvent();
-    } else if (roll < 0.35 && floor >= 25) {
-        showSkillEvent();
-    } else {
-        showStatSwapEvent();
+    const host = document.getElementById('encounter-phase');
+    if (host) {
+        host.style.display = 'none';
+        host.innerHTML = '';
     }
 }
 
-function showStatSwapEvent() {
-    const events = [
-        {
-            title: "⚔️ → 🛡️ 공격을 방어로",
-            desc: "공격력의 30%를 방어력으로 전환합니다.",
-            action: () => {
-                const transfer = Math.floor(player.atk * 0.3);
-                player.atk -= transfer; player.extraDef += transfer;
-                writeLog(`[이벤트층] ⚔️→🛡️ 공격력 -${transfer}, 방어력 +${transfer}`);
-            }
-        },
-        {
-            title: "🛡️ → ⚔️ 방어를 공격으로",
-            desc: "방어력의 50%를 공격력으로 전환합니다.",
-            action: () => {
-                const transfer = Math.floor((player.def+player.extraDef) * 0.5);
-                player.extraDef = Math.max(0, player.extraDef - transfer);
-                player.def = Math.max(0, player.def - Math.max(0, transfer - player.extraDef));
-                player.atk += transfer;
-                writeLog(`[이벤트층] 🛡️→⚔️ 방어력 -${transfer}, 공격력 +${transfer}`);
-            }
-        },
-        {
-            title: "🛡️ → 💥 방어를 치명타로",
-            desc: "방어 확률을 20% 줄이는 대신 치명타 확률 +15%, 치명타 배율 +30%.",
-            action: () => {
-                player.crit += 15; player.critMult += 0.3;
-                writeLog(`[이벤트층] 🛡️→💥 치명타 확률 +15%, 배율 +30%`);
-            }
-        },
-        {
-            title: "❤️ → ⚔️ 체력을 공격으로",
-            desc: "최대 체력의 20%를 공격력으로 전환합니다.",
-            action: () => {
-                const transfer = Math.floor(player.maxHp * 0.2);
-                player.maxHp -= transfer; player.curHp = Math.min(player.curHp, player.maxHp);
-                player.atk += Math.floor(transfer / 5);
-                writeLog(`[이벤트층] ❤️→⚔️ 체력 -${transfer}, 공격력 +${Math.floor(transfer/5)}`);
-            }
-        },
-        {
-            title: "🎲 랜덤 강화",
-            desc: "완전 랜덤! 모든 스탯이 ±20% 변동됩니다.",
-            action: () => {
-                const atkChange = Math.floor(player.atk * (Math.random()*0.4-0.2));
-                const defChange = Math.floor((player.def+player.extraDef) * (Math.random()*0.4-0.2));
-                const hpChange = Math.floor(player.maxHp * (Math.random()*0.4-0.2));
-                player.atk = Math.max(1, player.atk+atkChange);
-                player.extraDef = Math.max(0, player.extraDef+defChange);
-                player.maxHp = Math.max(50, player.maxHp+hpChange);
-                player.curHp = Math.min(player.curHp, player.maxHp);
-                writeLog(`[이벤트층] 🎲 랜덤 강화! ATK${atkChange>=0?'+':''}${atkChange} / DEF${defChange>=0?'+':''}${defChange} / HP${hpChange>=0?'+':''}${hpChange}`);
-            }
-        }
-    ];
-
-    const shuffled = events.sort(() => Math.random()-0.5).slice(0, 3);
-    const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;z-index:9999;';
-    overlay.innerHTML = `
-        <div style="background:#1a1a2e;border:2px solid #e67e22;border-radius:12px;padding:30px;max-width:500px;width:90%;text-align:center;">
-            <h2 style="color:#e67e22;margin-bottom:6px;">🔀 이벤트 층! ${floor}F</h2>
-            <p style="color:#aaa;font-size:0.88em;margin-bottom:20px;">운명의 갈림길에 서있습니다. 하나를 선택하세요.</p>
-            ${shuffled.map((e,i) => `
-                <div onclick="resolveStatSwap(${i})" style="background:#2a2a3e;border:1px solid #555;border-radius:8px;padding:14px;margin-bottom:10px;cursor:pointer;transition:border-color 0.2s;text-align:left;" onmouseenter="this.style.borderColor='#e67e22'" onmouseleave="this.style.borderColor='#555'">
-                    <b style="color:#e0e0e0;">${e.title}</b>
-                    <p style="color:#888;font-size:0.85em;margin:5px 0 0;">${e.desc}</p>
-                </div>`).join('')}
-            <button onclick="resolveStatSwap(-1)" style="background:#333;color:#888;width:100%;margin-top:5px;padding:10px;font-size:0.85em;">변화를 거부한다</button>
-        </div>`;
-    document.body.appendChild(overlay);
-    window._statSwapEvents = shuffled;
-    window._statSwapOverlay = overlay;
+function beginFloorEncounter() {
+    hideEncounterPhaseUI();
+    return spawnEnemy();
 }
 
-window.resolveStatSwap = (idx) => {
-    document.body.removeChild(window._statSwapOverlay);
-    if (idx >= 0) window._statSwapEvents[idx].action();
-    else writeLog(`[이벤트층] 변화를 거부했습니다.`);
-    updateUi();
-    if (maybeStartRestockCrossroad(Math.max(1, floor - 1), 'encounter')) return;
-    beginFloorEncounter();
-};
+function processFloorQuestOnVictory() {}
+function processFloorQuestOnLeave() {}
+function processFloorMilestone() {}
+function tryRandomEncounter() { return false; }
+function startEncounterPhase() { return beginFloorEncounter(); }
+function resumeRestockCrossroadContext() { return beginFloorEncounter(); }
+function renderRestockCrossroad() { return beginFloorEncounter(); }
+function resolveRestockCrossroad() { return beginFloorEncounter(); }
 
-// ===================== 스킬 이벤트 =====================
-function showSkillEvent() {
-    const bonusSkills = [
-        { name: "피의 분노", desc: "공격 시 10% 확률로 추가 타격 (공격력 80%).", effect: 'bonus_bleed' },
-        { name: "강철 심장", desc: "매 3턴마다 체력 최대치의 5% 자동 회복.", effect: 'bonus_regen' },
-        { name: "폭발 일격", desc: "치명타 발동 시 추가로 공격력 50% 고정 피해.", effect: 'bonus_explode' },
-        { name: "철벽",      desc: "방어/회피/방어막 성공률 +15%.", effect: 'bonus_guard' },
-        { name: "사냥꾼의 눈", desc: "명중률 +10%, 치명타 확률 +8%.", effect: 'bonus_hunter_eye' },
-    ].filter(s => !(player.bonusSkills||[]).includes(s.effect));
+Object.assign(window, {
+    hideEncounterPhaseUI,
+    beginFloorEncounter,
+    processFloorQuestOnVictory,
+    processFloorQuestOnLeave,
+    processFloorMilestone,
+    tryRandomEncounter,
+    startEncounterPhase,
+    resumeRestockCrossroadContext,
+    renderRestockCrossroad,
+    resolveRestockCrossroad,
+});
 
-    if (bonusSkills.length === 0) {
-        writeLog(`[이벤트층] 이미 모든 보너스 스킬을 보유하고 있습니다!`);
-        if (maybeStartRestockCrossroad(Math.max(1, floor - 1), 'encounter')) return;
-        beginFloorEncounter(); return;
-    }
 
-    const options = bonusSkills.sort(() => Math.random()-0.5).slice(0, 2);
-    const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;z-index:9999;';
-    overlay.innerHTML = `
-        <div style="background:#1a1a2e;border:2px solid #9b59b6;border-radius:12px;padding:30px;max-width:460px;width:90%;text-align:center;">
-            <h2 style="color:#9b59b6;margin-bottom:6px;">✨ 신비로운 각성!</h2>
-            <p style="color:#aaa;font-size:0.88em;margin-bottom:20px;">숨겨진 힘을 깨달았습니다. 하나를 선택하세요.</p>
-            ${options.map((s,i) => `
-                <div onclick="resolveSkillEvent(${i})" style="background:#2a2a3e;border:1px solid #555;border-radius:8px;padding:14px;margin-bottom:10px;cursor:pointer;transition:border-color 0.2s;text-align:left;" onmouseenter="this.style.borderColor='#9b59b6'" onmouseleave="this.style.borderColor='#555'">
-                    <b style="color:#9b59b6;">✨ ${s.name}</b>
-                    <p style="color:#888;font-size:0.85em;margin:5px 0 0;">${s.desc}</p>
-                </div>`).join('')}
-            <button onclick="resolveSkillEvent(-1)" style="background:#333;color:#888;width:100%;margin-top:5px;padding:10px;font-size:0.85em;">거절한다</button>
-        </div>`;
-    document.body.appendChild(overlay);
-    window._skillEventOptions = options;
-    window._skillEventOverlay = overlay;
-}
-
-window.resolveSkillEvent = (idx) => {
-    document.body.removeChild(window._skillEventOverlay);
-    if (idx >= 0) {
-        const skill = window._skillEventOptions[idx];
-        if (!player.bonusSkills) player.bonusSkills = [];
-        player.bonusSkills.push(skill.effect);
-        // 즉시 적용 효과
-        if (skill.effect === 'bonus_guard') { player._guardBonus = 15; }
-        if (skill.effect === 'bonus_hunter_eye') { player.acc += 10; player.crit += 8; }
-        writeLog(`[각성] ✨ <b style='color:#9b59b6'>${skill.name}</b> 습득!`);
-        showUnlockPopup('✨ 스킬 각성!', `<b style="color:#9b59b6">${skill.name}</b><br>${skill.desc}`, '#9b59b6');
-    } else writeLog(`[이벤트층] 각성을 거부했습니다.`);
-    updateUi();
-    if (maybeStartRestockCrossroad(Math.max(1, floor - 1), 'encounter')) return;
-    beginFloorEncounter();
-};
-
-// ===================== 대장간 =====================
-function showForgeEvent() {
-    const commonItems = player.items.filter(i => i.rarity === 'common' && i.type !== 'merc');
-    const rareItems = player.items.filter(i => i.rarity === 'rare' && i.type !== 'merc');
-    const epicItems = player.items.filter(i => i.rarity === 'epic' && i.type !== 'merc');
-
-    const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;z-index:9999;overflow-y:auto;';
-
-    const recipes = forgeRecipes.filter(r => {
-        if (r.materialRarity === 'common') return commonItems.length >= r.materials;
-        if (r.materialRarity === 'rare') return rareItems.length >= r.materials;
-        if (r.materialRarity === 'epic') return epicItems.length >= r.materials;
-        return false;
-    });
-
-    overlay.innerHTML = `
-        <div style="background:#1a1a2e;border:2px solid #e67e22;border-radius:12px;padding:30px;max-width:520px;width:90%;text-align:center;margin:20px auto;">
-            <h2 style="color:#e67e22;margin-bottom:6px;">⚒️ 대장간</h2>
-            <p style="color:#aaa;font-size:0.85em;margin-bottom:5px;">보유: 일반 ${commonItems.length}개 / 희귀 ${rareItems.length}개 / 고급 ${epicItems.length}개</p>
-            <p style="color:#666;font-size:0.8em;margin-bottom:18px;">아이템을 합성해 더 강한 장비를 만드세요. 실패 시 재료가 소모됩니다.</p>
-            ${recipes.length === 0 ? `<p style="color:#555;padding:20px;">합성 가능한 레시피가 없습니다.<br><span style="font-size:0.85em;">재료: 일반 2개, 희귀 2개, 또는 고급 2개 필요</span></p>` :
-            recipes.map((r,i) => `
-                <div style="background:#2a2a3e;border:1px solid ${r.rarity==='legendary'?'#e74c3c':r.rarity==='epic'?'#a55eea':'#1e90ff'};border-radius:8px;padding:12px;margin-bottom:10px;text-align:left;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;">
-                        <div>
-                            <b style="color:${r.rarity==='legendary'?'#e74c3c':r.rarity==='epic'?'#a55eea':'#1e90ff'}">${r.name}</b>
-                            <span style="color:#666;font-size:0.75em;margin-left:8px;">(성공률 ${Math.round(r.successRate*100)}%)</span>
-                            <p style="color:#888;font-size:0.8em;margin:4px 0 0;">${r.desc}</p>
-                            <p style="color:#555;font-size:0.75em;margin:3px 0 0;">재료: ${r.materialRarity==='common'?'일반':r.materialRarity==='rare'?'희귀':'고급'} ${r.materials}개 소모</p>
-                        </div>
-                        <button onclick="resolveForge(${i})" style="background:#e67e22;color:#111;padding:8px 14px;font-size:0.85em;font-weight:700;margin:0;border-radius:6px;white-space:nowrap;">합성</button>
-                    </div>
-                </div>`).join('')}
-            <button onclick="resolveForge(-1)" style="background:#333;color:#888;width:100%;margin-top:8px;padding:10px;font-size:0.85em;">대장간을 나간다</button>
-        </div>`;
-    document.body.appendChild(overlay);
-    window._forgeRecipes = recipes;
-    window._forgeOverlay = overlay;
-}
-
-window.resolveForge = (idx) => {
-    document.body.removeChild(window._forgeOverlay);
-    if (idx < 0) { writeLog(`[대장간] 그냥 나왔습니다.`); }
-    else {
-        const recipe = window._forgeRecipes[idx];
-        const materialItems = player.items.filter(i => i.rarity === recipe.materialRarity);
-        // 재료 소모 (가장 약한 것부터)
-        const toRemove = materialItems.slice(0, recipe.materials);
-        toRemove.forEach(item => {
-            // 스탯 원상복구
-            if (item.type==='atk') player.atk = Math.max(1, player.atk - item.value);
-            if (item.type==='hp') { player.maxHp = Math.max(50, player.maxHp-item.value); player.curHp = Math.min(player.curHp, player.maxHp); }
-            if (item.def) player.extraDef = Math.max(0, player.extraDef-item.def);
-            if (item.lifesteal) player.lifesteal = Math.max(0, player.lifesteal-item.lifesteal);
-            if (item.critBonus) player.crit = Math.max(1, player.crit-item.critBonus);
-            if (item.critMult) player.critMult = Math.max(1.8, player.critMult-item.critMult);
-            player.items = player.items.filter(i => i !== item);
-        });
-
-        if (Math.random() < recipe.successRate) {
-            const newItem = { ...recipe };
-            player.items.push(newItem);
-            saveCollection(newItem.name);
-            if (newItem.type==='atk') player.atk += newItem.value;
-            if (newItem.type==='hp') { player.maxHp += newItem.value; player.curHp += newItem.value; }
-            if (newItem.def) player.extraDef += newItem.def;
-            if (newItem.lifesteal) player.lifesteal += newItem.lifesteal;
-            if (newItem.critBonus) player.crit += newItem.critBonus;
-            if (newItem.critMult) player.critMult += newItem.critMult;
-            writeLog(`[대장간] ✅ 합성 성공! <b style='color:${recipe.rarity==='legendary'?'#e74c3c':recipe.rarity==='epic'?'#a55eea':'#1e90ff'}'>${recipe.name}</b> 획득!`);
-            showUnlockPopup('⚒️ 합성 성공!', `<b>${recipe.name}</b> 제작 완료!`, '#e67e22');
-        } else {
-            writeLog(`[대장간] ❌ 합성 실패... 재료 ${recipe.materials}개가 사라졌습니다.`);
-            showUnlockPopup('⚒️ 합성 실패', `재료가 소모되었습니다...`, '#ff4757');
-        }
-    }
-    updateUi();
-    if (maybeStartRestockCrossroad(Math.max(1, floor - 1), 'encounter')) return;
-    beginFloorEncounter();
-};
-
-// ===================== 랜덤 인카운터 =====================
-const encounterEvents = [
-    { title:"💀 피눈물 흘리는 여신상", desc:"여신상 앞에 섰습니다.", choices:[
-        { label:"최대 체력 절반을 바치고 전설 아이템 획득", action:()=>{
-            const s=Math.floor(player.maxHp*0.5); player.maxHp=Math.max(50,player.maxHp-s); player.curHp=Math.max(1,player.curHp-s);
-            const l=getNonMercEquipmentPool().filter(i=>i.rarity==='legendary'&&!player.items.some(p=>p.name===i.name));
-            if(l.length>0){const it=l[Math.floor(Math.random()*l.length)];player.items.push(it);saveCollection(it.name);if(it.type!=='merc'){if(it.type==='atk')player.atk+=it.value;if(it.type==='hp'){player.maxHp+=it.value;player.curHp+=it.value;}if(it.critBonus)player.crit+=it.critBonus;if(it.critMult)player.critMult+=it.critMult;if(it.lifesteal)player.lifesteal+=it.lifesteal;}writeLog(`[이벤트] 💀 <b style='color:#e74c3c'>${it.name}</b> 획득!`);}
-            else{gold+=200;writeLog(`[이벤트] 💀 골드 200G를 받았습니다.`);}
-        }},
-        {label:"무시하고 지나간다",action:()=>writeLog(`[이벤트] 여신상을 무시했습니다.`)}
-    ]},
-    { title:"🧙 떠돌이 상인", desc:"수상한 상인이 나타났습니다.", choices:[
-        { label:"골드 50G로 랜덤 에픽 아이템", action:()=>{
-            if(gold<50){writeLog(`[이벤트] 골드 부족!`);return;}gold-=50;
-            const e=getNonMercEquipmentPool().filter(i=>i.rarity==='epic'&&!player.items.some(p=>p.name===i.name));
-            if(e.length>0){const it=e[Math.floor(Math.random()*e.length)];player.items.push(it);saveCollection(it.name);if(it.type!=='merc'){if(it.type==='atk')player.atk+=it.value;if(it.type==='hp'){player.maxHp+=it.value;player.curHp+=it.value;}if(it.critBonus)player.crit+=it.critBonus;if(it.critMult)player.critMult+=it.critMult;}writeLog(`[이벤트] 🧙 <b style='color:#a55eea'>${it.name}</b> 획득!`);}
-        }},
-        {label:"거절한다",action:()=>writeLog(`[이벤트] 상인을 거절했습니다.`)}
-    ]},
-    { title:"⚗️ 수상한 물약", desc:"바닥에 수상한 물약이 있습니다.", choices:[
-        { label:"마신다 (랜덤: 회복/강화/독)", action:()=>{
-            const r=Math.random();
-            if(r<0.4){const h=Math.floor(getEffectiveMaxHp()*0.3);player.curHp=Math.min(getEffectiveMaxHp(),player.curHp+h);writeLog(`[이벤트] ⚗️ 회복! +${h}`);}
-            else if(r<0.7){player.atk+=8;writeLog(`[이벤트] ⚗️ 강화! 공격력 +8`);}
-            else{const d=Math.floor(getEffectiveMaxHp()*0.2);player.curHp=Math.max(1,player.curHp-d);writeLog(`[이벤트] ⚗️ 독! -${d}`);}
-        }},
-        {label:"버린다",action:()=>writeLog(`[이벤트] 버렸습니다.`)}
-    ]},
-    { title:"👻 쓰러진 모험가", desc:"쓰러진 모험가의 유품이 있습니다.", choices:[
-        {label:"유품을 가져간다 (골드+포션)",action:()=>{const g=30+Math.floor(Math.random()*50);gold+=g;player.potions++;writeLog(`[이벤트] 👻 ${g}G + 포션 1개!`);}},
-        {label:"명복을 빈다 (HP 회복)",action:()=>{const h=Math.floor(getEffectiveMaxHp()*0.1);player.curHp=Math.min(getEffectiveMaxHp(),player.curHp+h);writeLog(`[이벤트] 👻 ${h} 회복.`);}}
-    ]},
-    { title:"🔥 불길한 제단", desc:"악마의 힘을 느낍니다.", choices:[
-        {label:"계약 (HP -20%, 공격력 +20 영구)",action:()=>{const d=Math.floor(player.maxHp*0.2);player.curHp=Math.max(1,player.curHp-d);player.maxHp=Math.max(50,player.maxHp-d);player.atk+=20;writeLog(`[이벤트] 🔥 악마 계약! 공격력 +20`);}},
-        {label:"거부한다",action:()=>writeLog(`[이벤트] 거부했습니다.`)}
-    ]},
-    { title:"✨ 신비로운 샘물", desc:"맑은 빛을 발하는 샘물이 있습니다.", choices:[
-        {label:"마신다 (체력 완전 회복)",action:()=>{player.curHp=getEffectiveMaxHp();writeLog(`[이벤트] ✨ 체력 완전 회복!`);}},
-        {label:"손을 씻는다 (치명타 +5%)",action:()=>{player.crit+=5;writeLog(`[이벤트] ✨ 치명타 확률 +5%!`);}}
-    ]}
-];
-
-/** 소환사 15층 1회: 계약의 제단 */
-function showContractAltar() {
-    const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;z-index:10000;';
-    overlay.innerHTML = `
-        <div style="background:#1a0a2a;border:2px solid #9b59b6;border-radius:12px;padding:28px;max-width:480px;width:92%;text-align:center;">
-            <h2 style="color:#9b59b6;margin-bottom:10px;">🔮 계약의 제단</h2>
-            <p style="color:#aaa;font-size:0.88em;margin-bottom:18px;line-height:1.5;">소환수와 계약을 맺습니다. 선택 후 이번 모험 내내 전투에 함께합니다.</p>
-            <div onclick="resolveContractAltar('fire')" style="background:#2a1a1a;border:1px solid #e74c3c;border-radius:8px;padding:12px;margin-bottom:10px;cursor:pointer;text-align:left;">
-                <b style="color:#e74c3c;">🔥 불의 정령</b>
-                <p style="color:#888;font-size:0.82em;margin:6px 0 0;">공격 적중 시, 공격력의 20%만큼 방어 무시 추가 피해.</p>
-            </div>
-            <div onclick="resolveContractAltar('golem')" style="background:#1a1a2a;border:1px solid #95a5a6;border-radius:8px;padding:12px;margin-bottom:10px;cursor:pointer;text-align:left;">
-                <b style="color:#bdc3c7;">🪨 바위 골렘</b>
-                <p style="color:#888;font-size:0.82em;margin:6px 0 0;">피격 시 받는 피해를 30% 추가 감소.</p>
-            </div>
-            <div onclick="resolveContractAltar('dark')" style="background:#0f0f1a;border:1px solid #8e44ad;border-radius:8px;padding:12px;margin-bottom:10px;cursor:pointer;text-align:left;">
-                <b style="color:#a55eea;">😈 어둠의 악마</b>
-                <p style="color:#888;font-size:0.82em;margin:6px 0 0;">내 턴 시작 시 최대 체력 5%를 잃고, 방어 50% 무시 마법 피해(공격력×2)를 추가로 가합니다.</p>
-            </div>
-        </div>`;
-    document.body.appendChild(overlay);
-    window._contractAltarOverlay = overlay;
-}
-
-window.resolveContractAltar = (id) => {
-    const map = {
-        fire: { id: 'fire', name: '불의 정령' },
-        golem: { id: 'golem', name: '바위 골렘' },
-        dark: { id: 'dark', name: '어둠의 악마' }
-    };
-    const s = map[id];
-    if (!s || !player) return;
-    player.summon = s;
-    saveSummonToStorage(s);
-    localStorage.setItem('summon_altar_done', '1');
-    if (window._contractAltarOverlay && window._contractAltarOverlay.parentNode) {
-        document.body.removeChild(window._contractAltarOverlay);
-    }
-    writeLog(`[계약] 🔮 <b style='color:#9b59b6'>${s.name}</b>과(와) 계약을 맺었습니다!`);
-    updateUi();
-    beginFloorEncounter();
-};
-
-function showRandomEncounter() {
-    const event = encounterEvents[Math.floor(Math.random()*encounterEvents.length)];
-    const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.88);display:flex;align-items:center;justify-content:center;z-index:9999;';
-    overlay.innerHTML = `
-        <div style="background:#1a1a2e;border:2px solid #9b59b6;border-radius:12px;padding:30px;max-width:460px;width:90%;text-align:center;">
-            <h2 style="color:#9b59b6;margin-bottom:8px;">⚡ 돌발 이벤트!</h2>
-            <h3 style="color:#e0e0e0;margin-bottom:12px;">${event.title}</h3>
-            <p style="color:#aaa;font-size:0.9em;margin-bottom:24px;">${event.desc}</p>
-            ${event.choices.map((c,i)=>`<div onclick="resolveEncounter(${i})" style="background:#2a2a3e;border:1px solid #555;border-radius:8px;padding:14px;margin-bottom:10px;cursor:pointer;transition:border-color 0.2s;text-align:left;" onmouseenter="this.style.borderColor='#9b59b6'" onmouseleave="this.style.borderColor='#555'"><span style="color:#e0e0e0;font-size:0.95em;">${i+1}. ${c.label}</span></div>`).join('')}
-        </div>`;
-    document.body.appendChild(overlay);
-    window._currentEncounter = event; window._encounterOverlay = overlay;
-}
-
-window.resolveEncounter = (idx) => {
-    const event = window._currentEncounter;
-    document.body.removeChild(window._encounterOverlay);
-    event.choices[idx].action(); updateUi();
-    if (maybeStartRestockCrossroad(Math.max(1, floor - 1), 'encounter')) return;
-    beginFloorEncounter();
-};
-
-function winBattleContinueFrom(clearedFloor, opts) {
-    const defeatedBoss = opts && typeof opts.defeatedBoss === 'boolean' ? opts.defeatedBoss : !!(enemy && enemy.isBoss);
-    if (isBossFloorNumber(floor)) {
-        beginFloorEncounter(opts && opts.immediate ? { immediate: true } : undefined);
-        return;
-    }
-    if (!(opts && opts.skipCrossroad) && maybeStartRestockCrossroad(clearedFloor, 'battle', { defeatedBoss })) return;
-    if (floor === 15 && player.name === '소환사' && !localStorage.getItem('summon_altar_done')) {
-        setTimeout(() => showContractAltar(), 500);
-        return;
-    }
-    if (checkEventFloor(floor)) {
-        setTimeout(() => showEventFloor(), 500);
-        return;
-    }
-    if (clearedFloor > 5 && !defeatedBoss && Math.random() < 0.15) {
-        if (clearedFloor === 10 && !player.evolved) setTimeout(() => checkEvolution(), 300);
-        setTimeout(() => showRandomEncounter(), 500);
-        return;
-    }
-    if (clearedFloor === 10 && !player.evolved) {
-        beginFloorEncounter(opts && opts.immediate ? { immediate: true } : undefined);
-        setTimeout(() => checkEvolution(), 300);
-        return;
-    }
-    beginFloorEncounter(opts && opts.immediate ? { immediate: true } : undefined);
-}
-
-window.rollEncounterSceneType = rollEncounterSceneType;
-window.getPanicRunSacrificeItems = getPanicRunSacrificeItems;
-window.pickLowestRaritySacrificeItem = pickLowestRaritySacrificeItem;
-window.buildMonsterEncounterHtml = buildMonsterEncounterHtml;
-window.buildTreasureEncounterHtml = buildTreasureEncounterHtml;
-window.buildRestEncounterHtml = buildRestEncounterHtml;
-window.buildAltarEncounterHtml = buildAltarEncounterHtml;
-window.buildEncounterPhaseHtml = buildEncounterPhaseHtml;
-window.hideEncounterPhaseUI = hideEncounterPhaseUI;
-window.buildRestockCrossroadHtml = buildRestockCrossroadHtml;
-window.renderRestockCrossroad = renderRestockCrossroad;
-window.maybeStartRestockCrossroad = maybeStartRestockCrossroad;
-window.resumeRestockCrossroadContext = resumeRestockCrossroadContext;
-window.beginFloorEncounter = beginFloorEncounter;
-window.buildAltarEncounterOptions = buildAltarEncounterOptions;
-window.pushPassiveContractHistory = pushPassiveContractHistory;
-window.advanceFloorAfterNonCombatEncounter = advanceFloorAfterNonCombatEncounter;
-window.checkEventFloor = checkEventFloor;
-window.showEventFloor = showEventFloor;
-window.showContractAltar = showContractAltar;
-window.showRandomEncounter = showRandomEncounter;
-window.winBattleContinueFrom = winBattleContinueFrom;
-
-// ---- js/shop.js ----
+// ===== js/shop.js =====
 // Shop module (stage 2 split)
 function openShop() {
     setCombatProcessing(false);
@@ -9091,16 +15762,12 @@ window.nextFloor = () => {
 };
 
 function getUnlockedPoolItems() {
-    const bj=player.baseJob, result=[];
-    getUnlockedFloors(null).forEach(f=>{if(f%10===0&&floorUnlocks[f])result.push(floorUnlocks[f]);});
-    getUnlockedFloors(bj).forEach(f=>{
-        if(f%5===0&&f%10!==0){
-            if(bj==='워리어'&&floorUnlocks[f])result.push(floorUnlocks[f]);
-            else if(bj==='헌터'&&floorUnlocksHunter[f])result.push(floorUnlocksHunter[f]);
-            else if(bj==='마법사'&&floorUnlocksWizard[f])result.push(floorUnlocksWizard[f]);
-        }
-    });
-    return result;
+    const currentFloor = Math.max(1, Number(floor) || 1);
+    return [floorUnlocks, floorUnlocksHunter, floorUnlocksWizard]
+        .flatMap((table) => Object.entries(table || {}))
+        .filter(([unlockFloor]) => Number(unlockFloor) <= currentFloor)
+        .map(([, item]) => item)
+        .filter(Boolean);
 }
 
 function getItemsByRarity() {
@@ -9141,21 +15808,7 @@ function mercCaptainExclusiveItem(it) {
 
 /** 일반 상점용: 용병 계약 + 단장 전용 장비 제외 */
 function getNonMercEquipmentPool() {
-    return equipmentPool.filter((i) => {
-        if (!i || i.type === 'merc') return false;
-        if (mercCaptainExclusiveItem(i)) return false;
-        // 전직 전용 아이템 해금 시스템(기본 직업 플레이로 해금)
-        if (i.onlyFor && Array.isArray(i.onlyFor) && i.onlyFor.length === 1) {
-            const evo = i.onlyFor[0];
-            if (isEvolutionJobName(evo)) {
-                // 전직 직업으로 플레이할 때만, '해금 완료(3개)' 후에, 해금된 이름만 등장
-                if (!player || player.name !== evo) return false;
-                if (!isEvolutionItemSetUnlocked(evo)) return false;
-                if (!isEvolutionItemNameUnlocked(evo, i.name)) return false;
-            }
-        }
-        return true;
-    });
+    return equipmentPool.filter((item) => item && item.type !== 'merc');
 }
 
 function getShopRarityChances() {
@@ -9211,7 +15864,7 @@ function applyShopRarityTuning(baseItem) {
 }
 
 function isShopEquipmentForDedupe(it) {
-    return !!it && ['atk', 'hp', 'ring', 'rune'].includes(String(it.type || ''));
+    return !!it && ['atk', 'hp', 'ring', 'rune', 'util'].includes(String(it.type || ''));
 }
 
 function getShopSynergyFingerprint(it) {
@@ -9362,11 +16015,7 @@ function renderShopItems(keepCurrentStock) {
         }
     } else if (!keepCurrentStock) {
         if (floor >= 20 && Math.random() < 0.25 && player.relics) {
-            const ar = relicPool.filter((r) => {
-                if (player.relics.includes(r.effect)) return false;
-                if (!r.onlyFor) return true;
-                return r.onlyFor.some((j) => j === player.name || j === player.baseJob);
-            });
+            const ar = relicPool.filter((r) => !player.relics.includes(r.effect));
             if (ar.length > 0) {
                 const relic = ar[Math.floor(Math.random() * ar.length)];
                 tryPushDistinctShopItem(picked, { ...relic, type: 'relic', value: 0 }, { stock: currentShopItems, allowOwned: true });
@@ -9381,10 +16030,6 @@ function renderShopItems(keepCurrentStock) {
             const pool = getItemsByRarity();
             if (!pool.length) continue;
             const item = pool[Math.floor(Math.random() * pool.length)];
-            if (item.onlyFor) {
-                const allowed = Array.isArray(item.onlyFor) ? item.onlyFor : [item.onlyFor];
-                if (!allowed.includes(player.name) && !allowed.includes(player.baseJob)) continue;
-            }
             tryPushDistinctShopItem(picked, item, { stock: currentShopItems });
         }
         /** 풀에 생성 장비가 매우 많아 랜덤만으로는 룬이 거의 안 나옴 → 매 상점에 룬 1칸 확정 */
@@ -9594,1105 +16239,777 @@ window.formatShopItemDesc = formatShopItemDesc;
 window.mercCaptainExclusiveItem = mercCaptainExclusiveItem;
 window.getNonMercEquipmentPool = getNonMercEquipmentPool;
 
-// ---- js/combatLogic.js ----
-// Combat core module (stage 4 split)
+
+// ===== js/combatLogic.js =====
+'use strict';
+
+/*
+ * v3.5 순수 턴제 전투/진행 엔진.
+ * 플레이어와 적은 각자 한 턴에 공격/방어/힐 중 하나만 수행한다.
+ */
+
+let combatTurnNumber = 1;
+let playerTurnSpent = false;
+let playerGuardState = null;
+let enemyGuardState = null;
+const BEHAVIOR_ACTIONS = Object.freeze(['physical_attack', 'magic_attack', 'defend', 'dodge', 'heal']);
+const ARCHETYPE_ADVANTAGE = Object.freeze({ warrior: 'hunter', hunter: 'mage', mage: 'warrior' });
+
+function isMercenaryCaptainJob() { return false; }
+function getAffinityRelKey() { return '인간 모험가'; }
+function getMercGoldSkipCost() { return Infinity; }
+function getMercEffectiveAttackPower() { return 0; }
+function getMercBonusAcc() { return 0; }
+function getMercEffectiveCritForMercAttack() { return 0; }
+function getMercEffectiveCritMultForMercAttack() { return 1; }
+function getFieldMercAttackMult() { return 0; }
+function buildFieldMercFromTemplate() { return null; }
+function getMercGachaCost() { return Infinity; }
+function tryMercenaryRandomEvent() { return false; }
+function queueEnemyTurnWithPacing() { return enemyTurn(); }
+function triggerBossWarning() {}
+function applySummonDarkTurnStart() { return false; }
+
 function setCombatProcessing(flag) {
     isProcessing = !!flag;
     updateCombatButtonsLockState();
 }
+
 function updateCombatButtonsLockState() {
-    const div = document.getElementById('action-btns');
-    if (!div) return;
-    const buttons = div.querySelectorAll('button');
-    buttons.forEach((btn) => {
-        btn.classList.toggle('combat-btn-processing', !!isProcessing);
-        if (isProcessing) btn.setAttribute('aria-disabled', 'true');
-        else btn.removeAttribute('aria-disabled');
+    const host = document.getElementById('action-btns');
+    if (!host) return;
+    host.querySelectorAll('button').forEach((button) => {
+        button.disabled = !!isProcessing || button.disabled;
+        button.classList.toggle('combat-btn-processing', !!isProcessing);
     });
 }
-function queueEnemyTurnWithPacing() {
-    const delay = 1000 + Math.floor(Math.random() * 401);
-    setCombatProcessing(true);
-    window._enemyThinkingHint = '타락한 선구자가 당신의 빈틈을 노립니다...';
-    writeLog(`[긴장] ${window._enemyThinkingHint}`);
-    updateUi();
-    setTimeout(() => {
-        window._enemyThinkingHint = '';
-        enemyTurn();
-    }, delay);
-}
-function triggerBossWarning(on) {
-    const s = document.querySelector('.screen');
-    if (s) {
-        if (on) {
-            s.classList.add('boss-warning');
-            s.classList.add('boss-warning-glow');
-        } else {
-            s.classList.remove('boss-warning');
-            s.classList.remove('boss-warning-glow');
-        }
-    }
-}
+
 function waitMs(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function isMercenaryCaptainJob() {
-    return player && player.baseJob === '용병단장';
+function probabilityRoll(chance, random) {
+    const capped = capProbability(chance);
+    const rng = typeof random === 'function' ? random : Math.random;
+    const roll = rng();
+    return { success: roll < capped, chance: capped, roll };
 }
 
-/** 상성 계산용 키: 용병단장 + 필드 용병 있으면 용병 직업(카멜레온) */
-function getAffinityRelKey() {
-    if (!player) return '';
-    if (isMercenaryCaptainJob() && player.fieldMerc && player.fieldMerc.mercHp > 0) {
-        return player.fieldMerc.mercAffinityJob || player.fieldMerc.mercJob || '워리어';
-    }
-    if (relations[player.name]) return player.name;
-    return player.baseJob;
+function getActorStats(actor) {
+    if (actor === player) ensureHumanRuntimeShape(actor);
+    return normalizeHumanStats(actor && actor.stats || {});
 }
 
-function getMercGoldSkipCost() {
-    return 28 + floor * 6;
+function getEquippedWeapon(actor) {
+    const key = actor && actor.equipment && actor.equipment.weapon;
+    return weaponTable[key] || null;
 }
 
-/** 동료 용병 상성 키(전직 시 pathJob) */
-function getMercAffinityJobForField() {
-    const kind = player.mercCompanionKind;
-    if (!kind || !mercCompanionBases[kind]) return '워리어';
-    const ev = player.mercEvolution;
-    if (ev && ev.pathJob) return ev.pathJob;
-    return mercCompanionBases[kind].affinityJob;
+function getEquippedArmor(actor) {
+    const key = actor && actor.equipment && actor.equipment.armor;
+    return armorTable[key] || null;
 }
 
-/** 가챠·장비 필터: 동료 삼각 직업(+전직 계열) */
-function getMercEquipmentJobKeys() {
-    const kind = player.mercCompanionKind;
-    if (!kind) return [];
-    if (kind === '워리어') return ['워리어', '나이트', '버서커'];
-    if (kind === '헌터') return ['헌터', '궁수', '암살자'];
-    if (kind === '마법사') return ['마법사', '위저드', '소환사', '성직자'];
-    return [];
+function getActorEquipmentItems(actor) {
+    return Array.isArray(actor && actor.items) ? actor.items.filter(Boolean) : [];
 }
 
-function recalcMercGearTotals(fm) {
-    if (!fm) return;
-    let atk = 0,
-        hp = 0,
-        def = 0,
-        crit = 0,
-        critMult = 0,
-        ls = 0;
-    for (const it of fm.mercItems || []) {
-        if (!it) continue;
-        if (it.type === 'atk' || it.type === 'ring') atk += safeNum(it.value, 0);
-        if (it.type === 'hp') hp += safeNum(it.value, 0);
-        if (it.def) def += safeNum(it.def, 0);
-        if (it.critBonus) crit += safeNum(it.critBonus, 0);
-        if (it.critMult) critMult += safeNum(it.critMult, 0);
-        if (it.lifesteal) ls += safeNum(it.lifesteal, 0);
-    }
-    fm.mercBonusAtk = atk;
-    fm.mercBonusHp = hp;
-    fm.mercBonusAcc = 0;
-    fm.mercBonusDef = def;
-    fm.mercBonusCrit = crit;
-    fm.mercBonusCritMult = critMult;
-    fm.mercBonusLifesteal = ls;
+function getActorCombatArchetype(actor) {
+    const items = getActorEquipmentItems(actor);
+    const weapon = getEquippedWeapon(actor);
+    const text = items.map((item) => `${item.name || ''} ${(item.tags || []).join(' ')}`).join(' ');
+    if (
+        (actor && Array.isArray(actor.magic) && actor.magic.length) ||
+        (weapon && weapon.magicFocus) ||
+        /지팡이|마법|마력|마도|룬|보주|주문|arcane/i.test(text)
+    ) return 'mage';
+    if (/활|화살|석궁|총|단검|사냥|정찰|precision|wind/i.test(text)) return 'hunter';
+    return 'warrior';
 }
 
-function getMercFloorBaseAtk() {
-    const kind = player.mercCompanionKind || '워리어';
-    const base = mercCompanionBases[kind] || mercCompanionBases['워리어'];
-    const ev = player.mercEvolution;
-    let f = 12 + floor * 3.15;
-    if (ev && ev.dmgMult) f *= ev.dmgMult;
-    f *= 0.82 + base.dmgCoeff * 0.38;
-    return Math.max(6, Math.floor(f));
+function getAffinityState(attackerArchetype, defenderArchetype) {
+    if (!attackerArchetype || !defenderArchetype || attackerArchetype === defenderArchetype) return 'neutral';
+    if (ARCHETYPE_ADVANTAGE[attackerArchetype] === defenderArchetype) return 'advantage';
+    if (ARCHETYPE_ADVANTAGE[defenderArchetype] === attackerArchetype) return 'disadvantage';
+    return 'neutral';
 }
 
-function getMercEffectiveAttackPower() {
-    const atkBase = getMercFloorBaseAtk();
-    const fm = player.fieldMerc;
-    if (!fm) return Math.max(1, atkBase);
-    const gear = safeNum(fm.mercBonusAtk, 0);
-    const cmd = Math.floor((safeNum(player.atk, 0) + safeNum(player.extraAtk, 0)) * 0.2);
-    return Math.max(1, atkBase + gear + cmd);
+function getHpBucket(actor) {
+    const ratio = actorMaxHp(actor) > 0 ? getCurrentHp(actor) / actorMaxHp(actor) : 0;
+    if (ratio <= 0.25) return '0-25';
+    if (ratio <= 0.5) return '26-50';
+    if (ratio <= 0.75) return '51-75';
+    return '76-100';
 }
 
-function getMercBonusAcc() {
-    return player.fieldMerc ? safeNum(player.fieldMerc.mercBonusAcc, 0) : 0;
+function isBehaviorLearningZone(progress) {
+    const current = normalizeDungeonProgress(progress);
+    return current.floor >= 6 && current.floor <= 10;
 }
 
-function getMercEffectiveCritForMercAttack() {
-    const fm = player.fieldMerc;
-    if (!fm) return Math.min(CRIT_SOFT_CAP, getRawCritChance(0));
-    const bonus = safeNum(fm.mercBonusCrit, 0);
-    return Math.min(CRIT_SOFT_CAP, getRawCritChance(bonus));
+function hasMagicAttackCapability(actor) {
+    if (actor && Array.isArray(actor.magic) && actor.magic.length > 0) return true;
+    if (getEquippedWeapon(actor) && getEquippedWeapon(actor).magicFocus) return true;
+    return getActorCombatArchetype(actor) === 'mage';
 }
 
-function getMercEffectiveCritMultForMercAttack() {
-    const fm = player.fieldMerc;
-    const bonusCrit = fm ? safeNum(fm.mercBonusCrit, 0) : 0;
-    const bonusMult = fm ? safeNum(fm.mercBonusCritMult, 0) * 0.85 : 0;
-    return clampCritMultiplier(getCritBaseMultBeforeOverflow(bonusMult) + getCritOverflowMultBonus(bonusCrit));
+function classifyPlayerAttackAction(actor) {
+    return hasMagicAttackCapability(actor) ? 'magic_attack' : 'physical_attack';
 }
 
-/** 층·동료·전직 기반 배율 — 실제 ATK는 getMercEffectiveAttackPower */
-function computeMercDamageCoeff() {
-    const kind = player.mercCompanionKind;
-    if (!kind || !mercCompanionBases[kind]) return 0.72;
-    const base = mercCompanionBases[kind];
-    const ev = player.mercEvolution;
-    const floorScale = 1 + Math.min(MERC_FLOOR_SCALE_CAP - 1, floor * 0.065);
-    let c = 0.42 + base.dmgCoeff * 0.28;
-    c *= floorScale;
-    if (ev && ev.dmgMult) c *= ev.dmgMult;
-    return Math.min(1.32, c * MERC_DMG_GLOBAL_SCALE * 0.42);
-}
-
-function getFieldMercAttackMult() {
-    if (!player || !player.fieldMerc || player.fieldMerc.mercHp <= 0) return 0;
-    return computeMercDamageCoeff();
-}
-
-/** 시작 동료 / 전직 반영 필드 용병 생성 — mercItems·mercInventory 연동 */
-function buildFieldMercFromTemplate() {
-    const kind = player.mercCompanionKind || '워리어';
-    const base = mercCompanionBases[kind] || mercCompanionBases['워리어'];
-    const ev = player.mercEvolution;
-    const floorScale = 1 + Math.min(MERC_FLOOR_SCALE_CAP - 1, floor * 0.088);
-    let hpMult = base.hpCoeff * floorScale;
-    if (ev && ev.hpMult) hpMult *= ev.hpMult;
-    const baseHp = 62 + floor * 8.2;
-    let items = [];
-    if (player.fieldMerc && player.fieldMerc.mercItems && player.fieldMerc.mercItems.length) {
-        items = [...player.fieldMerc.mercItems];
-    } else if (player.mercInventory && player.mercInventory.length) {
-        items = [...player.mercInventory];
-    }
-    const evoName = ev ? ev.name : '';
-    const label = base.label + (evoName ? ` · ${evoName}` : '');
-    const fm = {
-        sourceName: label,
-        mercJob: base.affinityJob,
-        mercAffinityJob: getMercAffinityJobForField(),
-        mercCompanionKind: kind,
-        mercItems: items,
-    };
-    recalcMercGearTotals(fm);
-    const hpGear = safeNum(fm.mercBonusHp, 0);
-    const mercMaxHp = Math.max(38, Math.floor(baseHp * hpMult + safeNum(player.maxHp, 100) * 0.2) + hpGear);
-    const prevRatio =
-        player.fieldMerc && player.fieldMerc.mercMaxHp > 0 ? player.fieldMerc.mercHp / player.fieldMerc.mercMaxHp : 1;
-    fm.mercMaxHp = mercMaxHp;
-    fm.mercHp = Math.max(1, Math.floor(mercMaxHp * Math.min(1, prevRatio)));
-    player.mercInventory = [...(fm.mercItems || [])];
-    return fm;
-}
-
-function getMercGachaCost() {
-    return 18 + floor * 4;
-}
-
-/** 초반 악성 이벤트 50% → 층·전투 턴 경과에 따라 감소 (최소 ~5%) */
-function getMercGachaBadChance() {
-    const f = Math.max(0, floor - 1);
-    const t = safeNum(player.mercBattleTurnCount, 0);
-    const reduction = Math.min(0.45, f * 0.018 + t * 0.004);
-    return Math.max(0.05, 0.5 - reduction);
-}
-
-function getMercGachaCandidatePool() {
-    const keys = new Set(getMercEquipmentJobKeys());
-    return equipmentPool.filter((it) => {
-        if (!it || it.type === 'merc' || it.type === 'rune') return false;
-        if (!it.onlyFor || !Array.isArray(it.onlyFor) || it.onlyFor.length === 0) return true;
-        return it.onlyFor.some((j) => keys.has(j));
+function recordPlayerBehavior(action) {
+    if (!player || !enemy || !BEHAVIOR_ACTIONS.includes(action)) return;
+    const progress = normalizeDungeonProgress({ floor, stage: dungeonStage });
+    if (!isBehaviorLearningZone(progress)) return;
+    player.behaviorLogger = Array.isArray(player.behaviorLogger) ? player.behaviorLogger : [];
+    const hpRatio = actorMaxHp(player) > 0 ? getCurrentHp(player) / actorMaxHp(player) : 0;
+    const playerArchetype = getActorCombatArchetype(player);
+    const enemyArchetype = enemy.archetype || getActorCombatArchetype(enemy);
+    player.behaviorLogger.push({
+        floor: progress.floor,
+        stage: progress.stage,
+        turn: combatTurnNumber,
+        hpRatio,
+        hpBucket: getHpBucket(player),
+        enemyArchetype,
+        enemyElement: enemy.element || 'neutral',
+        enemyTraits: Array.isArray(enemy.traitTags) ? enemy.traitTags.slice() : [],
+        affinity: getAffinityState(playerArchetype, enemyArchetype),
+        playerArchetype,
+        action,
     });
 }
 
-function getMercExcludedItemNames() {
-    const s = new Set();
-    (player.fieldMerc && player.fieldMerc.mercItems ? player.fieldMerc.mercItems : []).forEach((i) => {
-        if (i && i.name) s.add(i.name);
-    });
-    (player.mercInventory || []).forEach((i) => {
-        if (i && i.name) s.add(i.name);
-    });
-    return s;
+function createActionCounter() {
+    return Object.fromEntries(BEHAVIOR_ACTIONS.map((action) => [action, 0]));
 }
 
-/** battle | shop_direct | shop_fund — 등급 가중 + 동일 이름 중복 금지 */
-function pickMercItemForPlayer(mode) {
-    const ex = getMercExcludedItemNames();
-    const pool = getMercGachaCandidatePool().filter((it) => it && !ex.has(it.name));
-    if (!pool.length) return null;
-    const canLegendary = floor >= 28;
-    const canEpic = floor >= 12;
-    const byR = { common: [], rare: [], epic: [], legendary: [] };
-    for (const it of pool) {
-        let r = it.rarity || 'common';
-        if (r === 'relic') continue;
-        if (r === 'legendary' && !canLegendary) continue;
-        if (r === 'epic' && !canEpic) continue;
-        if (!byR[r]) r = 'common';
-        byR[r].push(it);
-    }
-    let wc = 0,
-        wr = 0,
-        we = 0,
-        wl = 0;
-    if (mode === 'battle') {
-        wc = floor < 8 ? 26 : floor < 15 ? 20 : 14;
-        wr = floor < 8 ? 44 : floor < 15 ? 36 : 32;
-        we = canEpic ? (floor < 22 ? 24 : 38) : 0;
-        wl = canLegendary ? (floor < 35 ? 6 : 18) : 0;
-    } else if (mode === 'shop_direct') {
-        wc = 18;
-        wr = 32;
-        we = canEpic ? 35 : 0;
-        wl = canLegendary ? 15 : 0;
-    } else if (mode === 'shop_fund') {
-        wc = 8;
-        wr = 22;
-        we = canEpic ? 45 : 0;
-        wl = canLegendary ? 25 : 0;
-    }
-    const sum = wc + wr + we + wl;
-    if (sum <= 0) {
-        for (const rk of ['common', 'rare', 'epic', 'legendary']) {
-            if (byR[rk] && byR[rk].length) return byR[rk][Math.floor(Math.random() * byR[rk].length)];
-        }
-        return pool[Math.floor(Math.random() * pool.length)];
-    }
-    let roll = Math.random() * sum;
-    let tier = 'common';
-    if ((roll -= wc) < 0) tier = 'common';
-    else if ((roll -= wr) < 0) tier = 'rare';
-    else if ((roll -= we) < 0) tier = 'epic';
-    else tier = 'legendary';
-    const order = ['legendary', 'epic', 'rare', 'common'];
-    for (let k = 0; k < 6; k++) {
-        const arr = byR[tier];
-        if (arr && arr.length) return arr[Math.floor(Math.random() * arr.length)];
-        const ix = order.indexOf(tier);
-        tier = order[(ix + 1) % 4];
-    }
-    return pool[Math.floor(Math.random() * pool.length)];
+function addBehaviorCount(target, action) {
+    if (!target.counts) target.counts = createActionCounter();
+    target.counts[action] = (target.counts[action] || 0) + 1;
+    target.total = (target.total || 0) + 1;
 }
 
-function applyMercItemGainFromPool(gain) {
-    if (!gain || !player) return;
-    if (!player.mercInventory) player.mercInventory = [];
-    if (!player.fieldMerc || player.fieldMerc.mercHp <= 0) {
-        player.mercInventory.push({ ...gain });
-        saveCollection(gain.name);
-        writeLog(`[용병 장비] <b>${gain.name}</b> 비축 <span style="color:#888;">(${gain.rarity || 'common'})</span> — 복귀 시 장착`);
-        return;
-    }
-    if (!player.fieldMerc.mercItems) player.fieldMerc.mercItems = [];
-    player.fieldMerc.mercItems.push({ ...gain });
-    player.mercInventory = [...player.fieldMerc.mercItems];
-    const prevHp = player.fieldMerc.mercHp;
-    const prevMax = player.fieldMerc.mercMaxHp;
-    player.fieldMerc = buildFieldMercFromTemplate();
-    const deltaMax = player.fieldMerc.mercMaxHp - prevMax;
-    player.fieldMerc.mercHp = Math.min(
-        player.fieldMerc.mercMaxHp,
-        Math.max(1, prevHp + Math.max(0, Math.floor(deltaMax * 0.65)))
+function finalizeBehaviorNode(node) {
+    const counts = node.counts || createActionCounter();
+    const total = Math.max(0, Number(node.total) || 0);
+    node.probabilities = Object.fromEntries(
+        BEHAVIOR_ACTIONS.map((action) => [action, total > 0 ? (counts[action] || 0) / total : 0])
     );
-    saveCollection(gain.name);
-    writeLog(
-        `[용병 장비] ✨ <b style="color:#2ed573">${gain.name}</b> 입수 <span style="color:#888;">(${gain.rarity || 'common'})</span>`
+    return node;
+}
+
+function buildBehaviorProbabilityMatrix(logRows) {
+    const rows = Array.isArray(logRows) ? logRows.filter((row) => row && BEHAVIOR_ACTIONS.includes(row.action)) : [];
+    const matrix = {};
+    const hpTotals = {};
+    const global = { counts: createActionCounter(), total: 0 };
+    for (const row of rows) {
+        const hpBucket = row.hpBucket || '76-100';
+        const enemyArchetype = row.enemyArchetype || 'unknown';
+        const affinity = row.affinity || 'neutral';
+        matrix[hpBucket] = matrix[hpBucket] || {};
+        matrix[hpBucket][enemyArchetype] = matrix[hpBucket][enemyArchetype] || {};
+        matrix[hpBucket][enemyArchetype][affinity] =
+            matrix[hpBucket][enemyArchetype][affinity] || { counts: createActionCounter(), total: 0 };
+        hpTotals[hpBucket] = hpTotals[hpBucket] || { counts: createActionCounter(), total: 0 };
+        addBehaviorCount(matrix[hpBucket][enemyArchetype][affinity], row.action);
+        addBehaviorCount(hpTotals[hpBucket], row.action);
+        addBehaviorCount(global, row.action);
+    }
+    Object.values(matrix).forEach((byArchetype) =>
+        Object.values(byArchetype).forEach((byAffinity) =>
+            Object.values(byAffinity).forEach(finalizeBehaviorNode)
+        )
     );
+    Object.values(hpTotals).forEach(finalizeBehaviorNode);
+    finalizeBehaviorNode(global);
+    return { version: 1, actions: BEHAVIOR_ACTIONS.slice(), matrix, hpTotals, global, sampleCount: rows.length };
 }
 
-window.mercenaryFundGacha = () => {
-    if (!isMercenaryCaptainJob() || !enemy) return writeLog('[지원] 전투 중에만 사용할 수 있습니다.');
-    if (!player.fieldMerc || player.fieldMerc.mercHp <= 0) return writeLog('[지원] 전열 용병이 없습니다.');
-    const cost = getMercGachaCost();
-    if (gold < cost) return writeLog(`[지원] 골드가 부족합니다. (${cost}G 필요)`);
-    gold -= cost;
-    const badChance = getMercGachaBadChance();
-    const roll = Math.random();
-    if (roll < badChance) {
-        const kind = Math.floor(Math.random() * 4);
-        if (kind === 0) {
-            const pct = 0.08 + Math.random() * 0.1;
-            const dmg = Math.max(1, Math.floor(player.fieldMerc.mercMaxHp * pct));
-            player.fieldMerc.mercHp = Math.max(1, player.fieldMerc.mercHp - dmg);
-            writeLog(`[지원·악성] 💢 장비 거래 사기! 용병이 피해를 입었다 <b>-${dmg}</b> HP`);
-        } else if (kind === 1 && player.fieldMerc.mercItems && player.fieldMerc.mercItems.length > 0) {
-            const ratio = player.fieldMerc.mercHp / Math.max(1, player.fieldMerc.mercMaxHp);
-            const ix = Math.floor(Math.random() * player.fieldMerc.mercItems.length);
-            const lost = player.fieldMerc.mercItems.splice(ix, 1)[0];
-            player.mercInventory = [...player.fieldMerc.mercItems];
-            player.fieldMerc = buildFieldMercFromTemplate();
-            player.fieldMerc.mercHp = Math.max(1, Math.floor(player.fieldMerc.mercMaxHp * ratio));
-            writeLog(`[지원·악성] 🗑️ 용병이 <b>${lost.name}</b>을(를) 잃어버렸다!`);
-        } else if (kind === 2) {
-            const h = Math.max(1, Math.floor(player.maxHp * (0.06 + Math.random() * 0.06)));
-            player.curHp = Math.max(1, player.curHp - h);
-            writeLog(`[지원·악성] 😰 단장이 협상에 휘말려 체력 <b>-${h}</b>`);
-        } else {
-            writeLog(`[지원·악성] 💸 돈만 날렸다… (특별 획득 없음)`);
-        }
-    } else {
-        const it = pickMercItemForPlayer('battle');
-        if (!it) {
-            const refund = Math.floor(cost * 0.35);
-            gold += refund;
-            writeLog(`[지원] 📭 마을에 물건이 없다… ${refund}G 환급`);
-        } else {
-            applyMercItemGainFromPool({ ...it });
-        }
+function weightedActionRoll(probabilities, allowedActions, random) {
+    const allowed = new Set(allowedActions || []);
+    const entries = BEHAVIOR_ACTIONS
+        .filter((action) => allowed.has(action))
+        .map((action) => [action, Math.max(0, Number(probabilities && probabilities[action]) || 0)])
+        .filter(([, weight]) => weight > 0);
+    const total = entries.reduce((sum, [, weight]) => sum + weight, 0);
+    if (total <= 0) return null;
+    const rng = typeof random === 'function' ? random : Math.random;
+    let roll = rng() * total;
+    for (const [action, weight] of entries) {
+        roll -= weight;
+        if (roll <= 0) return action;
     }
-    updateUi();
-    renderActions();
-};
-
-function tryMercenaryRandomEvent() {
-    if (!isMercenaryCaptainJob() || !player.fieldMerc || player.fieldMerc.mercHp <= 0) return;
-    if (Math.random() > 0.016) return;
-    const tier = floor <= 12 ? 'low' : floor <= 35 ? 'mid' : 'high';
-    let neg = 0,
-        pos = 0;
-    if (tier === 'low') {
-        neg = 0.38;
-        pos = 0.06;
-    } else if (tier === 'high') {
-        neg = 0.004;
-        pos = 0.025;
-    } else {
-        neg = 0.12;
-        pos = 0.04;
-    }
-    const roll = Math.random();
-    if (roll < neg) {
-        if (tier === 'high' && Math.random() < 0.92) return;
-        player.mercNextBattleDebuff = { atkPct: -0.07 };
-        writeLog(`[용병 이벤트] 💢 술집 난투·사기 피해… <b>다음 전투</b> 공격력 일시 하락!`);
-        return;
-    }
-    if (roll < neg + pos) {
-        if (tier === 'high' && Math.random() > 0.35) {
-            writeLog(`[용병 이벤트] 고층의 실전은 거칠다… (미미한 보상)`);
-            player.atk += 1;
-            return;
-        }
-        player.atk += 3;
-        player.crit += 1;
-        writeLog(`[용병 이벤트] ✨ 실전 경험! 공격력+3, 치명+1%`);
-    }
+    return entries[entries.length - 1][0];
 }
 
-function applySummonDarkTurnStart() {
-    if (!player || !enemy || !player._awaitPlayerTurn) return;
-    player._awaitPlayerTurn = false;
-    if (player.name === '소환사' && floor < 100) {
-        return false;
-    }
-    if (player.summon && player.summon.id === 'dark') {
-        const hpCost = Math.max(1, Math.floor(player.maxHp * 0.06));
-        player.curHp = Math.max(1, player.curHp - hpCost);
-        const rawAtk = getEffectiveAttackPower();
-        const md = Math.max(1, Math.floor(1.15 * rawAtk - Math.floor(enemy.def * 0.35)));
-        enemy.curHp -= md;
-        writeLog(`[소환] 😈 어둠의 악마! 체력 -${hpCost}, 마법 피해 ${md}!`);
-        showDmgFloat(md, true, false); triggerShakeEffect();
-        if (enemy.curHp <= 0) { winBattle(); return true; }
-    }
-    return false;
+function getAllowedEnemyActions(actor) {
+    const actions = ['physical_attack', 'defend', 'dodge'];
+    if (hasMagicAttackCapability(actor)) actions.push('magic_attack');
+    if (actorCanHeal(actor)) actions.push('heal');
+    return actions;
 }
 
-function useTacticalSkillAction(skillKey) {
-    if (!player || !enemy) return false;
-    const key = String(skillKey || '').trim();
-    const owned = Array.isArray(player.tacticalSkills) ? player.tacticalSkills : [];
-    const def = typeof getTacticalSkillDef === 'function' ? getTacticalSkillDef(key) : null;
-    if (!key || !def || !owned.includes(key)) {
-        writeLog('[전술] 아직 배운 전술 스킬이 아닙니다.');
-        return false;
+function chooseLearnedGhostAction(actor) {
+    const behavior = actor && actor.behaviorMatrix;
+    if (!actor || !actor.isPlayerGhost || !behavior) return null;
+    const hpBucket = getHpBucket(actor);
+    const targetArchetype = getActorCombatArchetype(player);
+    const ghostArchetype = getActorCombatArchetype(actor);
+    const affinity = getAffinityState(ghostArchetype, targetArchetype);
+    const exact = behavior.matrix && behavior.matrix[hpBucket] &&
+        behavior.matrix[hpBucket][targetArchetype] &&
+        behavior.matrix[hpBucket][targetArchetype][affinity];
+    const hpFallback = behavior.hpTotals && behavior.hpTotals[hpBucket];
+    const source = exact && exact.total > 0 ? exact : hpFallback && hpFallback.total > 0 ? hpFallback : behavior.global;
+    return source && source.total > 0
+        ? weightedActionRoll(source.probabilities, getAllowedEnemyActions(actor))
+        : null;
+}
+
+function calculateAttackChance(attacker, defender) {
+    const attackStats = getActorStats(attacker);
+    const defendStats = getActorStats(defender);
+    const mastery = safeNum(attacker && attacker.mastery && attacker.mastery.weapon, 0);
+    return 0.42 + attackStats.agi * 0.004 + mastery * 0.002 - defendStats.agi * 0.0015;
+}
+
+function calculatePhysicalDamage(attacker, defender) {
+    const attackStats = getActorStats(attacker);
+    const defendStats = getActorStats(defender);
+    const weapon = getEquippedWeapon(attacker);
+    const armor = getEquippedArmor(defender);
+    let rawPower = safeNum(attacker && attacker.atk, attackStats.str) + (weapon ? safeNum(weapon.value, 0) : 0);
+    const attackerRatio = actorMaxHp(attacker) > 0 ? getCurrentHp(attacker) / actorMaxHp(attacker) : 1;
+    const defenderRatio = actorMaxHp(defender) > 0 ? getCurrentHp(defender) / actorMaxHp(defender) : 1;
+    if (attacker && attacker.archetype === 'warrior' && attackerRatio <= 0.45) rawPower *= attackerRatio <= 0.25 ? 1.55 : 1.3;
+    if (attacker && attacker.archetype === 'hunter' && defenderRatio <= 0.4) rawPower *= 1.45;
+    if (attacker && attacker._attackMultiplier) rawPower *= attacker._attackMultiplier;
+    const runtimeDefense = safeNum(defender && defender.def, defendStats.def) + safeNum(defender && defender.extraDef, 0);
+    const flatBlocked = Math.max(0, rawPower - runtimeDefense - (armor ? safeNum(armor.def, 0) : 0));
+    const mitigation = armor ? Math.min(0.6, Math.max(0, safeNum(armor.mitigation, 0))) : 0;
+    return Math.max(0, Math.floor(flatBlocked * (1 - mitigation)));
+}
+
+function calculateMagicDamage(attacker, defender) {
+    const attackStats = getActorStats(attacker);
+    const defendStats = getActorStats(defender);
+    const mastery = safeNum(attacker && attacker.mastery && (attacker.mastery.magic || attacker.mastery.holyMagic), 0);
+    const rawPower = attackStats.wis * 1.35 + attackStats.int * 0.45 + mastery * 0.25;
+    return Math.max(0, Math.floor(rawPower - defendStats.def * 0.35));
+}
+
+function getCurrentHp(actor) {
+    return actor === player ? safeNum(actor.curHp, 0) : safeNum(actor.curHp, 0);
+}
+
+function setCurrentHp(actor, value) {
+    const max = actor === player ? getEffectiveMaxHp() : Math.max(1, safeNum(actor.hp, 1));
+    actor.curHp = Math.max(0, Math.min(max, safeNum(value, 0)));
+}
+
+function actorMaxHp(actor) {
+    return actor === player ? getEffectiveMaxHp() : Math.max(1, safeNum(actor.hp, 1));
+}
+
+function actorCanHeal(actor) {
+    const stats = getActorStats(actor);
+    return stats.wis > 0 && getCurrentHp(actor) < actorMaxHp(actor);
+}
+
+function resolveAttackAction(attacker, defender, guardState) {
+    const hit = probabilityRoll(calculateAttackChance(attacker, defender));
+    if (!hit.success) return { type: 'attack', success: false, reason: 'miss', hit };
+
+    if (guardState && guardState.mode === 'dodge') {
+        const dodgeStats = getActorStats(defender);
+        const dodge = probabilityRoll(0.18 + dodgeStats.agi * 0.005);
+        if (dodge.success) return { type: 'attack', success: false, reason: 'dodged', hit, dodge };
+        if (dodgeStats.agi < 35) {
+            defender.statuses = Array.isArray(defender.statuses) ? defender.statuses : [];
+            defender.statuses.push({ key: 'ankleSprain', turns: 2, agilityPenalty: 20 });
+        }
     }
-    player.tacticalSkillUses = player.tacticalSkillUses && typeof player.tacticalSkillUses === 'object'
-        ? player.tacticalSkillUses
-        : {};
-    if (player.tacticalSkillUses[key]) {
-        writeLog('[전술] 이 전투에서 이미 사용한 스킬입니다.');
-        return false;
+
+    const armor = getEquippedArmor(defender);
+    if (armor) {
+        const nullify = probabilityRoll(safeNum(armor.nullifyChance, 0));
+        if (nullify.success) return { type: 'attack', success: true, damage: 0, nullified: true, hit, nullify };
     }
-    if (key === 'focus' && player.tacticalFocusReady) return false;
-    if (key === 'parry' && player.tacticalParryReady) return false;
-    if (key === 'barrier' && player.tacticalBarrierReady) return false;
-    player.tacticalSkillUses[key] = 1;
-    if (key === 'focus') player.tacticalFocusReady = true;
-    if (key === 'parry') player.tacticalParryReady = true;
-    if (key === 'barrier') player.tacticalBarrierReady = true;
-    writeLog(`[전술] <b>${def.icon || '✦'} ${def.name}</b> — ${def.battleLog || def.shortDesc || '전술 준비 완료'}`);
-    updateUi();
-    renderActions();
+
+    let damage = calculatePhysicalDamage(attacker, defender);
+    if (guardState && guardState.mode === 'shield') {
+        const defendStats = getActorStats(defender);
+        const block = probabilityRoll(0.22 + defendStats.def * 0.004);
+        if (block.success) {
+            damage = Math.max(0, Math.floor(damage * 0.45));
+            setCurrentHp(defender, getCurrentHp(defender) - damage);
+            return { type: 'attack', success: true, damage, guarded: true, hit, block };
+        }
+        damage = Math.floor(damage * 1.65);
+    }
+
+    setCurrentHp(defender, getCurrentHp(defender) - damage);
+    return { type: 'attack', success: true, damage, hit };
+}
+
+function resolveMagicAttackAction(attacker, defender, guardState) {
+    const cast = probabilityRoll(0.4 + getActorStats(attacker).wis * 0.004);
+    if (!cast.success) return { type: 'attack', attackKind: 'magic', success: false, reason: 'miss', hit: cast };
+    let damage = calculateMagicDamage(attacker, defender);
+    if (guardState && guardState.mode === 'dodge') {
+        const dodge = probabilityRoll(0.12 + getActorStats(defender).agi * 0.004);
+        if (dodge.success) return { type: 'attack', attackKind: 'magic', success: false, reason: 'dodged', hit: cast, dodge };
+    }
+    if (guardState && guardState.mode === 'shield') damage = Math.max(0, Math.floor(damage * 0.7));
+    setCurrentHp(defender, getCurrentHp(defender) - damage);
+    return { type: 'attack', attackKind: 'magic', success: true, damage, hit: cast };
+}
+
+function resolveHealAction(actor) {
+    const stats = getActorStats(actor);
+    const cast = probabilityRoll(0.4 + stats.wis * 0.004);
+    if (!cast.success) return { type: 'heal', success: false, reason: 'castFailed', cast };
+    const amount = Math.max(1, Math.floor(8 + stats.wis * 1.5));
+    const before = getCurrentHp(actor);
+    setCurrentHp(actor, before + amount);
+    return { type: 'heal', success: true, healed: getCurrentHp(actor) - before, cast };
+}
+
+function spendPlayerAction() {
+    if (playerTurnSpent) return false;
+    playerTurnSpent = true;
     return true;
 }
 
-window.useAction = async (type) => {
-    if (isProcessing) return;
+function describeCombatResult(actor, target, result) {
+    if (!result) return;
+    const actorName = actor === player ? '플레이어' : actor.name;
+    if (result.type === 'attack') {
+        if (result.reason === 'miss') writeLog(`[빗나감] ${actorName}의 공격 실패`);
+        else if (result.reason === 'dodged') writeLog(`[회피] ${target === player ? '플레이어' : target.name}이 공격을 완전히 회피`);
+        else if (result.nullified) writeLog(`[무효화] 장비가 ${actorName}의 공격을 완전히 차단`);
+        else writeLog(`[공격] ${actorName} → ${result.damage} 피해${result.guarded ? ' (방어 성공)' : ''}`);
+        return;
+    }
+    if (result.type === 'heal') {
+        writeLog(result.success ? `[힐] ${actorName} 체력 ${result.healed} 회복` : `[힐 실패] ${actorName}의 마법 실패`);
+    }
+}
+
+function chooseEnemyAction() {
+    const learned = chooseLearnedGhostAction(enemy);
+    if (learned) return learned;
+    const hpRatio = getCurrentHp(enemy) / actorMaxHp(enemy);
+    if (enemy.isBoss) {
+        enemy.turnCount = Math.max(1, safeNum(enemy.turnCount, 1));
+        if (enemy._bossChargeReady) return 'physical_attack';
+        if (enemy.turnCount % 4 === 3) return 'charge';
+    }
+    if (enemy.archetype === 'hunter' && getCurrentHp(player) / actorMaxHp(player) <= 0.4) return 'physical_attack';
+    if (enemy.archetype === 'mage' && hpRatio <= 0.38 && probabilityRoll(0.65).success) return 'defend';
+    if (hpRatio <= 0.3 && actorCanHeal(enemy)) return 'heal';
+    if (hpRatio <= 0.55 && probabilityRoll(0.25).success) return getActorStats(enemy).agi >= 45 ? 'dodge' : 'defend';
+    return hasMagicAttackCapability(enemy) && probabilityRoll(0.25).success ? 'magic_attack' : 'physical_attack';
+}
+
+async function enemyTurn() {
+    if (!enemy || !player || enemy.curHp <= 0 || player.curHp <= 0) return;
     setCombatProcessing(true);
+    await waitMs(300);
+    const action = chooseEnemyAction();
+    if (action === 'charge') {
+        enemy._bossChargeReady = true;
+        writeLog(`[적 행동] ${enemy.name} — 강공격 준비`);
+    } else if (action === 'heal') {
+        const result = resolveHealAction(enemy);
+        describeCombatResult(enemy, enemy, result);
+        enemyGuardState = null;
+    } else if (action === 'defend' || action === 'dodge') {
+        enemyGuardState = { mode: action === 'defend' ? 'shield' : 'dodge', turn: combatTurnNumber };
+        writeLog(`[적 행동] ${enemy.name} — ${action === 'defend' ? '방어' : '회피'} 준비`);
+    } else {
+        enemy._attackMultiplier = enemy._bossChargeReady ? 2.5 : 1;
+        const result = action === 'magic_attack'
+            ? resolveMagicAttackAction(enemy, player, playerGuardState)
+            : resolveAttackAction(enemy, player, playerGuardState);
+        enemy._attackMultiplier = 1;
+        enemy._bossChargeReady = false;
+        describeCombatResult(enemy, player, result);
+        playerGuardState = null;
+    }
+    if (enemy.isBoss) enemy.turnCount = Math.max(1, safeNum(enemy.turnCount, 1)) + 1;
+    if (player.curHp <= 0) {
+        gameOver();
+        return;
+    }
+    combatTurnNumber += 1;
+    playerTurnSpent = false;
+    setCombatProcessing(false);
+    updateUi();
+    renderActions();
+}
+
+window.useAction = async function useAction(type) {
+    if (isProcessing || !player || !enemy || player.curHp <= 0 || enemy.curHp <= 0) return;
+    if (!spendPlayerAction()) {
+        writeLog('[턴 제한] 한 턴에는 공격/방어/힐 중 하나만 선택할 수 있습니다.');
+        return;
+    }
+    setCombatProcessing(true);
+    let result = null;
     if (type === '공격') {
-        const now = Date.now();
-        if (now < attackGcdUntil) {
-            setCombatProcessing(false);
-            return writeLog(`[쿨다운] 공격을 너무 빨리 눌렀습니다!`);
-        }
+        const learnedAction = classifyPlayerAttackAction(player);
+        recordPlayerBehavior(learnedAction);
+        result = learnedAction === 'magic_attack'
+            ? resolveMagicAttackAction(player, enemy, enemyGuardState)
+            : resolveAttackAction(player, enemy, enemyGuardState);
+        enemyGuardState = null;
+        describeCombatResult(player, enemy, result);
+    } else if (type === '힐') {
+        recordPlayerBehavior('heal');
+        result = resolveHealAction(player);
+        describeCombatResult(player, player, result);
+    } else {
+        const mode = type === '회피' ? 'dodge' : 'shield';
+        recordPlayerBehavior(mode === 'dodge' ? 'dodge' : 'defend');
+        playerGuardState = { mode, turn: combatTurnNumber };
+        writeLog(`[플레이어 행동] ${mode === 'dodge' ? '회피' : '방어'} 준비`);
     }
-    if (applySummonDarkTurnStart()) {
-        setCombatProcessing(false);
+    updateUi();
+    if (enemy.curHp <= 0) {
+        await waitMs(120);
+        winBattle();
         return;
     }
-    if (player) ensurePlayerSynergyBonuses();
-
-    if (String(type || '').startsWith('전술:')) {
-        const key = String(type).split(':')[1] || '';
-        if (!useTacticalSkillAction(key)) {
-            setCombatProcessing(false);
-            return;
-        }
-        queueEnemyTurnWithPacing();
-        return;
-    }
-
-    if (type==='공격') {
-        await playJobAttackVfx('player', player.name || player.baseJob);
-        const now = Date.now();
-        attackGcdUntil = now + ATTACK_GCD_MS;
-        setTimeout(() => { renderActions(); }, ATTACK_GCD_MS);
-
-        if (player.unlockedSkill && floor >= 20) {
-            player.ultStack = Math.min(player.ultMaxStack, player.ultStack + 1);
-        }
-        let multiplier=1.0, effectMsg="";
-        const relKey=getAffinityRelKey();
-        if(!enemy.isBoss&&relations[relKey]){
-            if(relations[relKey].strong===enemy.job){multiplier=1.5;effectMsg="<b style='color:#2ed573'>(상성 우위!)</b> ";}
-            else if(relations[relKey].weak===enemy.job){multiplier=0.8;effectMsg="<b style='color:#ff4757'>(상성 열세..)</b> ";}
-        }
-        const synAcc = safeNum(player._syn && player._syn.acc, 0);
-        const mercAcc = isMercenaryCaptainJob() && player.fieldMerc && player.fieldMerc.mercHp > 0 ? getMercBonusAcc() : 0;
-        const missPenalty = consumeHunterEvasionMissPenalty();
-        const accRateBase =
-            Math.min(95, BASE_HIT_ACCURACY + safeNum(player.acc, 0) + synAcc + mercAcc);
-        const accRate = Math.max(5, accRateBase - missPenalty);
-        let hitLanded = false;
-        const prevStreak = safeNum(player._playerMissStreak, 0);
-        if (prevStreak >= 3) {
-            hitLanded = true;
-            player._playerMissStreak = 0;
-        } else if (Math.random() * 100 < accRate) {
-            hitLanded = true;
-            player._playerMissStreak = 0;
-        } else {
-            player._playerMissStreak = prevStreak + 1;
-        }
-        if(hitLanded){
-            let berserkMult = (player.name==='버서커' && player.curHp <= player.maxHp * 0.5) ? 1.35 : 1;
-            if (berserkMult > 1) effectMsg += "<b style='color:#e74c3c'>【광폭화】</b> ";
-            let baseDmg;
-            if (isMercenaryCaptainJob() && player.fieldMerc && player.fieldMerc.mercHp > 0) {
-                const mm = getFieldMercAttackMult();
-                baseDmg = Math.floor((getMercEffectiveAttackPower() * mm + Math.floor(Math.random() * 8)) * berserkMult);
-                const specialChance = 0.1 + Math.random() * 0.1;
-                if (Math.random() < specialChance) {
-                    baseDmg = Math.floor(baseDmg * 2.55);
-                    effectMsg += "<b style='color:#e67e22'>【용병 필살기】</b> ";
-                    triggerCritEffect();
-                    triggerShakeEffect();
-                }
-                tryMercenaryRandomEvent();
-            } else if (isMercenaryCaptainJob()) {
-                baseDmg = Math.floor((getEffectiveAttackPower() * 0.07 + Math.floor(Math.random() * 4)) * berserkMult);
-                effectMsg += "<b style='color:#888'>(단장 직격·최약)</b> ";
-            } else {
-                baseDmg=Math.floor((getEffectiveAttackPower()+Math.floor(Math.random()*8)) * berserkMult);
-            }
-            const critInfo=getCritInfo();
-            let effectiveCrit=critInfo.effectiveCrit;
-            if(critInfo.isBerserkCrit){effectMsg+="<b style='color:#ff4757'>🔥 분노!</b> ";}
-            const mercCritMode=isMercenaryCaptainJob()&&player.fieldMerc&&player.fieldMerc.mercHp>0;
-            if(mercCritMode){effectiveCrit=getMercEffectiveCritForMercAttack();}
-            if (player.tacticalFocusReady) {
-                const focusDef = typeof getTacticalSkillDef === 'function' ? getTacticalSkillDef('focus') : null;
-                effectiveCrit = Math.min(100, effectiveCrit + safeNum(focusDef && focusDef.critBonus, 60));
-                player.tacticalFocusReady = false;
-                effectMsg += "<b style='color:#a78bfa'>🎯 집중 공격!</b> ";
-            }
-            let relicAtkMult=1;
-            if(player.relics&&player.relics.includes('execute')&&enemy.curHp<=enemy.hp*0.35){relicAtkMult*=1.8;effectMsg+="<b style='color:#e74c3c'>💀 집행!</b> ";}
-            if(player.relics&&player.relics.includes('berserk_crit')&&player.maxHp&&player.curHp<=player.maxHp*0.35){relicAtkMult*=1.45;effectMsg+="<b style='color:#ff4757'>🔥 격노 심장!</b> ";}
-            if(player.shieldEmpowered){relicAtkMult*=1.25;player.shieldEmpowered=false;effectMsg+="<b style='color:#3498db'>🛡️ 수호 증폭!</b> ";}
-            if (player && player._arcaneCharge) {
-                relicAtkMult *= 1.35;
-                player._arcaneCharge = false;
-                effectMsg += "<b style='color:#9b59b6'>🔮 연쇄 충전!</b> ";
-            }
-            let isCrit = false;
-            let usedWeak = false;
-            if (enemy.weakPoint && player.name === '암살자') {
-                usedWeak = true;
-                enemy.weakPoint = false;
-                isCrit = true;
-                baseDmg = Math.floor(baseDmg * (mercCritMode ? getMercEffectiveCritMultForMercAttack() : getEffectiveCritMult()) * 2);
-                effectMsg += "<b style='color:#9b59b6'>【약점 노출】</b> <b style='color:#f1c40f'>💥 암살!</b> ";
-                triggerCritEffect();
-                playCritGoldBurst('enemy');
-            } else {
-                if (player && player.priestNextCrit) {
-                    isCrit = true;
-                    player.priestNextCrit = false;
-                    effectMsg += "<b style='color:#f1c40f'>✨ 신의 가호 치명!</b> ";
-                } else {
-                    isCrit = Math.random()*100<effectiveCrit;
-                }
-                if(isCrit){baseDmg=Math.floor(baseDmg*(mercCritMode?getMercEffectiveCritMultForMercAttack():getEffectiveCritMult()));effectMsg+="<b style='color:#f1c40f'>💥 치명타!</b> ";triggerCritEffect(); playCritGoldBurst('enemy');}
-            }
-            const effDefRaw = (usedWeak ? 0 : enemy.def);
-            const effDef = player && player.chosenPriest ? Math.floor(effDefRaw * 0.8) : effDefRaw;
-            let finalDmg=Math.max(1,Math.floor(baseDmg*multiplier*relicAtkMult)-effDef);
-            if (enemy._aiGuardedTurns && enemy._aiGuardedTurns > 0) {
-                finalDmg = Math.max(1, Math.floor(finalDmg * 0.62));
-                enemy._aiGuardedTurns = Math.max(0, enemy._aiGuardedTurns - 1);
-                writeLog('[적 AI] 방어 태세로 피해 일부를 흘렸습니다.');
-            }
-            enemy.curHp-=finalDmg;
-            showDmgFloat(finalDmg,isCrit,false); triggerShakeEffect();
-            writeLog(`[명중] ${effectMsg}적에게 ${finalDmg} 피해!`);
-            if(mercCritMode&&player.fieldMerc&&safeNum(player.fieldMerc.mercBonusLifesteal,0)>0){
-                const mls=Math.min(LIFESTEAL_SOFT_CAP,safeNum(player.fieldMerc.mercBonusLifesteal,0));
-                const mh=Math.floor(finalDmg*mls);
-                player.fieldMerc.mercHp=Math.min(player.fieldMerc.mercMaxHp,player.fieldMerc.mercHp+mh);
-                if(mh>0) writeLog(`[용병 흡혈] 💉 ${mh}`);
-            } else if(getLifestealEffective()>0){const h=Math.floor(finalDmg*getLifestealEffective());player.curHp=Math.min(getEffectiveMaxHp(),player.curHp+h);writeLog(`[흡혈] 💉 ${h}`);}
-            if (player.name==='버서커' && player.curHp <= player.maxHp * 0.5) {
-                const rh = Math.floor(finalDmg * 0.25);
-                player.curHp = Math.min(getEffectiveMaxHp(), player.curHp + rh);
-                writeLog(`[패시브] 광폭화 흡혈 +${rh}`);
-            }
-            if (player.summon && player.summon.id === 'fire' && enemy.curHp > 0) {
-                const fireDmg = Math.max(1, Math.floor(getEffectiveAttackPower() * 0.06));
-                enemy.curHp -= fireDmg;
-                writeLog(`[소환] 🔥 불의 정령 추가 피해 ${fireDmg}!`);
-                showDmgFloat(fireDmg, false, false);
-                if (enemy.curHp <= 0) { updateUi(); renderActions(); return winBattle(); }
-            }
-
-            if(player.bonusSkills){
-                if(player.bonusSkills.includes('bonus_bleed')&&Math.random()<0.10){const bd=Math.floor(finalDmg*0.8);enemy.curHp-=bd;writeLog(`[스킬] 피의 분노! ${bd} 추가 피해!`);showDmgFloat(bd,false,false);}
-                if(isCrit&&player.bonusSkills.includes('bonus_explode')){const ed=Math.floor(getEffectiveAttackPower()*0.5);enemy.curHp-=ed;writeLog(`[스킬] 폭발 일격! ${ed} 추가 피해!`);showDmgFloat(ed,false,false);}
-            }
-            if(isCrit&&player.relics&&player.relics.includes('chain_cast')&&enemy.curHp>0){
-                player._arcaneCharge = true;
-                writeLog(`[유물] ⚡ 연쇄 마법진: 다음 공격 피해 증폭 준비!`);
-            }
-            if(enemy.curHp<=0&&player.relics&&player.relics.includes('kill_heal')){
-                const kh=Math.floor(getEffectiveMaxHp()*0.10);
-                player.curHp=Math.min(getEffectiveMaxHp(),player.curHp+kh);
-                player.critMult = safeNum(player.critMult, 1.8) + 0.03;
-                writeLog(`[유물] 💚 혈반지 흡수! 회복 ${kh}, 치명 배율 +3%`);
-            }
-        } else { writeLog(`[빗나감] 공격 실패!`); showMissFloat('enemy'); }
-        updateUi(); renderActions();
-        if(enemy.curHp<=0) return winBattle();
-
-    } else if (type==='궁극기') {
-        await playJobAttackVfx('player', player.name || player.baseJob);
-        if (player.ultStack < player.ultMaxStack) return writeLog(`[궁극기] 스택이 부족합니다! (${player.ultStack}/${player.ultMaxStack})`);
-        player.ultStack = 0;
-        const ultSpec = ultSkills[player.unlockedSkill];
-        const dmgMult = ultSpec ? ultSpec.dmgMult : 4.0;
-        const missPenalty = consumeHunterEvasionMissPenalty();
-        const ultHitRate = Math.max(5, 50 - missPenalty);
-        if (Math.random() * 100 < ultHitRate) {
-            let berserkMult = (player.name==='버서커' && player.curHp <= player.maxHp * 0.5) ? 1.35 : 1;
-            let ultDmg = Math.floor(getEffectiveAttackPower() * dmgMult * berserkMult);
-            const critInfo=getCritInfo();
-            const isCrit = Math.random()*100 < critInfo.effectiveCrit;
-            if (isCrit) { ultDmg = Math.floor(ultDmg*getEffectiveCritMult()); triggerCritEffect(); playCritGoldBurst('enemy'); }
-            if (enemy._aiGuardedTurns && enemy._aiGuardedTurns > 0) {
-                ultDmg = Math.max(1, Math.floor(ultDmg * 0.62));
-                enemy._aiGuardedTurns = Math.max(0, enemy._aiGuardedTurns - 1);
-                writeLog('[적 AI] 방어막이 궁극기 피해를 일부 상쇄했습니다.');
-            }
-            enemy.curHp -= ultDmg;
-            showDmgFloat(ultDmg, isCrit, false); triggerShakeEffect();
-            writeLog(`[궁극기] 💥 ${player.unlockedSkill} 炸裂! ${isCrit?'🔥 치명타! ':''}${ultDmg} 피해!`);
-            if (getLifestealEffective()>0) { const h=Math.floor(ultDmg*getLifestealEffective()); player.curHp=Math.min(getEffectiveMaxHp(),player.curHp+h); writeLog(`[흡혈] 💉 ${h}`); }
-            if (player.name==='버서커' && player.curHp <= player.maxHp * 0.5) {
-                const rh = Math.floor(ultDmg * 0.25);
-                player.curHp = Math.min(getEffectiveMaxHp(), player.curHp + rh);
-                writeLog(`[패시브] 광폭화 흡혈 +${rh}`);
-            }
-            if (enemy.curHp<=0) { updateUi(); renderActions(); return winBattle(); }
-        } else {
-            writeLog(`[궁극기] ❌ ${player.unlockedSkill} 발동 실패! (50% 확률)`);
-        }
-        updateUi(); renderActions();
-
-    } else if (type==='방패방어') {
-        const guardRate = 70 + (player._guardBonus||0);
-        if(Math.random()*100<guardRate){defendingTurns=2;writeLog(`[성공] 🛡️ 2턴간 피해 60% 감소!`);if(player.relics&&player.relics.includes('shield_empower')){player.shieldEmpowered=true;const rh=Math.floor(getEffectiveMaxHp()*0.08);player.curHp=Math.min(getEffectiveMaxHp(),player.curHp+rh);writeLog(`[유물] ⚡ 철벽의 의지 발동! 회복 +${rh}, 다음 공격 강화`);}}
-        else writeLog(`[실패] 방패 방어 실패!`);
-    } else if (type==='회피') {
-        dodgingTurns=2; writeLog(`[회피기] 💨 2번의 공격을 75% 확률로 회피합니다!`);
-    } else if (type==='방어막') {
-        const shieldRate = 60 + (player._guardBonus||0);
-        if(Math.random()*100<shieldRate){shieldedTurns=2;writeLog(`[성공] ✨ 2턴간 피해 50% 감소!`);}
-        else writeLog(`[실패] 방어막 전개 실패!`);
-    } else if (type === '기도') {
-        if (player.name !== '성직자') {
-            setCombatProcessing(false);
-            return writeLog('[기도] 성직자만 사용할 수 있습니다.');
-        }
-        normalizeDivineState();
-        if (clampDivinePower(player.divinePower) >= DIVINE_POWER_MAX) {
-            setCombatProcessing(false);
-            return writeLog(`[기도] 신성력은 이미 최대치입니다. (${DIVINE_POWER_MAX}/${DIVINE_POWER_MAX})`);
-        }
-        player.prayerCountThisTurn = safeNum(player.prayerCountThisTurn, 0);
-        if (player.prayerCountThisTurn >= 2) {
-            setCombatProcessing(false);
-            return writeLog('[기도] 이번 턴에는 최대 2번만 기도할 수 있습니다.');
-        }
-        const gain = (1 + safeNum(player.prayerBonusFlat, 0)) * safeNum(player.divineGainMult, 1);
-        const actualGain = addDivinePower(gain);
-        player.prayerVulnerableHits = 1;
-        player.prayerCountThisTurn += 1;
-        writeLog(
-            `[신성력] 🙏 기도 — 신성력 <b>+${formatDivinePowerForDisplay(actualGain)}</b> (합계 ${formatDivinePowerForDisplay(
-                player.divinePower
-            )} / 최대 ${DIVINE_POWER_MAX}) · 다음 피격 2배`
-        );
-        updateUi(); renderActions();
-        if (player.prayerCountThisTurn >= 2) {
-            queueEnemyTurnWithPacing();
-        } else {
-            setCombatProcessing(false);
-        }
-        return;
-    }
-    queueEnemyTurnWithPacing();
+    await enemyTurn();
 };
 
-window.usePotion = () => {
-    if (isProcessing) return;
-    if (applySummonDarkTurnStart()) return;
-    if(player.potions<=0) return writeLog("포션이 없습니다!");
-    if(potionUsedThisTurn) return writeLog("이번 턴에 이미 포션을 사용했습니다!");
-    player.potions--; potionUsedThisTurn=true;
-    const potionHealMult = typeof getPlayerPotionHealMultiplier === 'function'
-        ? getPlayerPotionHealMultiplier()
-        : 1;
-    const potionHeal = (maxHp, ratio) => Math.max(1, Math.floor(maxHp * ratio * potionHealMult));
-    if (isMercenaryCaptainJob() && player.fieldMerc && player.fieldMerc.mercHp > 0) {
-        if (player.hasRegenPotion) {
-            player.mercRegenTurns = 2;
-            player.mercRegenAmount = potionHeal(player.fieldMerc.mercMaxHp, 0.22);
-            writeLog(`[포션] 🧪 용병에게 서서히 회복! (2턴간 매 적 턴 전 ${player.mercRegenAmount})`);
-        } else {
-            const h = potionHeal(player.fieldMerc.mercMaxHp, 0.38);
-            player.fieldMerc.mercHp = Math.min(player.fieldMerc.mercMaxHp, player.fieldMerc.mercHp + h);
-            writeLog(`[포션] 🧪 용병 체력 ${h} 회복! (${player.fieldMerc.mercHp}/${player.fieldMerc.mercMaxHp})`);
-        }
-    } else if (isMercenaryCaptainJob()) {
-        const h = potionHeal(getEffectiveMaxHp(), 0.12);
-        player.curHp = Math.min(getEffectiveMaxHp(), player.curHp + h);
-        writeLog(`[포션] 🧪 단장 긴급 체력 ${h} (동료 없음·최소 회복)`);
-    } else if(player.hasRegenPotion){regenTurns=2;regenAmount=potionHeal(getEffectiveMaxHp(),0.25);writeLog(`[포션] 🧪 서서히 회복! (2턴간 매 턴 ${regenAmount})`);}
-    else{const h=potionHeal(getEffectiveMaxHp(),0.35);player.curHp=Math.min(getEffectiveMaxHp(),player.curHp+h);writeLog(`[포션] 🧪 즉시 체력 ${h} 회복!`);}
-    updateUi(); renderActions();
+window.usePotion = function usePotion() {
+    if (isProcessing || !player || player.curHp <= 0) return;
+    if (!spendPlayerAction()) return writeLog('[턴 제한] 이번 턴의 행동을 이미 사용했습니다.');
+    const result = resolveHealAction(player);
+    describeCombatResult(player, player, result);
+    updateUi();
+    enemyTurn();
 };
 
-let autoRegenCounter = 0;
-function enemyTurn() {
-    setTimeout(async () => {
-        if (!enemy || !player) return;
-        let earlyUnlockSet = false;
-        const scheduleEarlyUnlock = (animMs) => {
-            const ms = Math.max(0, safeNum(animMs, 0) - 200);
-            setTimeout(() => {
-                earlyUnlockSet = true;
-                setCombatProcessing(false);
-            }, ms);
-        };
-        if (player && player.name === '성직자') {
-            player.prayerCountThisTurn = 0;
-        }
-        if (isMercenaryCaptainJob()) {
-            player.mercBattleTurnCount = safeNum(player.mercBattleTurnCount, 0) + 1;
-        }
-        if(regenTurns>0){player.curHp=Math.min(getEffectiveMaxHp(),player.curHp+regenAmount);regenTurns--;writeLog(`[재생] 💚 ${regenAmount} 회복! (남은 턴: ${regenTurns})`);}
-        if (isMercenaryCaptainJob() && player.mercRegenTurns > 0 && player.fieldMerc && player.fieldMerc.mercHp > 0) {
-            player.fieldMerc.mercHp = Math.min(player.fieldMerc.mercMaxHp, player.fieldMerc.mercHp + player.mercRegenAmount);
-            player.mercRegenTurns--;
-            writeLog(`[용병 재생] 💚 ${player.mercRegenAmount} (남은 턴: ${player.mercRegenTurns})`);
-        }
-        potionUsedThisTurn=false;
+function syncPlayerCampaignState() {
+    if (!player || !player.metaSlotId) return;
+    ensureHumanRuntimeShape(player);
+    player.progress = normalizeDungeonProgress({ floor, stage: dungeonStage });
+    MetaRPG.syncRunProgress(player.metaSlotId, {
+        stats: player.stats,
+        progress: player.progress,
+        hp: player.curHp,
+        maxHp: player.maxHp,
+        equipment: player.equipment,
+        magic: player.magic,
+        skills: player.skills,
+        mastery: player.mastery,
+        statuses: player.statuses,
+        body: player.body,
+        items: player.items,
+        relics: player.relics,
+        behaviorLogger: player.behaviorLogger,
+        behaviorMatrix: player.behaviorMatrix,
+    });
+}
 
-        if (player.bonusSkills && player.bonusSkills.includes('bonus_regen')) {
-            autoRegenCounter++;
-            if (autoRegenCounter % 3 === 0) { const h=Math.floor(getEffectiveMaxHp()*0.05); player.curHp=Math.min(getEffectiveMaxHp(),player.curHp+h); writeLog(`[스킬] 강철 심장 ${h} 회복!`); }
-        }
-
-        let hitLanded=true, currentEnemyAtk=enemy.atk;
-        const enemyHpRate = safeNum(enemy.curHp, 1) / Math.max(1, safeNum(enemy.hp, 1));
-        const playerHpRate = safeNum(player.curHp, 1) / Math.max(1, safeNum(getEffectiveMaxHp(), 1));
-        const isHunterEnemy = String(enemy.job || '').includes('헌터');
-        const hunterExecutionMode = isHunterEnemy && playerHpRate <= 0.4;
-        let enemyIntent = 'attack';
-        if (!enemy.isBoss) {
-            if (enemyHpRate < 0.9 && Math.random() < 0.18) enemyIntent = 'guard';
-            if (String(enemy.job || '').includes('마법사') && enemyHpRate <= 0.38 && Math.random() < 0.65) enemyIntent = 'barrier';
-            if (isHunterEnemy && enemyHpRate <= 0.4 && Math.random() < 0.55) enemyIntent = 'evasion';
-            if (hunterExecutionMode) enemyIntent = 'attack';
-            if (enemyHpRate >= 0.9 && (enemyIntent === 'guard' || enemyIntent === 'barrier')) enemyIntent = 'attack';
-        }
-        if (String(enemy.job || '').includes('워리어') && enemyHpRate <= 0.45) {
-            currentEnemyAtk = Math.floor(currentEnemyAtk * (enemyHpRate <= 0.25 ? 1.55 : 1.3));
-            writeLog('[적 AI] 광폭한 압박! 체력이 낮아진 적의 공격이 폭증합니다.');
-        }
-        if (enemyIntent === 'guard') {
-            enemy._aiGuardedTurns = 1;
-            writeLog('[적 AI] 적이 자세를 낮추고 방어 태세를 취합니다.');
-            player._awaitPlayerTurn = true;
-            setCombatProcessing(false);
-            updateUi(); renderActions();
-            return;
-        }
-        if (enemyIntent === 'barrier') {
-            enemy._aiGuardedTurns = 2;
-            writeLog('[적 AI] 마법사가 긴급 방어막을 전개했습니다.');
-            player._awaitPlayerTurn = true;
-            setCombatProcessing(false);
-            updateUi(); renderActions();
-            return;
-        }
-        if (enemyIntent === 'evasion') {
-            enemy._hunterEvasionTurns = 1;
-            writeLog('[적 AI] 헌터가 몸을 낮추고 회피 자세를 취합니다. 다음 1턴, 당신의 공격은 빗나가기 쉬워집니다.');
-            player._awaitPlayerTurn = true;
-            setCombatProcessing(false);
-            updateUi(); renderActions();
-            return;
-        }
-        if(enemy.isBoss){
-            if(enemy.bossCharge){writeLog(`💥 [강공격] 보스의 묵직한 일격!!`);currentEnemyAtk=enemy.atk*2.5;enemy.bossCharge=false;triggerBossWarning(false);}
-            else if(enemy.turnCount%4===3){
-                enemy.bossCharge=true;
-                triggerBossWarning(true);
-                writeLog(`⚠️ [위험] 보스가 강공격을 준비합니다!`);
-                enemy.turnCount++;
-                await waitMs(220);
-                player._awaitPlayerTurn = true;
-                setCombatProcessing(false);
-                updateUi();
-                renderActions();
-                return;
-            }
-            enemy.turnCount++;
-        }
-        if(dodgingTurns>0){
-            dodgingTurns--;
-            if(Math.random()*100<75){
-                writeLog(`[회피 성공] 💨 적의 공격을 피했습니다!`); hitLanded=false;
-                showMissFloat('player');
-                if(player.relics&&player.relics.includes('dodge_counter')){const cd=Math.max(1,Math.floor(player.atk*0.9)-Math.floor(enemy.def*0.6));enemy.curHp-=cd;writeLog(`[유물] 🗡️ 그림자 반격! ${cd} 피해!`);showDmgFloat(cd,false,false);if(enemy.curHp<=0){setTimeout(()=>winBattle(),100);return;}}
-            } else writeLog(`[회피 실패] 피하지 못했습니다!`);
-        }
-        if(hitLanded){
-            const enemyHitRate = hunterExecutionMode ? 100 : 80;
-            if(Math.random()*100<enemyHitRate){
-                if (enemy.isBoss) {
-                    scheduleEarlyUnlock(660);
-                    await playBossStrikeVfx('player');
-                } else {
-                    scheduleEarlyUnlock(360);
-                    await playJobAttackVfx('enemy', enemy.job || '');
-                }
-                let dmg=Math.max(1,currentEnemyAtk-getTotalPlayerDefenseForHit());
-                if (hunterExecutionMode) {
-                    dmg = Math.max(1, Math.floor(dmg * 1.45));
-                    writeLog('[헌터 AI] ☠️ 처형인 본능 발동! 약해진 상대를 향해 확정 치명타 급 습격!');
-                    triggerCritEffect();
-                    playCritGoldBurst('player');
-                }
-                let tacticalNullified = false;
-                if (player.tacticalParryReady) {
-                    player.tacticalParryReady = false;
-                    tacticalNullified = true;
-                    dmg = 0;
-                    writeLog('[전술] 🛡️ 패링 성공 — 이번 피격을 무효화했습니다.');
-                    triggerGuardAura();
-                    showMissFloat('player');
-                } else if (player.tacticalBarrierReady) {
-                    player.tacticalBarrierReady = false;
-                    tacticalNullified = true;
-                    dmg = 0;
-                    writeLog('[전술] ✨ 방어막 발동 — 이번 피격을 완전히 흘렸습니다.');
-                    triggerGuardAura();
-                    showMissFloat('player');
-                } else if(shieldedTurns>0){dmg=Math.floor(dmg*0.5);shieldedTurns--;writeLog(`[방어막] ✨ 피해 50% 감소! (${dmg} 입음)`); triggerGuardAura(); if(player.relics&&player.relics.includes('barrier_reflect')){const rd=Math.floor(dmg*0.45);enemy.curHp-=rd;const heal=Math.floor(getEffectiveMaxHp()*0.05);player.curHp=Math.min(getEffectiveMaxHp(),player.curHp+heal);writeLog(`[유물] 🔮 마력 방벽: 반사 ${rd}, 회복 ${heal}`);if(enemy.curHp<=0){setTimeout(()=>winBattle(),100);}}}
-                else if(defendingTurns>0){dmg=Math.floor(dmg*0.4);defendingTurns--;writeLog(`[철벽 방어] 🛡️ 피해 60% 감소! (${dmg} 입음)`); triggerGuardAura();}
-                else writeLog(`[피격] 적의 공격! ${dmg} 데미지.`);
-                if (!tacticalNullified) {
-                    if (player.summon && player.summon.id === 'golem') {
-                        dmg = Math.max(1, Math.floor(dmg * 0.90));
-                        writeLog(`[소환] 🪨 골렘이 피해를 줄였습니다! (${dmg})`);
-                    }
-                    if (player.prayerVulnerableHits && player.prayerVulnerableHits > 0) {
-                        dmg = Math.max(1, Math.floor(dmg * 2));
-                        player.prayerVulnerableHits = 0;
-                        writeLog('[기도 반동] ⚠️ 기도의 반동으로 이번 피격 피해가 2배가 되었습니다.');
-                    }
-                    const gearReduction = typeof getPlayerDamageReduction === 'function'
-                        ? getPlayerDamageReduction()
-                        : 0;
-                    if (gearReduction > 0 && dmg > 0) {
-                        const beforeReduction = dmg;
-                        dmg = Math.max(1, Math.floor(dmg * (1 - gearReduction)));
-                        if (beforeReduction !== dmg) {
-                            writeLog(`[장비] 피해 감소 ${Math.round(gearReduction * 100)}% 적용 (${beforeReduction} → ${dmg})`);
-                        }
-                    }
-                    if (isMercenaryCaptainJob() && player.fieldMerc && player.fieldMerc.mercHp > 0) {
-                        player.fieldMerc.mercHp -= dmg;
-                        writeLog(`[어그로] 용병이 맞았다! ${dmg} (용병 ${Math.max(0, player.fieldMerc.mercHp)}/${player.fieldMerc.mercMaxHp})`);
-                        showDmgFloat(dmg, false, true);
-                        if (player.fieldMerc.mercHp <= 0) {
-                            if (player.fieldMerc.mercItems && player.fieldMerc.mercItems.length) {
-                                player.mercInventory = [...player.fieldMerc.mercItems];
-                            }
-                            player.fieldMerc = null;
-                            player.mercCooldownTurns = 3;
-                            player.mercReviveAt90Percent = true;
-                            player._mercCooldownSkipOnce = true;
-                            writeLog(`💀 용병 전멸! 재소환까지 ${player.mercCooldownTurns}턴 (또는 🪙 긴급 재가동)`);
-                        }
-                    } else {
-                        player.curHp-=dmg; showDmgFloat(dmg,false,true);
-                        if (String(enemy.job || '').includes('헌터')) {
-                            if (player.hunterExposeReady) {
-                                const bonusFixed = Math.max(1, Math.floor(getEffectiveMaxHp() * 0.1));
-                                player.curHp = Math.max(0, player.curHp - bonusFixed);
-                                player.hunterExposeReady = false;
-                                player.hunterExposeStacks = 0;
-                                playAssassinStrikeVfx('player');
-                                writeLog(`[헌터] 🎯 약점 공격 발동! 추가 고정 피해 ${bonusFixed}`);
-                            } else {
-                                player.hunterExposeStacks = Math.max(0, safeNum(player.hunterExposeStacks, 0)) + 1;
-                                const cur = Math.min(3, player.hunterExposeStacks);
-                                writeLog(`[헌터] 약점을 간파합니다... (${cur}/3)`);
-                                if (player.hunterExposeStacks >= 3) {
-                                    player.hunterExposeReady = true;
-                                    writeLog('[헌터] 다음 타격은 치명적인 약점 공격으로 강화됩니다!');
-                                }
-                            }
-                        }
-                    }
-                }
-            } else { writeLog(`[럭키] 적의 공격이 빗나갔습니다!`); showMissFloat('player'); }
-        }
-        if (isMercenaryCaptainJob() && player.mercCooldownTurns > 0) {
-            if (player._mercCooldownSkipOnce) {
-                player._mercCooldownSkipOnce = false;
-            } else {
-                player.mercCooldownTurns--;
-            }
-        }
-        if (isMercenaryCaptainJob() && player.mercCooldownTurns === 0 && !player.fieldMerc && player.mercCompanionKind) {
-            player.fieldMerc = buildFieldMercFromTemplate();
-            const ratio = player.mercReviveAt90Percent ? 0.9 : 1;
-            player.fieldMerc.mercHp = Math.max(1, Math.floor(player.fieldMerc.mercMaxHp * ratio));
-            writeLog(
-                `[용병] ${ratio < 1 ? '부상에서 복귀' : '전열 재편성'}! HP ${player.fieldMerc.mercHp}/${player.fieldMerc.mercMaxHp} (${ratio < 1 ? '최대의 90%' : '만전'})`
-            );
-            player.mercReviveAt90Percent = false;
-        }
-        if (player.name === '암살자' && enemy && Math.random() < 0.15) {
-            enemy.weakPoint = true;
-            writeLog(`[패시브] 🎯 약점 노출! 다음 공격이 치명적으로 들어갑니다.`);
-        }
-        player._awaitPlayerTurn = true;
-        if(player.curHp<=0) return gameOver();
-        if (!earlyUnlockSet) setCombatProcessing(false);
-        updateUi(); renderActions();
-    }, 120);
+function enterNextDungeonStage() {
+    const current = normalizeDungeonProgress({ floor, stage: dungeonStage });
+    const next = advanceDungeonProgress(current);
+    if (next.completed) {
+        dungeonClear();
+        return;
+    }
+    floor = next.floor;
+    dungeonStage = next.stage;
+    player.progress = { floor, stage: dungeonStage };
+    if (hasCrossedPointOfNoReturn(player.progress)) MetaRPG.clearRunSnapshot(player.metaSlotId);
+    syncPlayerCampaignState();
+    writeLog(`[전진] ${formatDungeonPosition(player.progress)} 진입${hasCrossedPointOfNoReturn(player.progress) ? ' · 복귀 불가' : ''}`);
+    if (current.stage === STAGES_PER_FLOOR && typeof openShop === 'function') {
+        openShop();
+        return;
+    }
+    spawnEnemy();
 }
 
 function winBattle() {
     setCombatProcessing(false);
-    triggerBossWarning(false);
-    const baseGain = typeof computeFloorGoldReward === 'function'
-        ? computeFloorGoldReward(floor, { isBoss: !!(enemy && enemy.isBoss) })
-        : Math.max(15, 6 + Math.floor(Math.random() * 5) + floor * 3);
-    let bonus=0, bonusMsg="";
-    const relKey=getAffinityRelKey();
-    if(!enemy.isBoss&&relations[relKey]&&relations[relKey].weak===enemy.job){bonus=Math.floor(baseGain*0.3);bonusMsg=` <b style='color:#f1c40f'>(역전 보너스 +${bonus}G!)</b>`;}
-    const goldMult = typeof getPlayerGoldGainMult === 'function' ? getPlayerGoldGainMult() : 1;
-    const gain = Math.floor((baseGain + bonus) * goldMult);
-    gold+=gain; totalGoldEarned+=gain;
-    { const _em = getEffectiveMaxHp(); player.curHp = Math.min(_em, player.curHp + Math.floor(_em * 0.15)); }
-    writeLog(`[승리] ${gain}G 획득 및 체력 소량 회복.${bonusMsg}`);
-    if (player.tutorialBattleActive) {
-        player.tutorialBattleActive = false;
-        player.prologueLocked = false;
-        writeLog('[튜토리얼] 첫 전투를 넘겼습니다. 이제 마굴을 오르며 잃어버린 기억을 추적합니다.');
-        if (typeof updatePrologueBattleControls === 'function') updatePrologueBattleControls();
-    }
-    const expGain = 8 + Math.floor(floor * 0.85) + (enemy.isBoss ? 28 : 0);
-    if (player.metaSlotId && typeof MetaRPG !== 'undefined') {
-        const r = MetaRPG.addExpToSlot(player.metaSlotId, expGain);
-        if (r) {
-            player.runLevel = r.level;
-            player.runExp = r.exp;
-            const left = Math.max(0, (r.need || MetaRPG.expToNextLevel(r.level)) - r.exp);
-            writeLog(`[EXP] +${expGain} (Lv.${r.level}, 다음 ${left} EXP)`);
-        }
-    }
-    processFloorQuestOnVictory();
-    const defeatedBoss = !!(enemy && enemy.isBoss);
-    const continueAfterVictory = () => {
-        if (floor % 100 === 0 && floor >= 100 && defeatedBoss) return milestoneCenturyFloor();
-        if (floor > 20 && player.farmingStay) proceedWinBattleFarmContinue();
-        else proceedWinBattleNextFloor();
-    };
+    playerTurnSpent = false;
+    playerGuardState = null;
+    enemyGuardState = null;
+    const reward = computeFloorGoldReward(floor + (dungeonStage - 1) / STAGES_PER_FLOOR, {
+        isBoss: dungeonStage === STAGES_PER_FLOOR,
+    });
+    gold = Math.max(0, safeNum(gold, 0)) + reward;
+    if (typeof totalGoldEarned !== 'undefined') totalGoldEarned = Math.max(0, safeNum(totalGoldEarned, 0)) + reward;
+    writeLog(`[승리] ${formatDungeonPosition({ floor, stage: dungeonStage })} 전투 종료 · ${reward}G 획득`);
+    setCurrentHp(player, Math.min(getEffectiveMaxHp(), player.curHp + Math.max(1, Math.floor(getEffectiveMaxHp() * 0.08))));
+    syncPlayerCampaignState();
+    const continueForward = () => enterNextDungeonStage();
     if (typeof showVictoryRewardAndAwaitContinue === 'function') {
         showVictoryRewardAndAwaitContinue(
-            {
-                clearedFloor: floor,
-                goldGain: gain,
-                expGain,
-                defeatedBoss,
-            },
-            continueAfterVictory
+            { clearedFloor: floor, goldGain: reward, expGain: 0, defeatedBoss: dungeonStage === STAGES_PER_FLOOR },
+            continueForward
         );
     } else {
-        continueAfterVictory();
+        continueForward();
     }
-}
-
-function dungeonClear() {
-    triggerBossWarning(false);
-    const sg=Math.floor(totalGoldEarned*0.1), ps=getSavedGold();
-    const clearTitle = typeof getPlayerClassDisplayName === 'function' ? getPlayerClassDisplayName() : player.name;
-    localStorage.setItem('saved_gold',ps+sg); exitBattleLayout();
-    document.getElementById('battle-area').style.display='none';
-    document.querySelector('.screen').innerHTML=`<div style="text-align:center;padding:40px 20px;"><h2 style="color:#f1c40f;font-size:2em;">🏆 던전 클리어!</h2><p style="color:#e0e0e0;font-size:1.1em;margin:15px 0;"><b style="color:#f1c40f;">${escapeHtml(clearTitle)}</b>이(가) 100층을 정복했습니다!</p><p style="color:#2ed573;font-size:0.95em;margin-bottom:5px;">💰 보존 골드: <b>${sg}G</b></p><div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:20px;"><button onclick="startInfiniteMode()" style="background:#9b59b6;color:#fff;padding:14px 24px;font-size:1em;font-weight:700;">♾️ 무한모드 도전</button><button onclick="location.reload()" style="background:#f1c40f;color:#111;padding:14px 24px;font-size:1em;font-weight:700;">🏠 메인으로</button></div></div>`;
-    writeLog(`🏆 ${escapeHtml(clearTitle)}이(가) 100층을 클리어했습니다!!!`);
 }
 
 function gameOver() {
+    if (!player) return;
     setCombatProcessing(false);
-    triggerBossWarning(false);
-    window.__deathApplied = false;
-    const carriedGold = Math.max(0, Math.floor(safeNum(gold, 0)));
-    const sg = Math.floor(carriedGold * 0.2);
-    const lostGold = Math.max(0, carriedGold - sg);
-    const slotId = player && player.metaSlotId;
-    const enName = enemy ? enemy.name : '알 수 없는 적';
-    const fl = floor;
-    const rescuedItems = player && Array.isArray(player.items)
-        ? player.items.filter((it) => it && it.type !== 'merc' && getEquipSlotKind(it))
-        : [];
-    window.__deathCtx = { sg, lostGold, slotId, floor: fl, enemyName: enName, rescuedItemCount: rescuedItems.length };
-
-    exitBattleLayout();
-    document.getElementById('battle-area').style.display = 'none';
-
-    finalizeGameOverDeath();
+    ensureHumanRuntimeShape(player);
+    player.curHp = 0;
+    player.progress = normalizeDungeonProgress({ floor, stage: dungeonStage });
+    player.behaviorMatrix = isBehaviorLearningZone(player.progress)
+        ? buildBehaviorProbabilityMatrix(player.behaviorLogger)
+        : null;
+    const killedBy = enemy ? { id: enemy.id || null, name: enemy.name, ghostId: enemy.ghostId || null } : null;
+    const archived = MetaRPG.markPermanentDeath(player.metaSlotId, player, player.progress, killedBy);
+    const ghostName = archived && archived.ghost ? archived.ghost.monsterName : `${player.name}의 망령`;
+    writeLog(
+        `[영구 사망] ${player.name} — ${formatDungeonPosition(player.progress)}에서 사망. ` +
+        `모든 스탯·무기·갑옷·마법·스킬이 동일한 <b>${ghostName}</b>으로 박제되었습니다.`
+    );
+    enemy = null;
+    const battleArea = document.getElementById('battle-area');
+    if (battleArea) battleArea.style.display = 'none';
+    if (typeof exitBattleLayout === 'function') exitBattleLayout();
+    player = null;
+    floor = 1;
+    dungeonStage = 1;
+    if (typeof showPreGameScreen === 'function') showPreGameScreen();
 }
 
-window.resumeFromLastSaveAfterDeath = function resumeFromLastSaveAfterDeath() {
-    window.__deathApplied = true;
-    const d = window.__deathCtx || {};
-    const slotId = d.slotId;
-    if (!slotId || typeof MetaRPG === 'undefined') return location.reload();
-    const snap = MetaRPG.getRunSnapshot(slotId);
-    if (!snap || !snap.player) {
-        alert('저장된 런이 없습니다.');
-        return location.reload();
+function dungeonClear() {
+    if (player) {
+        player.progress = { floor: MAX_DUNGEON_FLOOR, stage: STAGES_PER_FLOOR };
+        syncPlayerCampaignState();
     }
-    MetaRPG.setActiveSlot(slotId);
-    document.querySelector('.screen').innerHTML = '';
-    loadRunFromMetaSnapshot(snap);
+    writeLog('[완주] 100-10층 돌파');
+    enemy = null;
+    updateUi();
+    renderActions();
+}
+
+function buildRuntimePlayerFromSlot(slot) {
+    const stats = normalizeHumanStats(slot.stats);
+    const maxHp = Math.max(1, safeNum(slot.maxHp, 50 + stats.hp * 5));
+    return ensureHumanRuntimeShape({
+        id: slot.id,
+        metaSlotId: slot.id,
+        name: slot.name,
+        color: '#d8d8d8',
+        stats,
+        curHp: Math.min(maxHp, Math.max(1, safeNum(slot.hp, maxHp))),
+        maxHp,
+        atk: stats.str,
+        def: stats.def,
+        int: stats.int,
+        wis: stats.wis,
+        agi: stats.agi,
+        divinity: stats.divinity,
+        distortion: stats.distortion,
+        progress: normalizeDungeonProgress(slot.progress),
+        equipment: JSON.parse(JSON.stringify(slot.equipment || { weapon: null, armor: null, accessories: [] })),
+        magic: JSON.parse(JSON.stringify(slot.magic || [])),
+        skills: JSON.parse(JSON.stringify(slot.skills || [])),
+        mastery: JSON.parse(JSON.stringify(slot.mastery || {})),
+        statuses: JSON.parse(JSON.stringify(slot.statuses || [])),
+        body: JSON.parse(JSON.stringify(slot.body || {})),
+        items: JSON.parse(JSON.stringify(slot.items || [])),
+        relics: JSON.parse(JSON.stringify(slot.relics || [])),
+        behaviorLogger: JSON.parse(JSON.stringify(slot.behaviorLogger || [])),
+        behaviorMatrix: slot.behaviorMatrix ? JSON.parse(JSON.stringify(slot.behaviorMatrix)) : null,
+        potions: 0,
+        baseJob: '인간 모험가',
+        jobKey: HUMAN_JOB_KEY,
+        classKey: null,
+        runLevel: 1,
+        runExp: 0,
+        tacticalSkills: [],
+        tacticalSkillUses: {},
+        passiveContractHistory: [],
+        floorGrowth: { floors: 0, atk: 0, hp: 0 },
+        playerState: { corruption: 0, purification: 0 },
+    });
+}
+
+function initHumanRunFromActiveSlot() {
+    const meta = MetaRPG.loadMeta();
+    const slot = meta.slots.find((entry) => entry.id === meta.activeSlotId);
+    if (!slot || slot.permanentDeath) return false;
+    player = buildRuntimePlayerFromSlot(slot);
+    fullResyncPlayerCombatStatsFromMetaAndInventory();
+    floor = player.progress.floor;
+    dungeonStage = player.progress.stage;
+    gold = 0;
+    combatTurnNumber = 1;
+    playerTurnSpent = false;
+    playerGuardState = null;
+    enemyGuardState = null;
+    document.getElementById('start-area').style.display = 'none';
+    document.getElementById('shop-area').style.display = 'none';
+    document.getElementById('battle-area').style.display = 'block';
+    if (typeof enterBattleLayout === 'function') enterBattleLayout();
+    writeLog(
+        `[생성] 인간 모험가 주사위 — 힘 ${player.stats.str}, 방어 ${player.stats.def}, 체력 ${player.stats.hp}, ` +
+        `지능 ${player.stats.int}, 지혜 ${player.stats.wis}, 민첩 ${player.stats.agi}, 성혼 0, 뒤틀림 0`
+    );
+    spawnEnemy();
+    return true;
+}
+
+// 기존 DOM 이벤트가 호출하는 이름을 유지하되 직업 인수는 무시한다.
+window.confirmNewCharacter = function confirmNewCharacter() {
+    const name = prompt('캐릭터 이름을 입력하세요 (비우면 인간 모험가):', '인간 모험가');
+    const result = MetaRPG.createCharacter(name || '인간 모험가');
+    if (!result.ok) {
+        alert(result.msg || '생성 실패');
+        return;
+    }
+    initHumanRunFromActiveSlot();
 };
 
-window.finalizeGameOverDeath = function finalizeGameOverDeath() {
-    if (window.__deathApplied) return;
-    window.__deathApplied = true;
-    const d = window.__deathCtx || {};
-    const sg = d.sg != null ? d.sg : 0;
-    const lostGold = d.lostGold != null ? d.lostGold : Math.max(0, Math.floor(safeNum(gold, 0)) - sg);
-    const slotId = d.slotId;
-    const fl = d.floor != null ? d.floor : floor;
-    const enName = d.enemyName || '알 수 없는 적';
-    let rescuedItemCount = d.rescuedItemCount != null ? d.rescuedItemCount : 0;
-    if (typeof MetaRPG !== 'undefined') {
-        if (slotId) {
-            if (typeof MetaRPG.preserveRescueInventory === 'function') {
-                rescuedItemCount = MetaRPG.preserveRescueInventory(slotId, player && player.items);
-            } else if (typeof MetaRPG.clearRunSnapshot === 'function') {
-                MetaRPG.clearRunSnapshot(slotId);
-            }
-        }
-        MetaRPG.addSavedGold(sg);
-        if (slotId) {
-            const qdef = MetaRPG.FLOOR_QUESTS[fl];
-            const sl = MetaRPG.getSlotById(slotId);
-            if (qdef && sl && !(sl.questFlags && sl.questFlags[qdef.id])) {
-                MetaRPG.applyQuestPenalty(slotId, qdef.failPenalty);
-                writeLog(`[퀘스트 실패] 사망으로 <b>${qdef.title}</b> 패널티 적용`);
-            }
-        }
-    } else {
-        const ps = getSavedGold();
-        localStorage.setItem('saved_gold', ps + sg);
+window.initRunFromMetaSlot = function initRunFromMetaSlot() {
+    return initHumanRunFromActiveSlot();
+};
+if (typeof initRunFromMetaSlot === 'function') {
+    initRunFromMetaSlot = window.initRunFromMetaSlot;
+}
+if (typeof confirmNewCharacter === 'function') {
+    confirmNewCharacter = window.confirmNewCharacter;
+}
+if (typeof loadRunFromMetaSnapshot === 'function') {
+    loadRunFromMetaSnapshot = function loadHumanRunFromSnapshot() {
+        return initHumanRunFromActiveSlot();
+    };
+}
+
+window.saveAndExitToMain = function saveAndExitToMain() {
+    if (!player || !player.metaSlotId) return;
+    const progress = normalizeDungeonProgress({ floor, stage: dungeonStage });
+    if (!canReturnToBaseCamp(progress)) {
+        writeLog(`[복귀 불가] ${formatDungeonPosition(progress)}부터는 베이스캠프로 돌아갈 수 없습니다.`);
+        return;
     }
-    writeLog(
-        `💀 ${fl}층에서 ${enName}에게 패배했습니다. 구조대가 베이스캠프로 회수했습니다. ` +
-            `장비 ${rescuedItemCount}개 보존, 골드 ${lostGold}G 손실, ${sg}G 회수.`
-    );
-    if (typeof MetaRPG !== 'undefined' && slotId) MetaRPG.setActiveSlot(slotId);
+    syncPlayerCampaignState();
+    const payload = typeof serializeRunState === 'function' ? serializeRunState() : { player, floor, dungeonStage };
+    MetaRPG.setRunSnapshot(player.metaSlotId, payload);
+    if (typeof exitBattleLayout === 'function') exitBattleLayout();
+    document.getElementById('battle-area').style.display = 'none';
     player = null;
     enemy = null;
-    floor = 1;
-    gold = 0;
-    totalGoldEarned = 0;
-    pendingShop = false;
-    exitBattleLayout();
-    document.getElementById('battle-area').style.display = 'none';
-    document.getElementById('shop-area').style.display = 'none';
-    showPreGameScreen();
+    if (typeof showPreGameScreen === 'function') showPreGameScreen();
 };
 
-window.setCombatProcessing = setCombatProcessing;
-window.updateCombatButtonsLockState = updateCombatButtonsLockState;
-window.queueEnemyTurnWithPacing = queueEnemyTurnWithPacing;
-window.triggerBossWarning = triggerBossWarning;
-window.applySummonDarkTurnStart = applySummonDarkTurnStart;
-window.enemyTurn = enemyTurn;
-window.winBattle = winBattle;
-window.dungeonClear = dungeonClear;
-window.gameOver = gameOver;
-window.isMercenaryCaptainJob = isMercenaryCaptainJob;
-window.getAffinityRelKey = getAffinityRelKey;
-window.getMercGoldSkipCost = getMercGoldSkipCost;
-window.getMercEffectiveAttackPower = getMercEffectiveAttackPower;
-window.getMercBonusAcc = getMercBonusAcc;
-window.getMercEffectiveCritForMercAttack = getMercEffectiveCritForMercAttack;
-window.getMercEffectiveCritMultForMercAttack = getMercEffectiveCritMultForMercAttack;
-window.getFieldMercAttackMult = getFieldMercAttackMult;
-window.buildFieldMercFromTemplate = buildFieldMercFromTemplate;
-window.getMercGachaCost = getMercGachaCost;
-window.tryMercenaryRandomEvent = tryMercenaryRandomEvent;
+window.exitToMainWithoutSave = function exitToMainWithoutSave() {
+    if (!player) return;
+    const progress = normalizeDungeonProgress({ floor, stage: dungeonStage });
+    if (!canReturnToBaseCamp(progress)) {
+        writeLog(`[복귀 불가] ${formatDungeonPosition(progress)}부터는 오직 전진만 가능합니다.`);
+        return;
+    }
+    window.saveAndExitToMain();
+};
 
-// ---- js/bootstrapCore.js ----
+function installHumanActionButtons() {
+    const originalRenderActions = typeof renderActions === 'function' ? renderActions : null;
+    if (!originalRenderActions || originalRenderActions.__humanWrapped) return;
+    const wrapped = function renderHumanActions() {
+        originalRenderActions();
+        const host = document.getElementById('action-btns');
+        if (!host || !player || !enemy || enemy.curHp <= 0) return;
+        const buttons = Array.from(host.querySelectorAll('button'));
+        const defense = buttons.find((button) => !button.onclick && button !== buttons[0]);
+        if (defense) {
+            defense.innerText = player.stats.agi >= 45 ? '💨 회피' : '🛡️ 방어';
+            defense.onclick = () => useAction(player.stats.agi >= 45 ? '회피' : '방패방어');
+        }
+        if (!host.querySelector('[data-v35-heal]')) {
+            const heal = document.createElement('button');
+            heal.dataset.v35Heal = '1';
+            heal.innerText = '✨ 힐';
+            heal.style.background = '#4b6b50';
+            heal.onclick = () => useAction('힐');
+            host.appendChild(heal);
+        }
+        const potion = host.querySelector('.potion-btn');
+        if (potion) potion.remove();
+        updateCombatButtonsLockState();
+    };
+    wrapped.__humanWrapped = true;
+    renderActions = wrapped;
+    window.renderActions = wrapped;
+}
+
+installHumanActionButtons();
+
+function installDungeonProgressUiAdapter() {
+    const originalUpdateUi = typeof updateUi === 'function' ? updateUi : null;
+    if (!originalUpdateUi || originalUpdateUi.__v35ProgressWrapped) return;
+    const wrapped = function updateV35Ui() {
+        originalUpdateUi();
+        const position = `${floor}-${dungeonStage}`;
+        ['floor-t-battle', 'floor-t'].forEach((id) => {
+            const element = document.getElementById(id);
+            if (element) element.innerText = position;
+        });
+        const progress = normalizeDungeonProgress({ floor, stage: dungeonStage });
+        const canReturn = canReturnToBaseCamp(progress);
+        ['battle-save-main-btn', 'battle-exit-main-btn'].forEach((id) => {
+            const button = document.getElementById(id);
+            if (!button) return;
+            button.disabled = !canReturn;
+            button.title = canReturn
+                ? `${formatDungeonPosition(progress)}: 베이스캠프 복귀 가능`
+                : `${formatDungeonPosition(progress)}: 6-1층 진입 후 복귀 불가`;
+        });
+    };
+    wrapped.__v35ProgressWrapped = true;
+    updateUi = wrapped;
+    window.updateUi = wrapped;
+}
+
+installDungeonProgressUiAdapter();
+
+Object.assign(window, {
+    setCombatProcessing,
+    updateCombatButtonsLockState,
+    probabilityRoll,
+    calculateAttackChance,
+    calculatePhysicalDamage,
+    enemyTurn,
+    winBattle,
+    gameOver,
+    dungeonClear,
+    syncPlayerCampaignState,
+    enterNextDungeonStage,
+    initHumanRunFromActiveSlot,
+    isMercenaryCaptainJob,
+    getAffinityRelKey,
+    getMercGoldSkipCost,
+    getMercEffectiveAttackPower,
+    getMercBonusAcc,
+    getMercEffectiveCritForMercAttack,
+    getMercEffectiveCritMultForMercAttack,
+    getFieldMercAttackMult,
+    buildFieldMercFromTemplate,
+    getMercGachaCost,
+    tryMercenaryRandomEvent,
+    queueEnemyTurnWithPacing,
+    triggerBossWarning,
+    applySummonDarkTurnStart,
+});
+
+
+// ===== js/bootstrapCore.js =====
 // Bootstrap shell (post-migration)
 (function bootstrapShellInit() {
     // keep file as orchestrator placeholder only
@@ -10703,14 +17020,16 @@ window.addEventListener('load', () => {
     // All runtime logic is loaded from domain modules.
 });
 
-// ---- game.js ----
+
+// ===== game.js =====
 // Thin controller entrypoint after modular split.
 // Core runtime lives in js/bootstrapCore.js and feature modules.
 (function gameControllerInit() {
     window.__gameControllerReady = true;
 })();
 
-// ---- js/security.js ----
+
+// ===== js/security.js =====
 // Browser hardening layer. Loaded last inside bundle.js.
 (function installDungeonClientHardening() {
     const protectedStateNames = [
@@ -10779,6 +17098,7 @@ window.addEventListener('load', () => {
         'buyPotionOffer',
         'buyShopRarityBoost',
         'sellItemByUid',
+        'repairStarterGearByUid',
         'buyItem',
         'mercenaryFundGacha',
         'useAction',
@@ -10807,12 +17127,19 @@ window.addEventListener('load', () => {
     ];
 
     const internalExportNames = [
+        'RESTORED_ITEM_DATA',
         'MetaRPG',
         'BASE_CAMP_FLOORS',
         'applyOfficialStatsToEquipmentItem',
         'clampEquipmentItemStatsToRarityCaps',
         'computeEquipmentGoldPrice',
         'computeFloorGoldReward',
+        'isStarterGearItem',
+        'applyStarterGearStats',
+        'buildStarterGearItem',
+        'buildStarterEquipmentSet',
+        'getStarterGearUpgradeCost',
+        'upgradeStarterGearItem',
         'normalizeFloorGrowth',
         'computeFloorGrowthForClears',
         'getFloorGrowthStep',
@@ -10828,6 +17155,7 @@ window.addEventListener('load', () => {
         'getStoryTitleForState',
         'getStoryChoiceImpact',
         'getStoryMilestoneDef',
+        'getGlitchedMonsterName',
         'RUNE_POOL_COUNT',
         'ensurePlayerSynergyBonuses',
         'getEffectiveMaxHp',
@@ -10887,6 +17215,8 @@ window.addEventListener('load', () => {
         'spawnEnemy',
         'tryActivateFloorQuest',
         'getEnemyScalingForFloor',
+        'getBossMultiplier',
+        'getBossSoftWallCalibration',
         'buildEnemyStatsForFloor',
         'openShop',
         'renderShopLeaveButtons',
@@ -11003,6 +17333,5 @@ window.addEventListener('load', () => {
         console.warn('[보안] 보안 빌드 플래그 설정 실패', err);
     }
 })();
-
 
 })();
