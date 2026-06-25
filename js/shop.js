@@ -399,6 +399,10 @@ window.sellItemByUid = function sellItemByUid(uid) {
     const idx = player.items.findIndex((x) => x && x._uid === uid);
     if (idx < 0) return;
     const it = player.items[idx];
+    if (it && it.defectType === 'twisted' && !player.inTown) {
+        writeLog(`[해제 불가] ${it.name}은(는) 뒤틀린 저주 때문에 던전 안에서 벗거나 판매할 수 없습니다. 마을로 복귀해야 합니다.`);
+        return;
+    }
     const buyPrice = Math.max(0, safeNum(it._buyPrice != null ? it._buyPrice : it.price, 0));
     const refund = Math.floor(buyPrice * 0.5);
     removeOwnedItemEffects(it);

@@ -1,8 +1,3 @@
-// Generated runtime bundle. Source files remain canonical; index.html loads this IIFE bundle.
-(function dungeonRuntimeBundle(){
-'use strict';
-
-// ===== js/restoredItemData.js =====
 'use strict';
 
 // Generated from Git HEAD data.js: restored legacy item tables only.
@@ -10264,7 +10259,7 @@ const RESTORED_ITEM_DATA = Object.freeze({
 if (typeof globalThis !== 'undefined') globalThis.RESTORED_ITEM_DATA = RESTORED_ITEM_DATA;
 if (typeof module !== 'undefined' && module.exports) module.exports = RESTORED_ITEM_DATA;
 
-// ===== data.js =====
+
 'use strict';
 
 /*
@@ -10836,7 +10831,7 @@ if (typeof module !== 'undefined' && module.exports) {
     };
 }
 
-// ===== rpg_v7.js =====
+
 'use strict';
 
 /*
@@ -11309,7 +11304,7 @@ if (typeof module !== 'undefined' && module.exports) {
 const MetaRPG = (typeof window !== 'undefined' ? window.MetaRPG : globalThis.MetaRPG);
 const BASE_CAMP_FLOORS = (typeof window !== 'undefined' ? window.BASE_CAMP_FLOORS : globalThis.BASE_CAMP_FLOORS);
 
-// ===== js/state.js =====
+
 // Global runtime state (single source of truth)
 let floor = 1, dungeonStage = 1, gold = 0, player = null, enemy = null;
 let playerState = typeof createDefaultPlayerState === 'function'
@@ -11342,7 +11337,7 @@ const DIVINE_BLESSING_DEF_BONUS = (typeof BALANCE !== 'undefined' && BALANCE.div
 const DIVINE_BLESSING_LIFESTEAL_BONUS =
     (typeof BALANCE !== 'undefined' && BALANCE.divineBlessingLifestealBonus) || 0.05;
 
-// ===== js/vfx.js =====
+
 // VFX/animation module (stage 1 split)
 function getCombatTargetCard(side) {
     return document.getElementById(side === 'player' ? 'player-card' : 'enemy-card');
@@ -11631,7 +11626,7 @@ window.inferV35WeaponKind = inferV35WeaponKind;
 window.playV35AttackVfx = playV35AttackVfx;
 window.consumeHunterEvasionMissPenalty = consumeHunterEvasionMissPenalty;
 
-// ===== js/player.js =====
+
 'use strict';
 
 // 3인 파티 런타임 어댑터. 기존 단일 player DOM 계약은 파티 합산값으로 유지한다.
@@ -11940,7 +11935,7 @@ Object.assign(window, {
     getPlayerFleeBonus,
 });
 
-// ===== js/enemy.js =====
+
 'use strict';
 
 function getCurrentDungeonProgress() {
@@ -11970,8 +11965,8 @@ function buildEnemyStatsForFloor(floorRef, isBoss, stageRef) {
     const originalAtk = Math.max(1, Math.floor((6 + effectiveFloor * 0.55) * atkScale * boss.atk * wave));
     const originalDef = Math.max(0, Math.floor((1 + effectiveFloor * 0.22) * defScale * boss.def));
     const earlyPartyZone = majorFloor <= 5;
-    const partyHpScale = earlyPartyZone ? 2.25 : 1;
-    const partyAtkScale = earlyPartyZone ? 1.75 : 1;
+    const partyHpScale = earlyPartyZone ? 7.0 : 1;
+    const partyAtkScale = earlyPartyZone ? 6.5 : 1;
     return {
         hp: Math.max(1, Math.floor(originalHp * 0.75 * partyHpScale)),
         atk: Math.max(1, Math.floor(originalAtk * 0.75 * partyAtkScale)),
@@ -11984,6 +11979,102 @@ function buildEnemyStatsForFloor(floorRef, isBoss, stageRef) {
         wis: Math.min(100, Math.max(1, Math.floor(5 + effectiveFloor * 0.38))),
         agi: Math.min(100, Math.max(1, Math.floor(8 + effectiveFloor * 0.5))),
     };
+}
+
+const ENEMY_PARTY_ROLE_DEFS = Object.freeze({
+    tank: Object.freeze({ key: 'tank', name: '탱커', archetype: 'tank', hpMult: 1.35, atkMult: 0.86, defMult: 1.55, aggroWeight: 5 }),
+    mage: Object.freeze({ key: 'mage', name: '마법사', archetype: 'mage', hpMult: 0.86, atkMult: 1.22, defMult: 0.82, aggroWeight: 1 }),
+    knight: Object.freeze({ key: 'knight', name: '기사', archetype: 'knight', hpMult: 1.04, atkMult: 1.04, defMult: 1.08, aggroWeight: 2 }),
+});
+
+function pickEnemyPartyRoles(count) {
+    const keys = ['tank', 'mage', 'knight'];
+    const picked = [];
+    const counts = {};
+    while (picked.length < count) {
+        const available = keys.filter((key) => (counts[key] || 0) < 2);
+        const key = available[Math.floor(Math.random() * available.length)] || 'knight';
+        picked.push(key);
+        counts[key] = (counts[key] || 0) + 1;
+    }
+    if (count >= 3 && Object.keys(counts).length === 1) {
+        picked[2] = picked[0] === 'tank' ? 'mage' : 'tank';
+    }
+    return picked;
+}
+
+function getEnemyPartySize(progress, isBoss) {
+    const current = normalizeDungeonProgress(progress);
+    if (isBoss) return 3;
+    if (current.floor <= 2) return 3;
+    if (current.floor <= 5) return Math.random() < 0.7 ? 3 : 2;
+    return 1 + Math.floor(Math.random() * 3);
+}
+
+function createEnemyPartyMember(progress, roleKey, index, isBoss) {
+    const current = normalizeDungeonProgress(progress);
+    const base = buildEnemyStatsForFloor(current.floor, isBoss, current.stage);
+    const role = ENEMY_PARTY_ROLE_DEFS[roleKey] || ENEMY_PARTY_ROLE_DEFS.knight;
+    const maxHp = Math.max(1, Math.floor(base.hp * role.hpMult));
+    const atk = Math.max(1, Math.floor(base.atk * role.atkMult));
+    const def = Math.max(0, Math.floor(base.def * role.defMult));
+    return {
+        id: `enemy-${current.floor}-${current.stage}-${index}-${Date.now().toString(36)}`,
+        name: `${role.name} ${index + 1}`,
+        roleKey: role.key,
+        job: role.name,
+        archetype: role.archetype,
+        element: 'neutral',
+        traitTags: [role.key, 'enemyParty'],
+        hp: maxHp,
+        maxHp,
+        curHp: maxHp,
+        atk,
+        def,
+        stats: {
+            str: Math.min(100, Math.max(1, atk)),
+            def: Math.min(100, Math.max(1, def)),
+            hp: base.hpStat,
+            int: role.key === 'mage' ? base.int + 8 : base.int,
+            wis: role.key === 'mage' ? base.wis + 10 : base.wis,
+            agi: role.key === 'tank' ? Math.max(1, base.agi - 4) : base.agi,
+            divinity: 0,
+            distortion: Math.min(100, current.floor),
+        },
+        equipment: { weapon: null, armor: null, accessories: [] },
+        magic: role.key === 'mage' ? ['fire', 'heal'] : [],
+        skills: [],
+        mastery: {},
+        statuses: [],
+        body: Object.fromEntries(bodyParts.map((part) => [part, { destroyed: false, twisted: false, indestructible: false }])),
+        turnCount: 0,
+    };
+}
+
+function getEnemyPartyMembers(actor) {
+    if (!actor || !Array.isArray(actor.party)) return actor ? [actor] : [];
+    return actor.party.filter(Boolean);
+}
+
+function getLivingEnemyPartyMembers(actor) {
+    return getEnemyPartyMembers(actor).filter((member) => safeNum(member.curHp, 0) > 0);
+}
+
+function isEnemyPartyMember(actor) {
+    return !!(enemy && Array.isArray(enemy.party) && enemy.party.includes(actor));
+}
+
+function syncEnemyPartyAggregateState(actor) {
+    if (!actor || !Array.isArray(actor.party)) return actor;
+    const members = getEnemyPartyMembers(actor);
+    actor.hp = members.reduce((sum, member) => sum + Math.max(1, safeNum(member.maxHp, member.hp || 1)), 0);
+    actor.maxHp = actor.hp;
+    actor.curHp = members.reduce((sum, member) => sum + Math.max(0, safeNum(member.curHp, 0)), 0);
+    actor.atk = members.reduce((sum, member) => sum + Math.max(0, safeNum(member.atk, 0)), 0);
+    actor.def = members.length
+        ? Math.round(members.reduce((sum, member) => sum + Math.max(0, safeNum(member.def, 0)), 0) / members.length)
+        : 0;
+    return actor;
 }
 
 function ghostToEnemy(ghost) {
@@ -12021,42 +12112,22 @@ function ghostToEnemy(ghost) {
 function createDepthMonster(progress) {
     const current = normalizeDungeonProgress(progress);
     const isBoss = current.stage === STAGES_PER_FLOOR;
-    const stats = buildEnemyStatsForFloor(current.floor, isBoss, current.stage);
-    const archetypes = [monsterArchetypeTable.warrior, monsterArchetypeTable.hunter, monsterArchetypeTable.mage];
-    const archetype = isBoss
-        ? monsterArchetypeTable.boss
-        : archetypes[Math.floor(Math.random() * archetypes.length)];
-    return {
-        id: `monster-${current.floor}-${current.stage}-${Date.now().toString(36)}`,
-        name: isBoss ? `👑 [보스] ${current.floor}-${current.stage}층 군주` : `[${archetype.job}] ${current.floor}-${current.stage}층 괴수`,
-        job: archetype.job,
-        archetype: archetype.key,
-        element: archetype.element,
-        affinity: { strong: archetype.strong, weak: archetype.weak },
-        traitTags: Array.from(archetype.traitTags || [archetype.key, archetype.element]),
-        hp: stats.hp,
-        curHp: stats.hp,
-        atk: stats.atk,
-        def: stats.def,
-        stats: {
-            str: stats.str,
-            def: Math.min(100, stats.def),
-            hp: stats.hpStat,
-            int: stats.int,
-            wis: stats.wis,
-            agi: stats.agi,
-            divinity: 0,
-            distortion: Math.min(100, current.floor),
-        },
-        equipment: { weapon: null, armor: null, accessories: [] },
-        magic: [],
-        skills: [],
-        mastery: {},
-        statuses: [],
-        body: Object.fromEntries(bodyParts.map((part) => [part, { destroyed: false, twisted: false, indestructible: false }])),
+    const size = getEnemyPartySize(current, isBoss);
+    const roles = pickEnemyPartyRoles(size);
+    const party = roles.map((roleKey, index) => createEnemyPartyMember(current, roleKey, index, isBoss));
+    const container = {
+        id: `enemy-party-${current.floor}-${current.stage}-${Date.now().toString(36)}`,
+        name: isBoss ? `👑 ${current.floor}-${current.stage}층 적 파티` : `${current.floor}-${current.stage}층 적 파티`,
+        job: '적 파티',
+        archetype: 'enemyParty',
+        element: 'neutral',
+        traitTags: ['enemyParty'],
+        party,
         isBoss,
+        isEnemyParty: true,
         turnCount: 0,
     };
+    return syncEnemyPartyAggregateState(container);
 }
 
 function spawnEnemy() {
@@ -12066,10 +12137,13 @@ function spawnEnemy() {
     const ghost = typeof MetaRPG !== 'undefined' ? MetaRPG.getGhostEncounter(progress) : null;
     enemy = ghost ? ghostToEnemy(ghost) : createDepthMonster(progress);
     if (typeof writeLog === 'function') {
+        const partyInfo = !ghost && enemy && Array.isArray(enemy.party)
+            ? ` (${enemy.party.map((member) => member.job).join(' · ')})`
+            : '';
         writeLog(
             ghost
                 ? `[망령] ${formatDungeonPosition(progress)}에 박제된 <b>${enemy.name}</b>이 나타났습니다. 사망 당시의 모든 스펙을 유지합니다.`
-                : `[진행] ${formatDungeonPosition(progress)} — ${enemy.name} 출현`
+                : `[진행] ${formatDungeonPosition(progress)} — ${enemy.name}${partyInfo} 출현`
         );
     }
     if (typeof updateUi === 'function') updateUi();
@@ -12080,12 +12154,16 @@ function spawnEnemy() {
 Object.assign(window, {
     getCurrentDungeonProgress,
     buildEnemyStatsForFloor,
+    getEnemyPartyMembers,
+    getLivingEnemyPartyMembers,
+    isEnemyPartyMember,
+    syncEnemyPartyAggregateState,
     ghostToEnemy,
     createDepthMonster,
     spawnEnemy,
 });
 
-// ===== js/uiManager.js =====
+
 // UI manager module (stage 1 split)
 const BASE_JOB_TITLE_NAMES = Object.freeze({
     Warrior: '워리어',
@@ -12157,10 +12235,14 @@ function syncV35PlayerStatDisplay() {
         if (statusElement) {
             statusElement.innerHTML = members
                 .map((member) =>
-                    `${escapeHtml(member.name)} ${member.curHp}/${member.maxHp}<br>` +
-                    `<span style="color:#aaa;">힘${member.stats.str} 방${member.stats.def} 체${member.stats.hp} 지${member.stats.int} 지혜${member.stats.wis} 민${member.stats.agi}</span>`
+                    `<div style="margin:3px 0;padding:3px 5px;border:1px solid #2f3542;border-radius:6px;background:rgba(0,0,0,0.18);line-height:1.25;">` +
+                    `<b style="color:#f1c40f;">${escapeHtml(member.name)}</b> ` +
+                    `<span style="color:#2ed573;">HP ${Math.max(0, Math.floor(member.curHp))}/${Math.max(1, Math.floor(member.maxHp))}</span><br>` +
+                    `<span style="color:#9aa4b2;font-size:0.72em;">힘${member.stats.str} 방${member.stats.def} 체${member.stats.hp} 지${member.stats.int} 지혜${member.stats.wis} 민${member.stats.agi}</span>` +
+                    `</div>`
                 )
-                .join('<br>');
+                .join('');
+            statusElement.style.cssText += ';display:block;text-align:left;font-size:0.76em;line-height:1.25;margin:8px auto 6px;max-width:96%;white-space:normal;';
             statusElement.title = '성혼 0 · 뒤틀림 0';
         }
         return;
@@ -12283,7 +12365,7 @@ function renderActions() {
         div.innerHTML = '';
         return;
     }
-    if (safeNum(enemy.curHp, 0) <= 0) {
+    if (typeof hasLivingEnemies === 'function' ? !hasLivingEnemies() : safeNum(enemy.curHp, 0) <= 0) {
         div.innerHTML = '';
         return;
     }
@@ -12453,7 +12535,10 @@ function updateUi() {
     }
     const pMax = getEffectiveMaxHp();
     const pCur = Math.max(0, safeNum(player.curHp, 0));
-    const eHp = Math.max(1, safeNum(enemy.hp, 1));
+    if (enemy && Array.isArray(enemy.party) && typeof syncEnemyPartyAggregateState === 'function') {
+        syncEnemyPartyAggregateState(enemy);
+    }
+    const eHp = Math.max(1, safeNum(enemy.hp, safeNum(enemy.maxHp, 1)));
     const eCur = Math.max(0, safeNum(enemy.curHp, 0));
     const g = safeNum(gold, 0);
     const pots = Math.max(0, safeNum(player.potions, 0));
@@ -12480,14 +12565,27 @@ function updateUi() {
         if (lsMain) lsMain.textContent = `${Math.round(safeNum(fm.mercBonusLifesteal, 0) * 100)}%`;
         if (lsNote) lsNote.textContent = '용병 장비 흡혈 (전열)';
     } else {
-        document.getElementById('p-name').innerText = Array.isArray(player.party) ? '성혼 원정대 · 3인 파티' : getPlayerClassDisplayName();
+        const isPartyRun = Array.isArray(player.party);
+        document.getElementById('p-name').innerText = isPartyRun ? '성혼 원정대 · 3인 파티' : getPlayerClassDisplayName();
         document.getElementById('p-hp').style.width = `${Math.max(0, (pCur / pMax) * 100)}%`;
         document.getElementById('p-hp-t').innerText = `${pCur} / ${pMax}`;
         if (summLine) {
             const synHint = '';
             const synStatus = '';
             const lvTxt = player.runLevel ? ` · Lv.${player.runLevel}` : '';
-            if (isMercenaryCaptainJob()) {
+            if (isPartyRun) {
+                const memberRows = getPartyMembers(player)
+                    .map((member) => {
+                        const ratio = member.maxHp > 0 ? Math.max(0, member.curHp / member.maxHp) : 0;
+                        return `<div style="display:flex;justify-content:space-between;gap:8px;margin:2px 0;line-height:1.25;">` +
+                            `<span style="color:#f1c40f;font-weight:800;">${escapeHtml(member.name)}</span>` +
+                            `<span style="color:${ratio <= 0.3 ? '#ff6b6b' : '#2ed573'};font-weight:800;">${Math.max(0, Math.floor(member.curHp))}/${Math.max(1, Math.floor(member.maxHp))}</span>` +
+                            `</div>`;
+                    })
+                    .join('');
+                summLine.style.cssText += ';display:block;text-align:left;max-width:92%;margin:8px auto 4px;font-size:0.78em;line-height:1.25;';
+                summLine.innerHTML = memberRows;
+            } else if (isMercenaryCaptainJob()) {
                 summLine.innerHTML = `<span style="color:#e67e22;">🎖️ 지휘관 ${escapeHtml(getPlayerClassDisplayName())}</span> <span style="color:#888;">| HP ${pCur}/${pMax}${lvTxt} · 전열 없음${player.mercCooldownTurns > 0 ? ` · 재가동 ${player.mercCooldownTurns}T` : ''}${synHint}</span>${synStatus}`;
             } else if (player.summon && player.summon.name) {
                 if (player.name === '소환사' && floor < 100) {
@@ -12514,6 +12612,13 @@ function updateUi() {
         const lsNote = document.getElementById('p-lifesteal-note');
         if (lsMain) lsMain.textContent = `${Math.round(safeNum(getLifestealEffective(), 0) * 100)}%`;
         if (lsNote) lsNote.textContent = lsOv > 0 ? `흡혈 초과분 → 공격력 +${lsOv}` : '';
+        const statTag = document.querySelector('#player-card .stat-tag');
+        if (statTag && isPartyRun) {
+            statTag.style.fontSize = '0.72em';
+            statTag.style.lineHeight = '1.45';
+            statTag.style.marginTop = '6px';
+            statTag.style.whiteSpace = 'normal';
+        }
     }
     const ultLine = document.getElementById('p-ult-stack-line');
     if (ultLine) {
@@ -12535,12 +12640,30 @@ function updateUi() {
     const enemyNameEl = document.getElementById('e-name');
     if (enemyNameEl) {
         const hint = window._enemyThinkingHint ? `<div style="color:#ffb3b3;font-size:0.72em;font-weight:600;margin-top:3px;">${escapeHtml(window._enemyThinkingHint)}</div>` : '';
-        enemyNameEl.innerHTML = `${escapeHtml(enemy.name)}${hint}`;
+        const livingCount = Array.isArray(enemy.party) ? getLivingEnemyPartyMembers(enemy).length : 1;
+        enemyNameEl.innerHTML = `${escapeHtml(enemy.name)}${Array.isArray(enemy.party) ? ` · ${livingCount}명 생존` : ''}${hint}`;
     }
     document.getElementById('e-hp').style.width=`${Math.max(0,(eCur/eHp)*100)}%`;
     document.getElementById('e-hp-t').innerText=`${eCur} / ${eHp}`;
     document.getElementById('e-atk-val').innerText=String(safeNum(enemy.atk, 0));
     document.getElementById('e-def-val').innerText=String(safeNum(enemy.def, 0));
+    const enemyStatus = document.querySelector('#enemy-card .status-badge');
+    if (enemyStatus) {
+        if (Array.isArray(enemy.party)) {
+            enemyStatus.innerHTML = getEnemyPartyMembers(enemy)
+                .map((member) => {
+                    const dead = safeNum(member.curHp, 0) <= 0;
+                    return `<div style="display:flex;justify-content:space-between;gap:6px;margin:3px 0;padding:3px 5px;border:1px solid #3a2a31;border-radius:6px;background:rgba(0,0,0,0.16);line-height:1.25;${dead ? 'opacity:0.45;' : ''}">` +
+                        `<span style="color:#ffb3b3;font-weight:800;">${escapeHtml(member.name)}</span>` +
+                        `<span style="color:#ddd;">HP ${Math.max(0, Math.floor(member.curHp))}/${Math.max(1, Math.floor(member.maxHp))}</span>` +
+                        `</div>`;
+                })
+                .join('');
+            enemyStatus.style.cssText += ';display:block;text-align:left;font-size:0.74em;line-height:1.25;margin:8px auto 6px;max-width:96%;white-space:normal;';
+        } else {
+            enemyStatus.innerHTML = '';
+        }
+    }
     renderInventoryPanel();
     renderPassiveContractHistoryPanels();
 }
@@ -13112,7 +13235,7 @@ function updatePrologueBattleControls() {
     const saveBtn = document.getElementById('battle-save-main-btn');
     const exitBtn = document.getElementById('battle-exit-main-btn');
     if (saveBtn) saveBtn.style.display = locked || victoryLocked ? 'none' : '';
-    if (exitBtn) exitBtn.style.display = locked || victoryLocked ? 'none' : '';
+    if (exitBtn) exitBtn.style.display = 'none';
 }
 
 function enterBattleLayout() {
@@ -14039,23 +14162,12 @@ function showPreGameScreen() {
         mx.slots.forEach((s) => MetaRPG.recalcTechBonus(s));
         MetaRPG.saveMeta(mx);
     }
-    const globalUnlocked = getUnlockedFloors(null);
-    const warriorUnlocked = getUnlockedFloors('워리어');
-    const hunterUnlocked = getUnlockedFloors('헌터');
-    const wizardUnlocked = getUnlockedFloors('마법사');
     const m = typeof MetaRPG !== 'undefined' ? MetaRPG.loadMeta() : { slots: [] };
     const esc = (t) =>
         String(t)
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;');
-    const slotSnapHints = [];
-    if (typeof MetaRPG !== 'undefined') {
-        m.slots.forEach((s) => {
-            const sn = MetaRPG.getRunSnapshot(s.id);
-            if (sn && sn.floor) slotSnapHints.push(`<b>${escapeHtml(getSlotClassDisplayName(s))}</b> ${sn.floor}층`);
-        });
-    }
     const canStartNewAdventure = hasOpenCharacterSlot(m);
     const slotRows =
         m.slots.length === 0
@@ -14098,7 +14210,6 @@ function showPreGameScreen() {
                         </div>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
                         <button type="button" onclick="resumeMetaSlot('${s.id}')" style="background:#2ed573;color:#111;padding:8px 16px;font-weight:700;border:none;border-radius:8px;cursor:pointer;">이어하기</button>
-                        <button type="button" onclick="openPartyTownFromHub('${s.id}')" style="background:#9b59b6;color:#fff;padding:8px 12px;font-weight:700;border:none;border-radius:8px;cursor:pointer;">🏠 마을 정비</button>
                         <button type="button" onclick="requestDeleteSaveFile(${typeof MetaRPG !== 'undefined' && typeof MetaRPG.getActiveFileIndex === 'function' ? MetaRPG.getActiveFileIndex() : 0})" style="background:#2a1111;color:#ff8080;padding:8px 12px;font-weight:800;border:1px solid #7f2b2b;border-radius:8px;cursor:pointer;font-size:0.82em;">파일 삭제</button>
                         ${MetaRPG.getRunSnapshot(s.id) ? `<button type="button" onclick="event.stopPropagation();deleteRunSnapshotForSlot('${s.id}')" style="background:#34495e;color:#ecf0f1;padding:8px 12px;font-weight:700;border:none;border-radius:8px;cursor:pointer;font-size:0.82em;">🗑 저장 삭제</button>` : ''}
                         ${rebBtn}
@@ -14133,25 +14244,13 @@ function showPreGameScreen() {
             <h2 style="color:#f1c40f; margin-bottom:5px;">⚔️ 프로젝트 성혼</h2>
             <p style="color:#9b59b6;font-size:0.88em;margin:0 0 8px;font-weight:700;">베타 v 1.0</p>
             ${saveFileBar}
-            <p style="color:#888; font-size:0.85em;">무한 층 · 베이스캠프에서만 영구 성장</p>
-            ${globalUnlocked.length > 0 ? `<p style="color:#f1c40f;font-size:0.8em;">🔓 공용 해금: ${globalUnlocked.join(', ')}층</p>` : ''}
-            ${warriorUnlocked.length > 0 ? `<p style="color:#ff4757;font-size:0.8em;">🔓 워리어: ${warriorUnlocked.join(', ')}층</p>` : ''}
-            ${hunterUnlocked.length > 0 ? `<p style="color:#2ed573;font-size:0.8em;">🔓 헌터: ${hunterUnlocked.join(', ')}층</p>` : ''}
-            ${wizardUnlocked.length > 0 ? `<p style="color:#1e90ff;font-size:0.8em;">🔓 마법사: ${wizardUnlocked.join(', ')}층</p>` : ''}
+            <p style="color:#888; font-size:0.85em;">3인 파티 · 100층 미궁 · 6-1 이후 복귀 불가</p>
         </div>
         <div style="max-width:560px;margin:0 auto 16px;">
             <h4 style="color:#f1c40f;margin:0 0 8px 0;">💾 캐릭터 슬롯 (최대 ${typeof MetaRPG !== 'undefined' ? MetaRPG.MAX_SLOTS : 4})</h4>
             ${slotRows}
         </div>
         ${newCharacterEntryHtml}
-        <div style="max-width:560px;margin:0 auto 16px;padding:14px;background:#111;border:1px solid #333;border-radius:10px;text-align:left;">
-            <h4 style="color:#f1c40f;margin:0 0 10px;text-align:center;">💾 저장 / 불러오기</h4>
-            ${slotSnapHints.length ? `<p style="color:#2ed573;font-size:0.82em;margin:0 0 10px;line-height:1.45;">💾 저장된 런: ${slotSnapHints.join(' · ')} — 캐릭터 <b>이어하기</b>로 복구됩니다.</p>` : '<p style="color:#555;font-size:0.8em;margin:0 0 8px;">저장된 런 없음 — 전투 중 <b>💾 저장 후 메인</b>으로 진행을 남기세요.</p>'}
-            <button type="button" onclick="exportFullSave()" style="width:100%;margin-bottom:8px;padding:10px;background:#1e90ff;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;">📥 전체 데이터 내보내기 (JSON 백업)</button>
-            <label style="display:block;color:#888;font-size:0.82em;">파일에서 복원:
-              <input type="file" accept=".json,application/json" style="width:100%;margin-top:6px;" onchange="importFullSave(this)">
-            </label>
-        </div>
         <p style="color:#666;font-size:0.75em;max-width:520px;margin:0 auto;line-height:1.5;">※ 1~5층에서 전투를 1회 이상 승리하면 <b>마을 복귀</b> 가능. 마을 정비 후 재출정 시 진행도는 <b>1-1층</b>으로 초기화되며 장비·골드·영구 강화는 유지됩니다. 6-1층부터 복귀 불가.</p>`;
     } catch (err) {
         console.error('[허브]', err);
@@ -15973,10 +16072,19 @@ function renderInventoryPanel() {
             const bp = Math.max(0, safeNum(it._buyPrice != null ? it._buyPrice : it.price, 0));
             const rf = Math.floor(bp * 0.5);
             const starterGear = typeof isStarterGearItem === 'function' ? isStarterGearItem(it) : !!(it.isStarterGear || it.starterGearKind);
+            const defectBadge = it.defectType === 'twisted'
+                ? '<span class="inventory-item-price" style="margin:0;color:#d980fa;">뒤틀린 · 던전 해제 불가</span>'
+                : it.defectType === 'rusted'
+                  ? '<span class="inventory-item-price" style="margin:0;color:#ff7675;">녹슨 · 출혈</span>'
+                  : '';
+            const lockedInDungeon = it.defectType === 'twisted' && player && !player.inTown;
             html += `<div class="inventory-slot-cell inventory-slot-cell-filled" style="--rarity-color:${rarityInfo.color};">
                 <div class="inventory-item-top">
                     <span class="inventory-item-rarity" style="background:${rarityInfo.bg};color:${rarityInfo.color};">${rarityInfo.label}</span>
-                    ${starterGear
+                    ${defectBadge || ''}
+                    ${lockedInDungeon
+                        ? '<span class="inventory-item-price" style="margin:0;color:#d980fa;">잠김</span>'
+                        : starterGear
                         ? '<span class="inventory-item-price" style="margin:0;color:#f1c40f;">고유</span>'
                         : `<button type="button" class="inventory-sell-btn" onclick="sellItemByUid('${escapeJsSingleQuoteString(it._uid)}')">판매</button>`}
                 </div>
@@ -16019,7 +16127,7 @@ window.startInfiniteMode=()=>{
 /** 사망 처리: 보존 골드·퀘스트 페널티 후 허브로 */
 // stage 4 split: moved to js/combatLogic.js
 
-// ===== js/encounter.js =====
+
 'use strict';
 
 // v3.5에는 전투 외 랜덤 인카운터, 직업 이벤트, 전직 이벤트가 없다.
@@ -16060,7 +16168,7 @@ Object.assign(window, {
     resolveRestockCrossroad,
 });
 
-// ===== js/shop.js =====
+
 // Shop module (stage 2 split)
 function openShop() {
     setCombatProcessing(false);
@@ -16462,6 +16570,10 @@ window.sellItemByUid = function sellItemByUid(uid) {
     const idx = player.items.findIndex((x) => x && x._uid === uid);
     if (idx < 0) return;
     const it = player.items[idx];
+    if (it && it.defectType === 'twisted' && !player.inTown) {
+        writeLog(`[해제 불가] ${it.name}은(는) 뒤틀린 저주 때문에 던전 안에서 벗거나 판매할 수 없습니다. 마을로 복귀해야 합니다.`);
+        return;
+    }
     const buyPrice = Math.max(0, safeNum(it._buyPrice != null ? it._buyPrice : it.price, 0));
     const refund = Math.floor(buyPrice * 0.5);
     removeOwnedItemEffects(it);
@@ -16586,7 +16698,7 @@ window.formatShopItemDesc = formatShopItemDesc;
 window.mercCaptainExclusiveItem = mercCaptainExclusiveItem;
 window.getNonMercEquipmentPool = getNonMercEquipmentPool;
 
-// ===== js/combatLogic.js =====
+
 'use strict';
 
 /*
@@ -16600,6 +16712,10 @@ let playerGuardState = null;
 let enemyGuardState = null;
 const BEHAVIOR_ACTIONS = Object.freeze(['physical_attack', 'magic_attack', 'defend', 'dodge', 'heal']);
 const ARCHETYPE_ADVANTAGE = Object.freeze({ warrior: 'hunter', hunter: 'mage', mage: 'warrior' });
+const DEFECTIVE_DROP_CHANCE = 0.2;
+const DEFECTIVE_DROP_FLOOR_MAX = 5;
+const DEFECTIVE_DROP_TYPES = Object.freeze(['rusted', 'twisted']);
+const DEFECTIVE_EQUIPMENT_KIND_KEYS = Object.freeze(['weapon', 'armor', 'ring']);
 
 function isMercenaryCaptainJob() { return false; }
 function getAffinityRelKey() { return '인간 모험가'; }
@@ -16672,7 +16788,31 @@ function getPartyGuardStateFor(member) {
 }
 
 function getMinimumDamageFor(attacker, defender) {
-    return attacker === enemy && isPartyMember(defender) ? 3 : 1;
+    return (attacker === enemy || isEnemyPartyMember(attacker)) && isPartyMember(defender) ? 3 : 1;
+}
+
+function stripDefectPrefix(name) {
+    return String(name || '').replace(/^\[(녹슨|뒤틀린)\]\s*/u, '$1 ');
+}
+
+function getEnemyGuardStateFor(member) {
+    if (!enemyGuardState || !member) return null;
+    if (enemyGuardState.members && enemyGuardState.members[member.id]) return enemyGuardState.members[member.id];
+    return enemyGuardState.mode ? enemyGuardState : null;
+}
+
+function choosePlayerEnemyTarget() {
+    const living = typeof getLivingEnemyPartyMembers === 'function' ? getLivingEnemyPartyMembers(enemy) : (enemy && enemy.curHp > 0 ? [enemy] : []);
+    if (!living.length) return null;
+    return living.slice().sort((a, b) => {
+        const ar = actorMaxHp(a) > 0 ? getCurrentHp(a) / actorMaxHp(a) : 0;
+        const br = actorMaxHp(b) > 0 ? getCurrentHp(b) / actorMaxHp(b) : 0;
+        return ar - br;
+    })[0];
+}
+
+function hasLivingEnemies() {
+    return (typeof getLivingEnemyPartyMembers === 'function' ? getLivingEnemyPartyMembers(enemy) : []).length > 0;
 }
 
 function getEquippedWeapon(actor) {
@@ -16739,7 +16879,8 @@ function recordPlayerBehavior(action) {
     player.behaviorLogger = Array.isArray(player.behaviorLogger) ? player.behaviorLogger : [];
     const hpRatio = actorMaxHp(player) > 0 ? getCurrentHp(player) / actorMaxHp(player) : 0;
     const playerArchetype = getActorCombatArchetype(player);
-    const enemyArchetype = enemy.archetype || getActorCombatArchetype(enemy);
+    const sampleEnemy = choosePlayerEnemyTarget() || enemy;
+    const enemyArchetype = sampleEnemy.archetype || getActorCombatArchetype(sampleEnemy);
     player.behaviorLogger.push({
         floor: progress.floor,
         stage: progress.stage,
@@ -16747,8 +16888,8 @@ function recordPlayerBehavior(action) {
         hpRatio,
         hpBucket: getHpBucket(player),
         enemyArchetype,
-        enemyElement: enemy.element || 'neutral',
-        enemyTraits: Array.isArray(enemy.traitTags) ? enemy.traitTags.slice() : [],
+        enemyElement: sampleEnemy.element || 'neutral',
+        enemyTraits: Array.isArray(sampleEnemy.traitTags) ? sampleEnemy.traitTags.slice() : [],
         affinity: getAffinityState(playerArchetype, enemyArchetype),
         playerArchetype,
         action,
@@ -16919,7 +17060,7 @@ function resolveAttackAction(attacker, defender, guardState) {
     }
 
     const armor = getEquippedArmor(defender);
-    if (armor && !(attacker === enemy && isPartyMember(defender))) {
+    if (armor && !((attacker === enemy || isEnemyPartyMember(attacker)) && isPartyMember(defender))) {
         const nullify = probabilityRoll(safeNum(armor.nullifyChance, 0));
         if (nullify.success) return { type: 'attack', success: true, damage: 0, nullified: true, hit, nullify };
     }
@@ -16988,6 +17129,131 @@ function describeCombatResult(actor, target, result) {
     }
 }
 
+function isDefectiveDropEligible() {
+    const progress = normalizeDungeonProgress({ floor, stage: dungeonStage });
+    return progress.floor >= 1 &&
+        progress.floor <= DEFECTIVE_DROP_FLOOR_MAX &&
+        progress.stage < STAGES_PER_FLOOR &&
+        enemy &&
+        !enemy.isBoss &&
+        !enemy.isPlayerGhost;
+}
+
+function getOpenDefectiveDropKinds() {
+    return DEFECTIVE_EQUIPMENT_KIND_KEYS.filter((kind) => {
+        if (typeof getEquippedCountByKind !== 'function' || typeof getEquipSlotLimit !== 'function') return true;
+        return getEquippedCountByKind(kind) < getEquipSlotLimit(kind);
+    });
+}
+
+function pickBaseEquipmentForDefectiveDrop(kind) {
+    const pool = (typeof equipmentPool !== 'undefined' && Array.isArray(equipmentPool)) ? equipmentPool : [];
+    const typeByKind = { weapon: 'atk', armor: 'hp', ring: 'ring' };
+    const targetType = typeByKind[kind];
+    const candidates = pool.filter((item) => {
+        if (!item || item.type !== targetType) return false;
+        if (item.type === 'rune' || item.type === 'relic' || item.type === 'potion' || item.type === 'merc') return false;
+        return true;
+    });
+    if (!candidates.length) return null;
+    const byRarity = candidates.filter((item) => ['common', 'rare'].includes(String(item.rarity || 'common').toLowerCase()));
+    const usable = byRarity.length ? byRarity : candidates;
+    return usable[Math.floor(Math.random() * usable.length)] || null;
+}
+
+function scaleDefectiveItemPower(item, multiplier) {
+    const statFields = ['value', 'hpBonus', 'def', 'critBonus', 'critMult', 'lifesteal', 'damageReduction', 'potionHealBonus'];
+    statFields.forEach((field) => {
+        const value = Number(item[field]);
+        if (!Number.isFinite(value) || value <= 0) return;
+        item[field] = field === 'critMult' || field === 'lifesteal' || field === 'damageReduction' || field === 'potionHealBonus'
+            ? Number((value * multiplier).toFixed(4))
+            : Math.max(1, Math.round(value * multiplier));
+    });
+    return item;
+}
+
+function createDefectiveDropItem(kind) {
+    const base = pickBaseEquipmentForDefectiveDrop(kind);
+    if (!base) return null;
+    const item = JSON.parse(JSON.stringify(base));
+    const defectType = DEFECTIVE_DROP_TYPES[Math.floor(Math.random() * DEFECTIVE_DROP_TYPES.length)] || 'rusted';
+    const label = defectType === 'twisted' ? '뒤틀린' : '녹슨';
+    item.name = `[${label}] ${String(item.name || '장비').replace(/^\[(녹슨|뒤틀린)\]\s*/u, '')}`;
+    item.defectType = defectType;
+    item.defectLabel = label;
+    item.fieldDrop = true;
+    item.cursedLock = defectType === 'twisted';
+    item.tags = Array.isArray(item.tags) ? Array.from(new Set([...item.tags, 'field_drop', `defect_${defectType}`])) : ['field_drop', `defect_${defectType}`];
+    item._uid = `drop_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+    item._buyPrice = Math.max(1, Math.floor(safeNum(item.price, 10) * 0.35));
+    if (defectType === 'twisted') {
+        scaleDefectiveItemPower(item, 1.45);
+    }
+    if (typeof rebuildEquipmentDesc === 'function') rebuildEquipmentDesc(item);
+    const penaltyDesc = defectType === 'twisted'
+        ? '하자: 매 턴 종료 시 장착자의 뒤틀림 +1. 던전 안에서는 해제 불가.'
+        : '하자: 매 턴 종료 시 장착자가 중금속 중독 출혈 피해를 받음.';
+    item.desc = `${item.desc || ''}${item.desc ? ' ' : ''}${penaltyDesc}`;
+    return item;
+}
+
+function tryAwardDefectiveEquipmentDrop() {
+    if (!player || !isDefectiveDropEligible()) return null;
+    if (Math.random() >= DEFECTIVE_DROP_CHANCE) return null;
+    const openKinds = getOpenDefectiveDropKinds();
+    if (!openKinds.length) {
+        writeLog('[드롭] 장비가 떨어졌지만 파티 인벤토리 슬롯이 가득 차 회수하지 못했습니다.');
+        return null;
+    }
+    const kind = openKinds[Math.floor(Math.random() * openKinds.length)] || 'weapon';
+    const item = createDefectiveDropItem(kind);
+    if (!item) return null;
+    player.items = Array.isArray(player.items) ? player.items : [];
+    player.items.push(item);
+    if (typeof saveCollection === 'function') saveCollection(item.name);
+    if (typeof fullResyncPlayerCombatStatsFromMetaAndInventory === 'function') {
+        fullResyncPlayerCombatStatsFromMetaAndInventory();
+    }
+    const penalty = item.defectType === 'twisted' ? '뒤틀림 잠식' : '중금속 중독';
+    writeLog(`[드롭] <b>${stripDefectPrefix(item.name)}</b> 획득 — 하자 장비(${penalty})가 파티 인벤토리에 들어왔습니다.`);
+    return item;
+}
+
+function applyDefectiveEquipmentTurnEndEffects() {
+    if (!player || !Array.isArray(player.party)) return false;
+    let changed = false;
+    getLivingPartyMembers(player).forEach((member) => {
+        const equipped = Array.isArray(member.items) ? member.items : [];
+        equipped.forEach((item) => {
+            if (!item || !item.defectType) return;
+            if (item.defectType === 'rusted') {
+                const damage = Math.max(Math.max(1, Math.floor(safeNum(floor, 1))), Math.ceil(member.maxHp * 0.025));
+                setCurrentHp(member, member.curHp - damage);
+                writeLog(`[출혈] ${member.name}가 ${stripDefectPrefix(item.name)}의 중금속 중독으로 인해 ${damage}의 피해를 입었습니다.`);
+                changed = true;
+                return;
+            }
+            if (item.defectType === 'twisted') {
+                member.stats = normalizeHumanStats(member.stats || {});
+                member.stats.distortion = Math.min(100, safeNum(member.stats.distortion, 0) + 1);
+                member.distortion = member.stats.distortion;
+                writeLog(`[잠식] ${member.name}가 ${stripDefectPrefix(item.name)}의 저주로 인해 뒤틀림 수치가 1 상승했습니다.`);
+                changed = true;
+            }
+        });
+    });
+    if (changed) {
+        syncPartyAggregateState(player);
+        syncPlayerCampaignState();
+        if (getLivingPartyMembers(player).length === 0) {
+            gameOver();
+            return true;
+        }
+    }
+    return changed;
+}
+
 function emitCombatResultVfx(target, result) {
     if (!result) return;
     const isPlayerSide = target === player || isPartyMember(target);
@@ -17003,60 +17269,71 @@ function emitCombatResultVfx(target, result) {
     }
 }
 
-function chooseEnemyAction() {
-    const learned = chooseLearnedGhostAction(enemy);
+function chooseEnemyAction(actor) {
+    const unit = actor || enemy;
+    const learned = chooseLearnedGhostAction(unit);
     if (learned) return learned;
-    const hpRatio = getCurrentHp(enemy) / actorMaxHp(enemy);
-    if (enemy.isBoss) {
-        enemy.turnCount = Math.max(1, safeNum(enemy.turnCount, 1));
-        if (enemy._bossChargeReady) return 'physical_attack';
-        if (enemy.turnCount % 4 === 3) return 'charge';
+    const hpRatio = getCurrentHp(unit) / actorMaxHp(unit);
+    if (enemy && enemy.isBoss) {
+        unit.turnCount = Math.max(1, safeNum(unit.turnCount, 1));
+        if (unit._bossChargeReady) return 'physical_attack';
+        if (unit.turnCount % 4 === 3) return 'charge';
     }
-    if (enemy.archetype === 'hunter' && getCurrentHp(player) / actorMaxHp(player) <= 0.4) return 'physical_attack';
-    if (enemy.archetype === 'mage' && hpRatio <= 0.38 && probabilityRoll(0.65).success) return 'defend';
-    if (hpRatio <= 0.3 && actorCanHeal(enemy)) return 'heal';
-    if (hpRatio <= 0.55 && probabilityRoll(0.25).success) return getActorStats(enemy).agi >= 45 ? 'dodge' : 'defend';
-    return hasMagicAttackCapability(enemy) && probabilityRoll(0.25).success ? 'magic_attack' : 'physical_attack';
+    if (unit.archetype === 'knight' && getCurrentHp(player) / actorMaxHp(player) <= 0.4) return 'physical_attack';
+    if (unit.archetype === 'mage' && hpRatio <= 0.38 && probabilityRoll(0.65).success) return 'defend';
+    if (hpRatio <= 0.3 && actorCanHeal(unit)) return 'heal';
+    if (hpRatio <= 0.55 && probabilityRoll(0.25).success) return getActorStats(unit).agi >= 45 ? 'dodge' : 'defend';
+    return hasMagicAttackCapability(unit) && probabilityRoll(0.25).success ? 'magic_attack' : 'physical_attack';
 }
 
 async function enemyTurn() {
-    if (!enemy || !player || enemy.curHp <= 0 || getLivingPartyMembers(player).length === 0) return;
+    if (!enemy || !player || !hasLivingEnemies() || getLivingPartyMembers(player).length === 0) return;
     setCombatProcessing(true);
     await waitMs(300);
-    const action = chooseEnemyAction();
-    if (action === 'charge') {
-        enemy._bossChargeReady = true;
-        writeLog(`[적 행동] ${enemy.name} — 강공격 준비`);
-    } else if (action === 'heal') {
-        const result = resolveHealAction(enemy);
-        describeCombatResult(enemy, enemy, result);
-        enemyGuardState = null;
-    } else if (action === 'defend' || action === 'dodge') {
-        enemyGuardState = { mode: action === 'defend' ? 'shield' : 'dodge', turn: combatTurnNumber };
-        writeLog(`[적 행동] ${enemy.name} — ${action === 'defend' ? '방어' : '회피'} 준비`);
-    } else {
-        const target = chooseEnemyPartyTarget();
-        if (!target) {
-            gameOver();
-            return;
+    const actingEnemies = getLivingEnemyPartyMembers(enemy);
+    for (const unit of actingEnemies) {
+        if (!player || getLivingPartyMembers(player).length === 0 || getCurrentHp(unit) <= 0) break;
+        const action = chooseEnemyAction(unit);
+        if (action === 'charge') {
+            unit._bossChargeReady = true;
+            writeLog(`[적 행동] ${unit.name} — 강공격 준비`);
+        } else if (action === 'heal') {
+            const allies = getLivingEnemyPartyMembers(enemy);
+            const targetAlly = allies.slice().sort((a, b) => a.curHp / a.maxHp - b.curHp / b.maxHp)[0] || unit;
+            const result = resolveHealAction(unit, targetAlly);
+            describeCombatResult(unit, targetAlly, result);
+        } else if (action === 'defend' || action === 'dodge') {
+            enemyGuardState = enemyGuardState && enemyGuardState.members ? enemyGuardState : { members: {} };
+            enemyGuardState.members[unit.id] = { mode: action === 'defend' ? 'shield' : 'dodge', turn: combatTurnNumber };
+            writeLog(`[적 행동] ${unit.name} — ${action === 'defend' ? '방어' : '회피'} 준비`);
+        } else {
+            const target = chooseEnemyPartyTarget();
+            if (!target) {
+                gameOver();
+                return;
+            }
+            writeLog(`[어그로] ${unit.name} → ${target.name} 타겟`);
+            unit._attackMultiplier = unit._bossChargeReady ? 2.5 : 1;
+            await playV35AttackVfx('enemy', unit, action);
+            const result = action === 'magic_attack'
+                ? resolveMagicAttackAction(unit, target, getPartyGuardStateFor(target))
+                : resolveAttackAction(unit, target, getPartyGuardStateFor(target));
+            unit._attackMultiplier = 1;
+            unit._bossChargeReady = false;
+            describeCombatResult(unit, target, result);
+            emitCombatResultVfx(target, result);
         }
-        writeLog(`[어그로] ${enemy.name} → ${target.name} 타겟`);
-        enemy._attackMultiplier = enemy._bossChargeReady ? 2.5 : 1;
-        await playV35AttackVfx('enemy', enemy, action);
-        const result = action === 'magic_attack'
-            ? resolveMagicAttackAction(enemy, target, getPartyGuardStateFor(target))
-            : resolveAttackAction(enemy, target, getPartyGuardStateFor(target));
-        enemy._attackMultiplier = 1;
-        enemy._bossChargeReady = false;
-        describeCombatResult(enemy, target, result);
-        emitCombatResultVfx(target, result);
-        playerGuardState = null;
+        if (enemy && Array.isArray(enemy.party)) syncEnemyPartyAggregateState(enemy);
     }
+    playerGuardState = null;
     if (enemy.isBoss) enemy.turnCount = Math.max(1, safeNum(enemy.turnCount, 1)) + 1;
     syncPartyAggregateState(player);
     if (getLivingPartyMembers(player).length === 0) {
         gameOver();
         return;
+    }
+    if (applyDefectiveEquipmentTurnEndEffects()) {
+        if (!player || getLivingPartyMembers(player).length === 0) return;
     }
     combatTurnNumber += 1;
     playerTurnSpent = false;
@@ -17066,7 +17343,7 @@ async function enemyTurn() {
 }
 
 window.useAction = async function useAction(type) {
-    if (isProcessing || !player || !enemy || getLivingPartyMembers(player).length === 0 || enemy.curHp <= 0) return;
+    if (isProcessing || !player || !enemy || getLivingPartyMembers(player).length === 0 || !hasLivingEnemies()) return;
     if (!spendPlayerAction()) {
         writeLog('[턴 제한] 한 턴에는 공격/방어/힐 중 하나만 선택할 수 있습니다.');
         return;
@@ -17076,14 +17353,17 @@ window.useAction = async function useAction(type) {
     if (type === '공격') {
         recordPlayerBehavior('physical_attack');
         for (const member of getLivingPartyMembers(player)) {
+            const target = choosePlayerEnemyTarget();
+            if (!target) break;
             const learnedAction = member.roleKey === 'mage' ? 'magic_attack' : 'physical_attack';
             await playV35AttackVfx('player', member, learnedAction);
             result = learnedAction === 'magic_attack'
-                ? resolveMagicAttackAction(member, enemy, enemyGuardState)
-                : resolveAttackAction(member, enemy, enemyGuardState);
-            describeCombatResult(member, enemy, result);
-            emitCombatResultVfx(enemy, result);
-            if (enemy.curHp <= 0) break;
+                ? resolveMagicAttackAction(member, target, getEnemyGuardStateFor(target))
+                : resolveAttackAction(member, target, getEnemyGuardStateFor(target));
+            describeCombatResult(member, target, result);
+            emitCombatResultVfx(target, result);
+            if (enemy && Array.isArray(enemy.party)) syncEnemyPartyAggregateState(enemy);
+            if (!hasLivingEnemies()) break;
         }
         enemyGuardState = null;
     } else if (type === '힐') {
@@ -17108,7 +17388,7 @@ window.useAction = async function useAction(type) {
         writeLog(`[플레이어 행동] ${mode === 'dodge' ? '회피' : '방어'} 준비`);
     }
     updateUi();
-    if (enemy.curHp <= 0) {
+    if (!hasLivingEnemies()) {
         await waitMs(120);
         winBattle();
         return;
@@ -17181,6 +17461,7 @@ function winBattle() {
     player.runWins = Math.max(0, safeNum(player.runWins, 0)) + 1;
     if (typeof totalGoldEarned !== 'undefined') totalGoldEarned = Math.max(0, safeNum(totalGoldEarned, 0)) + reward;
     writeLog(`[승리] ${formatDungeonPosition({ floor, stage: dungeonStage })} 전투 종료 · ${reward}G 획득`);
+    tryAwardDefectiveEquipmentDrop();
     getLivingPartyMembers(player).forEach((member) => {
         setCurrentHp(member, member.curHp + Math.max(1, Math.floor(member.maxHp * 0.08)));
     });
@@ -17377,26 +17658,11 @@ window.enterDungeonFromTown = function enterDungeonFromTown() {
     spawnEnemy();
 };
 
-window.openPartyTownFromHub = function openPartyTownFromHub(slotId) {
-    if (!MetaRPG.setActiveSlot(slotId)) return;
-    const meta = MetaRPG.loadMeta();
-    const slot = meta.slots.find((entry) => entry.id === slotId);
-    if (!slot || slot.permanentDeath) return;
-    MetaRPG.recalcTechBonus(slot);
-    MetaRPG.saveMeta(meta);
-    player = buildRuntimePlayerFromSlot(slot);
-    fullResyncPlayerCombatStatsFromMetaAndInventory();
-    gold = Math.max(0, safeNum(slot.gold, 0));
-    floor = player.progress.floor;
-    dungeonStage = player.progress.stage;
-    player.inTown = true;
-    enemy = null;
-    const startArea = document.getElementById('start-area');
-    const battleArea = document.getElementById('battle-area');
-    if (startArea) startArea.style.display = 'none';
-    if (battleArea) battleArea.style.display = 'none';
-    if (typeof exitBattleLayout === 'function') exitBattleLayout();
-    openShop();
+window.openPartyTownFromHub = function openPartyTownFromHub() {
+    if (typeof writeLog === 'function') {
+        writeLog('[마을 잠금] 로비에서는 마을에 진입할 수 없습니다. 던전에서 전투를 1회 이상 승리한 뒤 복귀하세요.');
+    }
+    return false;
 };
 
 window.saveAndExitToMain = window.returnPartyToTown;
@@ -17408,7 +17674,7 @@ function installHumanActionButtons() {
     const wrapped = function renderHumanActions() {
         originalRenderActions();
         const host = document.getElementById('action-btns');
-        if (!host || !player || !enemy || enemy.curHp <= 0) return;
+        if (!host || !player || !enemy || (typeof hasLivingEnemies === 'function' ? !hasLivingEnemies() : enemy.curHp <= 0)) return;
         const buttons = Array.from(host.querySelectorAll('button'));
         const defense = buttons.find((button) => !button.onclick && button !== buttons[0]);
         if (defense) {
@@ -17449,7 +17715,12 @@ function installDungeonProgressUiAdapter() {
         ['battle-save-main-btn', 'battle-exit-main-btn'].forEach((id, index) => {
             const button = document.getElementById(id);
             if (!button) return;
-            button.innerText = index === 0 ? '🏠 마을로 복귀' : '마을 귀환';
+            if (index === 1) {
+                button.style.display = 'none';
+                return;
+            }
+            button.style.display = '';
+            button.innerText = '🏠 마을로 복귀';
             button.onclick = () => returnPartyToTown();
             button.disabled = !canReturn;
             button.title = canReturn
@@ -17472,6 +17743,9 @@ Object.assign(window, {
     probabilityRoll,
     calculateAttackChance,
     calculatePhysicalDamage,
+    getEnemyGuardStateFor,
+    choosePlayerEnemyTarget,
+    hasLivingEnemies,
     chooseEnemyPartyTarget,
     enemyTurn,
     winBattle,
@@ -17499,7 +17773,7 @@ Object.assign(window, {
     applySummonDarkTurnStart,
 });
 
-// ===== js/bootstrapCore.js =====
+
 // Bootstrap shell (post-migration)
 (function bootstrapShellInit() {
     // keep file as orchestrator placeholder only
@@ -17510,14 +17784,14 @@ window.addEventListener('load', () => {
     // All runtime logic is loaded from domain modules.
 });
 
-// ===== game.js =====
+
 // Thin controller entrypoint after modular split.
 // Core runtime lives in js/bootstrapCore.js and feature modules.
 (function gameControllerInit() {
     window.__gameControllerReady = true;
 })();
 
-// ===== js/security.js =====
+
 // Browser hardening layer. Loaded last inside bundle.js.
 (function installDungeonClientHardening() {
     const protectedStateNames = [
@@ -17562,8 +17836,6 @@ window.addEventListener('load', () => {
         'resolveMercEvolution',
         'saveAndExitToMain',
         'exitToMainWithoutSave',
-        'exportFullSave',
-        'importFullSave',
         'openBaseCampTech',
         'buyTechNode',
         'continuePastCentury',
@@ -17583,7 +17855,6 @@ window.addEventListener('load', () => {
         'confirmPartyAdventure',
         'returnPartyToTown',
         'enterDungeonFromTown',
-        'openPartyTownFromHub',
         'leaveShopContinueAscent',
         'leaveShopTrainHere',
         'nextFloor',
@@ -17713,12 +17984,17 @@ window.addEventListener('load', () => {
         'renderPassiveContractHistoryPanels',
         'updateUi',
         'writeLog',
+        'openPartyTownFromHub',
         'spawnEnemy',
         'tryActivateFloorQuest',
         'getEnemyScalingForFloor',
         'getBossMultiplier',
         'getBossSoftWallCalibration',
         'buildEnemyStatsForFloor',
+        'getEnemyPartyMembers',
+        'getLivingEnemyPartyMembers',
+        'isEnemyPartyMember',
+        'syncEnemyPartyAggregateState',
         'openShop',
         'renderShopLeaveButtons',
         'getUnlockedPoolItems',
@@ -17734,6 +18010,9 @@ window.addEventListener('load', () => {
         'getNonMercEquipmentPool',
         'setCombatProcessing',
         'updateCombatButtonsLockState',
+        'getEnemyGuardStateFor',
+        'choosePlayerEnemyTarget',
+        'hasLivingEnemies',
         'queueEnemyTurnWithPacing',
         'triggerBossWarning',
         'applySummonDarkTurnStart',
@@ -17838,6 +18117,4 @@ window.addEventListener('load', () => {
     } catch (err) {
         console.warn('[보안] 보안 빌드 플래그 설정 실패', err);
     }
-})();
-
 })();

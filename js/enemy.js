@@ -27,8 +27,8 @@ function buildEnemyStatsForFloor(floorRef, isBoss, stageRef) {
     const originalAtk = Math.max(1, Math.floor((6 + effectiveFloor * 0.55) * atkScale * boss.atk * wave));
     const originalDef = Math.max(0, Math.floor((1 + effectiveFloor * 0.22) * defScale * boss.def));
     const earlyPartyZone = majorFloor <= 5;
-    const partyHpScale = earlyPartyZone ? 2.25 : 1;
-    const partyAtkScale = earlyPartyZone ? 1.75 : 1;
+    const partyHpScale = earlyPartyZone ? 7.0 : 1;
+    const partyAtkScale = earlyPartyZone ? 6.5 : 1;
     return {
         hp: Math.max(1, Math.floor(originalHp * 0.75 * partyHpScale)),
         atk: Math.max(1, Math.floor(originalAtk * 0.75 * partyAtkScale)),
@@ -41,6 +41,102 @@ function buildEnemyStatsForFloor(floorRef, isBoss, stageRef) {
         wis: Math.min(100, Math.max(1, Math.floor(5 + effectiveFloor * 0.38))),
         agi: Math.min(100, Math.max(1, Math.floor(8 + effectiveFloor * 0.5))),
     };
+}
+
+const ENEMY_PARTY_ROLE_DEFS = Object.freeze({
+    tank: Object.freeze({ key: 'tank', name: '탱커', archetype: 'tank', hpMult: 1.35, atkMult: 0.86, defMult: 1.55, aggroWeight: 5 }),
+    mage: Object.freeze({ key: 'mage', name: '마법사', archetype: 'mage', hpMult: 0.86, atkMult: 1.22, defMult: 0.82, aggroWeight: 1 }),
+    knight: Object.freeze({ key: 'knight', name: '기사', archetype: 'knight', hpMult: 1.04, atkMult: 1.04, defMult: 1.08, aggroWeight: 2 }),
+});
+
+function pickEnemyPartyRoles(count) {
+    const keys = ['tank', 'mage', 'knight'];
+    const picked = [];
+    const counts = {};
+    while (picked.length < count) {
+        const available = keys.filter((key) => (counts[key] || 0) < 2);
+        const key = available[Math.floor(Math.random() * available.length)] || 'knight';
+        picked.push(key);
+        counts[key] = (counts[key] || 0) + 1;
+    }
+    if (count >= 3 && Object.keys(counts).length === 1) {
+        picked[2] = picked[0] === 'tank' ? 'mage' : 'tank';
+    }
+    return picked;
+}
+
+function getEnemyPartySize(progress, isBoss) {
+    const current = normalizeDungeonProgress(progress);
+    if (isBoss) return 3;
+    if (current.floor <= 2) return 3;
+    if (current.floor <= 5) return Math.random() < 0.7 ? 3 : 2;
+    return 1 + Math.floor(Math.random() * 3);
+}
+
+function createEnemyPartyMember(progress, roleKey, index, isBoss) {
+    const current = normalizeDungeonProgress(progress);
+    const base = buildEnemyStatsForFloor(current.floor, isBoss, current.stage);
+    const role = ENEMY_PARTY_ROLE_DEFS[roleKey] || ENEMY_PARTY_ROLE_DEFS.knight;
+    const maxHp = Math.max(1, Math.floor(base.hp * role.hpMult));
+    const atk = Math.max(1, Math.floor(base.atk * role.atkMult));
+    const def = Math.max(0, Math.floor(base.def * role.defMult));
+    return {
+        id: `enemy-${current.floor}-${current.stage}-${index}-${Date.now().toString(36)}`,
+        name: `${role.name} ${index + 1}`,
+        roleKey: role.key,
+        job: role.name,
+        archetype: role.archetype,
+        element: 'neutral',
+        traitTags: [role.key, 'enemyParty'],
+        hp: maxHp,
+        maxHp,
+        curHp: maxHp,
+        atk,
+        def,
+        stats: {
+            str: Math.min(100, Math.max(1, atk)),
+            def: Math.min(100, Math.max(1, def)),
+            hp: base.hpStat,
+            int: role.key === 'mage' ? base.int + 8 : base.int,
+            wis: role.key === 'mage' ? base.wis + 10 : base.wis,
+            agi: role.key === 'tank' ? Math.max(1, base.agi - 4) : base.agi,
+            divinity: 0,
+            distortion: Math.min(100, current.floor),
+        },
+        equipment: { weapon: null, armor: null, accessories: [] },
+        magic: role.key === 'mage' ? ['fire', 'heal'] : [],
+        skills: [],
+        mastery: {},
+        statuses: [],
+        body: Object.fromEntries(bodyParts.map((part) => [part, { destroyed: false, twisted: false, indestructible: false }])),
+        turnCount: 0,
+    };
+}
+
+function getEnemyPartyMembers(actor) {
+    if (!actor || !Array.isArray(actor.party)) return actor ? [actor] : [];
+    return actor.party.filter(Boolean);
+}
+
+function getLivingEnemyPartyMembers(actor) {
+    return getEnemyPartyMembers(actor).filter((member) => safeNum(member.curHp, 0) > 0);
+}
+
+function isEnemyPartyMember(actor) {
+    return !!(enemy && Array.isArray(enemy.party) && enemy.party.includes(actor));
+}
+
+function syncEnemyPartyAggregateState(actor) {
+    if (!actor || !Array.isArray(actor.party)) return actor;
+    const members = getEnemyPartyMembers(actor);
+    actor.hp = members.reduce((sum, member) => sum + Math.max(1, safeNum(member.maxHp, member.hp || 1)), 0);
+    actor.maxHp = actor.hp;
+    actor.curHp = members.reduce((sum, member) => sum + Math.max(0, safeNum(member.curHp, 0)), 0);
+    actor.atk = members.reduce((sum, member) => sum + Math.max(0, safeNum(member.atk, 0)), 0);
+    actor.def = members.length
+        ? Math.round(members.reduce((sum, member) => sum + Math.max(0, safeNum(member.def, 0)), 0) / members.length)
+        : 0;
+    return actor;
 }
 
 function ghostToEnemy(ghost) {
@@ -78,42 +174,22 @@ function ghostToEnemy(ghost) {
 function createDepthMonster(progress) {
     const current = normalizeDungeonProgress(progress);
     const isBoss = current.stage === STAGES_PER_FLOOR;
-    const stats = buildEnemyStatsForFloor(current.floor, isBoss, current.stage);
-    const archetypes = [monsterArchetypeTable.warrior, monsterArchetypeTable.hunter, monsterArchetypeTable.mage];
-    const archetype = isBoss
-        ? monsterArchetypeTable.boss
-        : archetypes[Math.floor(Math.random() * archetypes.length)];
-    return {
-        id: `monster-${current.floor}-${current.stage}-${Date.now().toString(36)}`,
-        name: isBoss ? `👑 [보스] ${current.floor}-${current.stage}층 군주` : `[${archetype.job}] ${current.floor}-${current.stage}층 괴수`,
-        job: archetype.job,
-        archetype: archetype.key,
-        element: archetype.element,
-        affinity: { strong: archetype.strong, weak: archetype.weak },
-        traitTags: Array.from(archetype.traitTags || [archetype.key, archetype.element]),
-        hp: stats.hp,
-        curHp: stats.hp,
-        atk: stats.atk,
-        def: stats.def,
-        stats: {
-            str: stats.str,
-            def: Math.min(100, stats.def),
-            hp: stats.hpStat,
-            int: stats.int,
-            wis: stats.wis,
-            agi: stats.agi,
-            divinity: 0,
-            distortion: Math.min(100, current.floor),
-        },
-        equipment: { weapon: null, armor: null, accessories: [] },
-        magic: [],
-        skills: [],
-        mastery: {},
-        statuses: [],
-        body: Object.fromEntries(bodyParts.map((part) => [part, { destroyed: false, twisted: false, indestructible: false }])),
+    const size = getEnemyPartySize(current, isBoss);
+    const roles = pickEnemyPartyRoles(size);
+    const party = roles.map((roleKey, index) => createEnemyPartyMember(current, roleKey, index, isBoss));
+    const container = {
+        id: `enemy-party-${current.floor}-${current.stage}-${Date.now().toString(36)}`,
+        name: isBoss ? `👑 ${current.floor}-${current.stage}층 적 파티` : `${current.floor}-${current.stage}층 적 파티`,
+        job: '적 파티',
+        archetype: 'enemyParty',
+        element: 'neutral',
+        traitTags: ['enemyParty'],
+        party,
         isBoss,
+        isEnemyParty: true,
         turnCount: 0,
     };
+    return syncEnemyPartyAggregateState(container);
 }
 
 function spawnEnemy() {
@@ -123,10 +199,13 @@ function spawnEnemy() {
     const ghost = typeof MetaRPG !== 'undefined' ? MetaRPG.getGhostEncounter(progress) : null;
     enemy = ghost ? ghostToEnemy(ghost) : createDepthMonster(progress);
     if (typeof writeLog === 'function') {
+        const partyInfo = !ghost && enemy && Array.isArray(enemy.party)
+            ? ` (${enemy.party.map((member) => member.job).join(' · ')})`
+            : '';
         writeLog(
             ghost
                 ? `[망령] ${formatDungeonPosition(progress)}에 박제된 <b>${enemy.name}</b>이 나타났습니다. 사망 당시의 모든 스펙을 유지합니다.`
-                : `[진행] ${formatDungeonPosition(progress)} — ${enemy.name} 출현`
+                : `[진행] ${formatDungeonPosition(progress)} — ${enemy.name}${partyInfo} 출현`
         );
     }
     if (typeof updateUi === 'function') updateUi();
@@ -137,6 +216,10 @@ function spawnEnemy() {
 Object.assign(window, {
     getCurrentDungeonProgress,
     buildEnemyStatsForFloor,
+    getEnemyPartyMembers,
+    getLivingEnemyPartyMembers,
+    isEnemyPartyMember,
+    syncEnemyPartyAggregateState,
     ghostToEnemy,
     createDepthMonster,
     spawnEnemy,

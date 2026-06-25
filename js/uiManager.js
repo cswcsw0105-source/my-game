@@ -69,10 +69,14 @@ function syncV35PlayerStatDisplay() {
         if (statusElement) {
             statusElement.innerHTML = members
                 .map((member) =>
-                    `${escapeHtml(member.name)} ${member.curHp}/${member.maxHp}<br>` +
-                    `<span style="color:#aaa;">힘${member.stats.str} 방${member.stats.def} 체${member.stats.hp} 지${member.stats.int} 지혜${member.stats.wis} 민${member.stats.agi}</span>`
+                    `<div style="margin:3px 0;padding:3px 5px;border:1px solid #2f3542;border-radius:6px;background:rgba(0,0,0,0.18);line-height:1.25;">` +
+                    `<b style="color:#f1c40f;">${escapeHtml(member.name)}</b> ` +
+                    `<span style="color:#2ed573;">HP ${Math.max(0, Math.floor(member.curHp))}/${Math.max(1, Math.floor(member.maxHp))}</span><br>` +
+                    `<span style="color:#9aa4b2;font-size:0.72em;">힘${member.stats.str} 방${member.stats.def} 체${member.stats.hp} 지${member.stats.int} 지혜${member.stats.wis} 민${member.stats.agi}</span>` +
+                    `</div>`
                 )
-                .join('<br>');
+                .join('');
+            statusElement.style.cssText += ';display:block;text-align:left;font-size:0.76em;line-height:1.25;margin:8px auto 6px;max-width:96%;white-space:normal;';
             statusElement.title = '성혼 0 · 뒤틀림 0';
         }
         return;
@@ -195,7 +199,7 @@ function renderActions() {
         div.innerHTML = '';
         return;
     }
-    if (safeNum(enemy.curHp, 0) <= 0) {
+    if (typeof hasLivingEnemies === 'function' ? !hasLivingEnemies() : safeNum(enemy.curHp, 0) <= 0) {
         div.innerHTML = '';
         return;
     }
@@ -365,7 +369,10 @@ function updateUi() {
     }
     const pMax = getEffectiveMaxHp();
     const pCur = Math.max(0, safeNum(player.curHp, 0));
-    const eHp = Math.max(1, safeNum(enemy.hp, 1));
+    if (enemy && Array.isArray(enemy.party) && typeof syncEnemyPartyAggregateState === 'function') {
+        syncEnemyPartyAggregateState(enemy);
+    }
+    const eHp = Math.max(1, safeNum(enemy.hp, safeNum(enemy.maxHp, 1)));
     const eCur = Math.max(0, safeNum(enemy.curHp, 0));
     const g = safeNum(gold, 0);
     const pots = Math.max(0, safeNum(player.potions, 0));
@@ -392,14 +399,27 @@ function updateUi() {
         if (lsMain) lsMain.textContent = `${Math.round(safeNum(fm.mercBonusLifesteal, 0) * 100)}%`;
         if (lsNote) lsNote.textContent = '용병 장비 흡혈 (전열)';
     } else {
-        document.getElementById('p-name').innerText = Array.isArray(player.party) ? '성혼 원정대 · 3인 파티' : getPlayerClassDisplayName();
+        const isPartyRun = Array.isArray(player.party);
+        document.getElementById('p-name').innerText = isPartyRun ? '성혼 원정대 · 3인 파티' : getPlayerClassDisplayName();
         document.getElementById('p-hp').style.width = `${Math.max(0, (pCur / pMax) * 100)}%`;
         document.getElementById('p-hp-t').innerText = `${pCur} / ${pMax}`;
         if (summLine) {
             const synHint = '';
             const synStatus = '';
             const lvTxt = player.runLevel ? ` · Lv.${player.runLevel}` : '';
-            if (isMercenaryCaptainJob()) {
+            if (isPartyRun) {
+                const memberRows = getPartyMembers(player)
+                    .map((member) => {
+                        const ratio = member.maxHp > 0 ? Math.max(0, member.curHp / member.maxHp) : 0;
+                        return `<div style="display:flex;justify-content:space-between;gap:8px;margin:2px 0;line-height:1.25;">` +
+                            `<span style="color:#f1c40f;font-weight:800;">${escapeHtml(member.name)}</span>` +
+                            `<span style="color:${ratio <= 0.3 ? '#ff6b6b' : '#2ed573'};font-weight:800;">${Math.max(0, Math.floor(member.curHp))}/${Math.max(1, Math.floor(member.maxHp))}</span>` +
+                            `</div>`;
+                    })
+                    .join('');
+                summLine.style.cssText += ';display:block;text-align:left;max-width:92%;margin:8px auto 4px;font-size:0.78em;line-height:1.25;';
+                summLine.innerHTML = memberRows;
+            } else if (isMercenaryCaptainJob()) {
                 summLine.innerHTML = `<span style="color:#e67e22;">🎖️ 지휘관 ${escapeHtml(getPlayerClassDisplayName())}</span> <span style="color:#888;">| HP ${pCur}/${pMax}${lvTxt} · 전열 없음${player.mercCooldownTurns > 0 ? ` · 재가동 ${player.mercCooldownTurns}T` : ''}${synHint}</span>${synStatus}`;
             } else if (player.summon && player.summon.name) {
                 if (player.name === '소환사' && floor < 100) {
@@ -426,6 +446,13 @@ function updateUi() {
         const lsNote = document.getElementById('p-lifesteal-note');
         if (lsMain) lsMain.textContent = `${Math.round(safeNum(getLifestealEffective(), 0) * 100)}%`;
         if (lsNote) lsNote.textContent = lsOv > 0 ? `흡혈 초과분 → 공격력 +${lsOv}` : '';
+        const statTag = document.querySelector('#player-card .stat-tag');
+        if (statTag && isPartyRun) {
+            statTag.style.fontSize = '0.72em';
+            statTag.style.lineHeight = '1.45';
+            statTag.style.marginTop = '6px';
+            statTag.style.whiteSpace = 'normal';
+        }
     }
     const ultLine = document.getElementById('p-ult-stack-line');
     if (ultLine) {
@@ -447,12 +474,30 @@ function updateUi() {
     const enemyNameEl = document.getElementById('e-name');
     if (enemyNameEl) {
         const hint = window._enemyThinkingHint ? `<div style="color:#ffb3b3;font-size:0.72em;font-weight:600;margin-top:3px;">${escapeHtml(window._enemyThinkingHint)}</div>` : '';
-        enemyNameEl.innerHTML = `${escapeHtml(enemy.name)}${hint}`;
+        const livingCount = Array.isArray(enemy.party) ? getLivingEnemyPartyMembers(enemy).length : 1;
+        enemyNameEl.innerHTML = `${escapeHtml(enemy.name)}${Array.isArray(enemy.party) ? ` · ${livingCount}명 생존` : ''}${hint}`;
     }
     document.getElementById('e-hp').style.width=`${Math.max(0,(eCur/eHp)*100)}%`;
     document.getElementById('e-hp-t').innerText=`${eCur} / ${eHp}`;
     document.getElementById('e-atk-val').innerText=String(safeNum(enemy.atk, 0));
     document.getElementById('e-def-val').innerText=String(safeNum(enemy.def, 0));
+    const enemyStatus = document.querySelector('#enemy-card .status-badge');
+    if (enemyStatus) {
+        if (Array.isArray(enemy.party)) {
+            enemyStatus.innerHTML = getEnemyPartyMembers(enemy)
+                .map((member) => {
+                    const dead = safeNum(member.curHp, 0) <= 0;
+                    return `<div style="display:flex;justify-content:space-between;gap:6px;margin:3px 0;padding:3px 5px;border:1px solid #3a2a31;border-radius:6px;background:rgba(0,0,0,0.16);line-height:1.25;${dead ? 'opacity:0.45;' : ''}">` +
+                        `<span style="color:#ffb3b3;font-weight:800;">${escapeHtml(member.name)}</span>` +
+                        `<span style="color:#ddd;">HP ${Math.max(0, Math.floor(member.curHp))}/${Math.max(1, Math.floor(member.maxHp))}</span>` +
+                        `</div>`;
+                })
+                .join('');
+            enemyStatus.style.cssText += ';display:block;text-align:left;font-size:0.74em;line-height:1.25;margin:8px auto 6px;max-width:96%;white-space:normal;';
+        } else {
+            enemyStatus.innerHTML = '';
+        }
+    }
     renderInventoryPanel();
     renderPassiveContractHistoryPanels();
 }
@@ -1024,7 +1069,7 @@ function updatePrologueBattleControls() {
     const saveBtn = document.getElementById('battle-save-main-btn');
     const exitBtn = document.getElementById('battle-exit-main-btn');
     if (saveBtn) saveBtn.style.display = locked || victoryLocked ? 'none' : '';
-    if (exitBtn) exitBtn.style.display = locked || victoryLocked ? 'none' : '';
+    if (exitBtn) exitBtn.style.display = 'none';
 }
 
 function enterBattleLayout() {
@@ -1951,23 +1996,12 @@ function showPreGameScreen() {
         mx.slots.forEach((s) => MetaRPG.recalcTechBonus(s));
         MetaRPG.saveMeta(mx);
     }
-    const globalUnlocked = getUnlockedFloors(null);
-    const warriorUnlocked = getUnlockedFloors('워리어');
-    const hunterUnlocked = getUnlockedFloors('헌터');
-    const wizardUnlocked = getUnlockedFloors('마법사');
     const m = typeof MetaRPG !== 'undefined' ? MetaRPG.loadMeta() : { slots: [] };
     const esc = (t) =>
         String(t)
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;');
-    const slotSnapHints = [];
-    if (typeof MetaRPG !== 'undefined') {
-        m.slots.forEach((s) => {
-            const sn = MetaRPG.getRunSnapshot(s.id);
-            if (sn && sn.floor) slotSnapHints.push(`<b>${escapeHtml(getSlotClassDisplayName(s))}</b> ${sn.floor}층`);
-        });
-    }
     const canStartNewAdventure = hasOpenCharacterSlot(m);
     const slotRows =
         m.slots.length === 0
@@ -2010,7 +2044,6 @@ function showPreGameScreen() {
                         </div>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
                         <button type="button" onclick="resumeMetaSlot('${s.id}')" style="background:#2ed573;color:#111;padding:8px 16px;font-weight:700;border:none;border-radius:8px;cursor:pointer;">이어하기</button>
-                        <button type="button" onclick="openPartyTownFromHub('${s.id}')" style="background:#9b59b6;color:#fff;padding:8px 12px;font-weight:700;border:none;border-radius:8px;cursor:pointer;">🏠 마을 정비</button>
                         <button type="button" onclick="requestDeleteSaveFile(${typeof MetaRPG !== 'undefined' && typeof MetaRPG.getActiveFileIndex === 'function' ? MetaRPG.getActiveFileIndex() : 0})" style="background:#2a1111;color:#ff8080;padding:8px 12px;font-weight:800;border:1px solid #7f2b2b;border-radius:8px;cursor:pointer;font-size:0.82em;">파일 삭제</button>
                         ${MetaRPG.getRunSnapshot(s.id) ? `<button type="button" onclick="event.stopPropagation();deleteRunSnapshotForSlot('${s.id}')" style="background:#34495e;color:#ecf0f1;padding:8px 12px;font-weight:700;border:none;border-radius:8px;cursor:pointer;font-size:0.82em;">🗑 저장 삭제</button>` : ''}
                         ${rebBtn}
@@ -2045,25 +2078,13 @@ function showPreGameScreen() {
             <h2 style="color:#f1c40f; margin-bottom:5px;">⚔️ 프로젝트 성혼</h2>
             <p style="color:#9b59b6;font-size:0.88em;margin:0 0 8px;font-weight:700;">베타 v 1.0</p>
             ${saveFileBar}
-            <p style="color:#888; font-size:0.85em;">무한 층 · 베이스캠프에서만 영구 성장</p>
-            ${globalUnlocked.length > 0 ? `<p style="color:#f1c40f;font-size:0.8em;">🔓 공용 해금: ${globalUnlocked.join(', ')}층</p>` : ''}
-            ${warriorUnlocked.length > 0 ? `<p style="color:#ff4757;font-size:0.8em;">🔓 워리어: ${warriorUnlocked.join(', ')}층</p>` : ''}
-            ${hunterUnlocked.length > 0 ? `<p style="color:#2ed573;font-size:0.8em;">🔓 헌터: ${hunterUnlocked.join(', ')}층</p>` : ''}
-            ${wizardUnlocked.length > 0 ? `<p style="color:#1e90ff;font-size:0.8em;">🔓 마법사: ${wizardUnlocked.join(', ')}층</p>` : ''}
+            <p style="color:#888; font-size:0.85em;">3인 파티 · 100층 미궁 · 6-1 이후 복귀 불가</p>
         </div>
         <div style="max-width:560px;margin:0 auto 16px;">
             <h4 style="color:#f1c40f;margin:0 0 8px 0;">💾 캐릭터 슬롯 (최대 ${typeof MetaRPG !== 'undefined' ? MetaRPG.MAX_SLOTS : 4})</h4>
             ${slotRows}
         </div>
         ${newCharacterEntryHtml}
-        <div style="max-width:560px;margin:0 auto 16px;padding:14px;background:#111;border:1px solid #333;border-radius:10px;text-align:left;">
-            <h4 style="color:#f1c40f;margin:0 0 10px;text-align:center;">💾 저장 / 불러오기</h4>
-            ${slotSnapHints.length ? `<p style="color:#2ed573;font-size:0.82em;margin:0 0 10px;line-height:1.45;">💾 저장된 런: ${slotSnapHints.join(' · ')} — 캐릭터 <b>이어하기</b>로 복구됩니다.</p>` : '<p style="color:#555;font-size:0.8em;margin:0 0 8px;">저장된 런 없음 — 전투 중 <b>💾 저장 후 메인</b>으로 진행을 남기세요.</p>'}
-            <button type="button" onclick="exportFullSave()" style="width:100%;margin-bottom:8px;padding:10px;background:#1e90ff;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;">📥 전체 데이터 내보내기 (JSON 백업)</button>
-            <label style="display:block;color:#888;font-size:0.82em;">파일에서 복원:
-              <input type="file" accept=".json,application/json" style="width:100%;margin-top:6px;" onchange="importFullSave(this)">
-            </label>
-        </div>
         <p style="color:#666;font-size:0.75em;max-width:520px;margin:0 auto;line-height:1.5;">※ 1~5층에서 전투를 1회 이상 승리하면 <b>마을 복귀</b> 가능. 마을 정비 후 재출정 시 진행도는 <b>1-1층</b>으로 초기화되며 장비·골드·영구 강화는 유지됩니다. 6-1층부터 복귀 불가.</p>`;
     } catch (err) {
         console.error('[허브]', err);
@@ -3885,10 +3906,19 @@ function renderInventoryPanel() {
             const bp = Math.max(0, safeNum(it._buyPrice != null ? it._buyPrice : it.price, 0));
             const rf = Math.floor(bp * 0.5);
             const starterGear = typeof isStarterGearItem === 'function' ? isStarterGearItem(it) : !!(it.isStarterGear || it.starterGearKind);
+            const defectBadge = it.defectType === 'twisted'
+                ? '<span class="inventory-item-price" style="margin:0;color:#d980fa;">뒤틀린 · 던전 해제 불가</span>'
+                : it.defectType === 'rusted'
+                  ? '<span class="inventory-item-price" style="margin:0;color:#ff7675;">녹슨 · 출혈</span>'
+                  : '';
+            const lockedInDungeon = it.defectType === 'twisted' && player && !player.inTown;
             html += `<div class="inventory-slot-cell inventory-slot-cell-filled" style="--rarity-color:${rarityInfo.color};">
                 <div class="inventory-item-top">
                     <span class="inventory-item-rarity" style="background:${rarityInfo.bg};color:${rarityInfo.color};">${rarityInfo.label}</span>
-                    ${starterGear
+                    ${defectBadge || ''}
+                    ${lockedInDungeon
+                        ? '<span class="inventory-item-price" style="margin:0;color:#d980fa;">잠김</span>'
+                        : starterGear
                         ? '<span class="inventory-item-price" style="margin:0;color:#f1c40f;">고유</span>'
                         : `<button type="button" class="inventory-sell-btn" onclick="sellItemByUid('${escapeJsSingleQuoteString(it._uid)}')">판매</button>`}
                 </div>

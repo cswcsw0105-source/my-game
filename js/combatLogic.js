@@ -11,6 +11,10 @@ let playerGuardState = null;
 let enemyGuardState = null;
 const BEHAVIOR_ACTIONS = Object.freeze(['physical_attack', 'magic_attack', 'defend', 'dodge', 'heal']);
 const ARCHETYPE_ADVANTAGE = Object.freeze({ warrior: 'hunter', hunter: 'mage', mage: 'warrior' });
+const DEFECTIVE_DROP_CHANCE = 0.2;
+const DEFECTIVE_DROP_FLOOR_MAX = 5;
+const DEFECTIVE_DROP_TYPES = Object.freeze(['rusted', 'twisted']);
+const DEFECTIVE_EQUIPMENT_KIND_KEYS = Object.freeze(['weapon', 'armor', 'ring']);
 
 function isMercenaryCaptainJob() { return false; }
 function getAffinityRelKey() { return '인간 모험가'; }
@@ -83,7 +87,31 @@ function getPartyGuardStateFor(member) {
 }
 
 function getMinimumDamageFor(attacker, defender) {
-    return attacker === enemy && isPartyMember(defender) ? 3 : 1;
+    return (attacker === enemy || isEnemyPartyMember(attacker)) && isPartyMember(defender) ? 3 : 1;
+}
+
+function stripDefectPrefix(name) {
+    return String(name || '').replace(/^\[(녹슨|뒤틀린)\]\s*/u, '$1 ');
+}
+
+function getEnemyGuardStateFor(member) {
+    if (!enemyGuardState || !member) return null;
+    if (enemyGuardState.members && enemyGuardState.members[member.id]) return enemyGuardState.members[member.id];
+    return enemyGuardState.mode ? enemyGuardState : null;
+}
+
+function choosePlayerEnemyTarget() {
+    const living = typeof getLivingEnemyPartyMembers === 'function' ? getLivingEnemyPartyMembers(enemy) : (enemy && enemy.curHp > 0 ? [enemy] : []);
+    if (!living.length) return null;
+    return living.slice().sort((a, b) => {
+        const ar = actorMaxHp(a) > 0 ? getCurrentHp(a) / actorMaxHp(a) : 0;
+        const br = actorMaxHp(b) > 0 ? getCurrentHp(b) / actorMaxHp(b) : 0;
+        return ar - br;
+    })[0];
+}
+
+function hasLivingEnemies() {
+    return (typeof getLivingEnemyPartyMembers === 'function' ? getLivingEnemyPartyMembers(enemy) : []).length > 0;
 }
 
 function getEquippedWeapon(actor) {
@@ -150,7 +178,8 @@ function recordPlayerBehavior(action) {
     player.behaviorLogger = Array.isArray(player.behaviorLogger) ? player.behaviorLogger : [];
     const hpRatio = actorMaxHp(player) > 0 ? getCurrentHp(player) / actorMaxHp(player) : 0;
     const playerArchetype = getActorCombatArchetype(player);
-    const enemyArchetype = enemy.archetype || getActorCombatArchetype(enemy);
+    const sampleEnemy = choosePlayerEnemyTarget() || enemy;
+    const enemyArchetype = sampleEnemy.archetype || getActorCombatArchetype(sampleEnemy);
     player.behaviorLogger.push({
         floor: progress.floor,
         stage: progress.stage,
@@ -158,8 +187,8 @@ function recordPlayerBehavior(action) {
         hpRatio,
         hpBucket: getHpBucket(player),
         enemyArchetype,
-        enemyElement: enemy.element || 'neutral',
-        enemyTraits: Array.isArray(enemy.traitTags) ? enemy.traitTags.slice() : [],
+        enemyElement: sampleEnemy.element || 'neutral',
+        enemyTraits: Array.isArray(sampleEnemy.traitTags) ? sampleEnemy.traitTags.slice() : [],
         affinity: getAffinityState(playerArchetype, enemyArchetype),
         playerArchetype,
         action,
@@ -330,7 +359,7 @@ function resolveAttackAction(attacker, defender, guardState) {
     }
 
     const armor = getEquippedArmor(defender);
-    if (armor && !(attacker === enemy && isPartyMember(defender))) {
+    if (armor && !((attacker === enemy || isEnemyPartyMember(attacker)) && isPartyMember(defender))) {
         const nullify = probabilityRoll(safeNum(armor.nullifyChance, 0));
         if (nullify.success) return { type: 'attack', success: true, damage: 0, nullified: true, hit, nullify };
     }
@@ -399,6 +428,131 @@ function describeCombatResult(actor, target, result) {
     }
 }
 
+function isDefectiveDropEligible() {
+    const progress = normalizeDungeonProgress({ floor, stage: dungeonStage });
+    return progress.floor >= 1 &&
+        progress.floor <= DEFECTIVE_DROP_FLOOR_MAX &&
+        progress.stage < STAGES_PER_FLOOR &&
+        enemy &&
+        !enemy.isBoss &&
+        !enemy.isPlayerGhost;
+}
+
+function getOpenDefectiveDropKinds() {
+    return DEFECTIVE_EQUIPMENT_KIND_KEYS.filter((kind) => {
+        if (typeof getEquippedCountByKind !== 'function' || typeof getEquipSlotLimit !== 'function') return true;
+        return getEquippedCountByKind(kind) < getEquipSlotLimit(kind);
+    });
+}
+
+function pickBaseEquipmentForDefectiveDrop(kind) {
+    const pool = (typeof equipmentPool !== 'undefined' && Array.isArray(equipmentPool)) ? equipmentPool : [];
+    const typeByKind = { weapon: 'atk', armor: 'hp', ring: 'ring' };
+    const targetType = typeByKind[kind];
+    const candidates = pool.filter((item) => {
+        if (!item || item.type !== targetType) return false;
+        if (item.type === 'rune' || item.type === 'relic' || item.type === 'potion' || item.type === 'merc') return false;
+        return true;
+    });
+    if (!candidates.length) return null;
+    const byRarity = candidates.filter((item) => ['common', 'rare'].includes(String(item.rarity || 'common').toLowerCase()));
+    const usable = byRarity.length ? byRarity : candidates;
+    return usable[Math.floor(Math.random() * usable.length)] || null;
+}
+
+function scaleDefectiveItemPower(item, multiplier) {
+    const statFields = ['value', 'hpBonus', 'def', 'critBonus', 'critMult', 'lifesteal', 'damageReduction', 'potionHealBonus'];
+    statFields.forEach((field) => {
+        const value = Number(item[field]);
+        if (!Number.isFinite(value) || value <= 0) return;
+        item[field] = field === 'critMult' || field === 'lifesteal' || field === 'damageReduction' || field === 'potionHealBonus'
+            ? Number((value * multiplier).toFixed(4))
+            : Math.max(1, Math.round(value * multiplier));
+    });
+    return item;
+}
+
+function createDefectiveDropItem(kind) {
+    const base = pickBaseEquipmentForDefectiveDrop(kind);
+    if (!base) return null;
+    const item = JSON.parse(JSON.stringify(base));
+    const defectType = DEFECTIVE_DROP_TYPES[Math.floor(Math.random() * DEFECTIVE_DROP_TYPES.length)] || 'rusted';
+    const label = defectType === 'twisted' ? '뒤틀린' : '녹슨';
+    item.name = `[${label}] ${String(item.name || '장비').replace(/^\[(녹슨|뒤틀린)\]\s*/u, '')}`;
+    item.defectType = defectType;
+    item.defectLabel = label;
+    item.fieldDrop = true;
+    item.cursedLock = defectType === 'twisted';
+    item.tags = Array.isArray(item.tags) ? Array.from(new Set([...item.tags, 'field_drop', `defect_${defectType}`])) : ['field_drop', `defect_${defectType}`];
+    item._uid = `drop_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+    item._buyPrice = Math.max(1, Math.floor(safeNum(item.price, 10) * 0.35));
+    if (defectType === 'twisted') {
+        scaleDefectiveItemPower(item, 1.45);
+    }
+    if (typeof rebuildEquipmentDesc === 'function') rebuildEquipmentDesc(item);
+    const penaltyDesc = defectType === 'twisted'
+        ? '하자: 매 턴 종료 시 장착자의 뒤틀림 +1. 던전 안에서는 해제 불가.'
+        : '하자: 매 턴 종료 시 장착자가 중금속 중독 출혈 피해를 받음.';
+    item.desc = `${item.desc || ''}${item.desc ? ' ' : ''}${penaltyDesc}`;
+    return item;
+}
+
+function tryAwardDefectiveEquipmentDrop() {
+    if (!player || !isDefectiveDropEligible()) return null;
+    if (Math.random() >= DEFECTIVE_DROP_CHANCE) return null;
+    const openKinds = getOpenDefectiveDropKinds();
+    if (!openKinds.length) {
+        writeLog('[드롭] 장비가 떨어졌지만 파티 인벤토리 슬롯이 가득 차 회수하지 못했습니다.');
+        return null;
+    }
+    const kind = openKinds[Math.floor(Math.random() * openKinds.length)] || 'weapon';
+    const item = createDefectiveDropItem(kind);
+    if (!item) return null;
+    player.items = Array.isArray(player.items) ? player.items : [];
+    player.items.push(item);
+    if (typeof saveCollection === 'function') saveCollection(item.name);
+    if (typeof fullResyncPlayerCombatStatsFromMetaAndInventory === 'function') {
+        fullResyncPlayerCombatStatsFromMetaAndInventory();
+    }
+    const penalty = item.defectType === 'twisted' ? '뒤틀림 잠식' : '중금속 중독';
+    writeLog(`[드롭] <b>${stripDefectPrefix(item.name)}</b> 획득 — 하자 장비(${penalty})가 파티 인벤토리에 들어왔습니다.`);
+    return item;
+}
+
+function applyDefectiveEquipmentTurnEndEffects() {
+    if (!player || !Array.isArray(player.party)) return false;
+    let changed = false;
+    getLivingPartyMembers(player).forEach((member) => {
+        const equipped = Array.isArray(member.items) ? member.items : [];
+        equipped.forEach((item) => {
+            if (!item || !item.defectType) return;
+            if (item.defectType === 'rusted') {
+                const damage = Math.max(Math.max(1, Math.floor(safeNum(floor, 1))), Math.ceil(member.maxHp * 0.025));
+                setCurrentHp(member, member.curHp - damage);
+                writeLog(`[출혈] ${member.name}가 ${stripDefectPrefix(item.name)}의 중금속 중독으로 인해 ${damage}의 피해를 입었습니다.`);
+                changed = true;
+                return;
+            }
+            if (item.defectType === 'twisted') {
+                member.stats = normalizeHumanStats(member.stats || {});
+                member.stats.distortion = Math.min(100, safeNum(member.stats.distortion, 0) + 1);
+                member.distortion = member.stats.distortion;
+                writeLog(`[잠식] ${member.name}가 ${stripDefectPrefix(item.name)}의 저주로 인해 뒤틀림 수치가 1 상승했습니다.`);
+                changed = true;
+            }
+        });
+    });
+    if (changed) {
+        syncPartyAggregateState(player);
+        syncPlayerCampaignState();
+        if (getLivingPartyMembers(player).length === 0) {
+            gameOver();
+            return true;
+        }
+    }
+    return changed;
+}
+
 function emitCombatResultVfx(target, result) {
     if (!result) return;
     const isPlayerSide = target === player || isPartyMember(target);
@@ -414,60 +568,71 @@ function emitCombatResultVfx(target, result) {
     }
 }
 
-function chooseEnemyAction() {
-    const learned = chooseLearnedGhostAction(enemy);
+function chooseEnemyAction(actor) {
+    const unit = actor || enemy;
+    const learned = chooseLearnedGhostAction(unit);
     if (learned) return learned;
-    const hpRatio = getCurrentHp(enemy) / actorMaxHp(enemy);
-    if (enemy.isBoss) {
-        enemy.turnCount = Math.max(1, safeNum(enemy.turnCount, 1));
-        if (enemy._bossChargeReady) return 'physical_attack';
-        if (enemy.turnCount % 4 === 3) return 'charge';
+    const hpRatio = getCurrentHp(unit) / actorMaxHp(unit);
+    if (enemy && enemy.isBoss) {
+        unit.turnCount = Math.max(1, safeNum(unit.turnCount, 1));
+        if (unit._bossChargeReady) return 'physical_attack';
+        if (unit.turnCount % 4 === 3) return 'charge';
     }
-    if (enemy.archetype === 'hunter' && getCurrentHp(player) / actorMaxHp(player) <= 0.4) return 'physical_attack';
-    if (enemy.archetype === 'mage' && hpRatio <= 0.38 && probabilityRoll(0.65).success) return 'defend';
-    if (hpRatio <= 0.3 && actorCanHeal(enemy)) return 'heal';
-    if (hpRatio <= 0.55 && probabilityRoll(0.25).success) return getActorStats(enemy).agi >= 45 ? 'dodge' : 'defend';
-    return hasMagicAttackCapability(enemy) && probabilityRoll(0.25).success ? 'magic_attack' : 'physical_attack';
+    if (unit.archetype === 'knight' && getCurrentHp(player) / actorMaxHp(player) <= 0.4) return 'physical_attack';
+    if (unit.archetype === 'mage' && hpRatio <= 0.38 && probabilityRoll(0.65).success) return 'defend';
+    if (hpRatio <= 0.3 && actorCanHeal(unit)) return 'heal';
+    if (hpRatio <= 0.55 && probabilityRoll(0.25).success) return getActorStats(unit).agi >= 45 ? 'dodge' : 'defend';
+    return hasMagicAttackCapability(unit) && probabilityRoll(0.25).success ? 'magic_attack' : 'physical_attack';
 }
 
 async function enemyTurn() {
-    if (!enemy || !player || enemy.curHp <= 0 || getLivingPartyMembers(player).length === 0) return;
+    if (!enemy || !player || !hasLivingEnemies() || getLivingPartyMembers(player).length === 0) return;
     setCombatProcessing(true);
     await waitMs(300);
-    const action = chooseEnemyAction();
-    if (action === 'charge') {
-        enemy._bossChargeReady = true;
-        writeLog(`[적 행동] ${enemy.name} — 강공격 준비`);
-    } else if (action === 'heal') {
-        const result = resolveHealAction(enemy);
-        describeCombatResult(enemy, enemy, result);
-        enemyGuardState = null;
-    } else if (action === 'defend' || action === 'dodge') {
-        enemyGuardState = { mode: action === 'defend' ? 'shield' : 'dodge', turn: combatTurnNumber };
-        writeLog(`[적 행동] ${enemy.name} — ${action === 'defend' ? '방어' : '회피'} 준비`);
-    } else {
-        const target = chooseEnemyPartyTarget();
-        if (!target) {
-            gameOver();
-            return;
+    const actingEnemies = getLivingEnemyPartyMembers(enemy);
+    for (const unit of actingEnemies) {
+        if (!player || getLivingPartyMembers(player).length === 0 || getCurrentHp(unit) <= 0) break;
+        const action = chooseEnemyAction(unit);
+        if (action === 'charge') {
+            unit._bossChargeReady = true;
+            writeLog(`[적 행동] ${unit.name} — 강공격 준비`);
+        } else if (action === 'heal') {
+            const allies = getLivingEnemyPartyMembers(enemy);
+            const targetAlly = allies.slice().sort((a, b) => a.curHp / a.maxHp - b.curHp / b.maxHp)[0] || unit;
+            const result = resolveHealAction(unit, targetAlly);
+            describeCombatResult(unit, targetAlly, result);
+        } else if (action === 'defend' || action === 'dodge') {
+            enemyGuardState = enemyGuardState && enemyGuardState.members ? enemyGuardState : { members: {} };
+            enemyGuardState.members[unit.id] = { mode: action === 'defend' ? 'shield' : 'dodge', turn: combatTurnNumber };
+            writeLog(`[적 행동] ${unit.name} — ${action === 'defend' ? '방어' : '회피'} 준비`);
+        } else {
+            const target = chooseEnemyPartyTarget();
+            if (!target) {
+                gameOver();
+                return;
+            }
+            writeLog(`[어그로] ${unit.name} → ${target.name} 타겟`);
+            unit._attackMultiplier = unit._bossChargeReady ? 2.5 : 1;
+            await playV35AttackVfx('enemy', unit, action);
+            const result = action === 'magic_attack'
+                ? resolveMagicAttackAction(unit, target, getPartyGuardStateFor(target))
+                : resolveAttackAction(unit, target, getPartyGuardStateFor(target));
+            unit._attackMultiplier = 1;
+            unit._bossChargeReady = false;
+            describeCombatResult(unit, target, result);
+            emitCombatResultVfx(target, result);
         }
-        writeLog(`[어그로] ${enemy.name} → ${target.name} 타겟`);
-        enemy._attackMultiplier = enemy._bossChargeReady ? 2.5 : 1;
-        await playV35AttackVfx('enemy', enemy, action);
-        const result = action === 'magic_attack'
-            ? resolveMagicAttackAction(enemy, target, getPartyGuardStateFor(target))
-            : resolveAttackAction(enemy, target, getPartyGuardStateFor(target));
-        enemy._attackMultiplier = 1;
-        enemy._bossChargeReady = false;
-        describeCombatResult(enemy, target, result);
-        emitCombatResultVfx(target, result);
-        playerGuardState = null;
+        if (enemy && Array.isArray(enemy.party)) syncEnemyPartyAggregateState(enemy);
     }
+    playerGuardState = null;
     if (enemy.isBoss) enemy.turnCount = Math.max(1, safeNum(enemy.turnCount, 1)) + 1;
     syncPartyAggregateState(player);
     if (getLivingPartyMembers(player).length === 0) {
         gameOver();
         return;
+    }
+    if (applyDefectiveEquipmentTurnEndEffects()) {
+        if (!player || getLivingPartyMembers(player).length === 0) return;
     }
     combatTurnNumber += 1;
     playerTurnSpent = false;
@@ -477,7 +642,7 @@ async function enemyTurn() {
 }
 
 window.useAction = async function useAction(type) {
-    if (isProcessing || !player || !enemy || getLivingPartyMembers(player).length === 0 || enemy.curHp <= 0) return;
+    if (isProcessing || !player || !enemy || getLivingPartyMembers(player).length === 0 || !hasLivingEnemies()) return;
     if (!spendPlayerAction()) {
         writeLog('[턴 제한] 한 턴에는 공격/방어/힐 중 하나만 선택할 수 있습니다.');
         return;
@@ -487,14 +652,17 @@ window.useAction = async function useAction(type) {
     if (type === '공격') {
         recordPlayerBehavior('physical_attack');
         for (const member of getLivingPartyMembers(player)) {
+            const target = choosePlayerEnemyTarget();
+            if (!target) break;
             const learnedAction = member.roleKey === 'mage' ? 'magic_attack' : 'physical_attack';
             await playV35AttackVfx('player', member, learnedAction);
             result = learnedAction === 'magic_attack'
-                ? resolveMagicAttackAction(member, enemy, enemyGuardState)
-                : resolveAttackAction(member, enemy, enemyGuardState);
-            describeCombatResult(member, enemy, result);
-            emitCombatResultVfx(enemy, result);
-            if (enemy.curHp <= 0) break;
+                ? resolveMagicAttackAction(member, target, getEnemyGuardStateFor(target))
+                : resolveAttackAction(member, target, getEnemyGuardStateFor(target));
+            describeCombatResult(member, target, result);
+            emitCombatResultVfx(target, result);
+            if (enemy && Array.isArray(enemy.party)) syncEnemyPartyAggregateState(enemy);
+            if (!hasLivingEnemies()) break;
         }
         enemyGuardState = null;
     } else if (type === '힐') {
@@ -519,7 +687,7 @@ window.useAction = async function useAction(type) {
         writeLog(`[플레이어 행동] ${mode === 'dodge' ? '회피' : '방어'} 준비`);
     }
     updateUi();
-    if (enemy.curHp <= 0) {
+    if (!hasLivingEnemies()) {
         await waitMs(120);
         winBattle();
         return;
@@ -592,6 +760,7 @@ function winBattle() {
     player.runWins = Math.max(0, safeNum(player.runWins, 0)) + 1;
     if (typeof totalGoldEarned !== 'undefined') totalGoldEarned = Math.max(0, safeNum(totalGoldEarned, 0)) + reward;
     writeLog(`[승리] ${formatDungeonPosition({ floor, stage: dungeonStage })} 전투 종료 · ${reward}G 획득`);
+    tryAwardDefectiveEquipmentDrop();
     getLivingPartyMembers(player).forEach((member) => {
         setCurrentHp(member, member.curHp + Math.max(1, Math.floor(member.maxHp * 0.08)));
     });
@@ -788,26 +957,11 @@ window.enterDungeonFromTown = function enterDungeonFromTown() {
     spawnEnemy();
 };
 
-window.openPartyTownFromHub = function openPartyTownFromHub(slotId) {
-    if (!MetaRPG.setActiveSlot(slotId)) return;
-    const meta = MetaRPG.loadMeta();
-    const slot = meta.slots.find((entry) => entry.id === slotId);
-    if (!slot || slot.permanentDeath) return;
-    MetaRPG.recalcTechBonus(slot);
-    MetaRPG.saveMeta(meta);
-    player = buildRuntimePlayerFromSlot(slot);
-    fullResyncPlayerCombatStatsFromMetaAndInventory();
-    gold = Math.max(0, safeNum(slot.gold, 0));
-    floor = player.progress.floor;
-    dungeonStage = player.progress.stage;
-    player.inTown = true;
-    enemy = null;
-    const startArea = document.getElementById('start-area');
-    const battleArea = document.getElementById('battle-area');
-    if (startArea) startArea.style.display = 'none';
-    if (battleArea) battleArea.style.display = 'none';
-    if (typeof exitBattleLayout === 'function') exitBattleLayout();
-    openShop();
+window.openPartyTownFromHub = function openPartyTownFromHub() {
+    if (typeof writeLog === 'function') {
+        writeLog('[마을 잠금] 로비에서는 마을에 진입할 수 없습니다. 던전에서 전투를 1회 이상 승리한 뒤 복귀하세요.');
+    }
+    return false;
 };
 
 window.saveAndExitToMain = window.returnPartyToTown;
@@ -819,7 +973,7 @@ function installHumanActionButtons() {
     const wrapped = function renderHumanActions() {
         originalRenderActions();
         const host = document.getElementById('action-btns');
-        if (!host || !player || !enemy || enemy.curHp <= 0) return;
+        if (!host || !player || !enemy || (typeof hasLivingEnemies === 'function' ? !hasLivingEnemies() : enemy.curHp <= 0)) return;
         const buttons = Array.from(host.querySelectorAll('button'));
         const defense = buttons.find((button) => !button.onclick && button !== buttons[0]);
         if (defense) {
@@ -860,7 +1014,12 @@ function installDungeonProgressUiAdapter() {
         ['battle-save-main-btn', 'battle-exit-main-btn'].forEach((id, index) => {
             const button = document.getElementById(id);
             if (!button) return;
-            button.innerText = index === 0 ? '🏠 마을로 복귀' : '마을 귀환';
+            if (index === 1) {
+                button.style.display = 'none';
+                return;
+            }
+            button.style.display = '';
+            button.innerText = '🏠 마을로 복귀';
             button.onclick = () => returnPartyToTown();
             button.disabled = !canReturn;
             button.title = canReturn
@@ -883,6 +1042,9 @@ Object.assign(window, {
     probabilityRoll,
     calculateAttackChance,
     calculatePhysicalDamage,
+    getEnemyGuardStateFor,
+    choosePlayerEnemyTarget,
+    hasLivingEnemies,
     chooseEnemyPartyTarget,
     enemyTurn,
     winBattle,
