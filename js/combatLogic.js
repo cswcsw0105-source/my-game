@@ -57,6 +57,35 @@ function getActorStats(actor) {
     return normalizeHumanStats(actor && actor.stats || {});
 }
 
+function getActorDisplayName(actor) {
+    if (isPartyMember(actor)) return actor.name;
+    if (actor === player) return player.name || '성혼 원정대';
+    return actor && actor.name ? actor.name : '대상';
+}
+
+function chooseEnemyPartyTarget(random) {
+    const living = getLivingPartyMembers(player);
+    if (!living.length) return null;
+    const total = living.reduce((sum, member) => sum + Math.max(0.1, safeNum(member.aggroWeight, 1)), 0);
+    const rng = typeof random === 'function' ? random : Math.random;
+    let roll = rng() * total;
+    for (const member of living) {
+        roll -= Math.max(0.1, safeNum(member.aggroWeight, 1));
+        if (roll <= 0) return member;
+    }
+    return living[living.length - 1];
+}
+
+function getPartyGuardStateFor(member) {
+    if (!playerGuardState || !member) return null;
+    if (playerGuardState.members && playerGuardState.members[member.id]) return playerGuardState.members[member.id];
+    return playerGuardState.mode ? playerGuardState : null;
+}
+
+function getMinimumDamageFor(attacker, defender) {
+    return attacker === enemy && isPartyMember(defender) ? 3 : 1;
+}
+
 function getEquippedWeapon(actor) {
     const key = actor && actor.equipment && actor.equipment.weapon;
     return weaponTable[key] || null;
@@ -244,9 +273,14 @@ function calculatePhysicalDamage(attacker, defender) {
     if (attacker && attacker.archetype === 'hunter' && defenderRatio <= 0.4) rawPower *= 1.45;
     if (attacker && attacker._attackMultiplier) rawPower *= attacker._attackMultiplier;
     const runtimeDefense = safeNum(defender && defender.def, defendStats.def) + safeNum(defender && defender.extraDef, 0);
-    const flatBlocked = Math.max(0, rawPower - runtimeDefense - (armor ? safeNum(armor.def, 0) : 0));
-    const mitigation = armor ? Math.min(0.6, Math.max(0, safeNum(armor.mitigation, 0))) : 0;
-    return Math.max(0, Math.floor(flatBlocked * (1 - mitigation)));
+    const totalDefense = Math.max(0, runtimeDefense + (armor ? safeNum(armor.def, 0) : 0));
+    const ratioReduced = rawPower * (100 / (100 + totalDefense));
+    const mitigation = Math.min(
+        0.6,
+        Math.max(0, safeNum(armor && armor.mitigation, 0) + safeNum(defender && defender.damageReduction, 0))
+    );
+    const reduced = Math.floor(ratioReduced * (1 - mitigation));
+    return Math.max(getMinimumDamageFor(attacker, defender), reduced);
 }
 
 function calculateMagicDamage(attacker, defender) {
@@ -254,7 +288,8 @@ function calculateMagicDamage(attacker, defender) {
     const defendStats = getActorStats(defender);
     const mastery = safeNum(attacker && attacker.mastery && (attacker.mastery.magic || attacker.mastery.holyMagic), 0);
     const rawPower = attackStats.wis * 1.35 + attackStats.int * 0.45 + mastery * 0.25;
-    return Math.max(0, Math.floor(rawPower - defendStats.def * 0.35));
+    const reduced = Math.floor(rawPower * (100 / (100 + Math.max(0, defendStats.def * 0.7))));
+    return Math.max(getMinimumDamageFor(attacker, defender), reduced);
 }
 
 function getCurrentHp(actor) {
@@ -262,12 +297,17 @@ function getCurrentHp(actor) {
 }
 
 function setCurrentHp(actor, value) {
-    const max = actor === player ? getEffectiveMaxHp() : Math.max(1, safeNum(actor.hp, 1));
+    const max = actor === player
+        ? getEffectiveMaxHp()
+        : Math.max(1, safeNum(actor.maxHp, safeNum(actor.hp, 1)));
     actor.curHp = Math.max(0, Math.min(max, safeNum(value, 0)));
+    if (isPartyMember(actor)) syncPartyAggregateState(player);
 }
 
 function actorMaxHp(actor) {
-    return actor === player ? getEffectiveMaxHp() : Math.max(1, safeNum(actor.hp, 1));
+    return actor === player
+        ? getEffectiveMaxHp()
+        : Math.max(1, safeNum(actor.maxHp, safeNum(actor.hp, 1)));
 }
 
 function actorCanHeal(actor) {
@@ -290,7 +330,7 @@ function resolveAttackAction(attacker, defender, guardState) {
     }
 
     const armor = getEquippedArmor(defender);
-    if (armor) {
+    if (armor && !(attacker === enemy && isPartyMember(defender))) {
         const nullify = probabilityRoll(safeNum(armor.nullifyChance, 0));
         if (nullify.success) return { type: 'attack', success: true, damage: 0, nullified: true, hit, nullify };
     }
@@ -300,7 +340,7 @@ function resolveAttackAction(attacker, defender, guardState) {
         const defendStats = getActorStats(defender);
         const block = probabilityRoll(0.22 + defendStats.def * 0.004);
         if (block.success) {
-            damage = Math.max(0, Math.floor(damage * 0.45));
+            damage = Math.max(getMinimumDamageFor(attacker, defender), Math.floor(damage * 0.45));
             setCurrentHp(defender, getCurrentHp(defender) - damage);
             return { type: 'attack', success: true, damage, guarded: true, hit, block };
         }
@@ -319,19 +359,22 @@ function resolveMagicAttackAction(attacker, defender, guardState) {
         const dodge = probabilityRoll(0.12 + getActorStats(defender).agi * 0.004);
         if (dodge.success) return { type: 'attack', attackKind: 'magic', success: false, reason: 'dodged', hit: cast, dodge };
     }
-    if (guardState && guardState.mode === 'shield') damage = Math.max(0, Math.floor(damage * 0.7));
+    if (guardState && guardState.mode === 'shield') {
+        damage = Math.max(getMinimumDamageFor(attacker, defender), Math.floor(damage * 0.7));
+    }
     setCurrentHp(defender, getCurrentHp(defender) - damage);
     return { type: 'attack', attackKind: 'magic', success: true, damage, hit: cast };
 }
 
-function resolveHealAction(actor) {
+function resolveHealAction(actor, healTarget) {
     const stats = getActorStats(actor);
     const cast = probabilityRoll(0.4 + stats.wis * 0.004);
     if (!cast.success) return { type: 'heal', success: false, reason: 'castFailed', cast };
     const amount = Math.max(1, Math.floor(8 + stats.wis * 1.5));
-    const before = getCurrentHp(actor);
-    setCurrentHp(actor, before + amount);
-    return { type: 'heal', success: true, healed: getCurrentHp(actor) - before, cast };
+    const target = healTarget || actor;
+    const before = getCurrentHp(target);
+    setCurrentHp(target, before + amount);
+    return { type: 'heal', success: true, healed: getCurrentHp(target) - before, cast };
 }
 
 function spendPlayerAction() {
@@ -342,12 +385,13 @@ function spendPlayerAction() {
 
 function describeCombatResult(actor, target, result) {
     if (!result) return;
-    const actorName = actor === player ? '플레이어' : actor.name;
+    const actorName = getActorDisplayName(actor);
+    const targetName = getActorDisplayName(target);
     if (result.type === 'attack') {
         if (result.reason === 'miss') writeLog(`[빗나감] ${actorName}의 공격 실패`);
-        else if (result.reason === 'dodged') writeLog(`[회피] ${target === player ? '플레이어' : target.name}이 공격을 완전히 회피`);
+        else if (result.reason === 'dodged') writeLog(`[회피] ${targetName}이 공격을 완전히 회피`);
         else if (result.nullified) writeLog(`[무효화] 장비가 ${actorName}의 공격을 완전히 차단`);
-        else writeLog(`[공격] ${actorName} → ${result.damage} 피해${result.guarded ? ' (방어 성공)' : ''}`);
+        else writeLog(`[공격] ${actorName} → ${targetName} ${result.damage} 피해${result.guarded ? ' (방어 성공)' : ''}`);
         return;
     }
     if (result.type === 'heal') {
@@ -357,14 +401,15 @@ function describeCombatResult(actor, target, result) {
 
 function emitCombatResultVfx(target, result) {
     if (!result) return;
-    const targetSide = target === player ? 'player' : 'enemy';
+    const isPlayerSide = target === player || isPartyMember(target);
+    const targetSide = isPlayerSide ? 'player' : 'enemy';
     if (result.reason === 'miss' || result.reason === 'dodged') {
         showMissFloat(targetSide);
         if (result.reason === 'dodged') triggerDodgeMove(targetSide);
         return;
     }
     if (result.type === 'attack') {
-        showDmgFloat(Math.max(0, result.damage || 0), false, target === player);
+        showDmgFloat(Math.max(0, result.damage || 0), false, isPlayerSide);
         if ((result.damage || 0) > 0) triggerShakeEffect();
     }
 }
@@ -386,7 +431,7 @@ function chooseEnemyAction() {
 }
 
 async function enemyTurn() {
-    if (!enemy || !player || enemy.curHp <= 0 || player.curHp <= 0) return;
+    if (!enemy || !player || enemy.curHp <= 0 || getLivingPartyMembers(player).length === 0) return;
     setCombatProcessing(true);
     await waitMs(300);
     const action = chooseEnemyAction();
@@ -401,19 +446,26 @@ async function enemyTurn() {
         enemyGuardState = { mode: action === 'defend' ? 'shield' : 'dodge', turn: combatTurnNumber };
         writeLog(`[적 행동] ${enemy.name} — ${action === 'defend' ? '방어' : '회피'} 준비`);
     } else {
+        const target = chooseEnemyPartyTarget();
+        if (!target) {
+            gameOver();
+            return;
+        }
+        writeLog(`[어그로] ${enemy.name} → ${target.name} 타겟`);
         enemy._attackMultiplier = enemy._bossChargeReady ? 2.5 : 1;
         await playV35AttackVfx('enemy', enemy, action);
         const result = action === 'magic_attack'
-            ? resolveMagicAttackAction(enemy, player, playerGuardState)
-            : resolveAttackAction(enemy, player, playerGuardState);
+            ? resolveMagicAttackAction(enemy, target, getPartyGuardStateFor(target))
+            : resolveAttackAction(enemy, target, getPartyGuardStateFor(target));
         enemy._attackMultiplier = 1;
         enemy._bossChargeReady = false;
-        describeCombatResult(enemy, player, result);
-        emitCombatResultVfx(player, result);
+        describeCombatResult(enemy, target, result);
+        emitCombatResultVfx(target, result);
         playerGuardState = null;
     }
     if (enemy.isBoss) enemy.turnCount = Math.max(1, safeNum(enemy.turnCount, 1)) + 1;
-    if (player.curHp <= 0) {
+    syncPartyAggregateState(player);
+    if (getLivingPartyMembers(player).length === 0) {
         gameOver();
         return;
     }
@@ -425,7 +477,7 @@ async function enemyTurn() {
 }
 
 window.useAction = async function useAction(type) {
-    if (isProcessing || !player || !enemy || player.curHp <= 0 || enemy.curHp <= 0) return;
+    if (isProcessing || !player || !enemy || getLivingPartyMembers(player).length === 0 || enemy.curHp <= 0) return;
     if (!spendPlayerAction()) {
         writeLog('[턴 제한] 한 턴에는 공격/방어/힐 중 하나만 선택할 수 있습니다.');
         return;
@@ -433,24 +485,35 @@ window.useAction = async function useAction(type) {
     setCombatProcessing(true);
     let result = null;
     if (type === '공격') {
-        const learnedAction = classifyPlayerAttackAction(player);
-        recordPlayerBehavior(learnedAction);
-        await playV35AttackVfx('player', player, learnedAction);
-        result = learnedAction === 'magic_attack'
-            ? resolveMagicAttackAction(player, enemy, enemyGuardState)
-            : resolveAttackAction(player, enemy, enemyGuardState);
+        recordPlayerBehavior('physical_attack');
+        for (const member of getLivingPartyMembers(player)) {
+            const learnedAction = member.roleKey === 'mage' ? 'magic_attack' : 'physical_attack';
+            await playV35AttackVfx('player', member, learnedAction);
+            result = learnedAction === 'magic_attack'
+                ? resolveMagicAttackAction(member, enemy, enemyGuardState)
+                : resolveAttackAction(member, enemy, enemyGuardState);
+            describeCombatResult(member, enemy, result);
+            emitCombatResultVfx(enemy, result);
+            if (enemy.curHp <= 0) break;
+        }
         enemyGuardState = null;
-        describeCombatResult(player, enemy, result);
-        emitCombatResultVfx(enemy, result);
     } else if (type === '힐') {
         recordPlayerBehavior('heal');
         await playMagicBurstVfx('player');
-        result = resolveHealAction(player);
-        describeCombatResult(player, player, result);
+        const living = getLivingPartyMembers(player);
+        const healer = living.find((member) => member.roleKey === 'mage') || living[0];
+        const target = living.slice().sort((a, b) => a.curHp / a.maxHp - b.curHp / b.maxHp)[0];
+        result = resolveHealAction(healer || target, target);
+        describeCombatResult(healer || target, target, result);
+        syncPartyAggregateState(player);
     } else {
         const mode = type === '회피' ? 'dodge' : 'shield';
         recordPlayerBehavior(mode === 'dodge' ? 'dodge' : 'defend');
-        playerGuardState = { mode, turn: combatTurnNumber };
+        playerGuardState = {
+            mode,
+            turn: combatTurnNumber,
+            members: Object.fromEntries(getLivingPartyMembers(player).map((member) => [member.id, { mode, turn: combatTurnNumber }])),
+        };
         if (mode === 'dodge') triggerDodgeMove('player');
         else triggerGuardAura();
         writeLog(`[플레이어 행동] ${mode === 'dodge' ? '회피' : '방어'} 준비`);
@@ -465,10 +528,12 @@ window.useAction = async function useAction(type) {
 };
 
 window.usePotion = function usePotion() {
-    if (isProcessing || !player || player.curHp <= 0) return;
+    if (isProcessing || !player || getLivingPartyMembers(player).length === 0) return;
     if (!spendPlayerAction()) return writeLog('[턴 제한] 이번 턴의 행동을 이미 사용했습니다.');
-    const result = resolveHealAction(player);
-    describeCombatResult(player, player, result);
+    const target = getLivingPartyMembers(player).slice().sort((a, b) => a.curHp / a.maxHp - b.curHp / b.maxHp)[0];
+    const result = resolveHealAction(target);
+    describeCombatResult(target, target, result);
+    syncPartyAggregateState(player);
     updateUi();
     enemyTurn();
 };
@@ -476,12 +541,16 @@ window.usePotion = function usePotion() {
 function syncPlayerCampaignState() {
     if (!player || !player.metaSlotId) return;
     ensureHumanRuntimeShape(player);
+    syncPartyAggregateState(player);
     player.progress = normalizeDungeonProgress({ floor, stage: dungeonStage });
     MetaRPG.syncRunProgress(player.metaSlotId, {
         stats: player.stats,
+        party: getPartyMembers(player).map((member) => ({ ...member, hp: member.curHp })),
         progress: player.progress,
         hp: player.curHp,
         maxHp: player.maxHp,
+        gold,
+        runWins: player.runWins,
         equipment: player.equipment,
         magic: player.magic,
         skills: player.skills,
@@ -508,11 +577,6 @@ function enterNextDungeonStage() {
     if (hasCrossedPointOfNoReturn(player.progress)) MetaRPG.clearRunSnapshot(player.metaSlotId);
     syncPlayerCampaignState();
     writeLog(`[전진] ${formatDungeonPosition(player.progress)} 진입${hasCrossedPointOfNoReturn(player.progress) ? ' · 복귀 불가' : ''}`);
-    if (current.stage % 5 === 0 && typeof openShop === 'function') {
-        enemy = null;
-        openShop();
-        return;
-    }
     spawnEnemy();
 }
 
@@ -525,9 +589,13 @@ function winBattle() {
         isBoss: dungeonStage === STAGES_PER_FLOOR,
     });
     gold = Math.max(0, safeNum(gold, 0)) + reward;
+    player.runWins = Math.max(0, safeNum(player.runWins, 0)) + 1;
     if (typeof totalGoldEarned !== 'undefined') totalGoldEarned = Math.max(0, safeNum(totalGoldEarned, 0)) + reward;
     writeLog(`[승리] ${formatDungeonPosition({ floor, stage: dungeonStage })} 전투 종료 · ${reward}G 획득`);
-    setCurrentHp(player, Math.min(getEffectiveMaxHp(), player.curHp + Math.max(1, Math.floor(getEffectiveMaxHp() * 0.08))));
+    getLivingPartyMembers(player).forEach((member) => {
+        setCurrentHp(member, member.curHp + Math.max(1, Math.floor(member.maxHp * 0.08)));
+    });
+    syncPartyAggregateState(player);
     syncPlayerCampaignState();
     const continueForward = () => enterNextDungeonStage();
     if (typeof showVictoryRewardAndAwaitContinue === 'function') {
@@ -545,6 +613,7 @@ function gameOver() {
     setCombatProcessing(false);
     ensureHumanRuntimeShape(player);
     player.curHp = 0;
+    player.party = getPartyMembers(player).map((member) => ({ ...member, hp: member.curHp }));
     player.progress = normalizeDungeonProgress({ floor, stage: dungeonStage });
     player.behaviorMatrix = isBehaviorLearningZone(player.progress)
         ? buildBehaviorProbabilityMatrix(player.behaviorLogger)
@@ -578,18 +647,25 @@ function dungeonClear() {
 }
 
 function buildRuntimePlayerFromSlot(slot) {
-    const stats = normalizeHumanStats(slot.stats);
-    const maxHp = Math.max(1, safeNum(slot.maxHp, 50 + stats.hp * 5));
+    const party = normalizeAdventurerParty(slot.party).map((member) =>
+        ensurePartyMemberRuntimeShape({
+            ...member,
+            curHp: member.hp,
+            maxHp: member.maxHp,
+        })
+    );
+    const stats = party[0].stats;
     return ensureHumanRuntimeShape({
         id: slot.id,
         metaSlotId: slot.id,
         name: slot.name,
         color: '#d8d8d8',
+        party,
         stats,
-        curHp: Math.min(maxHp, Math.max(1, safeNum(slot.hp, maxHp))),
-        maxHp,
-        atk: stats.str,
-        def: stats.def,
+        curHp: party.reduce((sum, member) => sum + member.curHp, 0),
+        maxHp: party.reduce((sum, member) => sum + member.maxHp, 0),
+        atk: party.reduce((sum, member) => sum + member.stats.str, 0),
+        def: Math.round(party.reduce((sum, member) => sum + member.stats.def, 0) / party.length),
         int: stats.int,
         wis: stats.wis,
         agi: stats.agi,
@@ -606,8 +682,10 @@ function buildRuntimePlayerFromSlot(slot) {
         relics: JSON.parse(JSON.stringify(slot.relics || [])),
         behaviorLogger: JSON.parse(JSON.stringify(slot.behaviorLogger || [])),
         behaviorMatrix: slot.behaviorMatrix ? JSON.parse(JSON.stringify(slot.behaviorMatrix)) : null,
+        permanentBonus: JSON.parse(JSON.stringify(slot.techBonus || {})),
         potions: 0,
-        baseJob: '인간 모험가',
+        runWins: Math.max(0, safeNum(slot.runWins, 0)),
+        baseJob: '3인 파티',
         jobKey: HUMAN_JOB_KEY,
         classKey: null,
         runLevel: 1,
@@ -624,11 +702,13 @@ function initHumanRunFromActiveSlot() {
     const meta = MetaRPG.loadMeta();
     const slot = meta.slots.find((entry) => entry.id === meta.activeSlotId);
     if (!slot || slot.permanentDeath) return false;
+    MetaRPG.recalcTechBonus(slot);
+    MetaRPG.saveMeta(meta);
     player = buildRuntimePlayerFromSlot(slot);
     fullResyncPlayerCombatStatsFromMetaAndInventory();
     floor = player.progress.floor;
     dungeonStage = player.progress.stage;
-    gold = 0;
+    gold = Math.max(0, safeNum(slot.gold, 0));
     combatTurnNumber = 1;
     playerTurnSpent = false;
     playerGuardState = null;
@@ -638,8 +718,9 @@ function initHumanRunFromActiveSlot() {
     document.getElementById('battle-area').style.display = 'block';
     if (typeof enterBattleLayout === 'function') enterBattleLayout();
     writeLog(
-        `[생성] 인간 모험가 주사위 — 힘 ${player.stats.str}, 방어 ${player.stats.def}, 체력 ${player.stats.hp}, ` +
-        `지능 ${player.stats.int}, 지혜 ${player.stats.wis}, 민첩 ${player.stats.agi}, 성혼 0, 뒤틀림 0`
+        `[원정대] ${player.party.map((member) =>
+            `${member.name}(힘 ${member.stats.str}/방 ${member.stats.def}/체 ${member.stats.hp}/지 ${member.stats.int}/지혜 ${member.stats.wis}/민 ${member.stats.agi})`
+        ).join(' · ')}`
     );
     spawnEnemy();
     return true;
@@ -647,13 +728,7 @@ function initHumanRunFromActiveSlot() {
 
 // 기존 DOM 이벤트가 호출하는 이름을 유지하되 직업 인수는 무시한다.
 window.confirmNewCharacter = function confirmNewCharacter() {
-    const name = prompt('캐릭터 이름을 입력하세요 (비우면 인간 모험가):', '인간 모험가');
-    const result = MetaRPG.createCharacter(name || '인간 모험가');
-    if (!result.ok) {
-        alert(result.msg || '생성 실패');
-        return;
-    }
-    initHumanRunFromActiveSlot();
+    if (typeof confirmPartyAdventure === 'function') confirmPartyAdventure();
 };
 
 window.initRunFromMetaSlot = function initRunFromMetaSlot() {
@@ -671,32 +746,72 @@ if (typeof loadRunFromMetaSnapshot === 'function') {
     };
 }
 
-window.saveAndExitToMain = function saveAndExitToMain() {
-    if (!player || !player.metaSlotId) return;
+window.returnPartyToTown = function returnPartyToTown() {
+    if (!player || !player.metaSlotId || player.inTown) return;
     const progress = normalizeDungeonProgress({ floor, stage: dungeonStage });
     if (!canReturnToBaseCamp(progress)) {
-        writeLog(`[복귀 불가] ${formatDungeonPosition(progress)}부터는 베이스캠프로 돌아갈 수 없습니다.`);
+        writeLog(`[복귀 불가] ${formatDungeonPosition(progress)}부터는 마을로 돌아갈 수 없습니다.`);
         return;
     }
+    if (safeNum(player.runWins, 0) < 1) {
+        writeLog('[복귀 불가] 이번 회차에서 전투를 최소 1회 승리해야 마을로 돌아갈 수 있습니다.');
+        return;
+    }
+    getPartyMembers(player).forEach((member) => setCurrentHp(member, member.maxHp));
+    syncPartyAggregateState(player);
+    player.inTown = true;
     syncPlayerCampaignState();
-    const payload = typeof serializeRunState === 'function' ? serializeRunState() : { player, floor, dungeonStage };
-    MetaRPG.setRunSnapshot(player.metaSlotId, payload);
     if (typeof exitBattleLayout === 'function') exitBattleLayout();
-    document.getElementById('battle-area').style.display = 'none';
-    player = null;
     enemy = null;
-    if (typeof showPreGameScreen === 'function') showPreGameScreen();
+    writeLog('[마을] 원정대가 귀환했습니다. 장비 구매와 영구 강화를 정비할 수 있습니다.');
+    openShop();
 };
 
-window.exitToMainWithoutSave = function exitToMainWithoutSave() {
-    if (!player) return;
-    const progress = normalizeDungeonProgress({ floor, stage: dungeonStage });
-    if (!canReturnToBaseCamp(progress)) {
-        writeLog(`[복귀 불가] ${formatDungeonPosition(progress)}부터는 오직 전진만 가능합니다.`);
-        return;
-    }
-    window.saveAndExitToMain();
+window.enterDungeonFromTown = function enterDungeonFromTown() {
+    if (!player || !player.inTown) return;
+    floor = 1;
+    dungeonStage = 1;
+    player.progress = { floor: 1, stage: 1 };
+    player.runWins = 0;
+    player.inTown = false;
+    combatTurnNumber = 1;
+    playerTurnSpent = false;
+    playerGuardState = null;
+    enemyGuardState = null;
+    syncPlayerCampaignState();
+    const shopArea = document.getElementById('shop-area');
+    const battleArea = document.getElementById('battle-area');
+    if (shopArea) shopArea.style.display = 'none';
+    if (battleArea) battleArea.style.display = 'block';
+    if (typeof enterBattleLayout === 'function') enterBattleLayout();
+    writeLog('[출정] 장비·골드·영구 강화 유지 · 미궁 진행도 1-1층 초기화');
+    spawnEnemy();
 };
+
+window.openPartyTownFromHub = function openPartyTownFromHub(slotId) {
+    if (!MetaRPG.setActiveSlot(slotId)) return;
+    const meta = MetaRPG.loadMeta();
+    const slot = meta.slots.find((entry) => entry.id === slotId);
+    if (!slot || slot.permanentDeath) return;
+    MetaRPG.recalcTechBonus(slot);
+    MetaRPG.saveMeta(meta);
+    player = buildRuntimePlayerFromSlot(slot);
+    fullResyncPlayerCombatStatsFromMetaAndInventory();
+    gold = Math.max(0, safeNum(slot.gold, 0));
+    floor = player.progress.floor;
+    dungeonStage = player.progress.stage;
+    player.inTown = true;
+    enemy = null;
+    const startArea = document.getElementById('start-area');
+    const battleArea = document.getElementById('battle-area');
+    if (startArea) startArea.style.display = 'none';
+    if (battleArea) battleArea.style.display = 'none';
+    if (typeof exitBattleLayout === 'function') exitBattleLayout();
+    openShop();
+};
+
+window.saveAndExitToMain = window.returnPartyToTown;
+window.exitToMainWithoutSave = window.returnPartyToTown;
 
 function installHumanActionButtons() {
     const originalRenderActions = typeof renderActions === 'function' ? renderActions : null;
@@ -708,8 +823,8 @@ function installHumanActionButtons() {
         const buttons = Array.from(host.querySelectorAll('button'));
         const defense = buttons.find((button) => !button.onclick && button !== buttons[0]);
         if (defense) {
-            defense.innerText = player.stats.agi >= 45 ? '💨 회피' : '🛡️ 방어';
-            defense.onclick = () => useAction(player.stats.agi >= 45 ? '회피' : '방패방어');
+            defense.innerText = '🛡️ 파티 방어';
+            defense.onclick = () => useAction('방패방어');
         }
         if (!host.querySelector('[data-v35-heal]')) {
             const heal = document.createElement('button');
@@ -741,14 +856,18 @@ function installDungeonProgressUiAdapter() {
             if (element) element.innerText = position;
         });
         const progress = normalizeDungeonProgress({ floor, stage: dungeonStage });
-        const canReturn = canReturnToBaseCamp(progress);
-        ['battle-save-main-btn', 'battle-exit-main-btn'].forEach((id) => {
+        const canReturn = canReturnToBaseCamp(progress) && safeNum(player && player.runWins, 0) >= 1;
+        ['battle-save-main-btn', 'battle-exit-main-btn'].forEach((id, index) => {
             const button = document.getElementById(id);
             if (!button) return;
+            button.innerText = index === 0 ? '🏠 마을로 복귀' : '마을 귀환';
+            button.onclick = () => returnPartyToTown();
             button.disabled = !canReturn;
             button.title = canReturn
-                ? `${formatDungeonPosition(progress)}: 베이스캠프 복귀 가능`
-                : `${formatDungeonPosition(progress)}: 6-1층 진입 후 복귀 불가`;
+                ? `${formatDungeonPosition(progress)}: 마을 복귀 가능`
+                : hasCrossedPointOfNoReturn(progress)
+                  ? `${formatDungeonPosition(progress)}: 6-1층 진입 후 복귀 불가`
+                  : '이번 회차에서 전투를 1회 이상 승리해야 복귀할 수 있습니다.';
         });
     };
     wrapped.__v35ProgressWrapped = true;
@@ -764,6 +883,7 @@ Object.assign(window, {
     probabilityRoll,
     calculateAttackChance,
     calculatePhysicalDamage,
+    chooseEnemyPartyTarget,
     enemyTurn,
     winBattle,
     gameOver,
@@ -771,6 +891,9 @@ Object.assign(window, {
     syncPlayerCampaignState,
     enterNextDungeonStage,
     initHumanRunFromActiveSlot,
+    returnPartyToTown: window.returnPartyToTown,
+    enterDungeonFromTown: window.enterDungeonFromTown,
+    openPartyTownFromHub: window.openPartyTownFromHub,
     isMercenaryCaptainJob,
     getAffinityRelKey,
     getMercGoldSkipCost,

@@ -45,19 +45,23 @@
 
     function normalizeSlot(slot) {
         if (!slot || typeof slot !== 'object') return null;
-        const stats = slot.stats ? normalizeHumanStats(slot.stats) : rollHumanStartingStats();
-        const maxHp = Math.max(1, Number(slot.maxHp) || (50 + stats.hp * 5));
+        const legacyParty = slot.party || (slot.stats ? [{ roleKey: 'tank', name: '탱커', stats: slot.stats }] : null);
+        const party = normalizeAdventurerParty(legacyParty || rollPartyStartingStats());
+        const stats = party[0].stats;
+        const maxHp = party.reduce((sum, member) => sum + member.maxHp, 0);
+        const currentHp = party.reduce((sum, member) => sum + member.hp, 0);
         return {
-            id: slot.id || `human-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
-            name: slot.name || '인간 모험가',
+            id: slot.id || `party-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+            name: slot.name || '성혼 원정대',
             species: 'human',
             jobKey: HUMAN_JOB_KEY,
             classKey: null,
-            baseJob: '인간 모험가',
+            baseJob: '3인 파티',
             originBaseJobKey: HUMAN_JOB_KEY,
             introWeaponKey: null,
+            party,
             stats,
-            hp: Math.min(maxHp, Math.max(0, Number(slot.hp == null ? maxHp : slot.hp) || 0)),
+            hp: Math.min(maxHp, Math.max(0, Number(slot.hp == null ? currentHp : slot.hp) || 0)),
             maxHp,
             progress: normalizeDungeonProgress(slot.progress),
             permanentDeath: !!slot.permanentDeath,
@@ -74,12 +78,15 @@
             relics: clone(slot.relics || []),
             behaviorLogger: clone(slot.behaviorLogger || []),
             behaviorMatrix: clone(slot.behaviorMatrix || null),
+            gold: Math.max(0, Number(slot.gold) || 0),
+            runWins: Math.max(0, Math.floor(Number(slot.runWins) || 0)),
             level: 1,
             exp: 0,
             bestFloor: Math.max(1, Number(slot.bestFloor) || 1),
             bestStage: Math.max(1, Number(slot.bestStage) || 1),
-            techBonus: { hp: 0, atk: 0, def: 0, acc: 0, crit: 0, critMult: 0 },
-            campPerma: { hp: 0, atk: 0, def: 0, crit: 0, cm: 0 },
+            techBonus: clone(slot.techBonus || { hp: 0, atk: 0, def: 0, acc: 0, crit: 0, critMult: 0 }),
+            campPerma: clone(slot.campPerma || { hp: 0, atk: 0, def: 0, crit: 0, cm: 0 }),
+            campApplied: clone(slot.campApplied || { hp: 0, atk: 0, def: 0 }),
             rebirthStatBonus: { hp: 0, atk: 0, def: 0, acc: 0 },
             rebirthPctBonus: { atkPct: 0, defPct: 0, critMultPct: 0 },
             floorGrowth: { floors: 0, atk: 0, hp: 0 },
@@ -123,18 +130,18 @@
         return loadMeta().slots.find((slot) => slot.id === id) || null;
     }
 
-    function createCharacter(name) {
+    function createCharacter(name, partyRoll) {
         const meta = loadMeta();
         if (meta.slots.some((slot) => !slot.permanentDeath)) {
-            return { ok: false, msg: '살아 있는 인간 모험가는 한 명만 존재할 수 있습니다.' };
+            return { ok: false, msg: '살아 있는 원정대는 하나만 존재할 수 있습니다.' };
         }
-        const actor = createHumanAdventurer({ name: name || '인간 모험가' });
+        const actor = createHumanAdventurer({ name: name || '성혼 원정대', party: partyRoll });
         const slot = normalizeSlot(actor);
         meta.slots.push(slot);
         meta.activeSlotId = slot.id;
         saveMeta(meta);
         clearRunSnapshot(slot.id);
-        return { ok: true, slot: clone(slot), rolledStats: clone(slot.stats) };
+        return { ok: true, slot: clone(slot), rolledParty: clone(slot.party) };
     }
 
     function setActiveSlot(id) {
@@ -152,9 +159,12 @@
         if (!slot || slot.permanentDeath) return false;
         const source = patch || {};
         if (source.stats) slot.stats = normalizeHumanStats(source.stats);
+        if (source.party) slot.party = normalizeAdventurerParty(source.party);
         if (source.progress) slot.progress = normalizeDungeonProgress(source.progress);
         if (source.hp != null) slot.hp = Math.max(0, Number(source.hp) || 0);
         if (source.maxHp != null) slot.maxHp = Math.max(1, Number(source.maxHp) || 1);
+        if (source.gold != null) slot.gold = Math.max(0, Number(source.gold) || 0);
+        if (source.runWins != null) slot.runWins = Math.max(0, Math.floor(Number(source.runWins) || 0));
         for (const key of ['equipment', 'magic', 'skills', 'mastery', 'statuses', 'body', 'items', 'relics', 'behaviorLogger', 'behaviorMatrix']) {
             if (source[key] != null) slot[key] = clone(source[key]);
         }
@@ -239,6 +249,7 @@
             ...clone(actor || {}),
             id: slot.id,
             stats: normalizeHumanStats((actor && actor.stats) || slot.stats),
+            party: normalizeAdventurerParty((actor && actor.party) || slot.party),
             progress: normalizeDungeonProgress(progress || (actor && actor.progress) || slot.progress),
         };
         const ghost = archiveGhost(fullActor, fullActor.progress, killedBy);
@@ -249,6 +260,7 @@
         slot.ghostId = ghost.ghostId;
         slot.progress = normalizeDungeonProgress(fullActor.progress);
         slot.stats = clone(fullActor.stats);
+        slot.party = clone(fullActor.party);
         slot.equipment = clone(fullActor.equipment || slot.equipment);
         slot.magic = clone(fullActor.magic || slot.magic);
         slot.skills = clone(fullActor.skills || slot.skills);
@@ -317,6 +329,50 @@
         return canReturnToBaseCamp(progress);
     }
 
+    function recalcTechBonus(slot) {
+        if (!slot) return null;
+        slot.party = normalizeAdventurerParty(slot.party);
+        slot.campPerma = slot.campPerma || { hp: 0, atk: 0, def: 0, crit: 0, cm: 0 };
+        slot.campApplied = slot.campApplied || { hp: 0, atk: 0, def: 0 };
+        const pending = {
+            hp: Math.max(0, (slot.campPerma.hp || 0) - (slot.campApplied.hp || 0)),
+            atk: Math.max(0, (slot.campPerma.atk || 0) - (slot.campApplied.atk || 0)),
+            def: Math.max(0, (slot.campPerma.def || 0) - (slot.campApplied.def || 0)),
+        };
+        slot.party.forEach((member) => {
+            const oldMaxHp = member.maxHp;
+            member.stats.hp = Math.min(100, member.stats.hp + pending.hp);
+            member.stats.str = Math.min(100, member.stats.str + pending.atk);
+            member.stats.def = Math.min(100, member.stats.def + pending.def);
+            member.maxHp = getMaxHpFromStat(member.stats.hp);
+            member.hp = Math.min(member.maxHp, Math.max(0, member.hp + Math.max(0, member.maxHp - oldMaxHp)));
+        });
+        slot.campApplied = {
+            hp: Math.max(0, slot.campPerma.hp || 0),
+            atk: Math.max(0, slot.campPerma.atk || 0),
+            def: Math.max(0, slot.campPerma.def || 0),
+        };
+        slot.stats = clone(slot.party[0].stats);
+        slot.maxHp = slot.party.reduce((sum, member) => sum + member.maxHp, 0);
+        slot.hp = slot.party.reduce((sum, member) => sum + member.hp, 0);
+        slot.techBonus = {
+            hp: (slot.campPerma.hp || 0) * 5,
+            atk: slot.campPerma.atk || 0,
+            def: slot.campPerma.def || 0,
+            acc: 0,
+            crit: slot.campPerma.crit || 0,
+            critMult: (slot.campPerma.cm || 0) * 0.1,
+        };
+        return slot.techBonus;
+    }
+
+    function getCampStatGrowthBonus(slot, key, level) {
+        const lv = Math.max(0, Math.floor(Number(level == null ? slot && slot.campPerma && slot.campPerma[key] : level) || 0));
+        if (key === 'hp') return lv * 5;
+        if (key === 'atk' || key === 'def') return lv;
+        return 0;
+    }
+
     function getActiveFileIndex() {
         const value = Number(localStorage.getItem(ACTIVE_FILE_KEY));
         return Number.isInteger(value) && value >= 0 && value < SAVE_SLOT_COUNT ? value : 0;
@@ -362,11 +418,8 @@
         getSaveFileSlotCount: () => SAVE_SLOT_COUNT,
         peekMetaAtFileIndex: () => loadMeta(),
         slotFileKey: () => STORAGE_KEY,
-        recalcTechBonus(slot) {
-            if (slot) slot.techBonus = { hp: 0, atk: 0, def: 0, acc: 0, crit: 0, critMult: 0 };
-            return slot && slot.techBonus;
-        },
-        getCampStatGrowthBonus: () => 0,
+        recalcTechBonus,
+        getCampStatGrowthBonus,
         getTechNodesForSlot: () => [],
         canPurchaseNode: () => false,
         purchaseTechNode: () => ({ ok: false }),
@@ -401,8 +454,11 @@
             clearRunSnapshot(id);
             return true;
         },
-        addSavedGold() {
-            return 0;
+        addSavedGold(amount) {
+            const meta = loadMeta();
+            meta.savedGold = Math.max(0, meta.savedGold + Math.max(0, Number(amount) || 0));
+            saveMeta(meta);
+            return meta.savedGold;
         },
         migrateLegacyOnce: () => false,
     };

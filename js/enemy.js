@@ -26,9 +26,12 @@ function buildEnemyStatsForFloor(floorRef, isBoss, stageRef) {
     const originalHp = Math.max(1, Math.floor((44 + effectiveFloor * 4.5) * hpScale * boss.hp * wave));
     const originalAtk = Math.max(1, Math.floor((6 + effectiveFloor * 0.55) * atkScale * boss.atk * wave));
     const originalDef = Math.max(0, Math.floor((1 + effectiveFloor * 0.22) * defScale * boss.def));
+    const earlyPartyZone = majorFloor <= 5;
+    const partyHpScale = earlyPartyZone ? 2.25 : 1;
+    const partyAtkScale = earlyPartyZone ? 1.75 : 1;
     return {
-        hp: Math.max(1, Math.floor(originalHp * 0.75)),
-        atk: Math.max(1, Math.floor(originalAtk * 0.75)),
+        hp: Math.max(1, Math.floor(originalHp * 0.75 * partyHpScale)),
+        atk: Math.max(1, Math.floor(originalAtk * 0.75 * partyAtkScale)),
         def: originalDef,
         originalHp,
         originalAtk,

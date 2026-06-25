@@ -10275,6 +10275,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RESTORED_I
 
 const RULESET_VERSION = '3.5';
 const HUMAN_JOB_KEY = 'Human';
+const PARTY_ROLE_KEYS = Object.freeze(['tank', 'mage', 'knight']);
+const PARTY_ROLE_DEFINITIONS = Object.freeze({
+    tank: Object.freeze({ key: 'tank', name: '탱커', aggroWeight: 7, archetype: 'warrior' }),
+    mage: Object.freeze({ key: 'mage', name: '마법사', aggroWeight: 1, archetype: 'mage' }),
+    knight: Object.freeze({ key: 'knight', name: '기사', aggroWeight: 2.5, archetype: 'warrior' }),
+});
 const MAX_DUNGEON_FLOOR = 100;
 const STAGES_PER_FLOOR = 10;
 const LAST_SAFE_RETURN_FLOOR = 5;
@@ -10409,6 +10415,14 @@ function rollHumanStartingStats(random) {
     };
 }
 
+function rollPartyStartingStats(random) {
+    return PARTY_ROLE_KEYS.map((roleKey) => ({
+        roleKey,
+        name: PARTY_ROLE_DEFINITIONS[roleKey].name,
+        stats: rollHumanStartingStats(random),
+    }));
+}
+
 function normalizeHumanStats(raw) {
     const source = raw || {};
     return {
@@ -10425,6 +10439,44 @@ function normalizeHumanStats(raw) {
 
 function getMaxHpFromStat(hpStat) {
     return 50 + clamp(hpStat, 1, 100) * 5;
+}
+
+function normalizePartyMember(raw, roleKey) {
+    const role = PARTY_ROLE_DEFINITIONS[roleKey] || PARTY_ROLE_DEFINITIONS.knight;
+    const source = raw || {};
+    const stats = normalizeHumanStats(source.stats || source);
+    const maxHp = Math.max(1, safeNumber(source.maxHp, getMaxHpFromStat(stats.hp)));
+    return {
+        id: source.id || `${role.key}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+        roleKey: role.key,
+        name: source.name || role.name,
+        archetype: role.archetype,
+        aggroWeight: role.aggroWeight,
+        stats,
+        hp: clamp(source.hp == null ? maxHp : source.hp, 0, maxHp),
+        maxHp,
+        equipment: JSON.parse(JSON.stringify(source.equipment || { weapon: null, armor: null, accessories: [] })),
+        magic: Array.isArray(source.magic) ? source.magic.slice() : role.key === 'mage' ? ['fire', 'heal'] : [],
+        mastery: source.mastery && typeof source.mastery === 'object' ? JSON.parse(JSON.stringify(source.mastery)) : {},
+        statuses: Array.isArray(source.statuses) ? JSON.parse(JSON.stringify(source.statuses)) : [],
+        body: source.body && typeof source.body === 'object'
+            ? JSON.parse(JSON.stringify(source.body))
+            : Object.fromEntries(bodyParts.map((part) => [part, { destroyed: false, twisted: false, indestructible: false }])),
+    };
+}
+
+function normalizeAdventurerParty(rawParty) {
+    const source = Array.isArray(rawParty) ? rawParty : [];
+    return PARTY_ROLE_KEYS.map((roleKey, index) => {
+        const matched = source.find((member) => member && member.roleKey === roleKey) || source[index];
+        return normalizePartyMember(matched || { stats: rollHumanStartingStats() }, roleKey);
+    });
+}
+
+function createAdventurerParty(options) {
+    const input = options || {};
+    const rolled = Array.isArray(input.party) ? input.party : rollPartyStartingStats(input.random);
+    return normalizeAdventurerParty(rolled);
 }
 
 function createDungeonProgress(floor, stage) {
@@ -10469,17 +10521,19 @@ function hasCrossedPointOfNoReturn(progress) {
 
 function createHumanAdventurer(options) {
     const input = options || {};
-    const stats = input.stats ? normalizeHumanStats(input.stats) : rollHumanStartingStats(input.random);
-    const maxHp = getMaxHpFromStat(stats.hp);
+    const party = createAdventurerParty({ party: input.party, random: input.random });
+    const stats = party[0].stats;
+    const maxHp = party.reduce((sum, member) => sum + member.maxHp, 0);
     return {
-        id: input.id || `human-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
-        name: input.name || '인간 모험가',
+        id: input.id || `party-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+        name: input.name || '성혼 원정대',
         species: 'human',
         jobKey: HUMAN_JOB_KEY,
         classKey: null,
-        baseJob: '인간 모험가',
+        baseJob: '3인 파티',
+        party,
         stats,
-        hp: clamp(input.hp == null ? maxHp : input.hp, 0, maxHp),
+        hp: party.reduce((sum, member) => sum + member.hp, 0),
         maxHp,
         progress: normalizeDungeonProgress(input.progress),
         permanentDeath: false,
@@ -10554,7 +10608,7 @@ function capProbability(value) {
  * 기존 DOM 렌더러 호환 계약. 직업 선택지는 하나뿐이며 스토리/전직 데이터는 비어 있다.
  */
 const jobBase = Object.freeze({
-    Human: Object.freeze({ name: '인간 모험가', hp: 50, atk: 1, def: 1, color: '#d8d8d8' }),
+    Human: Object.freeze({ name: '3인 원정대', hp: 150, atk: 3, def: 3, color: '#d8d8d8' }),
 });
 const jobEvolutions = Object.freeze({});
 const relations = Object.freeze({});
@@ -10590,7 +10644,7 @@ const permanentUpgrades = JSON.parse(JSON.stringify(RESTORED_ITEMS.permanentUpgr
 const floorUnlocks = JSON.parse(JSON.stringify(RESTORED_ITEMS.floorUnlocks || {}));
 const floorUnlocksHunter = JSON.parse(JSON.stringify(RESTORED_ITEMS.floorUnlocksHunter || {}));
 const floorUnlocksWizard = JSON.parse(JSON.stringify(RESTORED_ITEMS.floorUnlocksWizard || {}));
-const synergyRules = JSON.parse(JSON.stringify(RESTORED_ITEMS.synergyRules || []));
+const synergyRules = Object.freeze([]);
 const ultSkills = {};
 const mercCompanionBases = {};
 const mercEvolutions = {};
@@ -10623,7 +10677,7 @@ function computeEquipmentGoldPrice(item, floorRef) {
 }
 function computeFloorGoldReward(floorRef, options) {
     const depth = Math.max(1, Number(floorRef) || 1);
-    return Math.max(1, Math.floor((10 + depth * 2) * 3.5 * (options && options.isBoss ? 2.4 : 1)));
+    return Math.max(1, Math.floor((10 + depth * 2) * 1.6 * (options && options.isBoss ? 2.2 : 1)));
 }
 function applyOfficialStatsToEquipmentItem(item) {
     if (item && !item._v35PowerBuffApplied && item.type !== 'relic' && item.type !== 'potion') {
@@ -10717,13 +10771,19 @@ if (typeof globalThis !== 'undefined') {
     Object.assign(globalThis, {
         RULESET_VERSION,
         HUMAN_JOB_KEY,
+        PARTY_ROLE_KEYS,
+        PARTY_ROLE_DEFINITIONS,
         MAX_DUNGEON_FLOOR,
         STAGES_PER_FLOOR,
         LAST_SAFE_RETURN_FLOOR,
         LAST_SAFE_RETURN_STAGE,
         TURN_RPG_DATA,
         rollHumanStartingStats,
+        rollPartyStartingStats,
         normalizeHumanStats,
+        normalizePartyMember,
+        normalizeAdventurerParty,
+        createAdventurerParty,
         createHumanAdventurer,
         createDungeonProgress,
         normalizeDungeonProgress,
@@ -10742,6 +10802,8 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         RULESET_VERSION,
         HUMAN_JOB_KEY,
+        PARTY_ROLE_KEYS,
+        PARTY_ROLE_DEFINITIONS,
         MAX_DUNGEON_FLOOR,
         STAGES_PER_FLOOR,
         LAST_SAFE_RETURN_FLOOR,
@@ -10754,7 +10816,11 @@ if (typeof module !== 'undefined' && module.exports) {
         magicTable,
         monsterArchetypeTable,
         rollHumanStartingStats,
+        rollPartyStartingStats,
         normalizeHumanStats,
+        normalizePartyMember,
+        normalizeAdventurerParty,
+        createAdventurerParty,
         getMaxHpFromStat,
         createHumanAdventurer,
         createDungeonProgress,
@@ -10818,19 +10884,23 @@ if (typeof module !== 'undefined' && module.exports) {
 
     function normalizeSlot(slot) {
         if (!slot || typeof slot !== 'object') return null;
-        const stats = slot.stats ? normalizeHumanStats(slot.stats) : rollHumanStartingStats();
-        const maxHp = Math.max(1, Number(slot.maxHp) || (50 + stats.hp * 5));
+        const legacyParty = slot.party || (slot.stats ? [{ roleKey: 'tank', name: '탱커', stats: slot.stats }] : null);
+        const party = normalizeAdventurerParty(legacyParty || rollPartyStartingStats());
+        const stats = party[0].stats;
+        const maxHp = party.reduce((sum, member) => sum + member.maxHp, 0);
+        const currentHp = party.reduce((sum, member) => sum + member.hp, 0);
         return {
-            id: slot.id || `human-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
-            name: slot.name || '인간 모험가',
+            id: slot.id || `party-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+            name: slot.name || '성혼 원정대',
             species: 'human',
             jobKey: HUMAN_JOB_KEY,
             classKey: null,
-            baseJob: '인간 모험가',
+            baseJob: '3인 파티',
             originBaseJobKey: HUMAN_JOB_KEY,
             introWeaponKey: null,
+            party,
             stats,
-            hp: Math.min(maxHp, Math.max(0, Number(slot.hp == null ? maxHp : slot.hp) || 0)),
+            hp: Math.min(maxHp, Math.max(0, Number(slot.hp == null ? currentHp : slot.hp) || 0)),
             maxHp,
             progress: normalizeDungeonProgress(slot.progress),
             permanentDeath: !!slot.permanentDeath,
@@ -10847,12 +10917,15 @@ if (typeof module !== 'undefined' && module.exports) {
             relics: clone(slot.relics || []),
             behaviorLogger: clone(slot.behaviorLogger || []),
             behaviorMatrix: clone(slot.behaviorMatrix || null),
+            gold: Math.max(0, Number(slot.gold) || 0),
+            runWins: Math.max(0, Math.floor(Number(slot.runWins) || 0)),
             level: 1,
             exp: 0,
             bestFloor: Math.max(1, Number(slot.bestFloor) || 1),
             bestStage: Math.max(1, Number(slot.bestStage) || 1),
-            techBonus: { hp: 0, atk: 0, def: 0, acc: 0, crit: 0, critMult: 0 },
-            campPerma: { hp: 0, atk: 0, def: 0, crit: 0, cm: 0 },
+            techBonus: clone(slot.techBonus || { hp: 0, atk: 0, def: 0, acc: 0, crit: 0, critMult: 0 }),
+            campPerma: clone(slot.campPerma || { hp: 0, atk: 0, def: 0, crit: 0, cm: 0 }),
+            campApplied: clone(slot.campApplied || { hp: 0, atk: 0, def: 0 }),
             rebirthStatBonus: { hp: 0, atk: 0, def: 0, acc: 0 },
             rebirthPctBonus: { atkPct: 0, defPct: 0, critMultPct: 0 },
             floorGrowth: { floors: 0, atk: 0, hp: 0 },
@@ -10896,18 +10969,18 @@ if (typeof module !== 'undefined' && module.exports) {
         return loadMeta().slots.find((slot) => slot.id === id) || null;
     }
 
-    function createCharacter(name) {
+    function createCharacter(name, partyRoll) {
         const meta = loadMeta();
         if (meta.slots.some((slot) => !slot.permanentDeath)) {
-            return { ok: false, msg: '살아 있는 인간 모험가는 한 명만 존재할 수 있습니다.' };
+            return { ok: false, msg: '살아 있는 원정대는 하나만 존재할 수 있습니다.' };
         }
-        const actor = createHumanAdventurer({ name: name || '인간 모험가' });
+        const actor = createHumanAdventurer({ name: name || '성혼 원정대', party: partyRoll });
         const slot = normalizeSlot(actor);
         meta.slots.push(slot);
         meta.activeSlotId = slot.id;
         saveMeta(meta);
         clearRunSnapshot(slot.id);
-        return { ok: true, slot: clone(slot), rolledStats: clone(slot.stats) };
+        return { ok: true, slot: clone(slot), rolledParty: clone(slot.party) };
     }
 
     function setActiveSlot(id) {
@@ -10925,9 +10998,12 @@ if (typeof module !== 'undefined' && module.exports) {
         if (!slot || slot.permanentDeath) return false;
         const source = patch || {};
         if (source.stats) slot.stats = normalizeHumanStats(source.stats);
+        if (source.party) slot.party = normalizeAdventurerParty(source.party);
         if (source.progress) slot.progress = normalizeDungeonProgress(source.progress);
         if (source.hp != null) slot.hp = Math.max(0, Number(source.hp) || 0);
         if (source.maxHp != null) slot.maxHp = Math.max(1, Number(source.maxHp) || 1);
+        if (source.gold != null) slot.gold = Math.max(0, Number(source.gold) || 0);
+        if (source.runWins != null) slot.runWins = Math.max(0, Math.floor(Number(source.runWins) || 0));
         for (const key of ['equipment', 'magic', 'skills', 'mastery', 'statuses', 'body', 'items', 'relics', 'behaviorLogger', 'behaviorMatrix']) {
             if (source[key] != null) slot[key] = clone(source[key]);
         }
@@ -11012,6 +11088,7 @@ if (typeof module !== 'undefined' && module.exports) {
             ...clone(actor || {}),
             id: slot.id,
             stats: normalizeHumanStats((actor && actor.stats) || slot.stats),
+            party: normalizeAdventurerParty((actor && actor.party) || slot.party),
             progress: normalizeDungeonProgress(progress || (actor && actor.progress) || slot.progress),
         };
         const ghost = archiveGhost(fullActor, fullActor.progress, killedBy);
@@ -11022,6 +11099,7 @@ if (typeof module !== 'undefined' && module.exports) {
         slot.ghostId = ghost.ghostId;
         slot.progress = normalizeDungeonProgress(fullActor.progress);
         slot.stats = clone(fullActor.stats);
+        slot.party = clone(fullActor.party);
         slot.equipment = clone(fullActor.equipment || slot.equipment);
         slot.magic = clone(fullActor.magic || slot.magic);
         slot.skills = clone(fullActor.skills || slot.skills);
@@ -11090,6 +11168,50 @@ if (typeof module !== 'undefined' && module.exports) {
         return canReturnToBaseCamp(progress);
     }
 
+    function recalcTechBonus(slot) {
+        if (!slot) return null;
+        slot.party = normalizeAdventurerParty(slot.party);
+        slot.campPerma = slot.campPerma || { hp: 0, atk: 0, def: 0, crit: 0, cm: 0 };
+        slot.campApplied = slot.campApplied || { hp: 0, atk: 0, def: 0 };
+        const pending = {
+            hp: Math.max(0, (slot.campPerma.hp || 0) - (slot.campApplied.hp || 0)),
+            atk: Math.max(0, (slot.campPerma.atk || 0) - (slot.campApplied.atk || 0)),
+            def: Math.max(0, (slot.campPerma.def || 0) - (slot.campApplied.def || 0)),
+        };
+        slot.party.forEach((member) => {
+            const oldMaxHp = member.maxHp;
+            member.stats.hp = Math.min(100, member.stats.hp + pending.hp);
+            member.stats.str = Math.min(100, member.stats.str + pending.atk);
+            member.stats.def = Math.min(100, member.stats.def + pending.def);
+            member.maxHp = getMaxHpFromStat(member.stats.hp);
+            member.hp = Math.min(member.maxHp, Math.max(0, member.hp + Math.max(0, member.maxHp - oldMaxHp)));
+        });
+        slot.campApplied = {
+            hp: Math.max(0, slot.campPerma.hp || 0),
+            atk: Math.max(0, slot.campPerma.atk || 0),
+            def: Math.max(0, slot.campPerma.def || 0),
+        };
+        slot.stats = clone(slot.party[0].stats);
+        slot.maxHp = slot.party.reduce((sum, member) => sum + member.maxHp, 0);
+        slot.hp = slot.party.reduce((sum, member) => sum + member.hp, 0);
+        slot.techBonus = {
+            hp: (slot.campPerma.hp || 0) * 5,
+            atk: slot.campPerma.atk || 0,
+            def: slot.campPerma.def || 0,
+            acc: 0,
+            crit: slot.campPerma.crit || 0,
+            critMult: (slot.campPerma.cm || 0) * 0.1,
+        };
+        return slot.techBonus;
+    }
+
+    function getCampStatGrowthBonus(slot, key, level) {
+        const lv = Math.max(0, Math.floor(Number(level == null ? slot && slot.campPerma && slot.campPerma[key] : level) || 0));
+        if (key === 'hp') return lv * 5;
+        if (key === 'atk' || key === 'def') return lv;
+        return 0;
+    }
+
     function getActiveFileIndex() {
         const value = Number(localStorage.getItem(ACTIVE_FILE_KEY));
         return Number.isInteger(value) && value >= 0 && value < SAVE_SLOT_COUNT ? value : 0;
@@ -11135,11 +11257,8 @@ if (typeof module !== 'undefined' && module.exports) {
         getSaveFileSlotCount: () => SAVE_SLOT_COUNT,
         peekMetaAtFileIndex: () => loadMeta(),
         slotFileKey: () => STORAGE_KEY,
-        recalcTechBonus(slot) {
-            if (slot) slot.techBonus = { hp: 0, atk: 0, def: 0, acc: 0, crit: 0, critMult: 0 };
-            return slot && slot.techBonus;
-        },
-        getCampStatGrowthBonus: () => 0,
+        recalcTechBonus,
+        getCampStatGrowthBonus,
         getTechNodesForSlot: () => [],
         canPurchaseNode: () => false,
         purchaseTechNode: () => ({ ok: false }),
@@ -11174,8 +11293,11 @@ if (typeof module !== 'undefined' && module.exports) {
             clearRunSnapshot(id);
             return true;
         },
-        addSavedGold() {
-            return 0;
+        addSavedGold(amount) {
+            const meta = loadMeta();
+            meta.savedGold = Math.max(0, meta.savedGold + Math.max(0, Number(amount) || 0));
+            saveMeta(meta);
+            return meta.savedGold;
         },
         migrateLegacyOnce: () => false,
     };
@@ -11512,14 +11634,88 @@ window.consumeHunterEvasionMissPenalty = consumeHunterEvasionMissPenalty;
 // ===== js/player.js =====
 'use strict';
 
-// 단일 인간 모험가 런타임 어댑터. 직업/전직/치명타/환생 보정은 사용하지 않는다.
+// 3인 파티 런타임 어댑터. 기존 단일 player DOM 계약은 파티 합산값으로 유지한다.
 function safeNum(value, fallback) {
     const number = Number(value);
     return Number.isFinite(number) ? number : fallback;
 }
 
+function ensurePartyMemberRuntimeShape(member) {
+    if (!member) return member;
+    const role = PARTY_ROLE_DEFINITIONS[member.roleKey] || PARTY_ROLE_DEFINITIONS.knight;
+    member.roleKey = role.key;
+    member.name = member.name || role.name;
+    member.archetype = role.archetype;
+    member.aggroWeight = safeNum(member.aggroWeight, role.aggroWeight);
+    member.stats = normalizeHumanStats(member.stats || {});
+    member.maxHp = Math.max(1, safeNum(member.maxHp, getMaxHpFromStat(member.stats.hp)));
+    member.curHp = Math.min(member.maxHp, Math.max(0, safeNum(member.curHp, member.hp == null ? member.maxHp : member.hp)));
+    member.hp = member.maxHp;
+    member.atk = Math.max(1, safeNum(member.atk, member.stats.str));
+    member.def = Math.max(0, safeNum(member.def, member.stats.def));
+    member.int = member.stats.int;
+    member.wis = member.stats.wis;
+    member.agi = member.stats.agi;
+    member.divinity = member.stats.divinity;
+    member.distortion = member.stats.distortion;
+    member.items = Array.isArray(member.items) ? member.items : [];
+    member.equipment = member.equipment || { weapon: null, armor: null, accessories: [] };
+    member.magic = Array.isArray(member.magic) ? member.magic : role.key === 'mage' ? ['fire', 'heal'] : [];
+    member.mastery = member.mastery && typeof member.mastery === 'object' ? member.mastery : {};
+    member.statuses = Array.isArray(member.statuses) ? member.statuses : [];
+    member.extraDef = Math.max(0, safeNum(member.extraDef, 0));
+    member.damageReduction = Math.max(0, safeNum(member.damageReduction, 0));
+    return member;
+}
+
+function getPartyMembers(actor) {
+    if (!actor || !Array.isArray(actor.party)) return [];
+    return actor.party.map(ensurePartyMemberRuntimeShape);
+}
+
+function getLivingPartyMembers(actor) {
+    return getPartyMembers(actor).filter((member) => member.curHp > 0);
+}
+
+function isPartyMember(actor) {
+    return !!(player && Array.isArray(player.party) && player.party.includes(actor));
+}
+
+function syncPartyAggregateState(actor) {
+    if (!actor || !Array.isArray(actor.party)) return actor;
+    const members = getPartyMembers(actor);
+    actor.maxHp = members.reduce((sum, member) => sum + member.maxHp, 0);
+    actor.curHp = members.reduce((sum, member) => sum + member.curHp, 0);
+    actor.hp = actor.maxHp;
+    actor.atk = members.reduce((sum, member) => sum + member.atk, 0);
+    actor.def = members.length
+        ? Math.round(members.reduce((sum, member) => sum + member.def + member.extraDef, 0) / members.length)
+        : 0;
+    actor.stats = members[0] ? members[0].stats : normalizeHumanStats({});
+    return actor;
+}
+
 function ensureHumanRuntimeShape(actor) {
     if (!actor) return actor;
+    if (Array.isArray(actor.party)) {
+        actor.party = normalizeAdventurerParty(actor.party).map((member, index) => {
+            const source = actor.party[index] || member;
+            return ensurePartyMemberRuntimeShape({ ...member, ...source, stats: normalizeHumanStats(source.stats || member.stats) });
+        });
+        actor.name = actor.name || '성혼 원정대';
+        actor.baseJob = '3인 파티';
+        actor.jobKey = HUMAN_JOB_KEY;
+        actor.items = Array.isArray(actor.items) ? actor.items : [];
+        actor.equipment = actor.equipment || { weapon: null, armor: null, accessories: [] };
+        actor.magic = Array.isArray(actor.magic) ? actor.magic : [];
+        actor.skills = Array.isArray(actor.skills) ? actor.skills : [];
+        actor.mastery = actor.mastery && typeof actor.mastery === 'object' ? actor.mastery : {};
+        actor.statuses = Array.isArray(actor.statuses) ? actor.statuses : [];
+        actor.relics = Array.isArray(actor.relics) ? actor.relics : [];
+        actor.progress = normalizeDungeonProgress(actor.progress || { floor, stage: dungeonStage });
+        syncPartyAggregateState(actor);
+        return actor;
+    }
     actor.stats = normalizeHumanStats(actor.stats || {
         str: actor.atk,
         def: actor.def,
@@ -11562,7 +11758,7 @@ function ensureHumanRuntimeShape(actor) {
 }
 
 function ensurePlayerSynergyBonuses() {
-    if (player) player._syn = { atk: 0, hp: 0, def: 0, acc: 0, crit: 0, critMult: 0, desc: [], progress: [] };
+    if (player) player._syn = null;
     return player && player._syn;
 }
 function getEffectiveMaxHp() {
@@ -11595,6 +11791,56 @@ function applyOwnedEquipmentItemBonuses() { return player; }
 function fullResyncPlayerCombatStatsFromMetaAndInventory() {
     if (!player) return null;
     ensureHumanRuntimeShape(player);
+    if (Array.isArray(player.party)) {
+        const members = getPartyMembers(player);
+        const byRole = Object.fromEntries(members.map((member) => [member.roleKey, member]));
+        members.forEach((member) => {
+            const previousHp = member.curHp;
+            member.items = [];
+            member.atk = member.stats.str;
+            member.def = member.stats.def;
+            member.extraDef = 0;
+            member.maxHp = getMaxHpFromStat(member.stats.hp);
+            member.crit = 0;
+            member.critMult = 1;
+            member.lifesteal = 0;
+            member.damageReduction = 0;
+            member.potionHealBonus = 0;
+            member.curHp = Math.min(member.maxHp, Math.max(0, previousHp));
+        });
+        for (const item of player.items || []) {
+            if (!item) continue;
+            const itemText = `${item.name || ''} ${(item.tags || []).join(' ')}`;
+            const target = item.type === 'hp' || safeNum(item.def, 0) > 0 || safeNum(item.damageReduction, 0) > 0
+                ? byRole.tank
+                : /지팡이|마법|마력|마도|보주|주문|arcane/i.test(itemText)
+                  ? byRole.mage
+                  : byRole.knight;
+            if (!target) continue;
+            target.items.push(item);
+            if (item.type === 'atk' || item.type === 'ring' || item.type === 'rune') target.atk += safeNum(item.value, 0);
+            if (item.type === 'hp') target.maxHp += safeNum(item.value, 0);
+            target.maxHp += safeNum(item.hpBonus, 0);
+            target.extraDef += safeNum(item.def, 0);
+            target.crit += safeNum(item.critBonus, 0);
+            target.critMult += safeNum(item.critMult, 0);
+            target.lifesteal += safeNum(item.lifesteal, 0);
+            target.damageReduction += safeNum(item.damageReduction, 0);
+            target.potionHealBonus += safeNum(item.potionHealBonus, 0);
+            target.curHp = Math.min(target.maxHp, target.curHp);
+        }
+        const permanentBonus = player.permanentBonus || {};
+        player.crit = members.reduce((sum, member) => sum + safeNum(member.crit, 0), 0) + safeNum(permanentBonus.crit, 0);
+        player.critMult = members.length
+            ? members.reduce((sum, member) => sum + safeNum(member.critMult, 1), 0) / members.length
+            : 1;
+        player.critMult += safeNum(permanentBonus.critMult, 0);
+        player.lifesteal = members.reduce((sum, member) => sum + safeNum(member.lifesteal, 0), 0);
+        player.damageReduction = members.reduce((sum, member) => sum + safeNum(member.damageReduction, 0), 0) / Math.max(1, members.length);
+        player.potionHealBonus = Math.max(0, ...members.map((member) => safeNum(member.potionHealBonus, 0)));
+        syncPartyAggregateState(player);
+        return player;
+    }
     const previousHp = player.curHp;
     let attack = player.stats.str;
     let maxHp = 50 + player.stats.hp * 5;
@@ -11657,6 +11903,11 @@ function getPlayerFleeBonus() { return 0; }
 Object.assign(window, {
     safeNum,
     ensureHumanRuntimeShape,
+    ensurePartyMemberRuntimeShape,
+    getPartyMembers,
+    getLivingPartyMembers,
+    isPartyMember,
+    syncPartyAggregateState,
     ensurePlayerSynergyBonuses,
     getEffectiveMaxHp,
     getEffectiveAttackPower,
@@ -11718,9 +11969,12 @@ function buildEnemyStatsForFloor(floorRef, isBoss, stageRef) {
     const originalHp = Math.max(1, Math.floor((44 + effectiveFloor * 4.5) * hpScale * boss.hp * wave));
     const originalAtk = Math.max(1, Math.floor((6 + effectiveFloor * 0.55) * atkScale * boss.atk * wave));
     const originalDef = Math.max(0, Math.floor((1 + effectiveFloor * 0.22) * defScale * boss.def));
+    const earlyPartyZone = majorFloor <= 5;
+    const partyHpScale = earlyPartyZone ? 2.25 : 1;
+    const partyAtkScale = earlyPartyZone ? 1.75 : 1;
     return {
-        hp: Math.max(1, Math.floor(originalHp * 0.75)),
-        atk: Math.max(1, Math.floor(originalAtk * 0.75)),
+        hp: Math.max(1, Math.floor(originalHp * 0.75 * partyHpScale)),
+        atk: Math.max(1, Math.floor(originalAtk * 0.75 * partyAtkScale)),
         def: originalDef,
         originalHp,
         originalAtk,
@@ -11890,6 +12144,27 @@ function getSlotClassDisplayName(slot) {
 
 function syncV35PlayerStatDisplay() {
     if (!player || !player.stats) return;
+    if (Array.isArray(player.party)) {
+        syncPartyAggregateState(player);
+        const members = getPartyMembers(player);
+        const attackElement = document.getElementById('p-atk-val');
+        const defenseElement = document.getElementById('p-def-val');
+        const hpTextElement = document.getElementById('p-hp-t');
+        const statusElement = document.getElementById('p-status');
+        if (attackElement) attackElement.textContent = String(getEffectiveAttackPower());
+        if (defenseElement) defenseElement.textContent = String(getTotalPlayerDefenseForHit());
+        if (hpTextElement) hpTextElement.title = '파티 생존 HP 합계';
+        if (statusElement) {
+            statusElement.innerHTML = members
+                .map((member) =>
+                    `${escapeHtml(member.name)} ${member.curHp}/${member.maxHp}<br>` +
+                    `<span style="color:#aaa;">힘${member.stats.str} 방${member.stats.def} 체${member.stats.hp} 지${member.stats.int} 지혜${member.stats.wis} 민${member.stats.agi}</span>`
+                )
+                .join('<br>');
+            statusElement.title = '성혼 0 · 뒤틀림 0';
+        }
+        return;
+    }
     const stats = normalizeHumanStats(player.stats);
     const attackElement = document.getElementById('p-atk-val');
     const defenseElement = document.getElementById('p-def-val');
@@ -12205,12 +12480,12 @@ function updateUi() {
         if (lsMain) lsMain.textContent = `${Math.round(safeNum(fm.mercBonusLifesteal, 0) * 100)}%`;
         if (lsNote) lsNote.textContent = '용병 장비 흡혈 (전열)';
     } else {
-        document.getElementById('p-name').innerText = getPlayerClassDisplayName();
+        document.getElementById('p-name').innerText = Array.isArray(player.party) ? '성혼 원정대 · 3인 파티' : getPlayerClassDisplayName();
         document.getElementById('p-hp').style.width = `${Math.max(0, (pCur / pMax) * 100)}%`;
         document.getElementById('p-hp-t').innerText = `${pCur} / ${pMax}`;
         if (summLine) {
-            const synHint = player._syn && player._syn.desc && player._syn.desc.length ? ` · <span style="color:#f1c40f;">시너지: ${player._syn.desc.join(', ')}</span>` : '';
-            const synStatus = buildSynergyStatusHtml();
+            const synHint = '';
+            const synStatus = '';
             const lvTxt = player.runLevel ? ` · Lv.${player.runLevel}` : '';
             if (isMercenaryCaptainJob()) {
                 summLine.innerHTML = `<span style="color:#e67e22;">🎖️ 지휘관 ${escapeHtml(getPlayerClassDisplayName())}</span> <span style="color:#888;">| HP ${pCur}/${pMax}${lvTxt} · 전열 없음${player.mercCooldownTurns > 0 ? ` · 재가동 ${player.mercCooldownTurns}T` : ''}${synHint}</span>${synStatus}`;
@@ -12901,31 +13176,8 @@ function transitionMainView(renderFn) {
     return mainViewTransitionQueue;
 }
 
-/** 시너지 커스텀 툴팁: 터치/클릭으로 열고, 바깥 클릭 시 닫음 (PC는 @media hover로 마우스 호버도 유지) */
 function initSynergyTooltipInteractions() {
-    document.addEventListener(
-        'click',
-        (e) => {
-            const raw = e.target;
-            const el = raw && raw.nodeType === 1 ? raw : raw && raw.parentElement;
-            if (!el || !el.closest) return;
-            const trigger = el.closest('.synergy-tip-trigger');
-            if (trigger) {
-                const wrap = trigger.closest('.synergy-tip-wrap');
-                if (wrap) {
-                    e.stopPropagation();
-                    const wasOpen = wrap.classList.contains('synergy-tip-open');
-                    document.querySelectorAll('.synergy-tip-wrap.synergy-tip-open').forEach((w) => w.classList.remove('synergy-tip-open'));
-                    if (!wasOpen) wrap.classList.add('synergy-tip-open');
-                    return;
-                }
-            }
-            if (!el.closest('.synergy-tip-wrap')) {
-                document.querySelectorAll('.synergy-tip-wrap.synergy-tip-open').forEach((w) => w.classList.remove('synergy-tip-open'));
-            }
-        },
-        false
-    );
+    return;
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -13469,16 +13721,9 @@ function getIntroMemoryChoiceDef(memoryKey) {
 }
 
 function ensurePrologueScreen() {
-    let screen = document.getElementById('prologue-screen');
-    if (!screen) {
-        screen = document.createElement('div');
-        screen.id = 'prologue-screen';
-        screen.style.cssText =
-            'position:fixed;inset:0;z-index:12000;background:radial-gradient(circle at 50% 35%,#221510 0%,#09090d 48%,#020203 100%);color:#e8e0d8;display:flex;align-items:center;justify-content:center;padding:22px;box-sizing:border-box;';
-        document.body.appendChild(screen);
-    }
-    screen.style.display = 'flex';
-    return screen;
+    const screen = document.getElementById('prologue-screen');
+    if (screen) screen.remove();
+    return null;
 }
 
 function setMainUiHiddenForPrologue(hidden) {
@@ -13681,7 +13926,7 @@ function startNewCharacterPrologueFlow() {
     if (typeof MetaRPG === 'undefined') return;
     if (!canCreateCharacterInCurrentFile()) return;
     closePrologueScreen();
-    confirmNewCharacter(HUMAN_JOB_KEY);
+    rollPartyStats();
 }
 
 let prologueBattleBridgeActive = false;
@@ -13719,13 +13964,58 @@ function hasOpenCharacterSlot(meta) {
     return !m || !Array.isArray(m.slots) || m.slots.length < MetaRPG.MAX_SLOTS;
 }
 
+let pendingPartyRoll = null;
+
+function buildPartyRollRowsHtml() {
+    const party = Array.isArray(pendingPartyRoll) ? pendingPartyRoll : [];
+    return PARTY_ROLE_KEYS.map((roleKey) => {
+        const role = PARTY_ROLE_DEFINITIONS[roleKey];
+        const member = party.find((entry) => entry && entry.roleKey === roleKey);
+        const stats = member && member.stats;
+        const values = stats
+            ? `힘 ${stats.str} · 방 ${stats.def} · 체 ${stats.hp} · 지 ${stats.int} · 지혜 ${stats.wis} · 민 ${stats.agi}`
+            : '주사위를 굴려 능력치를 결정하세요.';
+        return `<div style="background:#111;border:1px solid #333;border-radius:8px;padding:9px 10px;margin-bottom:7px;text-align:left;">
+            <b style="color:#f1c40f;">${escapeHtml(role.name)}</b>
+            <div style="color:${stats ? '#ccc' : '#666'};font-size:0.78em;margin-top:4px;">${values}</div>
+            <div style="color:#555;font-size:0.7em;margin-top:2px;">성혼 0 · 뒤틀림 0</div>
+        </div>`;
+    }).join('');
+}
+
 function buildNewAdventureStartHtml(extraClass) {
     const className = ['new-adventure-entry', extraClass || ''].filter(Boolean).join(' ');
     return `
         <div id="new-adventure-entry" class="${className}">
-            <button id="new-adventure-start-btn" class="new-adventure-start-btn" type="button" onclick="startNewCharacterPrologue()">새로운 모험 시작</button>
+            <div style="width:100%;max-width:560px;margin:0 auto 10px;">
+                <h4 style="color:#f1c40f;margin:0 0 10px;">🎲 3인 파티 스탯 주사위</h4>
+                ${buildPartyRollRowsHtml()}
+                <button id="new-adventure-start-btn" class="new-adventure-start-btn" type="button" onclick="rollPartyStats()">🎲 주사위 굴리기</button>
+                <button class="new-adventure-start-btn" type="button" onclick="confirmPartyAdventure()" ${pendingPartyRoll ? '' : 'disabled'} style="margin-top:8px;">⚔️ 모험 시작</button>
+            </div>
         </div>`;
 }
+
+window.rollPartyStats = function rollPartyStats() {
+    pendingPartyRoll = rollPartyStartingStats();
+    showPreGameScreen();
+};
+
+window.confirmPartyAdventure = function confirmPartyAdventure() {
+    if (!Array.isArray(pendingPartyRoll)) {
+        writeLog('[주사위] 먼저 파티 능력치를 굴려 주세요.');
+        return;
+    }
+    const name = prompt('원정대 이름을 입력하세요:', '성혼 원정대');
+    if (name == null) return;
+    const result = MetaRPG.createCharacter(name || '성혼 원정대', pendingPartyRoll);
+    if (!result.ok) {
+        alert(result.msg || '원정대 생성 실패');
+        return;
+    }
+    pendingPartyRoll = null;
+    initRunFromMetaSlot();
+};
 
 function ensureHubCreateEntryRendered() {
     const startArea = document.getElementById('start-area');
@@ -13790,6 +14080,9 @@ function showPreGameScreen() {
                       const rebCost = MetaRPG.getRebirthGoldCost(s);
                       const rebNeedFloor = MetaRPG.getRebirthMinFloor ? MetaRPG.getRebirthMinFloor() : 500;
                       const bestFloor = Math.max(1, s.bestFloor || 1);
+                      const partySummary = normalizeAdventurerParty(s.party)
+                          .map((member) => `${member.name} 힘${member.stats.str}/방${member.stats.def}/체${member.stats.hp}/지${member.stats.int}/지혜${member.stats.wis}/민${member.stats.agi}`)
+                          .join(' · ');
                       const canReb = rct < 3;
                       const rebBtn = canReb
                           ? `<button type="button" onclick="event.stopPropagation();reincarnateFromHub('${s.id}')" style="background:#c0392b;color:#fff;padding:8px 12px;font-weight:700;border:none;border-radius:8px;cursor:pointer;font-size:0.82em;">🔁 환생 (${rebCost}G)</button>`
@@ -13801,11 +14094,11 @@ function showPreGameScreen() {
                       return `<div style="background:#111;border:1px solid #444;border-radius:10px;padding:12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
                         <div style="text-align:left;">
                             <div style="color:#f1c40f;font-weight:700;">${escapeHtml(jobDisplayName)} ${gen > 1 ? `<span style="color:#aaa;font-size:0.85em;">(인생 ${gen}회차)</span>` : ''}</div>
-                            <div style="color:#888;font-size:0.78em;">${race ? `종족 ${race.name} · ` : ''}${weapon ? `무기 ${weapon.label} · ` : ''}직업 ${escapeHtml(jobDisplayName)}${cls ? `(${cls.name})` : ''} · ${lifeBadge}${techFree} · 메타 Lv.${s.level || 1} · 최고 ${bestFloor}층 · 환생 ${rct}/3${rescueBadge}</div>
-                            <div style="color:#666;font-size:0.72em;">환생 조건: ${rebNeedFloor}층 이상 도달 + 골드 필요</div>
+                            <div style="color:#888;font-size:0.78em;line-height:1.5;">${escapeHtml(partySummary)} · 최고 ${bestFloor}층${rescueBadge}</div>
                         </div>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
                         <button type="button" onclick="resumeMetaSlot('${s.id}')" style="background:#2ed573;color:#111;padding:8px 16px;font-weight:700;border:none;border-radius:8px;cursor:pointer;">이어하기</button>
+                        <button type="button" onclick="openPartyTownFromHub('${s.id}')" style="background:#9b59b6;color:#fff;padding:8px 12px;font-weight:700;border:none;border-radius:8px;cursor:pointer;">🏠 마을 정비</button>
                         <button type="button" onclick="requestDeleteSaveFile(${typeof MetaRPG !== 'undefined' && typeof MetaRPG.getActiveFileIndex === 'function' ? MetaRPG.getActiveFileIndex() : 0})" style="background:#2a1111;color:#ff8080;padding:8px 12px;font-weight:800;border:1px solid #7f2b2b;border-radius:8px;cursor:pointer;font-size:0.82em;">파일 삭제</button>
                         ${MetaRPG.getRunSnapshot(s.id) ? `<button type="button" onclick="event.stopPropagation();deleteRunSnapshotForSlot('${s.id}')" style="background:#34495e;color:#ecf0f1;padding:8px 12px;font-weight:700;border:none;border-radius:8px;cursor:pointer;font-size:0.82em;">🗑 저장 삭제</button>` : ''}
                         ${rebBtn}
@@ -13859,7 +14152,7 @@ function showPreGameScreen() {
               <input type="file" accept=".json,application/json" style="width:100%;margin-top:6px;" onchange="importFullSave(this)">
             </label>
         </div>
-        <p style="color:#666;font-size:0.75em;max-width:520px;margin:0 auto;line-height:1.5;">※ 승리 시 <b>확인 없이</b> 다음 층으로 진행합니다. 21층 이상은 <b>상점</b>에서만 「이 층 훈련」/「등반 계속」을 고를 수 있습니다. <b>30층 이상 상점</b>에서만 베이스캠프(연구·영구 강화)에 들어갈 수 있으며, <b>런 골드</b>로 구매합니다. 메인으로 나갈 때는 <b>저장 후 메인</b>을 권장합니다.</p>`;
+        <p style="color:#666;font-size:0.75em;max-width:520px;margin:0 auto;line-height:1.5;">※ 1~5층에서 전투를 1회 이상 승리하면 <b>마을 복귀</b> 가능. 마을 정비 후 재출정 시 진행도는 <b>1-1층</b>으로 초기화되며 장비·골드·영구 강화는 유지됩니다. 6-1층부터 복귀 불가.</p>`;
     } catch (err) {
         console.error('[허브]', err);
         document.getElementById('start-area').innerHTML =
@@ -13920,25 +14213,19 @@ window.reincarnateFromHub = function reincarnateFromHub(slotId) {
 };
 
 window.startNewCharacterPrologue = function startNewCharacterPrologue() {
-    startNewCharacterPrologueFlow();
+    rollPartyStats();
 };
 
 window.choosePrologueMemory = function choosePrologueMemory(memoryKey) {
-    setProloguePhase('raceStory', { memoryKey });
+    return false;
 };
 
 window.advanceProloguePhase = function advanceProloguePhase() {
-    if (currentPhase === 'raceStory') {
-        setProloguePhase('danger', { memoryKey: selectedPrologueMemoryKey });
-        return;
-    }
-    if (currentPhase === 'danger') {
-        setProloguePhase('weapon', { memoryKey: selectedPrologueMemoryKey });
-    }
+    return false;
 };
 
 window.chooseIntroWeapon = function chooseIntroWeapon(memoryKey, weaponKey) {
-    return confirmNewCharacterFromPrologue(memoryKey, weaponKey);
+    return false;
 };
 
 window.openTechLinePicker = (jobKey) => {
@@ -14229,6 +14516,12 @@ window.buyCampPermaNext = function buyCampPermaNext(key) {
     slot.campPerma[key] = lv + 1;
     MetaRPG.recalcTechBonus(slot);
     MetaRPG.saveMeta(m);
+    player.party = normalizeAdventurerParty(slot.party).map((member) =>
+        ensurePartyMemberRuntimeShape({ ...member, curHp: member.hp })
+    );
+    player.permanentBonus = { ...(slot.techBonus || {}) };
+    fullResyncPlayerCombatStatsFromMetaAndInventory();
+    syncPlayerCampaignState();
     writeLog(`[영구] ${key} Lv.${lv + 1} 강화! (-${price}G)`);
     const ov = document.getElementById('base-camp-overlay');
     if (ov) {
@@ -14975,8 +15268,8 @@ window.openBaseCampTech = function openBaseCampTech() {
         writeLog('[베이스캠프] 상점 화면에서만 입장할 수 있습니다.');
         return;
     }
-    if (!MetaRPG.isBaseCampFloor(floor)) {
-        writeLog('[베이스캠프] 30층 이상에서만 열립니다.');
+    if (!player.inTown) {
+        writeLog('[베이스캠프] 마을에서만 영구 강화를 이용할 수 있습니다.');
         return;
     }
     const slot = MetaRPG.getSlotById(player.metaSlotId);
@@ -15211,10 +15504,10 @@ function getEquipSlotKind(it) {
     return null;
 }
 function getEquipSlotLimit(kind) {
-    if (kind === 'weapon') return 2;
-    if (kind === 'armor') return 2;
-    if (kind === 'ring') return 3;
-    if (kind === 'rune') return 1;
+    if (kind === 'weapon') return 3;
+    if (kind === 'armor') return 3;
+    if (kind === 'ring') return 6;
+    if (kind === 'rune') return 3;
     return Infinity;
 }
 function getEquipSlotLabel(kind) {
@@ -15242,31 +15535,7 @@ function buildShopItemCombatStatsHtml(it) {
     return `<div style="margin-top:6px;padding:8px;background:#141820;border-radius:8px;border:1px solid #2a3548;"><div style="font-size:0.68em;color:#7f8c9d;font-weight:700;margin-bottom:4px;">장비 수치</div>${rows}</div>`;
 }
 function buildSynergyStatusHtml() {
-    if (!player || !player._syn || !Array.isArray(player._syn.progress) || !player._syn.progress.length) return '';
-    const rulesById = {};
-    if (typeof synergyRules !== 'undefined' && Array.isArray(synergyRules)) {
-        for (const r of synergyRules) {
-            if (r && r.id) rulesById[r.id] = r;
-        }
-    }
-    const chips = player._syn.progress
-        .map((p) => {
-            const on = !!p.active;
-            const rule = rulesById[p.id] || {
-                name: p.name,
-                effectDesc: p.effectDesc || '',
-                detailDesc: p.detailDesc || '',
-                bonus: p.bonus || {},
-            };
-            const popup = buildSynergyTooltipPopupHtml(rule, { mode: 'status', p });
-            const label = `${escapeHtml(p.name)} ${p.cur}/${p.need}`;
-            const chipInner = `<span style="display:inline-block;margin:2px;padding:2px 7px;border-radius:999px;border:1px solid ${
-                on ? '#2ed573' : '#444'
-            };background:${on ? '#123020' : '#111'};color:${on ? '#2ed573' : '#999'};font-size:0.72em;font-weight:700;">${label}</span>`;
-            return `<span class="synergy-tip-wrap" style="display:inline-block;vertical-align:middle;"><span class="synergy-tip-trigger synergy-tip-trigger--chip" style="display:inline-block;">${chipInner}</span>${popup}</span>`;
-        })
-        .join('');
-    return `<div style="margin-top:3px;display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center;">${chips}</div>`;
+    return '';
 }
 function getEquippedCountByKind(kind) {
     return (player.items || []).filter((x) => getEquipSlotKind(x) === kind).length;
@@ -15282,6 +15551,8 @@ window.getEquippedCountByKind = getEquippedCountByKind;
 window.canEquipMoreOfItem = canEquipMoreOfItem;
 
 function getItemSynergyHints(it) {
+    return [];
+    /*
     if (!it || typeof synergyRules === 'undefined' || !Array.isArray(synergyRules)) return [];
     const tags = new Set();
     const tg = it.tags || it.tagList;
@@ -15315,9 +15586,12 @@ function getItemSynergyHints(it) {
         }
     }
     return hints;
+    */
 }
 /** 상점 카드: 시너지 진행 문구 — 호버 시 떠 있는 툴팁(전체 효과·미리보기) */
 function buildShopSynergyHintsHtml(it) {
+    return '';
+    /*
     if (!it || typeof synergyRules === 'undefined' || !Array.isArray(synergyRules)) return '';
     const tags = new Set();
     const tg = it.tags || it.tagList;
@@ -15362,6 +15636,7 @@ function buildShopSynergyHintsHtml(it) {
     if (!parts.length) return '';
     const sep = '<span class="shop-synergy-sep">·</span>';
     return `<div class="shop-card-synergy-inner"><span class="shop-card-synergy-label">시너지:</span>${parts.join(sep)}</div>`;
+    */
 }
 function ensureOwnedItemUid(it) {
     if (!it) return;
@@ -15403,7 +15678,6 @@ function removeOwnedItemEffects(it) {
     if (it.critMult) player.critMult = Math.max(1.8, safeNum(player.critMult, 1.8) - safeNum(it.critMult, 0));
     if (it.damageReduction) player.damageReduction = Math.max(0, safeNum(player.damageReduction, 0) - safeNum(it.damageReduction, 0));
     if (it.potionHealBonus) player.potionHealBonus = Math.max(0, safeNum(player.potionHealBonus, 0) - safeNum(it.potionHealBonus, 0));
-    if (it.penalty && it.penalty[player.name]) player.acc += safeNum(it.penalty[player.name], 0);
     const hasRegen = (player.items || []).some((x) => x !== it && x && x.regenPotion);
     player.hasRegenPotion = !!hasRegen;
     recalcPlayerDivineGainMult();
@@ -15810,15 +16084,8 @@ function openShop() {
 function renderShopLeaveButtons() {
     const wrap = document.getElementById('shop-leave-actions');
     if (!wrap) return;
-    if (floor > 20) {
-        const train = player && player.farmingStay;
-        wrap.innerHTML = `<p style="color:#888;font-size:0.82em;margin:0 0 10px;line-height:1.45;">21층 이상: 던전으로 돌아갈 때 <b>등반</b>(승리마다 다음 층) 또는 <b>이 층 훈련</b>(승리해도 층 유지)을 고릅니다.</p>
-      <button type="button" onclick="leaveShopContinueAscent()" style="background:#2ed573;color:#111;margin-bottom:8px;width:100%;padding:12px;font-weight:700;border:none;border-radius:8px;cursor:pointer;">⬆️ 등반 계속 (승리 시 다음 층)</button>
-      <button type="button" onclick="leaveShopTrainHere()" style="background:#3498db;color:#fff;margin-bottom:8px;width:100%;padding:12px;font-weight:700;border:none;border-radius:8px;cursor:pointer;">🔁 이 층에 머물며 훈련</button>
-      <p style="color:${train ? '#2ed573' : '#aaa'};font-size:0.78em;margin:0;">${train ? '현재: 훈련 모드 (동일 층 반복)' : '현재: 등반 모드'}</p>`;
-    } else {
-        wrap.innerHTML = `<button type="button" onclick="nextFloor()" style="background:#444;color:#fff;width:100%;padding:12px;border:none;border-radius:8px;cursor:pointer;font-weight:700;">던전으로 돌아가기</button>`;
-    }
+    wrap.innerHTML = `<p style="color:#888;font-size:0.82em;margin:0 0 10px;line-height:1.45;">재출정 시 장비·골드·영구 강화는 유지되며 미궁 진행도는 <b>1-1층</b>으로 초기화됩니다.</p>
+      <button type="button" onclick="enterDungeonFromTown()" style="background:#444;color:#fff;width:100%;padding:12px;border:none;border-radius:8px;cursor:pointer;font-weight:700;">⚔️ 미궁 1-1층으로 출정</button>`;
 }
 
 window.leaveShopContinueAscent = function leaveShopContinueAscent() {
@@ -15834,18 +16101,7 @@ window.leaveShopTrainHere = function leaveShopTrainHere() {
 };
 
 window.nextFloor = () => {
-    const returnToCurrentStage = () => {
-        const shopArea = document.getElementById('shop-area');
-        const battleArea = document.getElementById('battle-area');
-        if (shopArea) shopArea.style.display = 'none';
-        if (battleArea) battleArea.style.display = 'block';
-        pendingShop = false;
-        window._encounterPhaseActive = false;
-        if (typeof hideEncounterPhaseUI === 'function') hideEncounterPhaseUI();
-        if (typeof spawnEnemy === 'function') spawnEnemy();
-    };
-    if (typeof transitionMainView === 'function') transitionMainView(returnToCurrentStage);
-    else returnToCurrentStage();
+    if (typeof enterDungeonFromTown === 'function') enterDungeonFromTown();
 };
 
 function getUnlockedPoolItems() {
@@ -15890,7 +16146,7 @@ function formatShopItemDesc(desc) {
 
 /** 용병단장 전용(단독) 장비 — 타 직업 상점에서 제외 (데이터에 남아 있을 수 있음) */
 function mercCaptainExclusiveItem(it) {
-    return it && it.onlyFor && Array.isArray(it.onlyFor) && it.onlyFor.length === 1 && it.onlyFor[0] === '용병단장';
+    return false;
 }
 
 /** 일반 상점용: 용병 계약 + 단장 전용 장비 제외 */
@@ -15957,12 +16213,7 @@ function isShopEquipmentForDedupe(it) {
 }
 
 function getShopSynergyFingerprint(it) {
-    const rawTags = Array.isArray(it && it.tags) ? it.tags : [];
-    const tags = rawTags
-        .map((t) => String(t || '').trim())
-        .filter((t) => t && !/^rarity_/i.test(t) && !/^type_/i.test(t))
-        .sort();
-    return tags.length ? tags.join('+') : 'none';
+    return 'none';
 }
 
 function getShopSemanticStats(it) {
@@ -16060,7 +16311,7 @@ function renderShopItems(keepCurrentStock) {
         }
         list.appendChild(b);
     }
-    if (typeof MetaRPG !== 'undefined' && player && MetaRPG.isBaseCampFloor(floor)) {
+    if (typeof MetaRPG !== 'undefined' && player && player.inTown) {
         const campRow = document.createElement('div');
         campRow.style.cssText = 'margin-bottom:12px;text-align:center;';
         campRow.innerHTML = `<button type="button" onclick="openBaseCampTech()" style="width:100%;padding:12px;background:#9b59b6;color:#fff;border:1px solid #8e44ad;border-radius:8px;font-weight:700;cursor:pointer;">🏕️ 베이스캠프 (연구·영구 강화)</button>`;
@@ -16149,7 +16400,7 @@ function renderShopItems(keepCurrentStock) {
         const full = !isRelic && getEquipSlotKind(it) && !canEquipMoreOfItem(it);
         const slotLine = getEquipSlotLineHtml(it);
         const combatStats = buildShopItemCombatStatsHtml(it);
-        const synHtml = buildShopSynergyHintsHtml(it);
+        const synHtml = '';
         let bc='#444',bac='#888',bb='#2a2a2a',bt='COMMON';
         if(isRelic){bc='#f1c40f';bac='#f1c40f';bb='#2a2a0a';bt='RELIC';}
         else if(it.rarity==='relic'){bc='#d35400';bac='#f39c12';bb='#2a1a0a';bt='RELIC(용병)';}
@@ -16179,7 +16430,7 @@ function renderShopItems(keepCurrentStock) {
 
 window.rerollShop = () => {
     if(gold<rerollCost) return writeLog(`[상점] 골드가 부족합니다.`);
-    gold-=rerollCost; rerollCost+=10; writeLog(`[상점] 리롤 완료!`); updateUi(); renderShopItems();
+    gold-=rerollCost; rerollCost+=10; syncPlayerCampaignState(); writeLog(`[상점] 리롤 완료!`); updateUi(); renderShopItems();
 };
 
 window.buyPotionOffer = () => {
@@ -16187,6 +16438,7 @@ window.buyPotionOffer = () => {
     if (gold < currentPotionOffer.price) return writeLog('골드 부족!');
     gold -= currentPotionOffer.price;
     player.potions = safeNum(player.potions, 0) + 1;
+    syncPlayerCampaignState();
     writeLog('[상점] 포션 구매 완료.');
     updateUi();
 };
@@ -16199,6 +16451,7 @@ window.buyShopRarityBoost = () => {
     if (gold < price) return writeLog('[상점] 골드가 부족합니다.');
     gold -= price;
     player.shopRarityBoost = lv + 1;
+    syncPlayerCampaignState();
     writeLog(`[상점] ✨ 고등급 확률 강화 Lv.${lv + 1}!`);
     updateUi();
     renderShopItems(true);
@@ -16213,7 +16466,10 @@ window.sellItemByUid = function sellItemByUid(uid) {
     const refund = Math.floor(buyPrice * 0.5);
     removeOwnedItemEffects(it);
     player.items.splice(idx, 1);
+    fullResyncPlayerCombatStatsFromMetaAndInventory();
+    syncPlayerCampaignState();
     gold = safeNum(gold, 0) + refund;
+    syncPlayerCampaignState();
     writeLog(`[판매] ${it.name} 판매 (+${refund}G / 구매가 ${buyPrice}G)`);
     updateUi();
     renderActions();
@@ -16304,13 +16560,15 @@ window.buyItem = (event, idx) => {
                 if(it.regenPotion)player.hasRegenPotion=true;
                 if(it.critBonus)player.crit=(player.crit||1)+it.critBonus;
                 if(it.critMult)player.critMult=(player.critMult||1.8)+it.critMult;
-                if(it.penalty&&it.penalty[player.name]){player.acc-=it.penalty[player.name];writeLog(`[패널티] 명중률 -${it.penalty[player.name]}% 적용`);}
             }
             recalcPlayerDivineGainMult();
+            fullResyncPlayerCombatStatsFromMetaAndInventory();
+            syncPlayerCampaignState();
             writeLog(`[상점] ${it.name} 장착 완료!`);
             renderShopItems(true);
         } else { writeLog(`이미 보유한 장비입니다!`); gold+=it.price; }
     }
+    syncPlayerCampaignState();
     updateUi(); renderActions();
 };
 
@@ -16386,6 +16644,35 @@ function probabilityRoll(chance, random) {
 function getActorStats(actor) {
     if (actor === player) ensureHumanRuntimeShape(actor);
     return normalizeHumanStats(actor && actor.stats || {});
+}
+
+function getActorDisplayName(actor) {
+    if (isPartyMember(actor)) return actor.name;
+    if (actor === player) return player.name || '성혼 원정대';
+    return actor && actor.name ? actor.name : '대상';
+}
+
+function chooseEnemyPartyTarget(random) {
+    const living = getLivingPartyMembers(player);
+    if (!living.length) return null;
+    const total = living.reduce((sum, member) => sum + Math.max(0.1, safeNum(member.aggroWeight, 1)), 0);
+    const rng = typeof random === 'function' ? random : Math.random;
+    let roll = rng() * total;
+    for (const member of living) {
+        roll -= Math.max(0.1, safeNum(member.aggroWeight, 1));
+        if (roll <= 0) return member;
+    }
+    return living[living.length - 1];
+}
+
+function getPartyGuardStateFor(member) {
+    if (!playerGuardState || !member) return null;
+    if (playerGuardState.members && playerGuardState.members[member.id]) return playerGuardState.members[member.id];
+    return playerGuardState.mode ? playerGuardState : null;
+}
+
+function getMinimumDamageFor(attacker, defender) {
+    return attacker === enemy && isPartyMember(defender) ? 3 : 1;
 }
 
 function getEquippedWeapon(actor) {
@@ -16575,9 +16862,14 @@ function calculatePhysicalDamage(attacker, defender) {
     if (attacker && attacker.archetype === 'hunter' && defenderRatio <= 0.4) rawPower *= 1.45;
     if (attacker && attacker._attackMultiplier) rawPower *= attacker._attackMultiplier;
     const runtimeDefense = safeNum(defender && defender.def, defendStats.def) + safeNum(defender && defender.extraDef, 0);
-    const flatBlocked = Math.max(0, rawPower - runtimeDefense - (armor ? safeNum(armor.def, 0) : 0));
-    const mitigation = armor ? Math.min(0.6, Math.max(0, safeNum(armor.mitigation, 0))) : 0;
-    return Math.max(0, Math.floor(flatBlocked * (1 - mitigation)));
+    const totalDefense = Math.max(0, runtimeDefense + (armor ? safeNum(armor.def, 0) : 0));
+    const ratioReduced = rawPower * (100 / (100 + totalDefense));
+    const mitigation = Math.min(
+        0.6,
+        Math.max(0, safeNum(armor && armor.mitigation, 0) + safeNum(defender && defender.damageReduction, 0))
+    );
+    const reduced = Math.floor(ratioReduced * (1 - mitigation));
+    return Math.max(getMinimumDamageFor(attacker, defender), reduced);
 }
 
 function calculateMagicDamage(attacker, defender) {
@@ -16585,7 +16877,8 @@ function calculateMagicDamage(attacker, defender) {
     const defendStats = getActorStats(defender);
     const mastery = safeNum(attacker && attacker.mastery && (attacker.mastery.magic || attacker.mastery.holyMagic), 0);
     const rawPower = attackStats.wis * 1.35 + attackStats.int * 0.45 + mastery * 0.25;
-    return Math.max(0, Math.floor(rawPower - defendStats.def * 0.35));
+    const reduced = Math.floor(rawPower * (100 / (100 + Math.max(0, defendStats.def * 0.7))));
+    return Math.max(getMinimumDamageFor(attacker, defender), reduced);
 }
 
 function getCurrentHp(actor) {
@@ -16593,12 +16886,17 @@ function getCurrentHp(actor) {
 }
 
 function setCurrentHp(actor, value) {
-    const max = actor === player ? getEffectiveMaxHp() : Math.max(1, safeNum(actor.hp, 1));
+    const max = actor === player
+        ? getEffectiveMaxHp()
+        : Math.max(1, safeNum(actor.maxHp, safeNum(actor.hp, 1)));
     actor.curHp = Math.max(0, Math.min(max, safeNum(value, 0)));
+    if (isPartyMember(actor)) syncPartyAggregateState(player);
 }
 
 function actorMaxHp(actor) {
-    return actor === player ? getEffectiveMaxHp() : Math.max(1, safeNum(actor.hp, 1));
+    return actor === player
+        ? getEffectiveMaxHp()
+        : Math.max(1, safeNum(actor.maxHp, safeNum(actor.hp, 1)));
 }
 
 function actorCanHeal(actor) {
@@ -16621,7 +16919,7 @@ function resolveAttackAction(attacker, defender, guardState) {
     }
 
     const armor = getEquippedArmor(defender);
-    if (armor) {
+    if (armor && !(attacker === enemy && isPartyMember(defender))) {
         const nullify = probabilityRoll(safeNum(armor.nullifyChance, 0));
         if (nullify.success) return { type: 'attack', success: true, damage: 0, nullified: true, hit, nullify };
     }
@@ -16631,7 +16929,7 @@ function resolveAttackAction(attacker, defender, guardState) {
         const defendStats = getActorStats(defender);
         const block = probabilityRoll(0.22 + defendStats.def * 0.004);
         if (block.success) {
-            damage = Math.max(0, Math.floor(damage * 0.45));
+            damage = Math.max(getMinimumDamageFor(attacker, defender), Math.floor(damage * 0.45));
             setCurrentHp(defender, getCurrentHp(defender) - damage);
             return { type: 'attack', success: true, damage, guarded: true, hit, block };
         }
@@ -16650,19 +16948,22 @@ function resolveMagicAttackAction(attacker, defender, guardState) {
         const dodge = probabilityRoll(0.12 + getActorStats(defender).agi * 0.004);
         if (dodge.success) return { type: 'attack', attackKind: 'magic', success: false, reason: 'dodged', hit: cast, dodge };
     }
-    if (guardState && guardState.mode === 'shield') damage = Math.max(0, Math.floor(damage * 0.7));
+    if (guardState && guardState.mode === 'shield') {
+        damage = Math.max(getMinimumDamageFor(attacker, defender), Math.floor(damage * 0.7));
+    }
     setCurrentHp(defender, getCurrentHp(defender) - damage);
     return { type: 'attack', attackKind: 'magic', success: true, damage, hit: cast };
 }
 
-function resolveHealAction(actor) {
+function resolveHealAction(actor, healTarget) {
     const stats = getActorStats(actor);
     const cast = probabilityRoll(0.4 + stats.wis * 0.004);
     if (!cast.success) return { type: 'heal', success: false, reason: 'castFailed', cast };
     const amount = Math.max(1, Math.floor(8 + stats.wis * 1.5));
-    const before = getCurrentHp(actor);
-    setCurrentHp(actor, before + amount);
-    return { type: 'heal', success: true, healed: getCurrentHp(actor) - before, cast };
+    const target = healTarget || actor;
+    const before = getCurrentHp(target);
+    setCurrentHp(target, before + amount);
+    return { type: 'heal', success: true, healed: getCurrentHp(target) - before, cast };
 }
 
 function spendPlayerAction() {
@@ -16673,12 +16974,13 @@ function spendPlayerAction() {
 
 function describeCombatResult(actor, target, result) {
     if (!result) return;
-    const actorName = actor === player ? '플레이어' : actor.name;
+    const actorName = getActorDisplayName(actor);
+    const targetName = getActorDisplayName(target);
     if (result.type === 'attack') {
         if (result.reason === 'miss') writeLog(`[빗나감] ${actorName}의 공격 실패`);
-        else if (result.reason === 'dodged') writeLog(`[회피] ${target === player ? '플레이어' : target.name}이 공격을 완전히 회피`);
+        else if (result.reason === 'dodged') writeLog(`[회피] ${targetName}이 공격을 완전히 회피`);
         else if (result.nullified) writeLog(`[무효화] 장비가 ${actorName}의 공격을 완전히 차단`);
-        else writeLog(`[공격] ${actorName} → ${result.damage} 피해${result.guarded ? ' (방어 성공)' : ''}`);
+        else writeLog(`[공격] ${actorName} → ${targetName} ${result.damage} 피해${result.guarded ? ' (방어 성공)' : ''}`);
         return;
     }
     if (result.type === 'heal') {
@@ -16688,14 +16990,15 @@ function describeCombatResult(actor, target, result) {
 
 function emitCombatResultVfx(target, result) {
     if (!result) return;
-    const targetSide = target === player ? 'player' : 'enemy';
+    const isPlayerSide = target === player || isPartyMember(target);
+    const targetSide = isPlayerSide ? 'player' : 'enemy';
     if (result.reason === 'miss' || result.reason === 'dodged') {
         showMissFloat(targetSide);
         if (result.reason === 'dodged') triggerDodgeMove(targetSide);
         return;
     }
     if (result.type === 'attack') {
-        showDmgFloat(Math.max(0, result.damage || 0), false, target === player);
+        showDmgFloat(Math.max(0, result.damage || 0), false, isPlayerSide);
         if ((result.damage || 0) > 0) triggerShakeEffect();
     }
 }
@@ -16717,7 +17020,7 @@ function chooseEnemyAction() {
 }
 
 async function enemyTurn() {
-    if (!enemy || !player || enemy.curHp <= 0 || player.curHp <= 0) return;
+    if (!enemy || !player || enemy.curHp <= 0 || getLivingPartyMembers(player).length === 0) return;
     setCombatProcessing(true);
     await waitMs(300);
     const action = chooseEnemyAction();
@@ -16732,19 +17035,26 @@ async function enemyTurn() {
         enemyGuardState = { mode: action === 'defend' ? 'shield' : 'dodge', turn: combatTurnNumber };
         writeLog(`[적 행동] ${enemy.name} — ${action === 'defend' ? '방어' : '회피'} 준비`);
     } else {
+        const target = chooseEnemyPartyTarget();
+        if (!target) {
+            gameOver();
+            return;
+        }
+        writeLog(`[어그로] ${enemy.name} → ${target.name} 타겟`);
         enemy._attackMultiplier = enemy._bossChargeReady ? 2.5 : 1;
         await playV35AttackVfx('enemy', enemy, action);
         const result = action === 'magic_attack'
-            ? resolveMagicAttackAction(enemy, player, playerGuardState)
-            : resolveAttackAction(enemy, player, playerGuardState);
+            ? resolveMagicAttackAction(enemy, target, getPartyGuardStateFor(target))
+            : resolveAttackAction(enemy, target, getPartyGuardStateFor(target));
         enemy._attackMultiplier = 1;
         enemy._bossChargeReady = false;
-        describeCombatResult(enemy, player, result);
-        emitCombatResultVfx(player, result);
+        describeCombatResult(enemy, target, result);
+        emitCombatResultVfx(target, result);
         playerGuardState = null;
     }
     if (enemy.isBoss) enemy.turnCount = Math.max(1, safeNum(enemy.turnCount, 1)) + 1;
-    if (player.curHp <= 0) {
+    syncPartyAggregateState(player);
+    if (getLivingPartyMembers(player).length === 0) {
         gameOver();
         return;
     }
@@ -16756,7 +17066,7 @@ async function enemyTurn() {
 }
 
 window.useAction = async function useAction(type) {
-    if (isProcessing || !player || !enemy || player.curHp <= 0 || enemy.curHp <= 0) return;
+    if (isProcessing || !player || !enemy || getLivingPartyMembers(player).length === 0 || enemy.curHp <= 0) return;
     if (!spendPlayerAction()) {
         writeLog('[턴 제한] 한 턴에는 공격/방어/힐 중 하나만 선택할 수 있습니다.');
         return;
@@ -16764,24 +17074,35 @@ window.useAction = async function useAction(type) {
     setCombatProcessing(true);
     let result = null;
     if (type === '공격') {
-        const learnedAction = classifyPlayerAttackAction(player);
-        recordPlayerBehavior(learnedAction);
-        await playV35AttackVfx('player', player, learnedAction);
-        result = learnedAction === 'magic_attack'
-            ? resolveMagicAttackAction(player, enemy, enemyGuardState)
-            : resolveAttackAction(player, enemy, enemyGuardState);
+        recordPlayerBehavior('physical_attack');
+        for (const member of getLivingPartyMembers(player)) {
+            const learnedAction = member.roleKey === 'mage' ? 'magic_attack' : 'physical_attack';
+            await playV35AttackVfx('player', member, learnedAction);
+            result = learnedAction === 'magic_attack'
+                ? resolveMagicAttackAction(member, enemy, enemyGuardState)
+                : resolveAttackAction(member, enemy, enemyGuardState);
+            describeCombatResult(member, enemy, result);
+            emitCombatResultVfx(enemy, result);
+            if (enemy.curHp <= 0) break;
+        }
         enemyGuardState = null;
-        describeCombatResult(player, enemy, result);
-        emitCombatResultVfx(enemy, result);
     } else if (type === '힐') {
         recordPlayerBehavior('heal');
         await playMagicBurstVfx('player');
-        result = resolveHealAction(player);
-        describeCombatResult(player, player, result);
+        const living = getLivingPartyMembers(player);
+        const healer = living.find((member) => member.roleKey === 'mage') || living[0];
+        const target = living.slice().sort((a, b) => a.curHp / a.maxHp - b.curHp / b.maxHp)[0];
+        result = resolveHealAction(healer || target, target);
+        describeCombatResult(healer || target, target, result);
+        syncPartyAggregateState(player);
     } else {
         const mode = type === '회피' ? 'dodge' : 'shield';
         recordPlayerBehavior(mode === 'dodge' ? 'dodge' : 'defend');
-        playerGuardState = { mode, turn: combatTurnNumber };
+        playerGuardState = {
+            mode,
+            turn: combatTurnNumber,
+            members: Object.fromEntries(getLivingPartyMembers(player).map((member) => [member.id, { mode, turn: combatTurnNumber }])),
+        };
         if (mode === 'dodge') triggerDodgeMove('player');
         else triggerGuardAura();
         writeLog(`[플레이어 행동] ${mode === 'dodge' ? '회피' : '방어'} 준비`);
@@ -16796,10 +17117,12 @@ window.useAction = async function useAction(type) {
 };
 
 window.usePotion = function usePotion() {
-    if (isProcessing || !player || player.curHp <= 0) return;
+    if (isProcessing || !player || getLivingPartyMembers(player).length === 0) return;
     if (!spendPlayerAction()) return writeLog('[턴 제한] 이번 턴의 행동을 이미 사용했습니다.');
-    const result = resolveHealAction(player);
-    describeCombatResult(player, player, result);
+    const target = getLivingPartyMembers(player).slice().sort((a, b) => a.curHp / a.maxHp - b.curHp / b.maxHp)[0];
+    const result = resolveHealAction(target);
+    describeCombatResult(target, target, result);
+    syncPartyAggregateState(player);
     updateUi();
     enemyTurn();
 };
@@ -16807,12 +17130,16 @@ window.usePotion = function usePotion() {
 function syncPlayerCampaignState() {
     if (!player || !player.metaSlotId) return;
     ensureHumanRuntimeShape(player);
+    syncPartyAggregateState(player);
     player.progress = normalizeDungeonProgress({ floor, stage: dungeonStage });
     MetaRPG.syncRunProgress(player.metaSlotId, {
         stats: player.stats,
+        party: getPartyMembers(player).map((member) => ({ ...member, hp: member.curHp })),
         progress: player.progress,
         hp: player.curHp,
         maxHp: player.maxHp,
+        gold,
+        runWins: player.runWins,
         equipment: player.equipment,
         magic: player.magic,
         skills: player.skills,
@@ -16839,11 +17166,6 @@ function enterNextDungeonStage() {
     if (hasCrossedPointOfNoReturn(player.progress)) MetaRPG.clearRunSnapshot(player.metaSlotId);
     syncPlayerCampaignState();
     writeLog(`[전진] ${formatDungeonPosition(player.progress)} 진입${hasCrossedPointOfNoReturn(player.progress) ? ' · 복귀 불가' : ''}`);
-    if (current.stage % 5 === 0 && typeof openShop === 'function') {
-        enemy = null;
-        openShop();
-        return;
-    }
     spawnEnemy();
 }
 
@@ -16856,9 +17178,13 @@ function winBattle() {
         isBoss: dungeonStage === STAGES_PER_FLOOR,
     });
     gold = Math.max(0, safeNum(gold, 0)) + reward;
+    player.runWins = Math.max(0, safeNum(player.runWins, 0)) + 1;
     if (typeof totalGoldEarned !== 'undefined') totalGoldEarned = Math.max(0, safeNum(totalGoldEarned, 0)) + reward;
     writeLog(`[승리] ${formatDungeonPosition({ floor, stage: dungeonStage })} 전투 종료 · ${reward}G 획득`);
-    setCurrentHp(player, Math.min(getEffectiveMaxHp(), player.curHp + Math.max(1, Math.floor(getEffectiveMaxHp() * 0.08))));
+    getLivingPartyMembers(player).forEach((member) => {
+        setCurrentHp(member, member.curHp + Math.max(1, Math.floor(member.maxHp * 0.08)));
+    });
+    syncPartyAggregateState(player);
     syncPlayerCampaignState();
     const continueForward = () => enterNextDungeonStage();
     if (typeof showVictoryRewardAndAwaitContinue === 'function') {
@@ -16876,6 +17202,7 @@ function gameOver() {
     setCombatProcessing(false);
     ensureHumanRuntimeShape(player);
     player.curHp = 0;
+    player.party = getPartyMembers(player).map((member) => ({ ...member, hp: member.curHp }));
     player.progress = normalizeDungeonProgress({ floor, stage: dungeonStage });
     player.behaviorMatrix = isBehaviorLearningZone(player.progress)
         ? buildBehaviorProbabilityMatrix(player.behaviorLogger)
@@ -16909,18 +17236,25 @@ function dungeonClear() {
 }
 
 function buildRuntimePlayerFromSlot(slot) {
-    const stats = normalizeHumanStats(slot.stats);
-    const maxHp = Math.max(1, safeNum(slot.maxHp, 50 + stats.hp * 5));
+    const party = normalizeAdventurerParty(slot.party).map((member) =>
+        ensurePartyMemberRuntimeShape({
+            ...member,
+            curHp: member.hp,
+            maxHp: member.maxHp,
+        })
+    );
+    const stats = party[0].stats;
     return ensureHumanRuntimeShape({
         id: slot.id,
         metaSlotId: slot.id,
         name: slot.name,
         color: '#d8d8d8',
+        party,
         stats,
-        curHp: Math.min(maxHp, Math.max(1, safeNum(slot.hp, maxHp))),
-        maxHp,
-        atk: stats.str,
-        def: stats.def,
+        curHp: party.reduce((sum, member) => sum + member.curHp, 0),
+        maxHp: party.reduce((sum, member) => sum + member.maxHp, 0),
+        atk: party.reduce((sum, member) => sum + member.stats.str, 0),
+        def: Math.round(party.reduce((sum, member) => sum + member.stats.def, 0) / party.length),
         int: stats.int,
         wis: stats.wis,
         agi: stats.agi,
@@ -16937,8 +17271,10 @@ function buildRuntimePlayerFromSlot(slot) {
         relics: JSON.parse(JSON.stringify(slot.relics || [])),
         behaviorLogger: JSON.parse(JSON.stringify(slot.behaviorLogger || [])),
         behaviorMatrix: slot.behaviorMatrix ? JSON.parse(JSON.stringify(slot.behaviorMatrix)) : null,
+        permanentBonus: JSON.parse(JSON.stringify(slot.techBonus || {})),
         potions: 0,
-        baseJob: '인간 모험가',
+        runWins: Math.max(0, safeNum(slot.runWins, 0)),
+        baseJob: '3인 파티',
         jobKey: HUMAN_JOB_KEY,
         classKey: null,
         runLevel: 1,
@@ -16955,11 +17291,13 @@ function initHumanRunFromActiveSlot() {
     const meta = MetaRPG.loadMeta();
     const slot = meta.slots.find((entry) => entry.id === meta.activeSlotId);
     if (!slot || slot.permanentDeath) return false;
+    MetaRPG.recalcTechBonus(slot);
+    MetaRPG.saveMeta(meta);
     player = buildRuntimePlayerFromSlot(slot);
     fullResyncPlayerCombatStatsFromMetaAndInventory();
     floor = player.progress.floor;
     dungeonStage = player.progress.stage;
-    gold = 0;
+    gold = Math.max(0, safeNum(slot.gold, 0));
     combatTurnNumber = 1;
     playerTurnSpent = false;
     playerGuardState = null;
@@ -16969,8 +17307,9 @@ function initHumanRunFromActiveSlot() {
     document.getElementById('battle-area').style.display = 'block';
     if (typeof enterBattleLayout === 'function') enterBattleLayout();
     writeLog(
-        `[생성] 인간 모험가 주사위 — 힘 ${player.stats.str}, 방어 ${player.stats.def}, 체력 ${player.stats.hp}, ` +
-        `지능 ${player.stats.int}, 지혜 ${player.stats.wis}, 민첩 ${player.stats.agi}, 성혼 0, 뒤틀림 0`
+        `[원정대] ${player.party.map((member) =>
+            `${member.name}(힘 ${member.stats.str}/방 ${member.stats.def}/체 ${member.stats.hp}/지 ${member.stats.int}/지혜 ${member.stats.wis}/민 ${member.stats.agi})`
+        ).join(' · ')}`
     );
     spawnEnemy();
     return true;
@@ -16978,13 +17317,7 @@ function initHumanRunFromActiveSlot() {
 
 // 기존 DOM 이벤트가 호출하는 이름을 유지하되 직업 인수는 무시한다.
 window.confirmNewCharacter = function confirmNewCharacter() {
-    const name = prompt('캐릭터 이름을 입력하세요 (비우면 인간 모험가):', '인간 모험가');
-    const result = MetaRPG.createCharacter(name || '인간 모험가');
-    if (!result.ok) {
-        alert(result.msg || '생성 실패');
-        return;
-    }
-    initHumanRunFromActiveSlot();
+    if (typeof confirmPartyAdventure === 'function') confirmPartyAdventure();
 };
 
 window.initRunFromMetaSlot = function initRunFromMetaSlot() {
@@ -17002,32 +17335,72 @@ if (typeof loadRunFromMetaSnapshot === 'function') {
     };
 }
 
-window.saveAndExitToMain = function saveAndExitToMain() {
-    if (!player || !player.metaSlotId) return;
+window.returnPartyToTown = function returnPartyToTown() {
+    if (!player || !player.metaSlotId || player.inTown) return;
     const progress = normalizeDungeonProgress({ floor, stage: dungeonStage });
     if (!canReturnToBaseCamp(progress)) {
-        writeLog(`[복귀 불가] ${formatDungeonPosition(progress)}부터는 베이스캠프로 돌아갈 수 없습니다.`);
+        writeLog(`[복귀 불가] ${formatDungeonPosition(progress)}부터는 마을로 돌아갈 수 없습니다.`);
         return;
     }
+    if (safeNum(player.runWins, 0) < 1) {
+        writeLog('[복귀 불가] 이번 회차에서 전투를 최소 1회 승리해야 마을로 돌아갈 수 있습니다.');
+        return;
+    }
+    getPartyMembers(player).forEach((member) => setCurrentHp(member, member.maxHp));
+    syncPartyAggregateState(player);
+    player.inTown = true;
     syncPlayerCampaignState();
-    const payload = typeof serializeRunState === 'function' ? serializeRunState() : { player, floor, dungeonStage };
-    MetaRPG.setRunSnapshot(player.metaSlotId, payload);
     if (typeof exitBattleLayout === 'function') exitBattleLayout();
-    document.getElementById('battle-area').style.display = 'none';
-    player = null;
     enemy = null;
-    if (typeof showPreGameScreen === 'function') showPreGameScreen();
+    writeLog('[마을] 원정대가 귀환했습니다. 장비 구매와 영구 강화를 정비할 수 있습니다.');
+    openShop();
 };
 
-window.exitToMainWithoutSave = function exitToMainWithoutSave() {
-    if (!player) return;
-    const progress = normalizeDungeonProgress({ floor, stage: dungeonStage });
-    if (!canReturnToBaseCamp(progress)) {
-        writeLog(`[복귀 불가] ${formatDungeonPosition(progress)}부터는 오직 전진만 가능합니다.`);
-        return;
-    }
-    window.saveAndExitToMain();
+window.enterDungeonFromTown = function enterDungeonFromTown() {
+    if (!player || !player.inTown) return;
+    floor = 1;
+    dungeonStage = 1;
+    player.progress = { floor: 1, stage: 1 };
+    player.runWins = 0;
+    player.inTown = false;
+    combatTurnNumber = 1;
+    playerTurnSpent = false;
+    playerGuardState = null;
+    enemyGuardState = null;
+    syncPlayerCampaignState();
+    const shopArea = document.getElementById('shop-area');
+    const battleArea = document.getElementById('battle-area');
+    if (shopArea) shopArea.style.display = 'none';
+    if (battleArea) battleArea.style.display = 'block';
+    if (typeof enterBattleLayout === 'function') enterBattleLayout();
+    writeLog('[출정] 장비·골드·영구 강화 유지 · 미궁 진행도 1-1층 초기화');
+    spawnEnemy();
 };
+
+window.openPartyTownFromHub = function openPartyTownFromHub(slotId) {
+    if (!MetaRPG.setActiveSlot(slotId)) return;
+    const meta = MetaRPG.loadMeta();
+    const slot = meta.slots.find((entry) => entry.id === slotId);
+    if (!slot || slot.permanentDeath) return;
+    MetaRPG.recalcTechBonus(slot);
+    MetaRPG.saveMeta(meta);
+    player = buildRuntimePlayerFromSlot(slot);
+    fullResyncPlayerCombatStatsFromMetaAndInventory();
+    gold = Math.max(0, safeNum(slot.gold, 0));
+    floor = player.progress.floor;
+    dungeonStage = player.progress.stage;
+    player.inTown = true;
+    enemy = null;
+    const startArea = document.getElementById('start-area');
+    const battleArea = document.getElementById('battle-area');
+    if (startArea) startArea.style.display = 'none';
+    if (battleArea) battleArea.style.display = 'none';
+    if (typeof exitBattleLayout === 'function') exitBattleLayout();
+    openShop();
+};
+
+window.saveAndExitToMain = window.returnPartyToTown;
+window.exitToMainWithoutSave = window.returnPartyToTown;
 
 function installHumanActionButtons() {
     const originalRenderActions = typeof renderActions === 'function' ? renderActions : null;
@@ -17039,8 +17412,8 @@ function installHumanActionButtons() {
         const buttons = Array.from(host.querySelectorAll('button'));
         const defense = buttons.find((button) => !button.onclick && button !== buttons[0]);
         if (defense) {
-            defense.innerText = player.stats.agi >= 45 ? '💨 회피' : '🛡️ 방어';
-            defense.onclick = () => useAction(player.stats.agi >= 45 ? '회피' : '방패방어');
+            defense.innerText = '🛡️ 파티 방어';
+            defense.onclick = () => useAction('방패방어');
         }
         if (!host.querySelector('[data-v35-heal]')) {
             const heal = document.createElement('button');
@@ -17072,14 +17445,18 @@ function installDungeonProgressUiAdapter() {
             if (element) element.innerText = position;
         });
         const progress = normalizeDungeonProgress({ floor, stage: dungeonStage });
-        const canReturn = canReturnToBaseCamp(progress);
-        ['battle-save-main-btn', 'battle-exit-main-btn'].forEach((id) => {
+        const canReturn = canReturnToBaseCamp(progress) && safeNum(player && player.runWins, 0) >= 1;
+        ['battle-save-main-btn', 'battle-exit-main-btn'].forEach((id, index) => {
             const button = document.getElementById(id);
             if (!button) return;
+            button.innerText = index === 0 ? '🏠 마을로 복귀' : '마을 귀환';
+            button.onclick = () => returnPartyToTown();
             button.disabled = !canReturn;
             button.title = canReturn
-                ? `${formatDungeonPosition(progress)}: 베이스캠프 복귀 가능`
-                : `${formatDungeonPosition(progress)}: 6-1층 진입 후 복귀 불가`;
+                ? `${formatDungeonPosition(progress)}: 마을 복귀 가능`
+                : hasCrossedPointOfNoReturn(progress)
+                  ? `${formatDungeonPosition(progress)}: 6-1층 진입 후 복귀 불가`
+                  : '이번 회차에서 전투를 1회 이상 승리해야 복귀할 수 있습니다.';
         });
     };
     wrapped.__v35ProgressWrapped = true;
@@ -17095,6 +17472,7 @@ Object.assign(window, {
     probabilityRoll,
     calculateAttackChance,
     calculatePhysicalDamage,
+    chooseEnemyPartyTarget,
     enemyTurn,
     winBattle,
     gameOver,
@@ -17102,6 +17480,9 @@ Object.assign(window, {
     syncPlayerCampaignState,
     enterNextDungeonStage,
     initHumanRunFromActiveSlot,
+    returnPartyToTown: window.returnPartyToTown,
+    enterDungeonFromTown: window.enterDungeonFromTown,
+    openPartyTownFromHub: window.openPartyTownFromHub,
     isMercenaryCaptainJob,
     getAffinityRelKey,
     getMercGoldSkipCost,
@@ -17198,6 +17579,11 @@ window.addEventListener('load', () => {
         'setCodexStatFilter',
         'toggleCollection',
         'startInfiniteMode',
+        'rollPartyStats',
+        'confirmPartyAdventure',
+        'returnPartyToTown',
+        'enterDungeonFromTown',
+        'openPartyTownFromHub',
         'leaveShopContinueAscent',
         'leaveShopTrainHere',
         'nextFloor',
@@ -17237,10 +17623,16 @@ window.addEventListener('load', () => {
         'RESTORED_ITEM_DATA',
         'MetaRPG',
         'BASE_CAMP_FLOORS',
+        'PARTY_ROLE_KEYS',
+        'PARTY_ROLE_DEFINITIONS',
         'applyOfficialStatsToEquipmentItem',
         'clampEquipmentItemStatsToRarityCaps',
         'computeEquipmentGoldPrice',
         'computeFloorGoldReward',
+        'rollPartyStartingStats',
+        'normalizePartyMember',
+        'normalizeAdventurerParty',
+        'createAdventurerParty',
         'isStarterGearItem',
         'applyStarterGearStats',
         'buildStarterGearItem',
@@ -17386,6 +17778,11 @@ window.addEventListener('load', () => {
         'getEquipSlotLimit',
         'getEquippedCountByKind',
         'canEquipMoreOfItem',
+        'ensurePartyMemberRuntimeShape',
+        'getPartyMembers',
+        'getLivingPartyMembers',
+        'isPartyMember',
+        'syncPartyAggregateState',
     ];
 
     for (const name of internalExportNames) {

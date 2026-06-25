@@ -8,6 +8,12 @@
 
 const RULESET_VERSION = '3.5';
 const HUMAN_JOB_KEY = 'Human';
+const PARTY_ROLE_KEYS = Object.freeze(['tank', 'mage', 'knight']);
+const PARTY_ROLE_DEFINITIONS = Object.freeze({
+    tank: Object.freeze({ key: 'tank', name: '탱커', aggroWeight: 7, archetype: 'warrior' }),
+    mage: Object.freeze({ key: 'mage', name: '마법사', aggroWeight: 1, archetype: 'mage' }),
+    knight: Object.freeze({ key: 'knight', name: '기사', aggroWeight: 2.5, archetype: 'warrior' }),
+});
 const MAX_DUNGEON_FLOOR = 100;
 const STAGES_PER_FLOOR = 10;
 const LAST_SAFE_RETURN_FLOOR = 5;
@@ -142,6 +148,14 @@ function rollHumanStartingStats(random) {
     };
 }
 
+function rollPartyStartingStats(random) {
+    return PARTY_ROLE_KEYS.map((roleKey) => ({
+        roleKey,
+        name: PARTY_ROLE_DEFINITIONS[roleKey].name,
+        stats: rollHumanStartingStats(random),
+    }));
+}
+
 function normalizeHumanStats(raw) {
     const source = raw || {};
     return {
@@ -158,6 +172,44 @@ function normalizeHumanStats(raw) {
 
 function getMaxHpFromStat(hpStat) {
     return 50 + clamp(hpStat, 1, 100) * 5;
+}
+
+function normalizePartyMember(raw, roleKey) {
+    const role = PARTY_ROLE_DEFINITIONS[roleKey] || PARTY_ROLE_DEFINITIONS.knight;
+    const source = raw || {};
+    const stats = normalizeHumanStats(source.stats || source);
+    const maxHp = Math.max(1, safeNumber(source.maxHp, getMaxHpFromStat(stats.hp)));
+    return {
+        id: source.id || `${role.key}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+        roleKey: role.key,
+        name: source.name || role.name,
+        archetype: role.archetype,
+        aggroWeight: role.aggroWeight,
+        stats,
+        hp: clamp(source.hp == null ? maxHp : source.hp, 0, maxHp),
+        maxHp,
+        equipment: JSON.parse(JSON.stringify(source.equipment || { weapon: null, armor: null, accessories: [] })),
+        magic: Array.isArray(source.magic) ? source.magic.slice() : role.key === 'mage' ? ['fire', 'heal'] : [],
+        mastery: source.mastery && typeof source.mastery === 'object' ? JSON.parse(JSON.stringify(source.mastery)) : {},
+        statuses: Array.isArray(source.statuses) ? JSON.parse(JSON.stringify(source.statuses)) : [],
+        body: source.body && typeof source.body === 'object'
+            ? JSON.parse(JSON.stringify(source.body))
+            : Object.fromEntries(bodyParts.map((part) => [part, { destroyed: false, twisted: false, indestructible: false }])),
+    };
+}
+
+function normalizeAdventurerParty(rawParty) {
+    const source = Array.isArray(rawParty) ? rawParty : [];
+    return PARTY_ROLE_KEYS.map((roleKey, index) => {
+        const matched = source.find((member) => member && member.roleKey === roleKey) || source[index];
+        return normalizePartyMember(matched || { stats: rollHumanStartingStats() }, roleKey);
+    });
+}
+
+function createAdventurerParty(options) {
+    const input = options || {};
+    const rolled = Array.isArray(input.party) ? input.party : rollPartyStartingStats(input.random);
+    return normalizeAdventurerParty(rolled);
 }
 
 function createDungeonProgress(floor, stage) {
@@ -202,17 +254,19 @@ function hasCrossedPointOfNoReturn(progress) {
 
 function createHumanAdventurer(options) {
     const input = options || {};
-    const stats = input.stats ? normalizeHumanStats(input.stats) : rollHumanStartingStats(input.random);
-    const maxHp = getMaxHpFromStat(stats.hp);
+    const party = createAdventurerParty({ party: input.party, random: input.random });
+    const stats = party[0].stats;
+    const maxHp = party.reduce((sum, member) => sum + member.maxHp, 0);
     return {
-        id: input.id || `human-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
-        name: input.name || '인간 모험가',
+        id: input.id || `party-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+        name: input.name || '성혼 원정대',
         species: 'human',
         jobKey: HUMAN_JOB_KEY,
         classKey: null,
-        baseJob: '인간 모험가',
+        baseJob: '3인 파티',
+        party,
         stats,
-        hp: clamp(input.hp == null ? maxHp : input.hp, 0, maxHp),
+        hp: party.reduce((sum, member) => sum + member.hp, 0),
         maxHp,
         progress: normalizeDungeonProgress(input.progress),
         permanentDeath: false,
@@ -287,7 +341,7 @@ function capProbability(value) {
  * 기존 DOM 렌더러 호환 계약. 직업 선택지는 하나뿐이며 스토리/전직 데이터는 비어 있다.
  */
 const jobBase = Object.freeze({
-    Human: Object.freeze({ name: '인간 모험가', hp: 50, atk: 1, def: 1, color: '#d8d8d8' }),
+    Human: Object.freeze({ name: '3인 원정대', hp: 150, atk: 3, def: 3, color: '#d8d8d8' }),
 });
 const jobEvolutions = Object.freeze({});
 const relations = Object.freeze({});
@@ -323,7 +377,7 @@ const permanentUpgrades = JSON.parse(JSON.stringify(RESTORED_ITEMS.permanentUpgr
 const floorUnlocks = JSON.parse(JSON.stringify(RESTORED_ITEMS.floorUnlocks || {}));
 const floorUnlocksHunter = JSON.parse(JSON.stringify(RESTORED_ITEMS.floorUnlocksHunter || {}));
 const floorUnlocksWizard = JSON.parse(JSON.stringify(RESTORED_ITEMS.floorUnlocksWizard || {}));
-const synergyRules = JSON.parse(JSON.stringify(RESTORED_ITEMS.synergyRules || []));
+const synergyRules = Object.freeze([]);
 const ultSkills = {};
 const mercCompanionBases = {};
 const mercEvolutions = {};
@@ -356,7 +410,7 @@ function computeEquipmentGoldPrice(item, floorRef) {
 }
 function computeFloorGoldReward(floorRef, options) {
     const depth = Math.max(1, Number(floorRef) || 1);
-    return Math.max(1, Math.floor((10 + depth * 2) * 3.5 * (options && options.isBoss ? 2.4 : 1)));
+    return Math.max(1, Math.floor((10 + depth * 2) * 1.6 * (options && options.isBoss ? 2.2 : 1)));
 }
 function applyOfficialStatsToEquipmentItem(item) {
     if (item && !item._v35PowerBuffApplied && item.type !== 'relic' && item.type !== 'potion') {
@@ -450,13 +504,19 @@ if (typeof globalThis !== 'undefined') {
     Object.assign(globalThis, {
         RULESET_VERSION,
         HUMAN_JOB_KEY,
+        PARTY_ROLE_KEYS,
+        PARTY_ROLE_DEFINITIONS,
         MAX_DUNGEON_FLOOR,
         STAGES_PER_FLOOR,
         LAST_SAFE_RETURN_FLOOR,
         LAST_SAFE_RETURN_STAGE,
         TURN_RPG_DATA,
         rollHumanStartingStats,
+        rollPartyStartingStats,
         normalizeHumanStats,
+        normalizePartyMember,
+        normalizeAdventurerParty,
+        createAdventurerParty,
         createHumanAdventurer,
         createDungeonProgress,
         normalizeDungeonProgress,
@@ -475,6 +535,8 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         RULESET_VERSION,
         HUMAN_JOB_KEY,
+        PARTY_ROLE_KEYS,
+        PARTY_ROLE_DEFINITIONS,
         MAX_DUNGEON_FLOOR,
         STAGES_PER_FLOOR,
         LAST_SAFE_RETURN_FLOOR,
@@ -487,7 +549,11 @@ if (typeof module !== 'undefined' && module.exports) {
         magicTable,
         monsterArchetypeTable,
         rollHumanStartingStats,
+        rollPartyStartingStats,
         normalizeHumanStats,
+        normalizePartyMember,
+        normalizeAdventurerParty,
+        createAdventurerParty,
         getMaxHpFromStat,
         createHumanAdventurer,
         createDungeonProgress,

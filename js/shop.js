@@ -21,15 +21,8 @@ function openShop() {
 function renderShopLeaveButtons() {
     const wrap = document.getElementById('shop-leave-actions');
     if (!wrap) return;
-    if (floor > 20) {
-        const train = player && player.farmingStay;
-        wrap.innerHTML = `<p style="color:#888;font-size:0.82em;margin:0 0 10px;line-height:1.45;">21층 이상: 던전으로 돌아갈 때 <b>등반</b>(승리마다 다음 층) 또는 <b>이 층 훈련</b>(승리해도 층 유지)을 고릅니다.</p>
-      <button type="button" onclick="leaveShopContinueAscent()" style="background:#2ed573;color:#111;margin-bottom:8px;width:100%;padding:12px;font-weight:700;border:none;border-radius:8px;cursor:pointer;">⬆️ 등반 계속 (승리 시 다음 층)</button>
-      <button type="button" onclick="leaveShopTrainHere()" style="background:#3498db;color:#fff;margin-bottom:8px;width:100%;padding:12px;font-weight:700;border:none;border-radius:8px;cursor:pointer;">🔁 이 층에 머물며 훈련</button>
-      <p style="color:${train ? '#2ed573' : '#aaa'};font-size:0.78em;margin:0;">${train ? '현재: 훈련 모드 (동일 층 반복)' : '현재: 등반 모드'}</p>`;
-    } else {
-        wrap.innerHTML = `<button type="button" onclick="nextFloor()" style="background:#444;color:#fff;width:100%;padding:12px;border:none;border-radius:8px;cursor:pointer;font-weight:700;">던전으로 돌아가기</button>`;
-    }
+    wrap.innerHTML = `<p style="color:#888;font-size:0.82em;margin:0 0 10px;line-height:1.45;">재출정 시 장비·골드·영구 강화는 유지되며 미궁 진행도는 <b>1-1층</b>으로 초기화됩니다.</p>
+      <button type="button" onclick="enterDungeonFromTown()" style="background:#444;color:#fff;width:100%;padding:12px;border:none;border-radius:8px;cursor:pointer;font-weight:700;">⚔️ 미궁 1-1층으로 출정</button>`;
 }
 
 window.leaveShopContinueAscent = function leaveShopContinueAscent() {
@@ -45,18 +38,7 @@ window.leaveShopTrainHere = function leaveShopTrainHere() {
 };
 
 window.nextFloor = () => {
-    const returnToCurrentStage = () => {
-        const shopArea = document.getElementById('shop-area');
-        const battleArea = document.getElementById('battle-area');
-        if (shopArea) shopArea.style.display = 'none';
-        if (battleArea) battleArea.style.display = 'block';
-        pendingShop = false;
-        window._encounterPhaseActive = false;
-        if (typeof hideEncounterPhaseUI === 'function') hideEncounterPhaseUI();
-        if (typeof spawnEnemy === 'function') spawnEnemy();
-    };
-    if (typeof transitionMainView === 'function') transitionMainView(returnToCurrentStage);
-    else returnToCurrentStage();
+    if (typeof enterDungeonFromTown === 'function') enterDungeonFromTown();
 };
 
 function getUnlockedPoolItems() {
@@ -101,7 +83,7 @@ function formatShopItemDesc(desc) {
 
 /** 용병단장 전용(단독) 장비 — 타 직업 상점에서 제외 (데이터에 남아 있을 수 있음) */
 function mercCaptainExclusiveItem(it) {
-    return it && it.onlyFor && Array.isArray(it.onlyFor) && it.onlyFor.length === 1 && it.onlyFor[0] === '용병단장';
+    return false;
 }
 
 /** 일반 상점용: 용병 계약 + 단장 전용 장비 제외 */
@@ -168,12 +150,7 @@ function isShopEquipmentForDedupe(it) {
 }
 
 function getShopSynergyFingerprint(it) {
-    const rawTags = Array.isArray(it && it.tags) ? it.tags : [];
-    const tags = rawTags
-        .map((t) => String(t || '').trim())
-        .filter((t) => t && !/^rarity_/i.test(t) && !/^type_/i.test(t))
-        .sort();
-    return tags.length ? tags.join('+') : 'none';
+    return 'none';
 }
 
 function getShopSemanticStats(it) {
@@ -271,7 +248,7 @@ function renderShopItems(keepCurrentStock) {
         }
         list.appendChild(b);
     }
-    if (typeof MetaRPG !== 'undefined' && player && MetaRPG.isBaseCampFloor(floor)) {
+    if (typeof MetaRPG !== 'undefined' && player && player.inTown) {
         const campRow = document.createElement('div');
         campRow.style.cssText = 'margin-bottom:12px;text-align:center;';
         campRow.innerHTML = `<button type="button" onclick="openBaseCampTech()" style="width:100%;padding:12px;background:#9b59b6;color:#fff;border:1px solid #8e44ad;border-radius:8px;font-weight:700;cursor:pointer;">🏕️ 베이스캠프 (연구·영구 강화)</button>`;
@@ -360,7 +337,7 @@ function renderShopItems(keepCurrentStock) {
         const full = !isRelic && getEquipSlotKind(it) && !canEquipMoreOfItem(it);
         const slotLine = getEquipSlotLineHtml(it);
         const combatStats = buildShopItemCombatStatsHtml(it);
-        const synHtml = buildShopSynergyHintsHtml(it);
+        const synHtml = '';
         let bc='#444',bac='#888',bb='#2a2a2a',bt='COMMON';
         if(isRelic){bc='#f1c40f';bac='#f1c40f';bb='#2a2a0a';bt='RELIC';}
         else if(it.rarity==='relic'){bc='#d35400';bac='#f39c12';bb='#2a1a0a';bt='RELIC(용병)';}
@@ -390,7 +367,7 @@ function renderShopItems(keepCurrentStock) {
 
 window.rerollShop = () => {
     if(gold<rerollCost) return writeLog(`[상점] 골드가 부족합니다.`);
-    gold-=rerollCost; rerollCost+=10; writeLog(`[상점] 리롤 완료!`); updateUi(); renderShopItems();
+    gold-=rerollCost; rerollCost+=10; syncPlayerCampaignState(); writeLog(`[상점] 리롤 완료!`); updateUi(); renderShopItems();
 };
 
 window.buyPotionOffer = () => {
@@ -398,6 +375,7 @@ window.buyPotionOffer = () => {
     if (gold < currentPotionOffer.price) return writeLog('골드 부족!');
     gold -= currentPotionOffer.price;
     player.potions = safeNum(player.potions, 0) + 1;
+    syncPlayerCampaignState();
     writeLog('[상점] 포션 구매 완료.');
     updateUi();
 };
@@ -410,6 +388,7 @@ window.buyShopRarityBoost = () => {
     if (gold < price) return writeLog('[상점] 골드가 부족합니다.');
     gold -= price;
     player.shopRarityBoost = lv + 1;
+    syncPlayerCampaignState();
     writeLog(`[상점] ✨ 고등급 확률 강화 Lv.${lv + 1}!`);
     updateUi();
     renderShopItems(true);
@@ -424,7 +403,10 @@ window.sellItemByUid = function sellItemByUid(uid) {
     const refund = Math.floor(buyPrice * 0.5);
     removeOwnedItemEffects(it);
     player.items.splice(idx, 1);
+    fullResyncPlayerCombatStatsFromMetaAndInventory();
+    syncPlayerCampaignState();
     gold = safeNum(gold, 0) + refund;
+    syncPlayerCampaignState();
     writeLog(`[판매] ${it.name} 판매 (+${refund}G / 구매가 ${buyPrice}G)`);
     updateUi();
     renderActions();
@@ -515,13 +497,15 @@ window.buyItem = (event, idx) => {
                 if(it.regenPotion)player.hasRegenPotion=true;
                 if(it.critBonus)player.crit=(player.crit||1)+it.critBonus;
                 if(it.critMult)player.critMult=(player.critMult||1.8)+it.critMult;
-                if(it.penalty&&it.penalty[player.name]){player.acc-=it.penalty[player.name];writeLog(`[패널티] 명중률 -${it.penalty[player.name]}% 적용`);}
             }
             recalcPlayerDivineGainMult();
+            fullResyncPlayerCombatStatsFromMetaAndInventory();
+            syncPlayerCampaignState();
             writeLog(`[상점] ${it.name} 장착 완료!`);
             renderShopItems(true);
         } else { writeLog(`이미 보유한 장비입니다!`); gold+=it.price; }
     }
+    syncPlayerCampaignState();
     updateUi(); renderActions();
 };
 
