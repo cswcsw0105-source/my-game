@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
-    <title>던전 · 시즌 2</title>
+    <title>프로젝트 성혼</title>
     <link rel="stylesheet" href="style.css?v=s2r1">
     <style>
         .auth-box { background: #2a2a2a; padding: 20px; border-radius: 8px; border: 1px solid #444; max-width: 300px; margin: 0 auto; }
@@ -14,8 +14,8 @@
 </head>
 <body>
     <div class="container">
-        <h1 style="color: #fff; letter-spacing: 1px;">⚔️ 던전 · 로그라이트</h1>
-        <p style="color:#9b59b6;font-size:0.9em;margin:2px 0 8px;letter-spacing:0.5px;">시즌 2</p>
+        <h1 style="color: #fff; letter-spacing: 1px;">⚔️ 프로젝트 성혼</h1>
+        <p style="color:#9b59b6;font-size:0.9em;margin:2px 0 8px;letter-spacing:0.5px;">베타 v 1.0</p>
         
         <div class="game-layout" id="main-layout">
             <!-- 던전·상점 중 왼쪽: 인벤 상시 -->
@@ -25,7 +25,7 @@
             </div>
             <div class="screen" id="main-screen">
                 <div id="login-area" style="display:block;">
-                    <h2 style="color: #f1c40f;">던전 입장 (로그인)</h2>
+                    <h2 style="color: #f1c40f;">프로젝트 성혼 입장 (로그인)</h2>
                     <p style="font-size: 0.85em; color: #888;">이메일 형식(ex: a@a.com)과 비번 6자리 필수!</p>
                     <div class="auth-box">
                         <input type="email" id="email-input" placeholder="이메일 입력 (ex: test@test.com)">
@@ -103,7 +103,7 @@
                     <button type="button" class="sidebar-action-btn sidebar-btn-collection" onclick="toggleEvolutionMap(true)">🧭 전직도</button>
                     <button type="button" class="sidebar-action-btn sidebar-btn-collection" onclick="toggleCollection(true)">📖 장비 도감</button>
                     <button type="button" class="sidebar-action-btn sidebar-btn-rank" onclick="toggleRank(true)">🏆 명예의 전당 보기</button>
-                    <button type="button" class="sidebar-action-btn sidebar-btn-patch" onclick="togglePatchNotes(true)">📜 패치 노트 보기</button>
+                    <button type="button" class="sidebar-action-btn sidebar-btn-patch" disabled aria-disabled="true" style="cursor:default;">베타 v 1.0</button>
                 </div>
             </div>
 
@@ -140,8 +140,7 @@
         </div>
     </div>
 
-    <!-- 패치 노트 모달 -->
-    <div id="patch-modal" class="modal-overlay">
+    <!--
         <div class="modal-content">
             <button class="close-btn" onclick="togglePatchNotes(false)">✖</button>
             <h2>📜 패치 노트</h2>
@@ -367,12 +366,12 @@
 </tbody>
             </table>
         </div>
-    </div>
+    -->
 
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <!-- ?v= 쿼리로 브라우저 캐시 무효화 (수정이 안 보일 때 강력 새로고침도 함께) -->
-<script src="bundle.js?v=s2final"></script>
+<script src="bundle.js?v=beta-v1"></script>
 </body>
 </html>

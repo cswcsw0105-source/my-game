@@ -2003,8 +2003,8 @@ function showPreGameScreen() {
     try {
     document.getElementById('start-area').innerHTML = `
         <div style="text-align:center; margin-bottom:16px;">
-            <h2 style="color:#f1c40f; margin-bottom:5px;">⚔️ 로그라이트 허브</h2>
-            <p style="color:#9b59b6;font-size:0.88em;margin:0 0 8px;font-weight:700;">시즌 2</p>
+            <h2 style="color:#f1c40f; margin-bottom:5px;">⚔️ 프로젝트 성혼</h2>
+            <p style="color:#9b59b6;font-size:0.88em;margin:0 0 8px;font-weight:700;">베타 v 1.0</p>
             ${saveFileBar}
             <p style="color:#888; font-size:0.85em;">무한 층 · 베이스캠프에서만 영구 성장</p>
             ${globalUnlocked.length > 0 ? `<p style="color:#f1c40f;font-size:0.8em;">🔓 공용 해금: ${globalUnlocked.join(', ')}층</p>` : ''}
