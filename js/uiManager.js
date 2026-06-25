@@ -54,6 +54,124 @@ function getSlotClassDisplayName(slot) {
     return getDynamicCharacterTitleForFloor(refFloor, slot);
 }
 
+let activeInventoryPartyRole = 'tank';
+
+function getPartyRoleTabs() {
+    return [
+        { key: 'tank', label: '탱커', color: '#74b9ff' },
+        { key: 'mage', label: '마법사', color: '#a55eea' },
+        { key: 'knight', label: '기사', color: '#f1c40f' },
+    ];
+}
+
+function getActiveInventoryPartyMember() {
+    const members = getPartyMembers(player);
+    if (!members.length) return null;
+    const roleKeys = getPartyRoleTabs().map((role) => role.key);
+    if (!roleKeys.includes(activeInventoryPartyRole)) activeInventoryPartyRole = 'tank';
+    return members.find((member) => member.roleKey === activeInventoryPartyRole) || members[0];
+}
+
+window.setInventoryPartyTab = function setInventoryPartyTab(roleKey) {
+    if (!getPartyRoleTabs().some((role) => role.key === roleKey)) return;
+    activeInventoryPartyRole = roleKey;
+    renderInventoryPanel();
+};
+
+function buildLargeHpBarRow({ name, current, max, color, subText, dead }) {
+    const safeMax = Math.max(1, Math.floor(safeNum(max, 1)));
+    const safeCur = Math.max(0, Math.floor(safeNum(current, 0)));
+    const pct = Math.max(0, Math.min(100, (safeCur / safeMax) * 100));
+    return `<div style="margin:8px 0 10px;${dead ? 'opacity:0.5;' : ''}">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-end;margin:0 2px 4px;line-height:1.25;">
+            <span style="font-size:0.86em;font-weight:900;color:${color};white-space:nowrap;">${escapeHtml(name)}</span>
+            <span style="font-size:0.82em;font-weight:900;color:#fff;white-space:nowrap;">${safeCur} / ${safeMax}</span>
+        </div>
+        <div class="hp-bar-outer" style="margin:0;">
+            <div class="hp-bar-inner" style="width:${pct}%;background:${color};"></div>
+        </div>
+        ${subText ? `<div style="font-size:0.68em;color:#9aa4b2;line-height:1.35;margin:4px 2px 0;text-align:left;white-space:normal;">${subText}</div>` : ''}
+    </div>`;
+}
+
+function renderPartyHpBars() {
+    const aggregateOuter = document.querySelector('#player-card > .hp-bar-outer');
+    const aggregateText = document.getElementById('p-hp-t');
+    const host = document.getElementById('p-party-hp-bars');
+    if (!host) return;
+    if (!player || !Array.isArray(player.party)) {
+        host.style.display = 'none';
+        if (aggregateOuter) aggregateOuter.style.display = '';
+        if (aggregateText) aggregateText.style.display = '';
+        return;
+    }
+    const members = getPartyMembers(player);
+    host.innerHTML = members.map((member) => {
+        const stats = member.stats || {};
+        const sub = `힘${stats.str} · 방${stats.def} · 체${stats.hp} · 지${stats.int} · 지혜${stats.wis} · 민${stats.agi}`;
+        return buildLargeHpBarRow({
+            name: member.name,
+            current: member.curHp,
+            max: member.maxHp,
+            color: '#2ed573',
+            subText: sub,
+            dead: safeNum(member.curHp, 0) <= 0,
+        });
+    }).join('');
+    host.style.display = 'block';
+    if (aggregateOuter) aggregateOuter.style.display = 'none';
+    if (aggregateText) aggregateText.style.display = 'none';
+}
+
+function renderEnemyHpBars() {
+    const aggregateOuter = document.querySelector('#enemy-card > .hp-bar-outer');
+    const aggregateText = document.getElementById('e-hp-t');
+    const host = document.getElementById('e-party-hp-bars');
+    if (!host) return;
+    if (!enemy || !Array.isArray(enemy.party)) {
+        host.style.display = 'none';
+        if (aggregateOuter) aggregateOuter.style.display = '';
+        if (aggregateText) aggregateText.style.display = '';
+        return;
+    }
+    const members = getEnemyPartyMembers(enemy);
+    host.innerHTML = members.map((member) => {
+        const stats = member.stats || {};
+        const sub = `ATK ${safeNum(member.atk, 0)} · DEF ${safeNum(member.def, 0)} · 민${safeNum(stats.agi, 0)}`;
+        return buildLargeHpBarRow({
+            name: member.name,
+            current: member.curHp,
+            max: member.maxHp,
+            color: '#ff4757',
+            subText: sub,
+            dead: safeNum(member.curHp, 0) <= 0,
+        });
+    }).join('');
+    host.style.display = 'block';
+    if (aggregateOuter) aggregateOuter.style.display = 'none';
+    if (aggregateText) aggregateText.style.display = 'none';
+}
+
+function renderTurnIndicator() {
+    const el = document.getElementById('turn-indicator');
+    if (!el) return;
+    if (!player || !enemy || typeof getCurrentTurnEntry !== 'function') {
+        el.innerHTML = '';
+        return;
+    }
+    const entry = getCurrentTurnEntry();
+    if (!entry || !entry.actor) {
+        el.innerHTML = '';
+        return;
+    }
+    const actorName = escapeHtml(entry.actor.name || '대상');
+    if (entry.side === 'player') {
+        el.innerHTML = `${actorName}의 턴! 행동을 선택하세요.`;
+    } else {
+        el.innerHTML = `<span style="color:#ffb3b3;">${actorName}의 턴 — 적 행동 처리 중</span>`;
+    }
+}
+
 function syncV35PlayerStatDisplay() {
     if (!player || !player.stats) return;
     if (Array.isArray(player.party)) {
@@ -67,16 +185,8 @@ function syncV35PlayerStatDisplay() {
         if (defenseElement) defenseElement.textContent = String(getTotalPlayerDefenseForHit());
         if (hpTextElement) hpTextElement.title = '파티 생존 HP 합계';
         if (statusElement) {
-            statusElement.innerHTML = members
-                .map((member) =>
-                    `<div style="margin:3px 0;padding:3px 5px;border:1px solid #2f3542;border-radius:6px;background:rgba(0,0,0,0.18);line-height:1.25;">` +
-                    `<b style="color:#f1c40f;">${escapeHtml(member.name)}</b> ` +
-                    `<span style="color:#2ed573;">HP ${Math.max(0, Math.floor(member.curHp))}/${Math.max(1, Math.floor(member.maxHp))}</span><br>` +
-                    `<span style="color:#9aa4b2;font-size:0.72em;">힘${member.stats.str} 방${member.stats.def} 체${member.stats.hp} 지${member.stats.int} 지혜${member.stats.wis} 민${member.stats.agi}</span>` +
-                    `</div>`
-                )
-                .join('');
-            statusElement.style.cssText += ';display:block;text-align:left;font-size:0.76em;line-height:1.25;margin:8px auto 6px;max-width:96%;white-space:normal;';
+            statusElement.innerHTML = `<span style="color:#9aa4b2;font-size:0.74em;">개별 HP/스탯은 분할 게이지에 표시</span>`;
+            statusElement.style.cssText += ';display:block;text-align:center;font-size:0.74em;line-height:1.25;margin:6px auto 4px;max-width:96%;white-space:normal;';
             statusElement.title = '성혼 0 · 뒤틀림 0';
         }
         return;
@@ -201,6 +311,16 @@ function renderActions() {
     }
     if (typeof hasLivingEnemies === 'function' ? !hasLivingEnemies() : safeNum(enemy.curHp, 0) <= 0) {
         div.innerHTML = '';
+        return;
+    }
+    const turn = typeof getCurrentTurnEntry === 'function' ? getCurrentTurnEntry() : null;
+    if (!turn) {
+        div.innerHTML = '<div style="color:#888;font-size:0.85em;font-weight:800;padding:8px 0;">턴 순서 계산 중...</div>';
+        if (typeof startInitiativeTurnLoop === 'function') setTimeout(() => startInitiativeTurnLoop(), 0);
+        return;
+    }
+    if (turn.side !== 'player') {
+        div.innerHTML = `<div style="color:#ffb3b3;font-size:0.85em;font-weight:800;padding:8px 0;">${escapeHtml(turn.actor && turn.actor.name ? turn.actor.name : '적')} 행동 처리 중...</div>`;
         return;
     }
     div.innerHTML = '';
@@ -408,17 +528,8 @@ function updateUi() {
             const synStatus = '';
             const lvTxt = player.runLevel ? ` · Lv.${player.runLevel}` : '';
             if (isPartyRun) {
-                const memberRows = getPartyMembers(player)
-                    .map((member) => {
-                        const ratio = member.maxHp > 0 ? Math.max(0, member.curHp / member.maxHp) : 0;
-                        return `<div style="display:flex;justify-content:space-between;gap:8px;margin:2px 0;line-height:1.25;">` +
-                            `<span style="color:#f1c40f;font-weight:800;">${escapeHtml(member.name)}</span>` +
-                            `<span style="color:${ratio <= 0.3 ? '#ff6b6b' : '#2ed573'};font-weight:800;">${Math.max(0, Math.floor(member.curHp))}/${Math.max(1, Math.floor(member.maxHp))}</span>` +
-                            `</div>`;
-                    })
-                    .join('');
-                summLine.style.cssText += ';display:block;text-align:left;max-width:92%;margin:8px auto 4px;font-size:0.78em;line-height:1.25;';
-                summLine.innerHTML = memberRows;
+                summLine.style.cssText += ';display:block;text-align:center;max-width:92%;margin:6px auto 4px;font-size:0.72em;line-height:1.25;';
+                summLine.innerHTML = '<span style="color:#888;">민첩 순서 기반 개별 턴제</span>';
             } else if (isMercenaryCaptainJob()) {
                 summLine.innerHTML = `<span style="color:#e67e22;">🎖️ 지휘관 ${escapeHtml(getPlayerClassDisplayName())}</span> <span style="color:#888;">| HP ${pCur}/${pMax}${lvTxt} · 전열 없음${player.mercCooldownTurns > 0 ? ` · 재가동 ${player.mercCooldownTurns}T` : ''}${synHint}</span>${synStatus}`;
             } else if (player.summon && player.summon.name) {
@@ -454,6 +565,8 @@ function updateUi() {
             statTag.style.whiteSpace = 'normal';
         }
     }
+    renderPartyHpBars();
+    renderTurnIndicator();
     const ultLine = document.getElementById('p-ult-stack-line');
     if (ultLine) {
         if (player.unlockedSkill && floor >= 20) ultLine.innerHTML = `<span style="color:#9b59b6;">궁극기</span> [${safeNum(player.ultStack, 0)}/${Math.max(1, safeNum(player.ultMaxStack, 1))}]`;
@@ -481,19 +594,13 @@ function updateUi() {
     document.getElementById('e-hp-t').innerText=`${eCur} / ${eHp}`;
     document.getElementById('e-atk-val').innerText=String(safeNum(enemy.atk, 0));
     document.getElementById('e-def-val').innerText=String(safeNum(enemy.def, 0));
+    renderEnemyHpBars();
+    renderTurnIndicator();
     const enemyStatus = document.querySelector('#enemy-card .status-badge');
     if (enemyStatus) {
         if (Array.isArray(enemy.party)) {
-            enemyStatus.innerHTML = getEnemyPartyMembers(enemy)
-                .map((member) => {
-                    const dead = safeNum(member.curHp, 0) <= 0;
-                    return `<div style="display:flex;justify-content:space-between;gap:6px;margin:3px 0;padding:3px 5px;border:1px solid #3a2a31;border-radius:6px;background:rgba(0,0,0,0.16);line-height:1.25;${dead ? 'opacity:0.45;' : ''}">` +
-                        `<span style="color:#ffb3b3;font-weight:800;">${escapeHtml(member.name)}</span>` +
-                        `<span style="color:#ddd;">HP ${Math.max(0, Math.floor(member.curHp))}/${Math.max(1, Math.floor(member.maxHp))}</span>` +
-                        `</div>`;
-                })
-                .join('');
-            enemyStatus.style.cssText += ';display:block;text-align:left;font-size:0.74em;line-height:1.25;margin:8px auto 6px;max-width:96%;white-space:normal;';
+            enemyStatus.innerHTML = `<span style="color:#9aa4b2;font-size:0.72em;">적 개별 HP는 분할 게이지에 표시</span>`;
+            enemyStatus.style.cssText += ';display:block;text-align:center;font-size:0.72em;line-height:1.25;margin:6px auto 4px;max-width:96%;white-space:normal;';
         } else {
             enemyStatus.innerHTML = '';
         }
@@ -3831,6 +3938,9 @@ window.toggleCollection = (show) => {
 function renderInventoryPanel() {
     const invList = document.getElementById('inv-list');
     if (!invList || !player) return;
+    if (Array.isArray(player.party) && typeof fullResyncPlayerCombatStatsFromMetaAndInventory === 'function') {
+        fullResyncPlayerCombatStatsFromMetaAndInventory();
+    }
     const hasMercGear = isMercenaryCaptainJob() && player.mercInventory && player.mercInventory.length > 0;
     const rl = {
         legendary: { label: 'LEGENDARY', color: '#e74c3c', bg: '#2d1a1a' },
@@ -3839,6 +3949,25 @@ function renderInventoryPanel() {
         common: { label: 'COMMON', color: '#888', bg: '#2a2a2a' },
     };
     let html = '';
+    const partyMode = Array.isArray(player.party);
+    const activeMember = partyMode ? getActiveInventoryPartyMember() : null;
+    const sourceItems = activeMember ? (activeMember.items || []) : (player.items || []);
+    if (partyMode) {
+        const tabs = getPartyRoleTabs()
+            .map((role) => {
+                const selected = activeMember && activeMember.roleKey === role.key;
+                return `<button type="button" onclick="setInventoryPartyTab('${role.key}')" style="flex:1;min-width:0;padding:7px 6px;border-radius:8px;border:1px solid ${selected ? role.color : '#333'};background:${selected ? 'rgba(241,196,15,0.12)' : '#111'};color:${selected ? role.color : '#888'};font-size:0.78em;font-weight:900;cursor:pointer;">${role.label}</button>`;
+            })
+            .join('');
+        const st = activeMember && activeMember.stats ? activeMember.stats : {};
+        html += `<div style="display:flex;gap:6px;margin:0 0 10px;">${tabs}</div>`;
+        if (activeMember) {
+            html += `<div style="margin-bottom:10px;padding:8px 10px;background:#10141d;border:1px solid #293142;border-radius:9px;line-height:1.35;">
+                <div style="color:#f1c40f;font-size:0.88em;font-weight:900;">${escapeHtml(activeMember.name)} 장비</div>
+                <div style="color:#94a3b8;font-size:0.72em;margin-top:3px;">HP ${Math.max(0, Math.floor(activeMember.curHp))}/${Math.max(1, Math.floor(activeMember.maxHp))} · 힘${st.str} 방${st.def} 체${st.hp} 지${st.int} 지혜${st.wis} 민${st.agi}</div>
+            </div>`;
+        }
+    }
     if (hasMercGear) {
         html += `<div style="margin-bottom:10px;"><div style="background:#164a35;color:#2ed573;font-size:0.7em;font-weight:700;padding:3px 8px;border-radius:4px;display:inline-block;margin-bottom:6px;">🛡️ 용병 장비 (전열)</div>`;
         player.mercInventory.forEach((it) => {
@@ -3871,19 +4000,26 @@ function renderInventoryPanel() {
         html += `</div>`;
     }
     const ro = { legendary: 0, epic: 1, rare: 2, common: 3 };
-    const slotDefs = [
-        { kind: 'rune', icon: '🔮', label: '각인 룬 슬롯', color: '#00cec9', hint: '최대 1개' },
-        { kind: 'armor', icon: '🛡️', label: '갑옷 슬롯', color: '#74b9ff', hint: '최대 2개' },
-        { kind: 'ring', icon: '💍', label: '반지 슬롯', color: '#9b59b6', hint: '최대 3개' },
-        { kind: 'weapon', icon: '⚔️', label: '무기 슬롯', color: '#ffb347', hint: '최대 2개' },
-    ];
+    const slotDefs = partyMode
+        ? [
+            { kind: 'weapon', icon: '⚔️', label: '무기 슬롯', color: '#ffb347', hint: '캐릭터별 최대 1개', limit: 1 },
+            { kind: 'rune', icon: '🔮', label: '각인 룬 슬롯', color: '#00cec9', hint: '캐릭터별 최대 1개', limit: 1 },
+            { kind: 'armor', icon: '🛡️', label: '갑옷 슬롯', color: '#74b9ff', hint: '캐릭터별 최대 2개', limit: 2 },
+            { kind: 'ring', icon: '💍', label: '반지 슬롯', color: '#9b59b6', hint: '캐릭터별 최대 3개', limit: 3 },
+        ]
+        : [
+            { kind: 'rune', icon: '🔮', label: '각인 룬 슬롯', color: '#00cec9', hint: '최대 1개' },
+            { kind: 'armor', icon: '🛡️', label: '갑옷 슬롯', color: '#74b9ff', hint: '최대 2개' },
+            { kind: 'ring', icon: '💍', label: '반지 슬롯', color: '#9b59b6', hint: '최대 3개' },
+            { kind: 'weapon', icon: '⚔️', label: '무기 슬롯', color: '#ffb347', hint: '최대 2개' },
+        ];
     html += `<div class="inventory-slot-board">`;
     slotDefs.forEach((sdef) => {
-        const limit = getEquipSlotLimit(sdef.kind);
-        const slotItems = (player.items || [])
+        const limit = Math.max(1, Math.floor(safeNum(sdef.limit, getEquipSlotLimit(sdef.kind))));
+        const slotItems = sourceItems
             .filter((it) => getEquipSlotKind(it) === sdef.kind)
             .sort((a, b) => (ro[a.rarity] || 3) - (ro[b.rarity] || 3));
-        const cellCount = Math.max(limit, slotItems.length);
+        const cellCount = Math.max(limit, Math.min(slotItems.length, limit));
         html += `<section class="inventory-slot-section" style="--slot-accent:${sdef.color};">
             <div class="inventory-slot-header">
                 <span class="inventory-slot-title">${sdef.icon} ${sdef.label}</span>

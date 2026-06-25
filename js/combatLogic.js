@@ -15,6 +15,10 @@ const DEFECTIVE_DROP_CHANCE = 0.2;
 const DEFECTIVE_DROP_FLOOR_MAX = 5;
 const DEFECTIVE_DROP_TYPES = Object.freeze(['rusted', 'twisted']);
 const DEFECTIVE_EQUIPMENT_KIND_KEYS = Object.freeze(['weapon', 'armor', 'ring']);
+let initiativeQueue = [];
+let currentTurnEntry = null;
+let initiativeRound = 1;
+let initiativeAdvanceInProgress = false;
 
 function isMercenaryCaptainJob() { return false; }
 function getAffinityRelKey() { return '인간 모험가'; }
@@ -112,6 +116,58 @@ function choosePlayerEnemyTarget() {
 
 function hasLivingEnemies() {
     return (typeof getLivingEnemyPartyMembers === 'function' ? getLivingEnemyPartyMembers(enemy) : []).length > 0;
+}
+
+function getCurrentTurnEntry() {
+    return currentTurnEntry;
+}
+
+function resetInitiativeTimeline() {
+    initiativeQueue = [];
+    currentTurnEntry = null;
+    initiativeRound = 1;
+    initiativeAdvanceInProgress = false;
+    playerTurnSpent = false;
+}
+
+function getActorInitiative(actor) {
+    const stats = getActorStats(actor);
+    return Math.max(0, safeNum(stats.agi, safeNum(actor && actor.agi, 0)));
+}
+
+function isTurnActorAlive(entry) {
+    if (!entry || !entry.actor) return false;
+    if (entry.side === 'player') return isPartyMember(entry.actor) && getCurrentHp(entry.actor) > 0;
+    if (entry.side === 'enemy') return (isEnemyPartyMember(entry.actor) || entry.actor === enemy) && getCurrentHp(entry.actor) > 0;
+    return false;
+}
+
+function buildInitiativeQueue() {
+    const playerEntries = getLivingPartyMembers(player).map((actor, index) => ({
+        side: 'player',
+        actor,
+        initiative: getActorInitiative(actor),
+        orderBias: 100 - index,
+    }));
+    const enemyEntries = getLivingEnemyPartyMembers(enemy).map((actor, index) => ({
+        side: 'enemy',
+        actor,
+        initiative: getActorInitiative(actor),
+        orderBias: 50 - index,
+    }));
+    return [...playerEntries, ...enemyEntries].sort((a, b) => {
+        if (b.initiative !== a.initiative) return b.initiative - a.initiative;
+        return b.orderBias - a.orderBias;
+    });
+}
+
+function getTurnOrderPreviewText() {
+    const rows = currentTurnEntry ? [currentTurnEntry, ...initiativeQueue] : initiativeQueue;
+    return rows
+        .filter((entry) => entry && entry.actor)
+        .slice(0, 6)
+        .map((entry) => `${entry.actor.name || '?'}(${entry.initiative})`)
+        .join(' → ');
 }
 
 function getEquippedWeapon(actor) {
@@ -641,38 +697,147 @@ async function enemyTurn() {
     renderActions();
 }
 
+async function executeEnemyUnitTurn(unit) {
+    if (!unit || getCurrentHp(unit) <= 0 || !player || getLivingPartyMembers(player).length === 0) return;
+    const action = chooseEnemyAction(unit);
+    if (action === 'charge') {
+        unit._bossChargeReady = true;
+        writeLog(`[적 행동] ${unit.name} — 강공격 준비`);
+    } else if (action === 'heal') {
+        const allies = getLivingEnemyPartyMembers(enemy);
+        const targetAlly = allies.slice().sort((a, b) => a.curHp / a.maxHp - b.curHp / b.maxHp)[0] || unit;
+        const result = resolveHealAction(unit, targetAlly);
+        describeCombatResult(unit, targetAlly, result);
+    } else if (action === 'defend' || action === 'dodge') {
+        enemyGuardState = enemyGuardState && enemyGuardState.members ? enemyGuardState : { members: {} };
+        enemyGuardState.members[unit.id] = { mode: action === 'defend' ? 'shield' : 'dodge', turn: combatTurnNumber };
+        writeLog(`[적 행동] ${unit.name} — ${action === 'defend' ? '방어' : '회피'} 준비`);
+    } else {
+        const target = chooseEnemyPartyTarget();
+        if (!target) {
+            gameOver();
+            return;
+        }
+        writeLog(`[어그로] ${unit.name} → ${target.name} 타겟`);
+        unit._attackMultiplier = unit._bossChargeReady ? 2.5 : 1;
+        await playV35AttackVfx('enemy', unit, action);
+        const result = action === 'magic_attack'
+            ? resolveMagicAttackAction(unit, target, getPartyGuardStateFor(target))
+            : resolveAttackAction(unit, target, getPartyGuardStateFor(target));
+        unit._attackMultiplier = 1;
+        unit._bossChargeReady = false;
+        describeCombatResult(unit, target, result);
+        emitCombatResultVfx(target, result);
+    }
+    if (enemy && Array.isArray(enemy.party)) syncEnemyPartyAggregateState(enemy);
+}
+
+async function finishActiveInitiativeTurn() {
+    currentTurnEntry = null;
+    playerTurnSpent = false;
+    if (applyDefectiveEquipmentTurnEndEffects()) {
+        if (!player || getLivingPartyMembers(player).length === 0) return;
+    }
+    combatTurnNumber += 1;
+    updateUi();
+    renderActions();
+    await advanceInitiativeTurn();
+}
+
+async function advanceInitiativeTurn() {
+    if (initiativeAdvanceInProgress || !player || !enemy) return;
+    initiativeAdvanceInProgress = true;
+    try {
+        while (player && enemy) {
+            if (getLivingPartyMembers(player).length === 0) {
+                gameOver();
+                return;
+            }
+            if (!hasLivingEnemies()) {
+                winBattle();
+                return;
+            }
+            if (!initiativeQueue.length) {
+                initiativeQueue = buildInitiativeQueue();
+                if (initiativeRound > 1) writeLog(`[라운드] ${initiativeRound}라운드 — 민첩 순서 재정렬: ${getTurnOrderPreviewText()}`);
+                initiativeRound += 1;
+            }
+            const next = initiativeQueue.shift();
+            if (!isTurnActorAlive(next)) continue;
+            currentTurnEntry = next;
+            if (next.side === 'player') {
+                playerTurnSpent = false;
+                setCombatProcessing(false);
+                writeLog(`[턴] ${next.actor.name}의 턴 — 행동을 선택하세요.`);
+                updateUi();
+                renderActions();
+                return;
+            }
+            setCombatProcessing(true);
+            updateUi();
+            renderActions();
+            await waitMs(260);
+            await executeEnemyUnitTurn(next.actor);
+            currentTurnEntry = null;
+            if (enemy && enemy.isBoss) enemy.turnCount = Math.max(1, safeNum(enemy.turnCount, 1)) + 1;
+            if (applyDefectiveEquipmentTurnEndEffects()) {
+                if (!player || getLivingPartyMembers(player).length === 0) return;
+            }
+            combatTurnNumber += 1;
+        }
+    } finally {
+        initiativeAdvanceInProgress = false;
+        if (player && enemy) {
+            updateUi();
+            renderActions();
+        }
+    }
+}
+
+function startInitiativeTurnLoop() {
+    if (!player || !enemy || currentTurnEntry || initiativeAdvanceInProgress) return;
+    advanceInitiativeTurn();
+}
+
 window.useAction = async function useAction(type) {
-    if (isProcessing || !player || !enemy || getLivingPartyMembers(player).length === 0 || !hasLivingEnemies()) return;
+    const turn = currentTurnEntry;
+    if (
+        isProcessing ||
+        !player ||
+        !enemy ||
+        !turn ||
+        turn.side !== 'player' ||
+        !isTurnActorAlive(turn) ||
+        getLivingPartyMembers(player).length === 0 ||
+        !hasLivingEnemies()
+    ) return;
     if (!spendPlayerAction()) {
         writeLog('[턴 제한] 한 턴에는 공격/방어/힐 중 하나만 선택할 수 있습니다.');
         return;
     }
     setCombatProcessing(true);
     let result = null;
+    const actor = turn.actor;
     if (type === '공격') {
-        recordPlayerBehavior('physical_attack');
-        for (const member of getLivingPartyMembers(player)) {
-            const target = choosePlayerEnemyTarget();
-            if (!target) break;
-            const learnedAction = member.roleKey === 'mage' ? 'magic_attack' : 'physical_attack';
-            await playV35AttackVfx('player', member, learnedAction);
-            result = learnedAction === 'magic_attack'
-                ? resolveMagicAttackAction(member, target, getEnemyGuardStateFor(target))
-                : resolveAttackAction(member, target, getEnemyGuardStateFor(target));
-            describeCombatResult(member, target, result);
-            emitCombatResultVfx(target, result);
-            if (enemy && Array.isArray(enemy.party)) syncEnemyPartyAggregateState(enemy);
-            if (!hasLivingEnemies()) break;
-        }
+        const target = choosePlayerEnemyTarget();
+        if (!target) return;
+        const learnedAction = classifyPlayerAttackAction(actor);
+        recordPlayerBehavior(learnedAction);
+        await playV35AttackVfx('player', actor, learnedAction);
+        result = learnedAction === 'magic_attack'
+            ? resolveMagicAttackAction(actor, target, getEnemyGuardStateFor(target))
+            : resolveAttackAction(actor, target, getEnemyGuardStateFor(target));
+        describeCombatResult(actor, target, result);
+        emitCombatResultVfx(target, result);
+        if (enemy && Array.isArray(enemy.party)) syncEnemyPartyAggregateState(enemy);
         enemyGuardState = null;
     } else if (type === '힐') {
         recordPlayerBehavior('heal');
         await playMagicBurstVfx('player');
         const living = getLivingPartyMembers(player);
-        const healer = living.find((member) => member.roleKey === 'mage') || living[0];
         const target = living.slice().sort((a, b) => a.curHp / a.maxHp - b.curHp / b.maxHp)[0];
-        result = resolveHealAction(healer || target, target);
-        describeCombatResult(healer || target, target, result);
+        result = resolveHealAction(actor, target);
+        describeCombatResult(actor, target, result);
         syncPartyAggregateState(player);
     } else {
         const mode = type === '회피' ? 'dodge' : 'shield';
@@ -680,11 +845,11 @@ window.useAction = async function useAction(type) {
         playerGuardState = {
             mode,
             turn: combatTurnNumber,
-            members: Object.fromEntries(getLivingPartyMembers(player).map((member) => [member.id, { mode, turn: combatTurnNumber }])),
+            members: { [actor.id]: { mode, turn: combatTurnNumber } },
         };
         if (mode === 'dodge') triggerDodgeMove('player');
         else triggerGuardAura();
-        writeLog(`[플레이어 행동] ${mode === 'dodge' ? '회피' : '방어'} 준비`);
+        writeLog(`[플레이어 행동] ${actor.name} — ${mode === 'dodge' ? '회피' : '방어'} 준비`);
     }
     updateUi();
     if (!hasLivingEnemies()) {
@@ -692,18 +857,19 @@ window.useAction = async function useAction(type) {
         winBattle();
         return;
     }
-    await enemyTurn();
+    await finishActiveInitiativeTurn();
 };
 
 window.usePotion = function usePotion() {
-    if (isProcessing || !player || getLivingPartyMembers(player).length === 0) return;
+    const turn = currentTurnEntry;
+    if (isProcessing || !player || !turn || turn.side !== 'player' || getLivingPartyMembers(player).length === 0) return;
     if (!spendPlayerAction()) return writeLog('[턴 제한] 이번 턴의 행동을 이미 사용했습니다.');
     const target = getLivingPartyMembers(player).slice().sort((a, b) => a.curHp / a.maxHp - b.curHp / b.maxHp)[0];
-    const result = resolveHealAction(target);
-    describeCombatResult(target, target, result);
+    const result = resolveHealAction(turn.actor, target);
+    describeCombatResult(turn.actor, target, result);
     syncPartyAggregateState(player);
     updateUi();
-    enemyTurn();
+    finishActiveInitiativeTurn();
 };
 
 function syncPlayerCampaignState() {
@@ -750,6 +916,7 @@ function enterNextDungeonStage() {
 
 function winBattle() {
     setCombatProcessing(false);
+    resetInitiativeTimeline();
     playerTurnSpent = false;
     playerGuardState = null;
     enemyGuardState = null;
@@ -974,6 +1141,8 @@ function installHumanActionButtons() {
         originalRenderActions();
         const host = document.getElementById('action-btns');
         if (!host || !player || !enemy || (typeof hasLivingEnemies === 'function' ? !hasLivingEnemies() : enemy.curHp <= 0)) return;
+        const turn = typeof getCurrentTurnEntry === 'function' ? getCurrentTurnEntry() : null;
+        if (!turn || turn.side !== 'player') return;
         const buttons = Array.from(host.querySelectorAll('button'));
         const defense = buttons.find((button) => !button.onclick && button !== buttons[0]);
         if (defense) {
@@ -1040,6 +1209,9 @@ Object.assign(window, {
     setCombatProcessing,
     updateCombatButtonsLockState,
     probabilityRoll,
+    getCurrentTurnEntry,
+    resetInitiativeTimeline,
+    startInitiativeTurnLoop,
     calculateAttackChance,
     calculatePhysicalDamage,
     getEnemyGuardStateFor,

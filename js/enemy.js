@@ -48,6 +48,7 @@ const ENEMY_PARTY_ROLE_DEFS = Object.freeze({
     mage: Object.freeze({ key: 'mage', name: '마법사', archetype: 'mage', hpMult: 0.86, atkMult: 1.22, defMult: 0.82, aggroWeight: 1 }),
     knight: Object.freeze({ key: 'knight', name: '기사', archetype: 'knight', hpMult: 1.04, atkMult: 1.04, defMult: 1.08, aggroWeight: 2 }),
 });
+const EARLY_NORMAL_ENEMY_STAT_MULT = 0.65;
 
 function pickEnemyPartyRoles(count) {
     const keys = ['tank', 'mage', 'knight'];
@@ -77,8 +78,9 @@ function createEnemyPartyMember(progress, roleKey, index, isBoss) {
     const current = normalizeDungeonProgress(progress);
     const base = buildEnemyStatsForFloor(current.floor, isBoss, current.stage);
     const role = ENEMY_PARTY_ROLE_DEFS[roleKey] || ENEMY_PARTY_ROLE_DEFS.knight;
-    const maxHp = Math.max(1, Math.floor(base.hp * role.hpMult));
-    const atk = Math.max(1, Math.floor(base.atk * role.atkMult));
+    const earlyNormalNerf = !isBoss && current.floor >= 1 && current.floor <= 5 ? EARLY_NORMAL_ENEMY_STAT_MULT : 1;
+    const maxHp = Math.max(1, Math.floor(base.hp * role.hpMult * earlyNormalNerf));
+    const atk = Math.max(1, Math.floor(base.atk * role.atkMult * earlyNormalNerf));
     const def = Math.max(0, Math.floor(base.def * role.defMult));
     return {
         id: `enemy-${current.floor}-${current.stage}-${index}-${Date.now().toString(36)}`,
@@ -198,6 +200,7 @@ function spawnEnemy() {
     dungeonStage = progress.stage;
     const ghost = typeof MetaRPG !== 'undefined' ? MetaRPG.getGhostEncounter(progress) : null;
     enemy = ghost ? ghostToEnemy(ghost) : createDepthMonster(progress);
+    if (typeof resetInitiativeTimeline === 'function') resetInitiativeTimeline();
     if (typeof writeLog === 'function') {
         const partyInfo = !ghost && enemy && Array.isArray(enemy.party)
             ? ` (${enemy.party.map((member) => member.job).join(' · ')})`
@@ -210,6 +213,7 @@ function spawnEnemy() {
     }
     if (typeof updateUi === 'function') updateUi();
     if (typeof renderActions === 'function') renderActions();
+    if (typeof startInitiativeTurnLoop === 'function') setTimeout(() => startInitiativeTurnLoop(), 0);
     return enemy;
 }
 

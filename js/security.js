@@ -48,6 +48,7 @@
         'returnToHubFromCenturyMilestone',
         'reincarnateFromCenturyMilestone',
         'togglePreferredItem',
+        'setInventoryPartyTab',
         'togglePatchNotes',
         'toggleRank',
         'toggleInv',

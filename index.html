@@ -57,6 +57,7 @@
                             <h4 id="p-name" style="color: #fff;">나</h4>
                             <div class="hp-bar-outer"><div id="p-hp" class="hp-bar-inner"></div></div>
                             <span id="p-hp-t" style="font-weight:bold; color:#fff;"></span>
+                            <div id="p-party-hp-bars" style="display:none;margin-top:8px;"></div>
                             <div id="p-summon-line" style="font-size:0.76em;color:#a55eea;margin-top:4px;min-height:1.1em;"></div>
                             <div id="p-ult-stack-line" style="font-size:0.76em;color:#9b59b6;margin-top:2px;min-height:1.1em;"></div>
                             <div id="p-status" class="status-badge"></div>
@@ -73,12 +74,14 @@
                             <h4 id="e-name" style="color: #fff;">적</h4>
                             <div class="hp-bar-outer"><div id="e-hp" class="hp-bar-inner" style="background:#ff4757;"></div></div>
                             <span id="e-hp-t" style="font-weight:bold; color:#fff;"></span>
+                            <div id="e-party-hp-bars" style="display:none;margin-top:8px;"></div>
                             <div class="status-badge"></div>
                             <div class="stat-tag" style="cursor:default;">ATK: <span id="e-atk-val" style="color:#f1c40f;">0</span> / DEF: <span id="e-def-val" style="color:#1e90ff;">0</span></div>
                             <div id="enemy-victory-panel" class="enemy-victory-panel" style="display:none;"></div>
                         </div>
                     </div>
                     </div><!-- /battle-hud -->
+                    <div id="turn-indicator" style="margin:10px auto 0;max-width:620px;color:#f1c40f;font-weight:800;font-size:0.9em;line-height:1.35;text-align:center;"></div>
                     <div id="battle-log-strip" class="battle-log-strip"></div>
                     <div id="action-btns" style="margin-top:16px;"></div>
                 </div>
@@ -371,6 +374,6 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <!-- ?v= 쿼리로 브라우저 캐시 무효화 (수정이 안 보일 때 강력 새로고침도 함께) -->
-<script src="bundle.js?v=beta-v1-defective-drops"></script>
+<script src="bundle.js?v=beta-v1-initiative-tabs"></script>
 </body>
 </html>

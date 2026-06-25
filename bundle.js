@@ -11986,6 +11986,7 @@ const ENEMY_PARTY_ROLE_DEFS = Object.freeze({
     mage: Object.freeze({ key: 'mage', name: '마법사', archetype: 'mage', hpMult: 0.86, atkMult: 1.22, defMult: 0.82, aggroWeight: 1 }),
     knight: Object.freeze({ key: 'knight', name: '기사', archetype: 'knight', hpMult: 1.04, atkMult: 1.04, defMult: 1.08, aggroWeight: 2 }),
 });
+const EARLY_NORMAL_ENEMY_STAT_MULT = 0.65;
 
 function pickEnemyPartyRoles(count) {
     const keys = ['tank', 'mage', 'knight'];
@@ -12015,8 +12016,9 @@ function createEnemyPartyMember(progress, roleKey, index, isBoss) {
     const current = normalizeDungeonProgress(progress);
     const base = buildEnemyStatsForFloor(current.floor, isBoss, current.stage);
     const role = ENEMY_PARTY_ROLE_DEFS[roleKey] || ENEMY_PARTY_ROLE_DEFS.knight;
-    const maxHp = Math.max(1, Math.floor(base.hp * role.hpMult));
-    const atk = Math.max(1, Math.floor(base.atk * role.atkMult));
+    const earlyNormalNerf = !isBoss && current.floor >= 1 && current.floor <= 5 ? EARLY_NORMAL_ENEMY_STAT_MULT : 1;
+    const maxHp = Math.max(1, Math.floor(base.hp * role.hpMult * earlyNormalNerf));
+    const atk = Math.max(1, Math.floor(base.atk * role.atkMult * earlyNormalNerf));
     const def = Math.max(0, Math.floor(base.def * role.defMult));
     return {
         id: `enemy-${current.floor}-${current.stage}-${index}-${Date.now().toString(36)}`,
@@ -12136,6 +12138,7 @@ function spawnEnemy() {
     dungeonStage = progress.stage;
     const ghost = typeof MetaRPG !== 'undefined' ? MetaRPG.getGhostEncounter(progress) : null;
     enemy = ghost ? ghostToEnemy(ghost) : createDepthMonster(progress);
+    if (typeof resetInitiativeTimeline === 'function') resetInitiativeTimeline();
     if (typeof writeLog === 'function') {
         const partyInfo = !ghost && enemy && Array.isArray(enemy.party)
             ? ` (${enemy.party.map((member) => member.job).join(' · ')})`
@@ -12148,6 +12151,7 @@ function spawnEnemy() {
     }
     if (typeof updateUi === 'function') updateUi();
     if (typeof renderActions === 'function') renderActions();
+    if (typeof startInitiativeTurnLoop === 'function') setTimeout(() => startInitiativeTurnLoop(), 0);
     return enemy;
 }
 
@@ -12220,6 +12224,124 @@ function getSlotClassDisplayName(slot) {
     return getDynamicCharacterTitleForFloor(refFloor, slot);
 }
 
+let activeInventoryPartyRole = 'tank';
+
+function getPartyRoleTabs() {
+    return [
+        { key: 'tank', label: '탱커', color: '#74b9ff' },
+        { key: 'mage', label: '마법사', color: '#a55eea' },
+        { key: 'knight', label: '기사', color: '#f1c40f' },
+    ];
+}
+
+function getActiveInventoryPartyMember() {
+    const members = getPartyMembers(player);
+    if (!members.length) return null;
+    const roleKeys = getPartyRoleTabs().map((role) => role.key);
+    if (!roleKeys.includes(activeInventoryPartyRole)) activeInventoryPartyRole = 'tank';
+    return members.find((member) => member.roleKey === activeInventoryPartyRole) || members[0];
+}
+
+window.setInventoryPartyTab = function setInventoryPartyTab(roleKey) {
+    if (!getPartyRoleTabs().some((role) => role.key === roleKey)) return;
+    activeInventoryPartyRole = roleKey;
+    renderInventoryPanel();
+};
+
+function buildLargeHpBarRow({ name, current, max, color, subText, dead }) {
+    const safeMax = Math.max(1, Math.floor(safeNum(max, 1)));
+    const safeCur = Math.max(0, Math.floor(safeNum(current, 0)));
+    const pct = Math.max(0, Math.min(100, (safeCur / safeMax) * 100));
+    return `<div style="margin:8px 0 10px;${dead ? 'opacity:0.5;' : ''}">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-end;margin:0 2px 4px;line-height:1.25;">
+            <span style="font-size:0.86em;font-weight:900;color:${color};white-space:nowrap;">${escapeHtml(name)}</span>
+            <span style="font-size:0.82em;font-weight:900;color:#fff;white-space:nowrap;">${safeCur} / ${safeMax}</span>
+        </div>
+        <div class="hp-bar-outer" style="margin:0;">
+            <div class="hp-bar-inner" style="width:${pct}%;background:${color};"></div>
+        </div>
+        ${subText ? `<div style="font-size:0.68em;color:#9aa4b2;line-height:1.35;margin:4px 2px 0;text-align:left;white-space:normal;">${subText}</div>` : ''}
+    </div>`;
+}
+
+function renderPartyHpBars() {
+    const aggregateOuter = document.querySelector('#player-card > .hp-bar-outer');
+    const aggregateText = document.getElementById('p-hp-t');
+    const host = document.getElementById('p-party-hp-bars');
+    if (!host) return;
+    if (!player || !Array.isArray(player.party)) {
+        host.style.display = 'none';
+        if (aggregateOuter) aggregateOuter.style.display = '';
+        if (aggregateText) aggregateText.style.display = '';
+        return;
+    }
+    const members = getPartyMembers(player);
+    host.innerHTML = members.map((member) => {
+        const stats = member.stats || {};
+        const sub = `힘${stats.str} · 방${stats.def} · 체${stats.hp} · 지${stats.int} · 지혜${stats.wis} · 민${stats.agi}`;
+        return buildLargeHpBarRow({
+            name: member.name,
+            current: member.curHp,
+            max: member.maxHp,
+            color: '#2ed573',
+            subText: sub,
+            dead: safeNum(member.curHp, 0) <= 0,
+        });
+    }).join('');
+    host.style.display = 'block';
+    if (aggregateOuter) aggregateOuter.style.display = 'none';
+    if (aggregateText) aggregateText.style.display = 'none';
+}
+
+function renderEnemyHpBars() {
+    const aggregateOuter = document.querySelector('#enemy-card > .hp-bar-outer');
+    const aggregateText = document.getElementById('e-hp-t');
+    const host = document.getElementById('e-party-hp-bars');
+    if (!host) return;
+    if (!enemy || !Array.isArray(enemy.party)) {
+        host.style.display = 'none';
+        if (aggregateOuter) aggregateOuter.style.display = '';
+        if (aggregateText) aggregateText.style.display = '';
+        return;
+    }
+    const members = getEnemyPartyMembers(enemy);
+    host.innerHTML = members.map((member) => {
+        const stats = member.stats || {};
+        const sub = `ATK ${safeNum(member.atk, 0)} · DEF ${safeNum(member.def, 0)} · 민${safeNum(stats.agi, 0)}`;
+        return buildLargeHpBarRow({
+            name: member.name,
+            current: member.curHp,
+            max: member.maxHp,
+            color: '#ff4757',
+            subText: sub,
+            dead: safeNum(member.curHp, 0) <= 0,
+        });
+    }).join('');
+    host.style.display = 'block';
+    if (aggregateOuter) aggregateOuter.style.display = 'none';
+    if (aggregateText) aggregateText.style.display = 'none';
+}
+
+function renderTurnIndicator() {
+    const el = document.getElementById('turn-indicator');
+    if (!el) return;
+    if (!player || !enemy || typeof getCurrentTurnEntry !== 'function') {
+        el.innerHTML = '';
+        return;
+    }
+    const entry = getCurrentTurnEntry();
+    if (!entry || !entry.actor) {
+        el.innerHTML = '';
+        return;
+    }
+    const actorName = escapeHtml(entry.actor.name || '대상');
+    if (entry.side === 'player') {
+        el.innerHTML = `${actorName}의 턴! 행동을 선택하세요.`;
+    } else {
+        el.innerHTML = `<span style="color:#ffb3b3;">${actorName}의 턴 — 적 행동 처리 중</span>`;
+    }
+}
+
 function syncV35PlayerStatDisplay() {
     if (!player || !player.stats) return;
     if (Array.isArray(player.party)) {
@@ -12233,16 +12355,8 @@ function syncV35PlayerStatDisplay() {
         if (defenseElement) defenseElement.textContent = String(getTotalPlayerDefenseForHit());
         if (hpTextElement) hpTextElement.title = '파티 생존 HP 합계';
         if (statusElement) {
-            statusElement.innerHTML = members
-                .map((member) =>
-                    `<div style="margin:3px 0;padding:3px 5px;border:1px solid #2f3542;border-radius:6px;background:rgba(0,0,0,0.18);line-height:1.25;">` +
-                    `<b style="color:#f1c40f;">${escapeHtml(member.name)}</b> ` +
-                    `<span style="color:#2ed573;">HP ${Math.max(0, Math.floor(member.curHp))}/${Math.max(1, Math.floor(member.maxHp))}</span><br>` +
-                    `<span style="color:#9aa4b2;font-size:0.72em;">힘${member.stats.str} 방${member.stats.def} 체${member.stats.hp} 지${member.stats.int} 지혜${member.stats.wis} 민${member.stats.agi}</span>` +
-                    `</div>`
-                )
-                .join('');
-            statusElement.style.cssText += ';display:block;text-align:left;font-size:0.76em;line-height:1.25;margin:8px auto 6px;max-width:96%;white-space:normal;';
+            statusElement.innerHTML = `<span style="color:#9aa4b2;font-size:0.74em;">개별 HP/스탯은 분할 게이지에 표시</span>`;
+            statusElement.style.cssText += ';display:block;text-align:center;font-size:0.74em;line-height:1.25;margin:6px auto 4px;max-width:96%;white-space:normal;';
             statusElement.title = '성혼 0 · 뒤틀림 0';
         }
         return;
@@ -12367,6 +12481,16 @@ function renderActions() {
     }
     if (typeof hasLivingEnemies === 'function' ? !hasLivingEnemies() : safeNum(enemy.curHp, 0) <= 0) {
         div.innerHTML = '';
+        return;
+    }
+    const turn = typeof getCurrentTurnEntry === 'function' ? getCurrentTurnEntry() : null;
+    if (!turn) {
+        div.innerHTML = '<div style="color:#888;font-size:0.85em;font-weight:800;padding:8px 0;">턴 순서 계산 중...</div>';
+        if (typeof startInitiativeTurnLoop === 'function') setTimeout(() => startInitiativeTurnLoop(), 0);
+        return;
+    }
+    if (turn.side !== 'player') {
+        div.innerHTML = `<div style="color:#ffb3b3;font-size:0.85em;font-weight:800;padding:8px 0;">${escapeHtml(turn.actor && turn.actor.name ? turn.actor.name : '적')} 행동 처리 중...</div>`;
         return;
     }
     div.innerHTML = '';
@@ -12574,17 +12698,8 @@ function updateUi() {
             const synStatus = '';
             const lvTxt = player.runLevel ? ` · Lv.${player.runLevel}` : '';
             if (isPartyRun) {
-                const memberRows = getPartyMembers(player)
-                    .map((member) => {
-                        const ratio = member.maxHp > 0 ? Math.max(0, member.curHp / member.maxHp) : 0;
-                        return `<div style="display:flex;justify-content:space-between;gap:8px;margin:2px 0;line-height:1.25;">` +
-                            `<span style="color:#f1c40f;font-weight:800;">${escapeHtml(member.name)}</span>` +
-                            `<span style="color:${ratio <= 0.3 ? '#ff6b6b' : '#2ed573'};font-weight:800;">${Math.max(0, Math.floor(member.curHp))}/${Math.max(1, Math.floor(member.maxHp))}</span>` +
-                            `</div>`;
-                    })
-                    .join('');
-                summLine.style.cssText += ';display:block;text-align:left;max-width:92%;margin:8px auto 4px;font-size:0.78em;line-height:1.25;';
-                summLine.innerHTML = memberRows;
+                summLine.style.cssText += ';display:block;text-align:center;max-width:92%;margin:6px auto 4px;font-size:0.72em;line-height:1.25;';
+                summLine.innerHTML = '<span style="color:#888;">민첩 순서 기반 개별 턴제</span>';
             } else if (isMercenaryCaptainJob()) {
                 summLine.innerHTML = `<span style="color:#e67e22;">🎖️ 지휘관 ${escapeHtml(getPlayerClassDisplayName())}</span> <span style="color:#888;">| HP ${pCur}/${pMax}${lvTxt} · 전열 없음${player.mercCooldownTurns > 0 ? ` · 재가동 ${player.mercCooldownTurns}T` : ''}${synHint}</span>${synStatus}`;
             } else if (player.summon && player.summon.name) {
@@ -12620,6 +12735,8 @@ function updateUi() {
             statTag.style.whiteSpace = 'normal';
         }
     }
+    renderPartyHpBars();
+    renderTurnIndicator();
     const ultLine = document.getElementById('p-ult-stack-line');
     if (ultLine) {
         if (player.unlockedSkill && floor >= 20) ultLine.innerHTML = `<span style="color:#9b59b6;">궁극기</span> [${safeNum(player.ultStack, 0)}/${Math.max(1, safeNum(player.ultMaxStack, 1))}]`;
@@ -12647,19 +12764,13 @@ function updateUi() {
     document.getElementById('e-hp-t').innerText=`${eCur} / ${eHp}`;
     document.getElementById('e-atk-val').innerText=String(safeNum(enemy.atk, 0));
     document.getElementById('e-def-val').innerText=String(safeNum(enemy.def, 0));
+    renderEnemyHpBars();
+    renderTurnIndicator();
     const enemyStatus = document.querySelector('#enemy-card .status-badge');
     if (enemyStatus) {
         if (Array.isArray(enemy.party)) {
-            enemyStatus.innerHTML = getEnemyPartyMembers(enemy)
-                .map((member) => {
-                    const dead = safeNum(member.curHp, 0) <= 0;
-                    return `<div style="display:flex;justify-content:space-between;gap:6px;margin:3px 0;padding:3px 5px;border:1px solid #3a2a31;border-radius:6px;background:rgba(0,0,0,0.16);line-height:1.25;${dead ? 'opacity:0.45;' : ''}">` +
-                        `<span style="color:#ffb3b3;font-weight:800;">${escapeHtml(member.name)}</span>` +
-                        `<span style="color:#ddd;">HP ${Math.max(0, Math.floor(member.curHp))}/${Math.max(1, Math.floor(member.maxHp))}</span>` +
-                        `</div>`;
-                })
-                .join('');
-            enemyStatus.style.cssText += ';display:block;text-align:left;font-size:0.74em;line-height:1.25;margin:8px auto 6px;max-width:96%;white-space:normal;';
+            enemyStatus.innerHTML = `<span style="color:#9aa4b2;font-size:0.72em;">적 개별 HP는 분할 게이지에 표시</span>`;
+            enemyStatus.style.cssText += ';display:block;text-align:center;font-size:0.72em;line-height:1.25;margin:6px auto 4px;max-width:96%;white-space:normal;';
         } else {
             enemyStatus.innerHTML = '';
         }
@@ -15997,6 +16108,9 @@ window.toggleCollection = (show) => {
 function renderInventoryPanel() {
     const invList = document.getElementById('inv-list');
     if (!invList || !player) return;
+    if (Array.isArray(player.party) && typeof fullResyncPlayerCombatStatsFromMetaAndInventory === 'function') {
+        fullResyncPlayerCombatStatsFromMetaAndInventory();
+    }
     const hasMercGear = isMercenaryCaptainJob() && player.mercInventory && player.mercInventory.length > 0;
     const rl = {
         legendary: { label: 'LEGENDARY', color: '#e74c3c', bg: '#2d1a1a' },
@@ -16005,6 +16119,25 @@ function renderInventoryPanel() {
         common: { label: 'COMMON', color: '#888', bg: '#2a2a2a' },
     };
     let html = '';
+    const partyMode = Array.isArray(player.party);
+    const activeMember = partyMode ? getActiveInventoryPartyMember() : null;
+    const sourceItems = activeMember ? (activeMember.items || []) : (player.items || []);
+    if (partyMode) {
+        const tabs = getPartyRoleTabs()
+            .map((role) => {
+                const selected = activeMember && activeMember.roleKey === role.key;
+                return `<button type="button" onclick="setInventoryPartyTab('${role.key}')" style="flex:1;min-width:0;padding:7px 6px;border-radius:8px;border:1px solid ${selected ? role.color : '#333'};background:${selected ? 'rgba(241,196,15,0.12)' : '#111'};color:${selected ? role.color : '#888'};font-size:0.78em;font-weight:900;cursor:pointer;">${role.label}</button>`;
+            })
+            .join('');
+        const st = activeMember && activeMember.stats ? activeMember.stats : {};
+        html += `<div style="display:flex;gap:6px;margin:0 0 10px;">${tabs}</div>`;
+        if (activeMember) {
+            html += `<div style="margin-bottom:10px;padding:8px 10px;background:#10141d;border:1px solid #293142;border-radius:9px;line-height:1.35;">
+                <div style="color:#f1c40f;font-size:0.88em;font-weight:900;">${escapeHtml(activeMember.name)} 장비</div>
+                <div style="color:#94a3b8;font-size:0.72em;margin-top:3px;">HP ${Math.max(0, Math.floor(activeMember.curHp))}/${Math.max(1, Math.floor(activeMember.maxHp))} · 힘${st.str} 방${st.def} 체${st.hp} 지${st.int} 지혜${st.wis} 민${st.agi}</div>
+            </div>`;
+        }
+    }
     if (hasMercGear) {
         html += `<div style="margin-bottom:10px;"><div style="background:#164a35;color:#2ed573;font-size:0.7em;font-weight:700;padding:3px 8px;border-radius:4px;display:inline-block;margin-bottom:6px;">🛡️ 용병 장비 (전열)</div>`;
         player.mercInventory.forEach((it) => {
@@ -16037,19 +16170,26 @@ function renderInventoryPanel() {
         html += `</div>`;
     }
     const ro = { legendary: 0, epic: 1, rare: 2, common: 3 };
-    const slotDefs = [
-        { kind: 'rune', icon: '🔮', label: '각인 룬 슬롯', color: '#00cec9', hint: '최대 1개' },
-        { kind: 'armor', icon: '🛡️', label: '갑옷 슬롯', color: '#74b9ff', hint: '최대 2개' },
-        { kind: 'ring', icon: '💍', label: '반지 슬롯', color: '#9b59b6', hint: '최대 3개' },
-        { kind: 'weapon', icon: '⚔️', label: '무기 슬롯', color: '#ffb347', hint: '최대 2개' },
-    ];
+    const slotDefs = partyMode
+        ? [
+            { kind: 'weapon', icon: '⚔️', label: '무기 슬롯', color: '#ffb347', hint: '캐릭터별 최대 1개', limit: 1 },
+            { kind: 'rune', icon: '🔮', label: '각인 룬 슬롯', color: '#00cec9', hint: '캐릭터별 최대 1개', limit: 1 },
+            { kind: 'armor', icon: '🛡️', label: '갑옷 슬롯', color: '#74b9ff', hint: '캐릭터별 최대 2개', limit: 2 },
+            { kind: 'ring', icon: '💍', label: '반지 슬롯', color: '#9b59b6', hint: '캐릭터별 최대 3개', limit: 3 },
+        ]
+        : [
+            { kind: 'rune', icon: '🔮', label: '각인 룬 슬롯', color: '#00cec9', hint: '최대 1개' },
+            { kind: 'armor', icon: '🛡️', label: '갑옷 슬롯', color: '#74b9ff', hint: '최대 2개' },
+            { kind: 'ring', icon: '💍', label: '반지 슬롯', color: '#9b59b6', hint: '최대 3개' },
+            { kind: 'weapon', icon: '⚔️', label: '무기 슬롯', color: '#ffb347', hint: '최대 2개' },
+        ];
     html += `<div class="inventory-slot-board">`;
     slotDefs.forEach((sdef) => {
-        const limit = getEquipSlotLimit(sdef.kind);
-        const slotItems = (player.items || [])
+        const limit = Math.max(1, Math.floor(safeNum(sdef.limit, getEquipSlotLimit(sdef.kind))));
+        const slotItems = sourceItems
             .filter((it) => getEquipSlotKind(it) === sdef.kind)
             .sort((a, b) => (ro[a.rarity] || 3) - (ro[b.rarity] || 3));
-        const cellCount = Math.max(limit, slotItems.length);
+        const cellCount = Math.max(limit, Math.min(slotItems.length, limit));
         html += `<section class="inventory-slot-section" style="--slot-accent:${sdef.color};">
             <div class="inventory-slot-header">
                 <span class="inventory-slot-title">${sdef.icon} ${sdef.label}</span>
@@ -16716,6 +16856,10 @@ const DEFECTIVE_DROP_CHANCE = 0.2;
 const DEFECTIVE_DROP_FLOOR_MAX = 5;
 const DEFECTIVE_DROP_TYPES = Object.freeze(['rusted', 'twisted']);
 const DEFECTIVE_EQUIPMENT_KIND_KEYS = Object.freeze(['weapon', 'armor', 'ring']);
+let initiativeQueue = [];
+let currentTurnEntry = null;
+let initiativeRound = 1;
+let initiativeAdvanceInProgress = false;
 
 function isMercenaryCaptainJob() { return false; }
 function getAffinityRelKey() { return '인간 모험가'; }
@@ -16813,6 +16957,58 @@ function choosePlayerEnemyTarget() {
 
 function hasLivingEnemies() {
     return (typeof getLivingEnemyPartyMembers === 'function' ? getLivingEnemyPartyMembers(enemy) : []).length > 0;
+}
+
+function getCurrentTurnEntry() {
+    return currentTurnEntry;
+}
+
+function resetInitiativeTimeline() {
+    initiativeQueue = [];
+    currentTurnEntry = null;
+    initiativeRound = 1;
+    initiativeAdvanceInProgress = false;
+    playerTurnSpent = false;
+}
+
+function getActorInitiative(actor) {
+    const stats = getActorStats(actor);
+    return Math.max(0, safeNum(stats.agi, safeNum(actor && actor.agi, 0)));
+}
+
+function isTurnActorAlive(entry) {
+    if (!entry || !entry.actor) return false;
+    if (entry.side === 'player') return isPartyMember(entry.actor) && getCurrentHp(entry.actor) > 0;
+    if (entry.side === 'enemy') return (isEnemyPartyMember(entry.actor) || entry.actor === enemy) && getCurrentHp(entry.actor) > 0;
+    return false;
+}
+
+function buildInitiativeQueue() {
+    const playerEntries = getLivingPartyMembers(player).map((actor, index) => ({
+        side: 'player',
+        actor,
+        initiative: getActorInitiative(actor),
+        orderBias: 100 - index,
+    }));
+    const enemyEntries = getLivingEnemyPartyMembers(enemy).map((actor, index) => ({
+        side: 'enemy',
+        actor,
+        initiative: getActorInitiative(actor),
+        orderBias: 50 - index,
+    }));
+    return [...playerEntries, ...enemyEntries].sort((a, b) => {
+        if (b.initiative !== a.initiative) return b.initiative - a.initiative;
+        return b.orderBias - a.orderBias;
+    });
+}
+
+function getTurnOrderPreviewText() {
+    const rows = currentTurnEntry ? [currentTurnEntry, ...initiativeQueue] : initiativeQueue;
+    return rows
+        .filter((entry) => entry && entry.actor)
+        .slice(0, 6)
+        .map((entry) => `${entry.actor.name || '?'}(${entry.initiative})`)
+        .join(' → ');
 }
 
 function getEquippedWeapon(actor) {
@@ -17342,38 +17538,147 @@ async function enemyTurn() {
     renderActions();
 }
 
+async function executeEnemyUnitTurn(unit) {
+    if (!unit || getCurrentHp(unit) <= 0 || !player || getLivingPartyMembers(player).length === 0) return;
+    const action = chooseEnemyAction(unit);
+    if (action === 'charge') {
+        unit._bossChargeReady = true;
+        writeLog(`[적 행동] ${unit.name} — 강공격 준비`);
+    } else if (action === 'heal') {
+        const allies = getLivingEnemyPartyMembers(enemy);
+        const targetAlly = allies.slice().sort((a, b) => a.curHp / a.maxHp - b.curHp / b.maxHp)[0] || unit;
+        const result = resolveHealAction(unit, targetAlly);
+        describeCombatResult(unit, targetAlly, result);
+    } else if (action === 'defend' || action === 'dodge') {
+        enemyGuardState = enemyGuardState && enemyGuardState.members ? enemyGuardState : { members: {} };
+        enemyGuardState.members[unit.id] = { mode: action === 'defend' ? 'shield' : 'dodge', turn: combatTurnNumber };
+        writeLog(`[적 행동] ${unit.name} — ${action === 'defend' ? '방어' : '회피'} 준비`);
+    } else {
+        const target = chooseEnemyPartyTarget();
+        if (!target) {
+            gameOver();
+            return;
+        }
+        writeLog(`[어그로] ${unit.name} → ${target.name} 타겟`);
+        unit._attackMultiplier = unit._bossChargeReady ? 2.5 : 1;
+        await playV35AttackVfx('enemy', unit, action);
+        const result = action === 'magic_attack'
+            ? resolveMagicAttackAction(unit, target, getPartyGuardStateFor(target))
+            : resolveAttackAction(unit, target, getPartyGuardStateFor(target));
+        unit._attackMultiplier = 1;
+        unit._bossChargeReady = false;
+        describeCombatResult(unit, target, result);
+        emitCombatResultVfx(target, result);
+    }
+    if (enemy && Array.isArray(enemy.party)) syncEnemyPartyAggregateState(enemy);
+}
+
+async function finishActiveInitiativeTurn() {
+    currentTurnEntry = null;
+    playerTurnSpent = false;
+    if (applyDefectiveEquipmentTurnEndEffects()) {
+        if (!player || getLivingPartyMembers(player).length === 0) return;
+    }
+    combatTurnNumber += 1;
+    updateUi();
+    renderActions();
+    await advanceInitiativeTurn();
+}
+
+async function advanceInitiativeTurn() {
+    if (initiativeAdvanceInProgress || !player || !enemy) return;
+    initiativeAdvanceInProgress = true;
+    try {
+        while (player && enemy) {
+            if (getLivingPartyMembers(player).length === 0) {
+                gameOver();
+                return;
+            }
+            if (!hasLivingEnemies()) {
+                winBattle();
+                return;
+            }
+            if (!initiativeQueue.length) {
+                initiativeQueue = buildInitiativeQueue();
+                if (initiativeRound > 1) writeLog(`[라운드] ${initiativeRound}라운드 — 민첩 순서 재정렬: ${getTurnOrderPreviewText()}`);
+                initiativeRound += 1;
+            }
+            const next = initiativeQueue.shift();
+            if (!isTurnActorAlive(next)) continue;
+            currentTurnEntry = next;
+            if (next.side === 'player') {
+                playerTurnSpent = false;
+                setCombatProcessing(false);
+                writeLog(`[턴] ${next.actor.name}의 턴 — 행동을 선택하세요.`);
+                updateUi();
+                renderActions();
+                return;
+            }
+            setCombatProcessing(true);
+            updateUi();
+            renderActions();
+            await waitMs(260);
+            await executeEnemyUnitTurn(next.actor);
+            currentTurnEntry = null;
+            if (enemy && enemy.isBoss) enemy.turnCount = Math.max(1, safeNum(enemy.turnCount, 1)) + 1;
+            if (applyDefectiveEquipmentTurnEndEffects()) {
+                if (!player || getLivingPartyMembers(player).length === 0) return;
+            }
+            combatTurnNumber += 1;
+        }
+    } finally {
+        initiativeAdvanceInProgress = false;
+        if (player && enemy) {
+            updateUi();
+            renderActions();
+        }
+    }
+}
+
+function startInitiativeTurnLoop() {
+    if (!player || !enemy || currentTurnEntry || initiativeAdvanceInProgress) return;
+    advanceInitiativeTurn();
+}
+
 window.useAction = async function useAction(type) {
-    if (isProcessing || !player || !enemy || getLivingPartyMembers(player).length === 0 || !hasLivingEnemies()) return;
+    const turn = currentTurnEntry;
+    if (
+        isProcessing ||
+        !player ||
+        !enemy ||
+        !turn ||
+        turn.side !== 'player' ||
+        !isTurnActorAlive(turn) ||
+        getLivingPartyMembers(player).length === 0 ||
+        !hasLivingEnemies()
+    ) return;
     if (!spendPlayerAction()) {
         writeLog('[턴 제한] 한 턴에는 공격/방어/힐 중 하나만 선택할 수 있습니다.');
         return;
     }
     setCombatProcessing(true);
     let result = null;
+    const actor = turn.actor;
     if (type === '공격') {
-        recordPlayerBehavior('physical_attack');
-        for (const member of getLivingPartyMembers(player)) {
-            const target = choosePlayerEnemyTarget();
-            if (!target) break;
-            const learnedAction = member.roleKey === 'mage' ? 'magic_attack' : 'physical_attack';
-            await playV35AttackVfx('player', member, learnedAction);
-            result = learnedAction === 'magic_attack'
-                ? resolveMagicAttackAction(member, target, getEnemyGuardStateFor(target))
-                : resolveAttackAction(member, target, getEnemyGuardStateFor(target));
-            describeCombatResult(member, target, result);
-            emitCombatResultVfx(target, result);
-            if (enemy && Array.isArray(enemy.party)) syncEnemyPartyAggregateState(enemy);
-            if (!hasLivingEnemies()) break;
-        }
+        const target = choosePlayerEnemyTarget();
+        if (!target) return;
+        const learnedAction = classifyPlayerAttackAction(actor);
+        recordPlayerBehavior(learnedAction);
+        await playV35AttackVfx('player', actor, learnedAction);
+        result = learnedAction === 'magic_attack'
+            ? resolveMagicAttackAction(actor, target, getEnemyGuardStateFor(target))
+            : resolveAttackAction(actor, target, getEnemyGuardStateFor(target));
+        describeCombatResult(actor, target, result);
+        emitCombatResultVfx(target, result);
+        if (enemy && Array.isArray(enemy.party)) syncEnemyPartyAggregateState(enemy);
         enemyGuardState = null;
     } else if (type === '힐') {
         recordPlayerBehavior('heal');
         await playMagicBurstVfx('player');
         const living = getLivingPartyMembers(player);
-        const healer = living.find((member) => member.roleKey === 'mage') || living[0];
         const target = living.slice().sort((a, b) => a.curHp / a.maxHp - b.curHp / b.maxHp)[0];
-        result = resolveHealAction(healer || target, target);
-        describeCombatResult(healer || target, target, result);
+        result = resolveHealAction(actor, target);
+        describeCombatResult(actor, target, result);
         syncPartyAggregateState(player);
     } else {
         const mode = type === '회피' ? 'dodge' : 'shield';
@@ -17381,11 +17686,11 @@ window.useAction = async function useAction(type) {
         playerGuardState = {
             mode,
             turn: combatTurnNumber,
-            members: Object.fromEntries(getLivingPartyMembers(player).map((member) => [member.id, { mode, turn: combatTurnNumber }])),
+            members: { [actor.id]: { mode, turn: combatTurnNumber } },
         };
         if (mode === 'dodge') triggerDodgeMove('player');
         else triggerGuardAura();
-        writeLog(`[플레이어 행동] ${mode === 'dodge' ? '회피' : '방어'} 준비`);
+        writeLog(`[플레이어 행동] ${actor.name} — ${mode === 'dodge' ? '회피' : '방어'} 준비`);
     }
     updateUi();
     if (!hasLivingEnemies()) {
@@ -17393,18 +17698,19 @@ window.useAction = async function useAction(type) {
         winBattle();
         return;
     }
-    await enemyTurn();
+    await finishActiveInitiativeTurn();
 };
 
 window.usePotion = function usePotion() {
-    if (isProcessing || !player || getLivingPartyMembers(player).length === 0) return;
+    const turn = currentTurnEntry;
+    if (isProcessing || !player || !turn || turn.side !== 'player' || getLivingPartyMembers(player).length === 0) return;
     if (!spendPlayerAction()) return writeLog('[턴 제한] 이번 턴의 행동을 이미 사용했습니다.');
     const target = getLivingPartyMembers(player).slice().sort((a, b) => a.curHp / a.maxHp - b.curHp / b.maxHp)[0];
-    const result = resolveHealAction(target);
-    describeCombatResult(target, target, result);
+    const result = resolveHealAction(turn.actor, target);
+    describeCombatResult(turn.actor, target, result);
     syncPartyAggregateState(player);
     updateUi();
-    enemyTurn();
+    finishActiveInitiativeTurn();
 };
 
 function syncPlayerCampaignState() {
@@ -17451,6 +17757,7 @@ function enterNextDungeonStage() {
 
 function winBattle() {
     setCombatProcessing(false);
+    resetInitiativeTimeline();
     playerTurnSpent = false;
     playerGuardState = null;
     enemyGuardState = null;
@@ -17675,6 +17982,8 @@ function installHumanActionButtons() {
         originalRenderActions();
         const host = document.getElementById('action-btns');
         if (!host || !player || !enemy || (typeof hasLivingEnemies === 'function' ? !hasLivingEnemies() : enemy.curHp <= 0)) return;
+        const turn = typeof getCurrentTurnEntry === 'function' ? getCurrentTurnEntry() : null;
+        if (!turn || turn.side !== 'player') return;
         const buttons = Array.from(host.querySelectorAll('button'));
         const defense = buttons.find((button) => !button.onclick && button !== buttons[0]);
         if (defense) {
@@ -17741,6 +18050,9 @@ Object.assign(window, {
     setCombatProcessing,
     updateCombatButtonsLockState,
     probabilityRoll,
+    getCurrentTurnEntry,
+    resetInitiativeTimeline,
+    startInitiativeTurnLoop,
     calculateAttackChance,
     calculatePhysicalDamage,
     getEnemyGuardStateFor,
@@ -17842,6 +18154,7 @@ window.addEventListener('load', () => {
         'returnToHubFromCenturyMilestone',
         'reincarnateFromCenturyMilestone',
         'togglePreferredItem',
+        'setInventoryPartyTab',
         'togglePatchNotes',
         'toggleRank',
         'toggleInv',
