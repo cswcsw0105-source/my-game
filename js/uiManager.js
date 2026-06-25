@@ -298,9 +298,50 @@ function continuePendingVictoryAdvance(btn) {
     }, 260);
 }
 
+function bindV35ActionButton(button, actionType) {
+    if (!button) return;
+    button.onclick = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+        if (typeof window.useAction === 'function') window.useAction(actionType);
+    };
+}
+
+function getV35ActionFromButtonElement(element) {
+    if (!element) return null;
+    if (element.dataset && element.dataset.v35Action) return element.dataset.v35Action;
+    if (element.id === 'attack-btn' || element.id === 'btn-attack') return '공격';
+    if (element.id === 'defense-btn' || element.id === 'btn-party-defend') return '방패방어';
+    if (element.id === 'heal-btn' || element.id === 'btn-heal') return '힐';
+    return null;
+}
+
+function installV35ActionButtonDelegation() {
+    if (window.__v35ActionButtonDelegationInstalled) return;
+    window.__v35ActionButtonDelegationInstalled = true;
+    document.addEventListener('click', (event) => {
+        const host = document.getElementById('action-btns');
+        if (!host) return;
+        const button = event.target && event.target.closest ? event.target.closest('button') : null;
+        if (!button || !host.contains(button)) return;
+        const actionType = getV35ActionFromButtonElement(button);
+        if (!actionType) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (button.disabled || button.dataset.v35Disabled === '1') return;
+        if (typeof window.useAction === 'function') window.useAction(actionType);
+    }, true);
+}
+
+installV35ActionButtonDelegation();
+
 function renderActions() {
     const div = document.getElementById('action-btns');
     if (!div) return;
+    div.style.position = 'relative';
+    div.style.zIndex = '1000';
+    div.style.pointerEvents = 'auto';
     if (hasPendingVictoryAdvance()) {
         renderVictoryActionButton(div);
         return;
@@ -324,6 +365,60 @@ function renderActions() {
         return;
     }
     div.innerHTML = '';
+    const actor = turn.actor || {};
+    const actorName = actor.name || '파티원';
+    const canAttack = typeof canActorAttackThisTurn === 'function'
+        ? canActorAttackThisTurn(actor)
+        : !(safeNum(actor.attackLockTurns, 0) > 0 || actor._attackLockedForThisTurn || actor.weaponDisabledThisTurn);
+    const makeBtn = (id, text, actionType, bg, disabled, title) => {
+        const btn = document.createElement('button');
+        btn.id = id;
+        btn.type = 'button';
+        btn.dataset.v35Action = actionType;
+        if (id === 'heal-btn' || id === 'btn-heal') btn.dataset.v35Heal = '1';
+        btn.innerText = text;
+        btn.style.background = bg;
+        btn.style.position = 'relative';
+        btn.style.zIndex = '1000';
+        btn.style.pointerEvents = 'auto';
+        btn.title = title || '';
+        if (disabled) {
+            btn.dataset.v35Disabled = '1';
+            btn.disabled = true;
+            btn.style.opacity = '0.45';
+            btn.style.cursor = 'not-allowed';
+        }
+        bindV35ActionButton(btn, actionType);
+        div.appendChild(btn);
+        return btn;
+    };
+    makeBtn(
+        'attack-btn',
+        `⚔️ 공격`,
+        '공격',
+        player.color || '#d8d8d8',
+        !canAttack,
+        canAttack ? `${actorName}의 힘·민첩·공속 기반 공격` : `${actorName}는 공속 패널티 또는 뒤틀림으로 공격 불가`
+    );
+    makeBtn(
+        'defense-btn',
+        '🛡️ 파티 방어',
+        '방패방어',
+        '#888',
+        false,
+        `${actorName}가 이번 라운드 아군 전체 방어 보정`
+    );
+    makeBtn(
+        'heal-btn',
+        '✨ 힐',
+        '힐',
+        '#4b6b50',
+        false,
+        `${actorName}의 지혜 기반 자동 치유`
+    );
+    if (typeof updateCombatButtonsLockState === 'function') updateCombatButtonsLockState();
+    return;
+
     const atkBtn = document.createElement('button');
     atkBtn.id = 'btn-attack';
     atkBtn.innerText='⚔️ 공격'; atkBtn.style.background=player.color;
@@ -623,6 +718,9 @@ function writeLog(msg) {
 function renderSlimBattleLog() {
     const strip = document.getElementById('battle-log-strip');
     if (!strip) return;
+    strip.style.position = 'relative';
+    strip.style.zIndex = '1';
+    strip.style.overflow = 'hidden';
     const rows = (Array.isArray(window._combatLogHistory) ? window._combatLogHistory : [])
         .slice(0, 3)
         .map((msg) => `<div class="battle-log-line">${msg}</div>`)

@@ -12468,9 +12468,50 @@ function continuePendingVictoryAdvance(btn) {
     }, 260);
 }
 
+function bindV35ActionButton(button, actionType) {
+    if (!button) return;
+    button.onclick = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+        if (typeof window.useAction === 'function') window.useAction(actionType);
+    };
+}
+
+function getV35ActionFromButtonElement(element) {
+    if (!element) return null;
+    if (element.dataset && element.dataset.v35Action) return element.dataset.v35Action;
+    if (element.id === 'attack-btn' || element.id === 'btn-attack') return '공격';
+    if (element.id === 'defense-btn' || element.id === 'btn-party-defend') return '방패방어';
+    if (element.id === 'heal-btn' || element.id === 'btn-heal') return '힐';
+    return null;
+}
+
+function installV35ActionButtonDelegation() {
+    if (window.__v35ActionButtonDelegationInstalled) return;
+    window.__v35ActionButtonDelegationInstalled = true;
+    document.addEventListener('click', (event) => {
+        const host = document.getElementById('action-btns');
+        if (!host) return;
+        const button = event.target && event.target.closest ? event.target.closest('button') : null;
+        if (!button || !host.contains(button)) return;
+        const actionType = getV35ActionFromButtonElement(button);
+        if (!actionType) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (button.disabled || button.dataset.v35Disabled === '1') return;
+        if (typeof window.useAction === 'function') window.useAction(actionType);
+    }, true);
+}
+
+installV35ActionButtonDelegation();
+
 function renderActions() {
     const div = document.getElementById('action-btns');
     if (!div) return;
+    div.style.position = 'relative';
+    div.style.zIndex = '1000';
+    div.style.pointerEvents = 'auto';
     if (hasPendingVictoryAdvance()) {
         renderVictoryActionButton(div);
         return;
@@ -12494,6 +12535,60 @@ function renderActions() {
         return;
     }
     div.innerHTML = '';
+    const actor = turn.actor || {};
+    const actorName = actor.name || '파티원';
+    const canAttack = typeof canActorAttackThisTurn === 'function'
+        ? canActorAttackThisTurn(actor)
+        : !(safeNum(actor.attackLockTurns, 0) > 0 || actor._attackLockedForThisTurn || actor.weaponDisabledThisTurn);
+    const makeBtn = (id, text, actionType, bg, disabled, title) => {
+        const btn = document.createElement('button');
+        btn.id = id;
+        btn.type = 'button';
+        btn.dataset.v35Action = actionType;
+        if (id === 'heal-btn' || id === 'btn-heal') btn.dataset.v35Heal = '1';
+        btn.innerText = text;
+        btn.style.background = bg;
+        btn.style.position = 'relative';
+        btn.style.zIndex = '1000';
+        btn.style.pointerEvents = 'auto';
+        btn.title = title || '';
+        if (disabled) {
+            btn.dataset.v35Disabled = '1';
+            btn.disabled = true;
+            btn.style.opacity = '0.45';
+            btn.style.cursor = 'not-allowed';
+        }
+        bindV35ActionButton(btn, actionType);
+        div.appendChild(btn);
+        return btn;
+    };
+    makeBtn(
+        'attack-btn',
+        `⚔️ 공격`,
+        '공격',
+        player.color || '#d8d8d8',
+        !canAttack,
+        canAttack ? `${actorName}의 힘·민첩·공속 기반 공격` : `${actorName}는 공속 패널티 또는 뒤틀림으로 공격 불가`
+    );
+    makeBtn(
+        'defense-btn',
+        '🛡️ 파티 방어',
+        '방패방어',
+        '#888',
+        false,
+        `${actorName}가 이번 라운드 아군 전체 방어 보정`
+    );
+    makeBtn(
+        'heal-btn',
+        '✨ 힐',
+        '힐',
+        '#4b6b50',
+        false,
+        `${actorName}의 지혜 기반 자동 치유`
+    );
+    if (typeof updateCombatButtonsLockState === 'function') updateCombatButtonsLockState();
+    return;
+
     const atkBtn = document.createElement('button');
     atkBtn.id = 'btn-attack';
     atkBtn.innerText='⚔️ 공격'; atkBtn.style.background=player.color;
@@ -12793,6 +12888,9 @@ function writeLog(msg) {
 function renderSlimBattleLog() {
     const strip = document.getElementById('battle-log-strip');
     if (!strip) return;
+    strip.style.position = 'relative';
+    strip.style.zIndex = '1';
+    strip.style.overflow = 'hidden';
     const rows = (Array.isArray(window._combatLogHistory) ? window._combatLogHistory : [])
         .slice(0, 3)
         .map((msg) => `<div class="battle-log-line">${msg}</div>`)
@@ -16856,6 +16954,8 @@ const DEFECTIVE_DROP_CHANCE = 0.2;
 const DEFECTIVE_DROP_FLOOR_MAX = 5;
 const DEFECTIVE_DROP_TYPES = Object.freeze(['rusted', 'twisted']);
 const DEFECTIVE_EQUIPMENT_KIND_KEYS = Object.freeze(['weapon', 'armor', 'ring']);
+const DISTORTION_TURN_START_THRESHOLD = 30;
+const PLAYER_PARTY_DEFENSE_BONUS = 0.35;
 let initiativeQueue = [];
 let currentTurnEntry = null;
 let initiativeRound = 1;
@@ -16885,7 +16985,7 @@ function updateCombatButtonsLockState() {
     const host = document.getElementById('action-btns');
     if (!host) return;
     host.querySelectorAll('button').forEach((button) => {
-        button.disabled = !!isProcessing || button.disabled;
+        button.disabled = !!isProcessing || button.dataset.v35Disabled === '1';
         button.classList.toggle('combat-btn-processing', !!isProcessing);
     });
 }
@@ -16894,8 +16994,18 @@ function waitMs(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function probabilityRoll(chance, random) {
-    const capped = capProbability(chance);
+function getActorRollBonus(actor) {
+    const stats = getActorStats(actor);
+    const divinity = safeNum(stats.divinity, safeNum(actor && actor.divinity, 0));
+    const divineBonus = divinity >= 5 ? 0.05 : divinity <= -5 ? -0.03 : 0;
+    const wisdomLuck = Math.min(0.08, Math.max(0, stats.wis) * 0.0008);
+    return divineBonus + wisdomLuck;
+}
+
+function probabilityRoll(chance, actorOrRandom, maybeRandom) {
+    const actor = typeof actorOrRandom === 'function' ? null : actorOrRandom;
+    const random = typeof actorOrRandom === 'function' ? actorOrRandom : maybeRandom;
+    const capped = capProbability(chance + (actor ? getActorRollBonus(actor) : 0));
     const rng = typeof random === 'function' ? random : Math.random;
     const roll = rng();
     return { success: roll < capped, chance: capped, roll };
@@ -16948,11 +17058,7 @@ function getEnemyGuardStateFor(member) {
 function choosePlayerEnemyTarget() {
     const living = typeof getLivingEnemyPartyMembers === 'function' ? getLivingEnemyPartyMembers(enemy) : (enemy && enemy.curHp > 0 ? [enemy] : []);
     if (!living.length) return null;
-    return living.slice().sort((a, b) => {
-        const ar = actorMaxHp(a) > 0 ? getCurrentHp(a) / actorMaxHp(a) : 0;
-        const br = actorMaxHp(b) > 0 ? getCurrentHp(b) / actorMaxHp(b) : 0;
-        return ar - br;
-    })[0];
+    return living[0];
 }
 
 function hasLivingEnemies() {
@@ -17013,12 +17119,34 @@ function getTurnOrderPreviewText() {
 
 function getEquippedWeapon(actor) {
     const key = actor && actor.equipment && actor.equipment.weapon;
-    return weaponTable[key] || null;
+    if (key && weaponTable[key]) return weaponTable[key];
+    const items = getActorEquipmentItems(actor);
+    const weaponItem = items.find((item) => item && item.type === 'atk');
+    if (!weaponItem) return null;
+    const text = `${weaponItem.name || ''} ${(weaponItem.tags || []).join(' ')}`;
+    let profile = weaponTable.sword;
+    if (/망치|hammer/i.test(text)) profile = weaponTable.hammer;
+    else if (/활|총|석궁|ranged|bow|gun/i.test(text)) profile = weaponTable.ranged;
+    else if (/지팡이|staff|마법|마력|보주|주문/i.test(text)) profile = weaponTable.staff;
+    else if (/낫|scythe/i.test(text)) profile = weaponTable.greatScythe;
+    return { ...profile, item: weaponItem, value: safeNum(weaponItem.value, safeNum(profile.value, 0)) };
 }
 
 function getEquippedArmor(actor) {
     const key = actor && actor.equipment && actor.equipment.armor;
-    return armorTable[key] || null;
+    if (key && armorTable[key]) return armorTable[key];
+    const items = getActorEquipmentItems(actor);
+    const armorItem = items.find((item) => item && (item.type === 'hp' || safeNum(item.def, 0) > 0 || safeNum(item.damageReduction, 0) > 0));
+    if (!armorItem) return null;
+    const text = `${armorItem.name || ''} ${(armorItem.tags || []).join(' ')}`;
+    const profile = /방패|shield/i.test(text) ? armorTable.shield : armorTable.armor;
+    return {
+        ...profile,
+        item: armorItem,
+        def: safeNum(armorItem.def, safeNum(profile.def, 0)),
+        mitigation: safeNum(armorItem.damageReduction, safeNum(profile.mitigation, 0)),
+        nullifyChance: safeNum(armorItem.nullifyChance, safeNum(profile.nullifyChance, 0)),
+    };
 }
 
 function getActorEquipmentItems(actor) {
@@ -17184,7 +17312,7 @@ function calculateAttackChance(attacker, defender) {
     const attackStats = getActorStats(attacker);
     const defendStats = getActorStats(defender);
     const mastery = safeNum(attacker && attacker.mastery && attacker.mastery.weapon, 0);
-    return 0.42 + attackStats.agi * 0.004 + mastery * 0.002 - defendStats.agi * 0.0015;
+    return 0.42 + attackStats.agi * 0.004 + attackStats.int * 0.001 + mastery * 0.002 - defendStats.agi * 0.0015;
 }
 
 function calculatePhysicalDamage(attacker, defender) {
@@ -17192,7 +17320,7 @@ function calculatePhysicalDamage(attacker, defender) {
     const defendStats = getActorStats(defender);
     const weapon = getEquippedWeapon(attacker);
     const armor = getEquippedArmor(defender);
-    let rawPower = safeNum(attacker && attacker.atk, attackStats.str) + (weapon ? safeNum(weapon.value, 0) : 0);
+    let rawPower = safeNum(attacker && attacker.atk, attackStats.str) + Math.floor(attackStats.str * 0.25);
     const attackerRatio = actorMaxHp(attacker) > 0 ? getCurrentHp(attacker) / actorMaxHp(attacker) : 1;
     const defenderRatio = actorMaxHp(defender) > 0 ? getCurrentHp(defender) / actorMaxHp(defender) : 1;
     if (attacker && attacker.archetype === 'warrior' && attackerRatio <= 0.45) rawPower *= attackerRatio <= 0.25 ? 1.55 : 1.3;
@@ -17213,7 +17341,7 @@ function calculateMagicDamage(attacker, defender) {
     const attackStats = getActorStats(attacker);
     const defendStats = getActorStats(defender);
     const mastery = safeNum(attacker && attacker.mastery && (attacker.mastery.magic || attacker.mastery.holyMagic), 0);
-    const rawPower = attackStats.wis * 1.35 + attackStats.int * 0.45 + mastery * 0.25;
+    const rawPower = attackStats.wis * 1.45 + attackStats.int * 0.45 + mastery * 0.25;
     const reduced = Math.floor(rawPower * (100 / (100 + Math.max(0, defendStats.def * 0.7))));
     return Math.max(getMinimumDamageFor(attacker, defender), reduced);
 }
@@ -17241,13 +17369,52 @@ function actorCanHeal(actor) {
     return stats.wis > 0 && getCurrentHp(actor) < actorMaxHp(actor);
 }
 
+function getActorAttackSpeed(actor) {
+    const stats = getActorStats(actor);
+    const weapon = getEquippedWeapon(actor);
+    return Math.max(0, stats.agi + safeNum(weapon && weapon.speed, 45));
+}
+
+function getActorAttackStrikeCount(actor) {
+    const speed = getActorAttackSpeed(actor);
+    if (speed >= 125) return 3;
+    if (speed >= 90) return 2;
+    return 1;
+}
+
+function getActorPostAttackCooldownTurns(actor) {
+    const weapon = getEquippedWeapon(actor);
+    if (weapon && safeNum(weapon.cooldownTurns, 0) > 0) return Math.max(1, Math.floor(safeNum(weapon.cooldownTurns, 0)));
+    return getActorAttackSpeed(actor) < 55 ? 1 : 0;
+}
+
+function canActorAttackThisTurn(actor) {
+    return !!actor && safeNum(actor.attackLockTurns, 0) <= 0 && !actor._attackLockedForThisTurn && !actor.weaponDisabledThisTurn;
+}
+
+function gainActorWeaponMastery(actor, amount) {
+    if (!actor) return;
+    actor.mastery = actor.mastery && typeof actor.mastery === 'object' ? actor.mastery : {};
+    const stats = getActorStats(actor);
+    const gain = safeNum(amount, 1) * (1 + Math.max(0, stats.int) / 100);
+    actor.mastery.weapon = Math.max(0, safeNum(actor.mastery.weapon, 0) + gain);
+}
+
+function gainActorMagicMastery(actor, amount) {
+    if (!actor) return;
+    actor.mastery = actor.mastery && typeof actor.mastery === 'object' ? actor.mastery : {};
+    const stats = getActorStats(actor);
+    const gain = safeNum(amount, 1) * (1 + Math.max(0, stats.int) / 120);
+    actor.mastery.magic = Math.max(0, safeNum(actor.mastery.magic, 0) + gain);
+}
+
 function resolveAttackAction(attacker, defender, guardState) {
-    const hit = probabilityRoll(calculateAttackChance(attacker, defender));
+    const hit = probabilityRoll(calculateAttackChance(attacker, defender), attacker);
     if (!hit.success) return { type: 'attack', success: false, reason: 'miss', hit };
 
     if (guardState && guardState.mode === 'dodge') {
         const dodgeStats = getActorStats(defender);
-        const dodge = probabilityRoll(0.18 + dodgeStats.agi * 0.005);
+        const dodge = probabilityRoll(0.18 + dodgeStats.agi * 0.005, defender);
         if (dodge.success) return { type: 'attack', success: false, reason: 'dodged', hit, dodge };
         if (dodgeStats.agi < 35) {
             defender.statuses = Array.isArray(defender.statuses) ? defender.statuses : [];
@@ -17257,20 +17424,23 @@ function resolveAttackAction(attacker, defender, guardState) {
 
     const armor = getEquippedArmor(defender);
     if (armor && !((attacker === enemy || isEnemyPartyMember(attacker)) && isPartyMember(defender))) {
-        const nullify = probabilityRoll(safeNum(armor.nullifyChance, 0));
+        const nullify = probabilityRoll(safeNum(armor.nullifyChance, 0), defender);
         if (nullify.success) return { type: 'attack', success: true, damage: 0, nullified: true, hit, nullify };
     }
 
     let damage = calculatePhysicalDamage(attacker, defender);
     if (guardState && guardState.mode === 'shield') {
         const defendStats = getActorStats(defender);
-        const block = probabilityRoll(0.22 + defendStats.def * 0.004);
+        const partyBonus = guardState.partyWide ? PLAYER_PARTY_DEFENSE_BONUS : 0;
+        const block = probabilityRoll(0.22 + defendStats.def * 0.004 + partyBonus * 0.25, defender);
         if (block.success) {
-            damage = Math.max(getMinimumDamageFor(attacker, defender), Math.floor(damage * 0.45));
+            damage = Math.max(getMinimumDamageFor(attacker, defender), Math.floor(damage * (0.45 - partyBonus * 0.25)));
             setCurrentHp(defender, getCurrentHp(defender) - damage);
             return { type: 'attack', success: true, damage, guarded: true, hit, block };
         }
-        damage = Math.floor(damage * 1.65);
+        damage = guardState.partyWide
+            ? Math.max(getMinimumDamageFor(attacker, defender), Math.floor(damage * (1 - partyBonus)))
+            : Math.floor(damage * 1.65);
     }
 
     setCurrentHp(defender, getCurrentHp(defender) - damage);
@@ -17278,15 +17448,15 @@ function resolveAttackAction(attacker, defender, guardState) {
 }
 
 function resolveMagicAttackAction(attacker, defender, guardState) {
-    const cast = probabilityRoll(0.4 + getActorStats(attacker).wis * 0.004);
+    const cast = probabilityRoll(0.4 + getActorStats(attacker).wis * 0.004, attacker);
     if (!cast.success) return { type: 'attack', attackKind: 'magic', success: false, reason: 'miss', hit: cast };
     let damage = calculateMagicDamage(attacker, defender);
     if (guardState && guardState.mode === 'dodge') {
-        const dodge = probabilityRoll(0.12 + getActorStats(defender).agi * 0.004);
+        const dodge = probabilityRoll(0.12 + getActorStats(defender).agi * 0.004, defender);
         if (dodge.success) return { type: 'attack', attackKind: 'magic', success: false, reason: 'dodged', hit: cast, dodge };
     }
     if (guardState && guardState.mode === 'shield') {
-        damage = Math.max(getMinimumDamageFor(attacker, defender), Math.floor(damage * 0.7));
+        damage = Math.max(getMinimumDamageFor(attacker, defender), Math.floor(damage * (guardState.partyWide ? 0.48 : 0.7)));
     }
     setCurrentHp(defender, getCurrentHp(defender) - damage);
     return { type: 'attack', attackKind: 'magic', success: true, damage, hit: cast };
@@ -17294,13 +17464,62 @@ function resolveMagicAttackAction(attacker, defender, guardState) {
 
 function resolveHealAction(actor, healTarget) {
     const stats = getActorStats(actor);
-    const cast = probabilityRoll(0.4 + stats.wis * 0.004);
+    const cast = probabilityRoll(0.4 + stats.wis * 0.004, actor);
     if (!cast.success) return { type: 'heal', success: false, reason: 'castFailed', cast };
-    const amount = Math.max(1, Math.floor(8 + stats.wis * 1.5));
+    const divineHealBonus = safeNum(stats.divinity, safeNum(actor && actor.divinity, 0)) >= 5 ? 1.05 : 1;
+    const amount = Math.max(1, Math.floor((8 + stats.wis * 1.6) * divineHealBonus));
     const target = healTarget || actor;
     const before = getCurrentHp(target);
     setCurrentHp(target, before + amount);
     return { type: 'heal', success: true, healed: getCurrentHp(target) - before, cast };
+}
+
+function maybeTriggerCorruptedHeal(actor, target) {
+    if (!actor || !target || safeNum(floor, 1) < 6) return;
+    const stats = getActorStats(actor);
+    const distortion = safeNum(target.stats && target.stats.distortion, safeNum(target.distortion, 0));
+    if (!probabilityRoll(0.08 + distortion * 0.002, actor).success) return;
+    target.twistedBody = Math.max(0, safeNum(target.twistedBody, 0)) + 1;
+    target.stats = normalizeHumanStats(target.stats || {});
+    target.stats.distortion = Math.min(100, target.stats.distortion + 1);
+    target.distortion = target.stats.distortion;
+    writeLog(`[오염된 힐] ${target.name}의 뒤틀린 신체 반응이 증가했습니다. (지혜 ${stats.wis})`);
+}
+
+function tryResolveSecondSelfTurn(actor) {
+    if (!actor || safeNum(actor.stats && actor.stats.distortion, actor.distortion) < DISTORTION_TURN_START_THRESHOLD) return false;
+    const chance = 0.18 + Math.min(0.57, (safeNum(actor.stats.distortion, actor.distortion) - DISTORTION_TURN_START_THRESHOLD) * 0.01);
+    if (!probabilityRoll(chance, actor).success) return false;
+    const actions = ['allyAttack', 'selfHarm', 'weaponDisabled', 'masteryLoss'];
+    const pick = actions[Math.floor(Math.random() * actions.length)] || 'selfHarm';
+    if (pick === 'allyAttack') {
+        const allies = getLivingPartyMembers(player).filter((member) => member !== actor);
+        const target = allies[Math.floor(Math.random() * allies.length)] || null;
+        if (target) {
+            const result = resolveAttackAction(actor, target, null);
+            writeLog(`[제2의 자아] ${actor.name}가 ${target.name}를 공격했습니다.`);
+            describeCombatResult(actor, target, result);
+            emitCombatResultVfx(target, result);
+        } else {
+            const damage = Math.max(3, Math.floor(actorMaxHp(actor) * 0.08));
+            setCurrentHp(actor, getCurrentHp(actor) - damage);
+            writeLog(`[제2의 자아] ${actor.name}가 자기 몸을 찢어 ${damage} 피해를 입었습니다.`);
+        }
+    } else if (pick === 'selfHarm') {
+        const damage = Math.max(3, Math.floor(actorMaxHp(actor) * 0.1));
+        setCurrentHp(actor, getCurrentHp(actor) - damage);
+        writeLog(`[제2의 자아] ${actor.name}가 자해하여 ${damage} 피해를 입었습니다.`);
+    } else if (pick === 'weaponDisabled') {
+        actor.weaponDisabledThisTurn = true;
+        actor.attackLockTurns = Math.max(1, safeNum(actor.attackLockTurns, 0));
+        writeLog(`[제2의 자아] ${actor.name}의 무기 사용이 이번 턴 봉쇄되었습니다.`);
+    } else {
+        actor.mastery = actor.mastery && typeof actor.mastery === 'object' ? actor.mastery : {};
+        actor.mastery.weapon = Math.max(0, safeNum(actor.mastery.weapon, 0) - 1);
+        writeLog(`[제2의 자아] ${actor.name}의 무기 숙련도가 하락했습니다.`);
+    }
+    syncPartyAggregateState(player);
+    return true;
 }
 
 function spendPlayerAction() {
@@ -17608,6 +17827,26 @@ async function advanceInitiativeTurn() {
             currentTurnEntry = next;
             if (next.side === 'player') {
                 playerTurnSpent = false;
+                next.actor.weaponDisabledThisTurn = false;
+                next.actor._attackLockedForThisTurn = false;
+                if (safeNum(next.actor.attackLockTurns, 0) > 0) {
+                    next.actor._attackLockedForThisTurn = true;
+                    next.actor.attackLockTurns = Math.max(0, safeNum(next.actor.attackLockTurns, 0) - 1);
+                    writeLog(`[공속 패널티] ${next.actor.name}는 이번 턴 공격할 수 없습니다.`);
+                }
+                if (tryResolveSecondSelfTurn(next.actor)) {
+                    currentTurnEntry = null;
+                    syncPartyAggregateState(player);
+                    if (getLivingPartyMembers(player).length === 0) {
+                        gameOver();
+                        return;
+                    }
+                    if (applyDefectiveEquipmentTurnEndEffects()) {
+                        if (!player || getLivingPartyMembers(player).length === 0) return;
+                    }
+                    combatTurnNumber += 1;
+                    continue;
+                }
                 setCombatProcessing(false);
                 writeLog(`[턴] ${next.actor.name}의 턴 — 행동을 선택하세요.`);
                 updateUi();
@@ -17652,53 +17891,93 @@ window.useAction = async function useAction(type) {
         getLivingPartyMembers(player).length === 0 ||
         !hasLivingEnemies()
     ) return;
+    const actor = turn.actor;
+    if (type === '공격' && !canActorAttackThisTurn(actor)) {
+        writeLog(`[공격 불가] ${actor.name}는 공속 패널티 또는 뒤틀림으로 이번 턴 공격할 수 없습니다.`);
+        updateUi();
+        renderActions();
+        return;
+    }
     if (!spendPlayerAction()) {
         writeLog('[턴 제한] 한 턴에는 공격/방어/힐 중 하나만 선택할 수 있습니다.');
         return;
     }
     setCombatProcessing(true);
-    let result = null;
-    const actor = turn.actor;
-    if (type === '공격') {
-        const target = choosePlayerEnemyTarget();
-        if (!target) return;
-        const learnedAction = classifyPlayerAttackAction(actor);
-        recordPlayerBehavior(learnedAction);
-        await playV35AttackVfx('player', actor, learnedAction);
-        result = learnedAction === 'magic_attack'
-            ? resolveMagicAttackAction(actor, target, getEnemyGuardStateFor(target))
-            : resolveAttackAction(actor, target, getEnemyGuardStateFor(target));
-        describeCombatResult(actor, target, result);
-        emitCombatResultVfx(target, result);
-        if (enemy && Array.isArray(enemy.party)) syncEnemyPartyAggregateState(enemy);
-        enemyGuardState = null;
-    } else if (type === '힐') {
-        recordPlayerBehavior('heal');
-        await playMagicBurstVfx('player');
-        const living = getLivingPartyMembers(player);
-        const target = living.slice().sort((a, b) => a.curHp / a.maxHp - b.curHp / b.maxHp)[0];
-        result = resolveHealAction(actor, target);
-        describeCombatResult(actor, target, result);
-        syncPartyAggregateState(player);
-    } else {
-        const mode = type === '회피' ? 'dodge' : 'shield';
-        recordPlayerBehavior(mode === 'dodge' ? 'dodge' : 'defend');
-        playerGuardState = {
-            mode,
-            turn: combatTurnNumber,
-            members: { [actor.id]: { mode, turn: combatTurnNumber } },
-        };
-        if (mode === 'dodge') triggerDodgeMove('player');
-        else triggerGuardAura();
-        writeLog(`[플레이어 행동] ${actor.name} — ${mode === 'dodge' ? '회피' : '방어'} 준비`);
-    }
-    updateUi();
-    if (!hasLivingEnemies()) {
-        await waitMs(120);
-        winBattle();
+    try {
+        let result = null;
+        if (type === '공격') {
+            const learnedAction = classifyPlayerAttackAction(actor);
+            recordPlayerBehavior(learnedAction);
+            const strikes = learnedAction === 'physical_attack' ? getActorAttackStrikeCount(actor) : 1;
+            for (let i = 0; i < strikes; i++) {
+                const target = choosePlayerEnemyTarget();
+                if (!target) {
+                    writeLog('[공격 실패] 살아있는 적 대상을 찾지 못했습니다.');
+                    break;
+                }
+                if (typeof playV35AttackVfx === 'function') await playV35AttackVfx('player', actor, learnedAction);
+                result = learnedAction === 'magic_attack'
+                    ? resolveMagicAttackAction(actor, target, getEnemyGuardStateFor(target))
+                    : resolveAttackAction(actor, target, getEnemyGuardStateFor(target));
+                describeCombatResult(actor, target, result);
+                emitCombatResultVfx(target, result);
+                if (learnedAction === 'magic_attack') gainActorMagicMastery(actor, 1);
+                else gainActorWeaponMastery(actor, 1);
+                if (enemy && Array.isArray(enemy.party)) syncEnemyPartyAggregateState(enemy);
+                if (!hasLivingEnemies()) break;
+                if (strikes > 1) await waitMs(90);
+            }
+            const cooldownTurns = getActorPostAttackCooldownTurns(actor);
+            if (cooldownTurns > 0) {
+                actor.attackLockTurns = Math.max(safeNum(actor.attackLockTurns, 0), cooldownTurns);
+                writeLog(`[공속 패널티] ${actor.name}는 공격 후 ${cooldownTurns}턴 동안 공격 버튼이 잠깁니다.`);
+            }
+            if (enemy && Array.isArray(enemy.party)) syncEnemyPartyAggregateState(enemy);
+            enemyGuardState = null;
+        } else if (type === '힐') {
+            recordPlayerBehavior('heal');
+            if (typeof playMagicBurstVfx === 'function') await playMagicBurstVfx('player');
+            const living = getLivingPartyMembers(player);
+            const target = living.slice().sort((a, b) => a.curHp / a.maxHp - b.curHp / b.maxHp)[0];
+            result = resolveHealAction(actor, target);
+            describeCombatResult(actor, target, result);
+            if (result && result.success) {
+                gainActorMagicMastery(actor, 1);
+                maybeTriggerCorruptedHeal(actor, target);
+            }
+            syncPartyAggregateState(player);
+        } else {
+            const mode = 'shield';
+            const members = Object.fromEntries(getLivingPartyMembers(player).map((member) => [
+                member.id,
+                { mode, turn: combatTurnNumber, partyWide: true, defBonus: PLAYER_PARTY_DEFENSE_BONUS },
+            ]));
+            recordPlayerBehavior('defend');
+            playerGuardState = {
+                mode,
+                turn: combatTurnNumber,
+                partyWide: true,
+                members,
+            };
+            if (typeof triggerGuardAura === 'function') triggerGuardAura();
+            writeLog(`[플레이어 행동] ${actor.name} — 파티 방어. 이번 라운드 아군 전체 방어 태세`);
+        }
+        updateUi();
+        if (!hasLivingEnemies()) {
+            await waitMs(120);
+            winBattle();
+            return;
+        }
+        await finishActiveInitiativeTurn();
+    } catch (err) {
+        console.error('[전투 행동 오류]', err);
+        playerTurnSpent = false;
+        setCombatProcessing(false);
+        writeLog(`[오류] ${actor.name}의 행동 처리 중 문제가 발생했습니다. 다시 선택하세요.`);
+        updateUi();
+        renderActions();
         return;
     }
-    await finishActiveInitiativeTurn();
 };
 
 window.usePotion = function usePotion() {
@@ -17984,6 +18263,10 @@ function installHumanActionButtons() {
         if (!host || !player || !enemy || (typeof hasLivingEnemies === 'function' ? !hasLivingEnemies() : enemy.curHp <= 0)) return;
         const turn = typeof getCurrentTurnEntry === 'function' ? getCurrentTurnEntry() : null;
         if (!turn || turn.side !== 'player') return;
+        if (host.querySelector('[data-v35-action]')) {
+            updateCombatButtonsLockState();
+            return;
+        }
         const buttons = Array.from(host.querySelectorAll('button'));
         const defense = buttons.find((button) => !button.onclick && button !== buttons[0]);
         if (defense) {
@@ -18055,6 +18338,10 @@ Object.assign(window, {
     startInitiativeTurnLoop,
     calculateAttackChance,
     calculatePhysicalDamage,
+    getActorAttackSpeed,
+    getActorAttackStrikeCount,
+    getActorPostAttackCooldownTurns,
+    canActorAttackThisTurn,
     getEnemyGuardStateFor,
     choosePlayerEnemyTarget,
     hasLivingEnemies,
@@ -18323,6 +18610,10 @@ window.addEventListener('load', () => {
         'getNonMercEquipmentPool',
         'setCombatProcessing',
         'updateCombatButtonsLockState',
+        'getActorAttackSpeed',
+        'getActorAttackStrikeCount',
+        'getActorPostAttackCooldownTurns',
+        'canActorAttackThisTurn',
         'getEnemyGuardStateFor',
         'choosePlayerEnemyTarget',
         'hasLivingEnemies',
