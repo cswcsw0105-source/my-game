@@ -1,146 +1,201 @@
 // VFX/animation module (stage 1 split)
+const PREMIUM_VFX_DEFAULT_MS = 980;
+
 function getCombatTargetCard(side) {
     return document.getElementById(side === 'player' ? 'player-card' : 'enemy-card');
 }
 
-function onceAnimationEnd(el, done) {
-    if (!el) {
-        if (typeof done === 'function') done();
+const removeVfxElement = (element) => {
+    if (!element) return;
+    if (typeof element.remove === 'function') {
+        element.remove();
         return;
     }
-    const finish = (event) => {
-        if (event && event.target !== el) return;
-        el.removeEventListener('animationend', finish);
-        if (typeof done === 'function') done();
-    };
-    el.addEventListener('animationend', finish);
-}
+    if (element.parentNode) element.parentNode.removeChild(element);
+};
 
-function animateClass(el, className) {
-    if (!el || !className) return;
-    el.classList.remove(className);
-    void el.offsetWidth;
-    el.classList.add(className);
-    onceAnimationEnd(el, () => el.classList.remove(className));
-}
+const scheduleVfxRemoval = (element, durationMs) => {
+    if (!element) return null;
+    const timeoutMs = Math.max(120, Number(durationMs) || PREMIUM_VFX_DEFAULT_MS);
+    let removed = false;
+    const cleanup = () => {
+        if (removed) return;
+        removed = true;
+        element.removeEventListener('animationend', onAnimationEnd);
+        removeVfxElement(element);
+    };
+    const onAnimationEnd = (event) => {
+        if (event && event.target !== element) return;
+        setTimeout(cleanup, 0);
+    };
+    element.addEventListener('animationend', onAnimationEnd);
+    return setTimeout(cleanup, timeoutMs);
+};
+
+const pulseCombatCardClass = (side, className, durationMs) => {
+    const card = getCombatTargetCard(side);
+    if (!card || !className) return;
+    card.classList.remove(className);
+    void card.offsetWidth;
+    card.classList.add(className);
+    setTimeout(() => card.classList.remove(className), Math.max(120, Number(durationMs) || 240));
+};
 
 function ensureCombatFxLayer() {
-    const ba = document.getElementById('battle-area');
-    if (!ba) return null;
+    const battleArea = document.getElementById('battle-area');
+    if (!battleArea) return null;
     let layer = document.getElementById('combat-fx-layer');
     if (!layer) {
         layer = document.createElement('div');
         layer.id = 'combat-fx-layer';
         layer.className = 'combat-fx-layer';
-        ba.classList.add('combat-stage');
-        ba.appendChild(layer);
+        battleArea.classList.add('combat-stage');
+        battleArea.appendChild(layer);
     }
     return layer;
 }
 
 function getCardCenter(side) {
     const card = getCombatTargetCard(side);
-    const ba = document.getElementById('battle-area');
-    if (!card || !ba) return null;
-    const cr = card.getBoundingClientRect();
-    const br = ba.getBoundingClientRect();
+    const battleArea = document.getElementById('battle-area');
+    if (!card || !battleArea) return null;
+    const cardRect = card.getBoundingClientRect();
+    const battleRect = battleArea.getBoundingClientRect();
     return {
-        x: cr.left + cr.width / 2 - br.left,
-        y: cr.top + cr.height / 2 - br.top,
+        x: cardRect.left + cardRect.width / 2 - battleRect.left,
+        y: cardRect.top + cardRect.height / 2 - battleRect.top,
     };
 }
 
-function placeFxNode(el, point) {
-    el.style.left = `${point.x}px`;
-    el.style.top = `${point.y}px`;
-}
-
-function spawnFxNode(className, point, opts) {
-    const layer = ensureCombatFxLayer();
-    if (!layer || !point) return Promise.resolve(null);
-    const el = document.createElement('div');
-    el.className = className;
-    placeFxNode(el, point);
-    if (opts && opts.vars) {
-        Object.keys(opts.vars).forEach((key) => el.style.setProperty(key, opts.vars[key]));
-    }
-    if (opts && opts.text != null) el.textContent = opts.text;
-    layer.appendChild(el);
-    return new Promise((resolve) => {
-        onceAnimationEnd(el, () => {
-            if (el.parentNode) el.remove();
-            resolve(el);
-        });
-    });
-}
-
-function triggerScreenShake(kind) {
-    const stage = document.getElementById('battle-area') || document.querySelector('.screen');
-    if (!stage) return;
-    const cls = kind === 'boss' ? 'combat-shake-boss' : kind === 'heavy' ? 'combat-shake-heavy' : 'combat-shake-light';
-    animateClass(stage, cls);
-}
-
-function triggerHitImpact(side) {
+const spawnCardVfx = (side, className, opts) => {
     const card = getCombatTargetCard(side);
-    if (!card) return;
-    animateClass(card, 'hit-impact');
-}
+    if (!card) return null;
+    const options = opts || {};
+    const element = document.createElement('div');
+    element.className = `premium-combat-vfx ${className}`;
+    if (options.text != null) element.textContent = String(options.text);
+    if (options.attrs) {
+        Object.keys(options.attrs).forEach((key) => element.setAttribute(key, options.attrs[key]));
+    }
+    if (options.vars) {
+        Object.keys(options.vars).forEach((key) => element.style.setProperty(key, options.vars[key]));
+    }
+    card.appendChild(element);
+    scheduleVfxRemoval(element, options.durationMs || PREMIUM_VFX_DEFAULT_MS);
+    return element;
+};
 
-function triggerHitFlash(side) {
-    triggerHitImpact(side);
-}
+const addParticleChildren = (host, count, tone) => {
+    if (!host) return;
+    const total = Math.max(0, Math.floor(count || 0));
+    for (let i = 0; i < total; i += 1) {
+        const particle = document.createElement('i');
+        particle.style.setProperty('--x', `${Math.round((Math.random() - 0.5) * 140)}px`);
+        particle.style.setProperty('--rise', `${Math.round(46 + Math.random() * 88)}px`);
+        particle.style.setProperty('--scale', `${(0.62 + Math.random() * 0.95).toFixed(2)}`);
+        particle.style.setProperty('--delay', `${(Math.random() * 0.16).toFixed(3)}s`);
+        if (tone) particle.dataset.tone = tone;
+        host.appendChild(particle);
+    }
+};
+
+const triggerModernCardImpact = (side, intensity) => {
+    const level = intensity === 'heavy' ? 'premium-card-impact-heavy' : 'premium-card-impact';
+    pulseCombatCardClass(side, level, intensity === 'heavy' ? 260 : 190);
+};
+
+const playPhysicalSlashVfx = (targetSide, intensity) => {
+    const slash = spawnCardVfx(targetSide, `premium-physical-slash ${intensity === 'heavy' ? 'premium-physical-slash-heavy' : ''}`, {
+        durationMs: 540,
+    });
+    if (slash) {
+        const spark = document.createElement('span');
+        spark.className = 'premium-physical-spark';
+        slash.appendChild(spark);
+    }
+    triggerModernCardImpact(targetSide, intensity === 'heavy' ? 'heavy' : 'light');
+    return Promise.resolve(slash);
+};
+
+const playMagicBlastVfx = (targetSide) => {
+    const blast = spawnCardVfx(targetSide, 'premium-magic-blast', { durationMs: 860 });
+    addParticleChildren(blast, 14, 'magic');
+    pulseCombatCardClass(targetSide, 'premium-card-arcane-glow', 420);
+    return Promise.resolve(blast);
+};
+
+const playHealAuraVfx = (targetSide, amount) => {
+    const aura = spawnCardVfx(targetSide, 'premium-heal-aura', { durationMs: 1060 });
+    addParticleChildren(aura, 18, 'heal');
+    if (amount > 0) {
+        spawnCardVfx(targetSide, 'premium-heal-number', {
+            text: `+${Math.max(0, Math.floor(amount))}`,
+            durationMs: 920,
+        });
+    }
+    pulseCombatCardClass(targetSide, 'premium-card-heal-glow', 520);
+    return Promise.resolve(aura);
+};
+
+const playPhysicalShieldVfx = (targetSide) => {
+    const shield = spawnCardVfx(targetSide, 'premium-physical-shield', { durationMs: 760 });
+    if (shield) {
+        const core = document.createElement('span');
+        core.className = 'premium-physical-shield-core';
+        shield.appendChild(core);
+    }
+    pulseCombatCardClass(targetSide, 'premium-card-shield-glow', 420);
+    return Promise.resolve(shield);
+};
+
+const playMagicBarrierVfx = (targetSide) => {
+    const barrier = spawnCardVfx(targetSide, 'premium-magic-barrier', { durationMs: 920 });
+    if (barrier) {
+        const grid = document.createElement('span');
+        grid.className = 'premium-magic-barrier-grid';
+        barrier.appendChild(grid);
+    }
+    pulseCombatCardClass(targetSide, 'premium-card-barrier-glow', 520);
+    return Promise.resolve(barrier);
+};
 
 function showDmgFloat(dmg, isCrit, isPlayer) {
     const targetSide = isPlayer ? 'player' : 'enemy';
-    const point = getCardCenter(targetSide);
-    if (!point) return;
-    const cls = ['floating-damage', isPlayer ? 'floating-damage-player' : 'floating-damage-enemy'];
-    if (isCrit) cls.push('floating-damage-crit');
-    triggerHitImpact(targetSide);
-    const numericDmg = Number(dmg);
-    const maxHp = typeof getEffectiveMaxHp === 'function' ? getEffectiveMaxHp() : 0;
-    if (isCrit || (isPlayer && Number.isFinite(numericDmg) && maxHp > 0 && numericDmg >= maxHp * 0.18)) {
-        triggerScreenShakeHeavy();
-    }
-    spawnFxNode(cls.join(' '), { x: point.x, y: point.y - 34 }, { text: `${isCrit ? 'CRIT ' : ''}${dmg}` });
+    const value = Math.max(0, Math.floor(Number(dmg) || 0));
+    spawnCardVfx(targetSide, `premium-damage-number ${isCrit ? 'premium-damage-number-crit' : ''}`, {
+        text: isCrit ? `CRIT ${value}` : value,
+        durationMs: isCrit ? 1020 : 820,
+    });
 }
 
 function triggerCritEffect() {
-    const s = document.querySelector('.screen');
-    if (!s) return;
-    animateClass(s, 'crit-flash');
-    animateClass(s, 'crit-blackout');
+    playPhysicalSlashVfx('enemy', 'heavy');
+    spawnCardVfx('enemy', 'premium-critical-flare', { durationMs: 760 });
 }
 
-function triggerShakeEffect() {
-    triggerScreenShake('light');
+function triggerShakeEffect(side) {
+    triggerModernCardImpact(side === 'player' ? 'player' : 'enemy', 'light');
 }
 
-function triggerScreenShakeHeavy() {
-    triggerScreenShake('heavy');
+function triggerScreenShakeHeavy(side) {
+    triggerModernCardImpact(side === 'player' ? 'player' : 'enemy', 'heavy');
 }
 
-function triggerScreenShakeBoss() {
-    triggerScreenShake('boss');
+function triggerScreenShakeBoss(side) {
+    triggerModernCardImpact(side === 'player' ? 'player' : 'enemy', 'heavy');
+    spawnCardVfx(side === 'player' ? 'player' : 'enemy', 'premium-boss-pressure', { durationMs: 760 });
 }
 
 function triggerBossDim() {
-    const s = document.querySelector('.screen');
-    if (!s) return;
-    animateClass(s, 'boss-dimming');
+    spawnCardVfx('enemy', 'premium-boss-pressure', { durationMs: 760 });
 }
 
 function triggerGuardAura() {
-    const c = getCombatTargetCard('player');
-    if (!c) return;
-    animateClass(c, 'guard-aura');
+    playPhysicalShieldVfx('player');
 }
 
 function triggerDodgeMove(side) {
-    const c = getCombatTargetCard(side === 'enemy' ? 'enemy' : 'player');
-    if (!c) return;
-    animateClass(c, 'dodge-move');
+    pulseCombatCardClass(side === 'enemy' ? 'enemy' : 'player', 'premium-card-dodge', 240);
 }
 
 function normalizeCombatArchetype(jobName) {
@@ -152,76 +207,43 @@ function normalizeCombatArchetype(jobName) {
 }
 
 function playMageBoltVfx(fromSide, toSide) {
-    const from = getCardCenter(fromSide);
-    const to = getCardCenter(toSide);
-    if (!from || !to) return Promise.resolve();
-    return spawnFxNode('mage-bolt', from, {
-        vars: {
-            '--fx-dx': `${to.x - from.x}px`,
-            '--fx-dy': `${to.y - from.y}px`,
-        },
-    }).then(() => spawnFxNode('mage-explosion', to));
+    return playMagicBlastVfx(toSide || (fromSide === 'player' ? 'enemy' : 'player'));
 }
 
 function playBerserkerChargeVfx(fromSide, toSide) {
-    const to = getCardCenter(toSide);
-    if (!to) return Promise.resolve();
-    return spawnFxNode('slash-effect', to);
+    return playPhysicalSlashVfx(toSide || (fromSide === 'player' ? 'enemy' : 'player'));
 }
 
 function playHunterStrikeVfx(fromSide, toSide) {
-    const from = getCardCenter(fromSide);
-    const to = getCardCenter(toSide);
-    if (!from || !to) return Promise.resolve();
-    const dx = to.x - from.x;
-    const dy = to.y - from.y;
-    return spawnFxNode('hunter-shot', from, {
-        vars: {
-            '--fx-dx': `${dx}px`,
-            '--fx-dy': `${dy}px`,
-        },
-    }).then(() => spawnFxNode('hunter-impact', to));
+    return playPhysicalSlashVfx(toSide || (fromSide === 'player' ? 'enemy' : 'player'));
 }
 
 function playMagicBurstVfx(targetSide) {
-    const to = getCardCenter(targetSide);
-    if (!to) return Promise.resolve();
-    return spawnFxNode('magic-burst', to);
+    return playMagicBlastVfx(targetSide);
 }
 
 function playAssassinStrikeVfx(targetSide) {
-    const to = getCardCenter(targetSide);
-    if (!to) return Promise.resolve();
-    return spawnFxNode('assassin-strike', to);
+    return playPhysicalSlashVfx(targetSide, 'heavy');
 }
 
 function playCritGoldBurst(targetSide) {
-    const to = getCardCenter(targetSide);
-    if (!to) return Promise.resolve();
-    return spawnFxNode('crit-gold-burst', to);
+    spawnCardVfx(targetSide, 'premium-critical-flare', { durationMs: 760 });
+    return Promise.resolve();
 }
 
 function playBossStrikeVfx(targetSide) {
-    const to = getCardCenter(targetSide);
-    if (!to) return Promise.resolve();
     triggerBossDim();
-    triggerScreenShakeBoss();
-    triggerHitFlash(targetSide);
-    return spawnFxNode('boss-strike', to);
+    return playPhysicalSlashVfx(targetSide, 'heavy');
 }
 
 function showMissFloat(targetSide) {
-    const p = getCardCenter(targetSide);
-    if (!p) return;
-    spawnFxNode('floating-damage floating-damage-miss', { x: p.x, y: p.y - 34 }, { text: 'MISS' });
+    spawnCardVfx(targetSide, 'premium-miss-number', { text: 'MISS', durationMs: 760 });
 }
 
 function playJobAttackVfx(attackerSide, jobName) {
     const archetype = normalizeCombatArchetype(jobName);
     const targetSide = attackerSide === 'player' ? 'enemy' : 'player';
-    if (archetype === 'mage') return playMageBoltVfx(attackerSide, targetSide).then(() => playMagicBurstVfx(targetSide));
-    if (archetype === 'hunter') return playHunterStrikeVfx(attackerSide, targetSide);
-    return playBerserkerChargeVfx(attackerSide, targetSide);
+    return archetype === 'mage' ? playMagicBlastVfx(targetSide) : playPhysicalSlashVfx(targetSide);
 }
 
 function inferV35WeaponKind(actor) {
@@ -237,20 +259,11 @@ function inferV35WeaponKind(actor) {
     return 'sword';
 }
 
-function playV35AttackVfx(attackerSide, actor, attackKind) {
-    const targetSide = attackerSide === 'player' ? 'enemy' : 'player';
-    if (attackKind === 'magic_attack') {
-        return playMageBoltVfx(attackerSide, targetSide).then(() => playMagicBurstVfx(targetSide));
-    }
+function playV35AttackVfx(attackerSide, actor, attackKind, target) {
+    const targetSide = target && (typeof isPartyMember === 'function' && isPartyMember(target)) ? 'player' : attackerSide === 'player' ? 'enemy' : 'player';
+    if (attackKind === 'magic_attack') return playMagicBlastVfx(targetSide);
     const weaponKind = inferV35WeaponKind(actor);
-    if (weaponKind === 'ranged') return playHunterStrikeVfx(attackerSide, targetSide);
-    if (weaponKind === 'staff') return playMageBoltVfx(attackerSide, targetSide);
-    if (weaponKind === 'greatScythe') return playAssassinStrikeVfx(targetSide);
-    if (weaponKind === 'hammer') {
-        triggerScreenShakeHeavy();
-        return playBerserkerChargeVfx(attackerSide, targetSide);
-    }
-    return playBerserkerChargeVfx(attackerSide, targetSide);
+    return playPhysicalSlashVfx(targetSide, weaponKind === 'hammer' || weaponKind === 'greatScythe' ? 'heavy' : 'light');
 }
 
 function consumeHunterEvasionMissPenalty() {

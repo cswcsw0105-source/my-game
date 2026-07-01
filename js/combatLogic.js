@@ -33,7 +33,7 @@ function getFieldMercAttackMult() { return 0; }
 function buildFieldMercFromTemplate() { return null; }
 function getMercGachaCost() { return Infinity; }
 function tryMercenaryRandomEvent() { return false; }
-function queueEnemyTurnWithPacing() { return enemyTurn(); }
+function queueEnemyTurnWithPacing() { return advanceInitiativeTurn(); }
 function triggerBossWarning() {}
 function applySummonDarkTurnStart() { return false; }
 
@@ -122,6 +122,37 @@ function choosePlayerEnemyTarget() {
     return living[0];
 }
 
+const getCombatTargetId = (actor) => String(actor && (actor.id || actor.roleKey || actor.name) || '');
+
+const findCombatTargetById = (candidates, targetId) => {
+    const wanted = String(targetId || '');
+    if (!wanted) return null;
+    return (Array.isArray(candidates) ? candidates : []).find((candidate) =>
+        getCombatTargetId(candidate) === wanted ||
+        String(candidate && candidate.roleKey || '') === wanted ||
+        String(candidate && candidate.name || '') === wanted
+    ) || null;
+};
+
+const getPlayerAttackTargetCandidates = () => (
+    typeof getLivingEnemyPartyMembers === 'function' ? getLivingEnemyPartyMembers(enemy) : []
+);
+
+const getPlayerHealTargetCandidates = () => (
+    typeof getLivingPartyMembers === 'function' ? getLivingPartyMembers(player) : []
+);
+
+const isMageHealerActor = (actor) => !!(
+    actor &&
+    isPartyMember(actor) &&
+    (actor.roleKey === 'mage' || actor.archetype === 'mage' || (Array.isArray(actor.magic) && actor.magic.includes('heal')))
+);
+
+const getWoundedPlayerHealTargets = () => getPlayerHealTargetCandidates()
+    .filter((member) => getCurrentHp(member) > 0 && getCurrentHp(member) < actorMaxHp(member));
+
+const canPlayerActorUseHealAction = (actor) => isMageHealerActor(actor) && getWoundedPlayerHealTargets().length > 0;
+
 function hasLivingEnemies() {
     return (typeof getLivingEnemyPartyMembers === 'function' ? getLivingEnemyPartyMembers(enemy) : []).length > 0;
 }
@@ -136,6 +167,24 @@ function resetInitiativeTimeline() {
     initiativeRound = 1;
     initiativeAdvanceInProgress = false;
     playerTurnSpent = false;
+}
+
+function clearPendingVictoryAdvanceState() {
+    if (typeof window !== 'undefined') {
+        window._victoryState = null;
+        window._victoryContinueFn = null;
+    }
+    if (typeof setEnemyVictoryMode === 'function') setEnemyVictoryMode(false);
+    if (typeof updatePrologueBattleControls === 'function') updatePrologueBattleControls();
+}
+
+function resetFreshDungeonEntryVictoryGate() {
+    if (player) {
+        player.runWins = 0;
+        player.hasWonBattle = false;
+        player.victoryCount = 0;
+    }
+    clearPendingVictoryAdvanceState();
 }
 
 function getActorInitiative(actor) {
@@ -376,12 +425,36 @@ function calculateAttackChance(attacker, defender) {
     return 0.42 + attackStats.agi * 0.004 + attackStats.int * 0.001 + mastery * 0.002 - defendStats.agi * 0.0015;
 }
 
+function getActorWeaponDisplayName(actor) {
+    const weapon = getEquippedWeapon(actor);
+    if (weapon && weapon.name) return weapon.name;
+    if (actor && actor.roleKey === 'mage') return '지팡이';
+    if (actor && actor.roleKey === 'knight') return '검';
+    return '무기';
+}
+
+function getWeaponEfficiencyPowerBonus(actor, weapon, stats) {
+    const key = weapon && weapon.key
+        ? weapon.key
+        : actor && actor.roleKey === 'mage'
+          ? 'staff'
+          : actor && actor.roleKey === 'tank'
+            ? 'hammer'
+            : 'sword';
+    if (key === 'hammer') return Math.floor(stats.str * 0.22 + stats.def * 0.18);
+    if (key === 'ranged') return Math.floor(stats.agi * 0.3 + stats.int * 0.08);
+    if (key === 'staff') return Math.floor(stats.wis * 0.34 + stats.int * 0.22);
+    if (key === 'greatScythe') return Math.floor(stats.str * 0.2 + safeNum(stats.distortion, 0) * 0.12);
+    return Math.floor(stats.str * 0.18 + stats.agi * 0.08);
+}
+
 function calculatePhysicalDamage(attacker, defender) {
     const attackStats = getActorStats(attacker);
     const defendStats = getActorStats(defender);
     const weapon = getEquippedWeapon(attacker);
     const armor = getEquippedArmor(defender);
     let rawPower = safeNum(attacker && attacker.atk, attackStats.str) + Math.floor(attackStats.str * 0.25);
+    rawPower += getWeaponEfficiencyPowerBonus(attacker, weapon, attackStats);
     const attackerRatio = actorMaxHp(attacker) > 0 ? getCurrentHp(attacker) / actorMaxHp(attacker) : 1;
     const defenderRatio = actorMaxHp(defender) > 0 ? getCurrentHp(defender) / actorMaxHp(defender) : 1;
     if (attacker && attacker.archetype === 'warrior' && attackerRatio <= 0.45) rawPower *= attackerRatio <= 0.25 ? 1.55 : 1.3;
@@ -471,12 +544,13 @@ function gainActorMagicMastery(actor, amount) {
 
 function resolveAttackAction(attacker, defender, guardState) {
     const hit = probabilityRoll(calculateAttackChance(attacker, defender), attacker);
-    if (!hit.success) return { type: 'attack', success: false, reason: 'miss', hit };
+    const weaponName = getActorWeaponDisplayName(attacker);
+    if (!hit.success) return { type: 'attack', success: false, reason: 'miss', hit, weaponName };
 
     if (guardState && guardState.mode === 'dodge') {
         const dodgeStats = getActorStats(defender);
         const dodge = probabilityRoll(0.18 + dodgeStats.agi * 0.005, defender);
-        if (dodge.success) return { type: 'attack', success: false, reason: 'dodged', hit, dodge };
+        if (dodge.success) return { type: 'attack', success: false, reason: 'dodged', hit, dodge, weaponName };
         if (dodgeStats.agi < 35) {
             defender.statuses = Array.isArray(defender.statuses) ? defender.statuses : [];
             defender.statuses.push({ key: 'ankleSprain', turns: 2, agilityPenalty: 20 });
@@ -486,7 +560,7 @@ function resolveAttackAction(attacker, defender, guardState) {
     const armor = getEquippedArmor(defender);
     if (armor && !((attacker === enemy || isEnemyPartyMember(attacker)) && isPartyMember(defender))) {
         const nullify = probabilityRoll(safeNum(armor.nullifyChance, 0), defender);
-        if (nullify.success) return { type: 'attack', success: true, damage: 0, nullified: true, hit, nullify };
+        if (nullify.success) return { type: 'attack', success: true, damage: 0, nullified: true, hit, nullify, weaponName };
     }
 
     let damage = calculatePhysicalDamage(attacker, defender);
@@ -497,7 +571,7 @@ function resolveAttackAction(attacker, defender, guardState) {
         if (block.success) {
             damage = Math.max(getMinimumDamageFor(attacker, defender), Math.floor(damage * (0.45 - partyBonus * 0.25)));
             setCurrentHp(defender, getCurrentHp(defender) - damage);
-            return { type: 'attack', success: true, damage, guarded: true, hit, block };
+            return { type: 'attack', success: true, damage, guarded: true, hit, block, weaponName };
         }
         damage = guardState.partyWide
             ? Math.max(getMinimumDamageFor(attacker, defender), Math.floor(damage * (1 - partyBonus)))
@@ -505,7 +579,7 @@ function resolveAttackAction(attacker, defender, guardState) {
     }
 
     setCurrentHp(defender, getCurrentHp(defender) - damage);
-    return { type: 'attack', success: true, damage, hit };
+    return { type: 'attack', success: true, damage, hit, weaponName };
 }
 
 function resolveMagicAttackAction(attacker, defender, guardState) {
@@ -518,6 +592,8 @@ function resolveMagicAttackAction(attacker, defender, guardState) {
     }
     if (guardState && guardState.mode === 'shield') {
         damage = Math.max(getMinimumDamageFor(attacker, defender), Math.floor(damage * (guardState.partyWide ? 0.48 : 0.7)));
+        setCurrentHp(defender, getCurrentHp(defender) - damage);
+        return { type: 'attack', attackKind: 'magic', success: true, damage, guarded: true, hit: cast };
     }
     setCurrentHp(defender, getCurrentHp(defender) - damage);
     return { type: 'attack', attackKind: 'magic', success: true, damage, hit: cast };
@@ -594,14 +670,17 @@ function describeCombatResult(actor, target, result) {
     const actorName = getActorDisplayName(actor);
     const targetName = getActorDisplayName(target);
     if (result.type === 'attack') {
-        if (result.reason === 'miss') writeLog(`[빗나감] ${actorName}의 공격 실패`);
-        else if (result.reason === 'dodged') writeLog(`[회피] ${targetName}이 공격을 완전히 회피`);
-        else if (result.nullified) writeLog(`[무효화] 장비가 ${actorName}의 공격을 완전히 차단`);
-        else writeLog(`[공격] ${actorName} → ${targetName} ${result.damage} 피해${result.guarded ? ' (방어 성공)' : ''}`);
+        const attackName = result.attackKind === 'magic' ? '마법' : (result.weaponName || getActorWeaponDisplayName(actor));
+        if (result.reason === 'miss') writeLog(`[전투] ${actorName}가 ${targetName} 공격에 실패했습니다.`);
+        else if (result.reason === 'dodged') writeLog(`[전투] ${targetName}이 ${actorName}의 공격을 완전히 회피했습니다.`);
+        else if (result.nullified) writeLog(`[전투] ${targetName}의 장비가 ${actorName}의 공격을 완전히 차단했습니다.`);
+        else writeLog(`[전투] ${actorName}가 ${targetName}를 ${attackName} 공격으로 ${result.damage}의 피해를 입혔습니다.${result.guarded ? ' (방어 성공)' : ''}`);
         return;
     }
     if (result.type === 'heal') {
-        writeLog(result.success ? `[힐] ${actorName} 체력 ${result.healed} 회복` : `[힐 실패] ${actorName}의 마법 실패`);
+        writeLog(result.success
+            ? `[전투] ${actorName}가 ${targetName}에게 힐을 사용해 HP ${result.healed} 회복`
+            : `[전투] ${actorName}의 힐이 실패했습니다.`);
     }
 }
 
@@ -740,9 +819,23 @@ function emitCombatResultVfx(target, result) {
         return;
     }
     if (result.type === 'attack') {
+        if (result.nullified || result.guarded) {
+            if (result.attackKind === 'magic' && typeof playMagicBarrierVfx === 'function') playMagicBarrierVfx(targetSide);
+            else if (typeof playPhysicalShieldVfx === 'function') playPhysicalShieldVfx(targetSide);
+        }
         showDmgFloat(Math.max(0, result.damage || 0), false, isPlayerSide);
-        if ((result.damage || 0) > 0) triggerShakeEffect();
+        if ((result.damage || 0) > 0) triggerShakeEffect(targetSide);
     }
+}
+
+async function previewEnemyTargetIntent(unit, target) {
+    if (!unit || !target) return;
+    window._enemyThinkingHint = `${unit.name || '적'} → ${target.name || '대상'} 조준`;
+    if (typeof updateUi === 'function') updateUi();
+    if (typeof renderEnemyIntentLaser === 'function') renderEnemyIntentLaser('enemy', 'player', 560);
+    await waitMs(260);
+    window._enemyThinkingHint = '';
+    if (typeof updateUi === 'function') updateUi();
 }
 
 function chooseEnemyAction(actor) {
@@ -778,6 +871,7 @@ async function enemyTurn() {
             const targetAlly = allies.slice().sort((a, b) => a.curHp / a.maxHp - b.curHp / b.maxHp)[0] || unit;
             const result = resolveHealAction(unit, targetAlly);
             describeCombatResult(unit, targetAlly, result);
+            if (result && result.success && typeof playHealAuraVfx === 'function') playHealAuraVfx('enemy', result.healed);
         } else if (action === 'defend' || action === 'dodge') {
             enemyGuardState = enemyGuardState && enemyGuardState.members ? enemyGuardState : { members: {} };
             enemyGuardState.members[unit.id] = { mode: action === 'defend' ? 'shield' : 'dodge', turn: combatTurnNumber };
@@ -790,7 +884,8 @@ async function enemyTurn() {
             }
             writeLog(`[어그로] ${unit.name} → ${target.name} 타겟`);
             unit._attackMultiplier = unit._bossChargeReady ? 2.5 : 1;
-            await playV35AttackVfx('enemy', unit, action);
+            await previewEnemyTargetIntent(unit, target);
+            await playV35AttackVfx('enemy', unit, action, target);
             const result = action === 'magic_attack'
                 ? resolveMagicAttackAction(unit, target, getPartyGuardStateFor(target))
                 : resolveAttackAction(unit, target, getPartyGuardStateFor(target));
@@ -829,6 +924,7 @@ async function executeEnemyUnitTurn(unit) {
         const targetAlly = allies.slice().sort((a, b) => a.curHp / a.maxHp - b.curHp / b.maxHp)[0] || unit;
         const result = resolveHealAction(unit, targetAlly);
         describeCombatResult(unit, targetAlly, result);
+        if (result && result.success && typeof playHealAuraVfx === 'function') playHealAuraVfx('enemy', result.healed);
     } else if (action === 'defend' || action === 'dodge') {
         enemyGuardState = enemyGuardState && enemyGuardState.members ? enemyGuardState : { members: {} };
         enemyGuardState.members[unit.id] = { mode: action === 'defend' ? 'shield' : 'dodge', turn: combatTurnNumber };
@@ -841,7 +937,8 @@ async function executeEnemyUnitTurn(unit) {
         }
         writeLog(`[어그로] ${unit.name} → ${target.name} 타겟`);
         unit._attackMultiplier = unit._bossChargeReady ? 2.5 : 1;
-        await playV35AttackVfx('enemy', unit, action);
+        await previewEnemyTargetIntent(unit, target);
+        await playV35AttackVfx('enemy', unit, action, target);
         const result = action === 'magic_attack'
             ? resolveMagicAttackAction(unit, target, getPartyGuardStateFor(target))
             : resolveAttackAction(unit, target, getPartyGuardStateFor(target));
@@ -879,8 +976,14 @@ async function advanceInitiativeTurn() {
                 return;
             }
             if (!initiativeQueue.length) {
+                const roundNo = initiativeRound;
+                if (roundNo > 1) {
+                    playerGuardState = null;
+                    enemyGuardState = null;
+                    writeLog(`[라운드] ${roundNo - 1}라운드 종료`);
+                }
                 initiativeQueue = buildInitiativeQueue();
-                if (initiativeRound > 1) writeLog(`[라운드] ${initiativeRound}라운드 — 민첩 순서 재정렬: ${getTurnOrderPreviewText()}`);
+                writeLog(`[라운드] ${roundNo}라운드 시작 — 민첩 순서: ${getTurnOrderPreviewText()}`);
                 initiativeRound += 1;
             }
             const next = initiativeQueue.shift();
@@ -940,7 +1043,7 @@ function startInitiativeTurnLoop() {
     advanceInitiativeTurn();
 }
 
-window.useAction = async function useAction(type) {
+window.useAction = async function useAction(type, options) {
     const turn = currentTurnEntry;
     if (
         isProcessing ||
@@ -953,30 +1056,85 @@ window.useAction = async function useAction(type) {
         !hasLivingEnemies()
     ) return;
     const actor = turn.actor;
-    if (type === '공격' && !canActorAttackThisTurn(actor)) {
-        writeLog(`[공격 불가] ${actor.name}는 공속 패널티 또는 뒤틀림으로 이번 턴 공격할 수 없습니다.`);
-        updateUi();
-        renderActions();
-        return;
+    const actionOptions = options && typeof options === 'object' ? options : {};
+    let selectedEnemyTarget = null;
+    let selectedHealTarget = null;
+
+    if (type === '공격') {
+        if (!canActorAttackThisTurn(actor)) {
+            writeLog(`[공격 불가] ${actor.name}는 공속 패널티 또는 뒤틀림으로 이번 턴 공격할 수 없습니다.`);
+            updateUi();
+            renderActions();
+            return;
+        }
+        const candidates = getPlayerAttackTargetCandidates();
+        selectedEnemyTarget = actionOptions.targetSide === 'player'
+            ? null
+            : findCombatTargetById(candidates, actionOptions.targetId);
+        if (!selectedEnemyTarget) {
+            if (candidates.length > 1 && typeof setCombatTargetSelection === 'function') {
+                setCombatTargetSelection('공격', actor);
+                updateUi();
+                renderActions();
+                return;
+            }
+            selectedEnemyTarget = candidates[0] || null;
+        }
+        if (!selectedEnemyTarget) {
+            writeLog('[공격 실패] 살아있는 적 대상을 찾지 못했습니다.');
+            updateUi();
+            renderActions();
+            return;
+        }
+    } else if (type === '힐') {
+        if (!canPlayerActorUseHealAction(actor)) {
+            writeLog(`[힐 불가] ${actor.name}는 힐을 사용할 수 없거나 회복할 아군이 없습니다.`);
+            updateUi();
+            renderActions();
+            return;
+        }
+        const candidates = getPlayerHealTargetCandidates();
+        selectedHealTarget = actionOptions.targetSide === 'enemy'
+            ? null
+            : findCombatTargetById(candidates, actionOptions.targetId);
+        if (!selectedHealTarget) {
+            if (candidates.length > 1 && typeof setCombatTargetSelection === 'function') {
+                setCombatTargetSelection('힐', actor);
+                updateUi();
+                renderActions();
+                return;
+            }
+            selectedHealTarget = getWoundedPlayerHealTargets()[0] || candidates[0] || null;
+        }
+        if (!selectedHealTarget || getCurrentHp(selectedHealTarget) >= actorMaxHp(selectedHealTarget)) {
+            writeLog('[힐 실패] 회복 가능한 아군 대상을 선택해야 합니다.');
+            if (typeof setCombatTargetSelection === 'function') setCombatTargetSelection('힐', actor);
+            updateUi();
+            renderActions();
+            return;
+        }
     }
+
     if (!spendPlayerAction()) {
         writeLog('[턴 제한] 한 턴에는 공격/방어/힐 중 하나만 선택할 수 있습니다.');
         return;
     }
     setCombatProcessing(true);
     try {
+        if (typeof clearCombatTargetSelection === 'function') clearCombatTargetSelection();
         let result = null;
         if (type === '공격') {
             const learnedAction = classifyPlayerAttackAction(actor);
             recordPlayerBehavior(learnedAction);
             const strikes = learnedAction === 'physical_attack' ? getActorAttackStrikeCount(actor) : 1;
             for (let i = 0; i < strikes; i++) {
-                const target = choosePlayerEnemyTarget();
+                const target = selectedEnemyTarget;
                 if (!target) {
                     writeLog('[공격 실패] 살아있는 적 대상을 찾지 못했습니다.');
                     break;
                 }
-                if (typeof playV35AttackVfx === 'function') await playV35AttackVfx('player', actor, learnedAction);
+                if (getCurrentHp(target) <= 0) break;
+                if (typeof playV35AttackVfx === 'function') await playV35AttackVfx('player', actor, learnedAction, target);
                 result = learnedAction === 'magic_attack'
                     ? resolveMagicAttackAction(actor, target, getEnemyGuardStateFor(target))
                     : resolveAttackAction(actor, target, getEnemyGuardStateFor(target));
@@ -986,6 +1144,7 @@ window.useAction = async function useAction(type) {
                 else gainActorWeaponMastery(actor, 1);
                 if (enemy && Array.isArray(enemy.party)) syncEnemyPartyAggregateState(enemy);
                 if (!hasLivingEnemies()) break;
+                if (getCurrentHp(target) <= 0) break;
                 if (strikes > 1) await waitMs(90);
             }
             const cooldownTurns = getActorPostAttackCooldownTurns(actor);
@@ -997,17 +1156,17 @@ window.useAction = async function useAction(type) {
             enemyGuardState = null;
         } else if (type === '힐') {
             recordPlayerBehavior('heal');
-            if (typeof playMagicBurstVfx === 'function') await playMagicBurstVfx('player');
-            const living = getLivingPartyMembers(player);
-            const target = living.slice().sort((a, b) => a.curHp / a.maxHp - b.curHp / b.maxHp)[0];
+            const target = selectedHealTarget;
             result = resolveHealAction(actor, target);
             describeCombatResult(actor, target, result);
             if (result && result.success) {
+                if (typeof playHealAuraVfx === 'function') await playHealAuraVfx('player', result.healed);
                 gainActorMagicMastery(actor, 1);
                 maybeTriggerCorruptedHeal(actor, target);
             }
             syncPartyAggregateState(player);
         } else {
+            if (typeof clearCombatTargetSelection === 'function') clearCombatTargetSelection();
             const mode = 'shield';
             const members = Object.fromEntries(getLivingPartyMembers(player).map((member) => [
                 member.id,
@@ -1045,6 +1204,7 @@ window.usePotion = function usePotion() {
     const turn = currentTurnEntry;
     if (isProcessing || !player || !turn || turn.side !== 'player' || getLivingPartyMembers(player).length === 0) return;
     if (!spendPlayerAction()) return writeLog('[턴 제한] 이번 턴의 행동을 이미 사용했습니다.');
+    if (typeof clearCombatTargetSelection === 'function') clearCombatTargetSelection();
     const target = getLivingPartyMembers(player).slice().sort((a, b) => a.curHp / a.maxHp - b.curHp / b.maxHp)[0];
     const result = resolveHealAction(turn.actor, target);
     describeCombatResult(turn.actor, target, result);
@@ -1106,6 +1266,8 @@ function winBattle() {
     });
     gold = Math.max(0, safeNum(gold, 0)) + reward;
     player.runWins = Math.max(0, safeNum(player.runWins, 0)) + 1;
+    player.hasWonBattle = true;
+    player.victoryCount = player.runWins;
     if (typeof totalGoldEarned !== 'undefined') totalGoldEarned = Math.max(0, safeNum(totalGoldEarned, 0)) + reward;
     writeLog(`[승리] ${formatDungeonPosition({ floor, stage: dungeonStage })} 전투 종료 · ${reward}G 획득`);
     tryAwardDefectiveEquipmentDrop();
@@ -1226,6 +1388,10 @@ function initHumanRunFromActiveSlot() {
     floor = player.progress.floor;
     dungeonStage = player.progress.stage;
     gold = Math.max(0, safeNum(slot.gold, 0));
+    if (floor === 1 && dungeonStage === 1) {
+        resetFreshDungeonEntryVictoryGate();
+        syncPlayerCampaignState();
+    }
     combatTurnNumber = 1;
     playerTurnSpent = false;
     playerGuardState = null;
@@ -1277,6 +1443,7 @@ window.returnPartyToTown = function returnPartyToTown() {
     getPartyMembers(player).forEach((member) => setCurrentHp(member, member.maxHp));
     syncPartyAggregateState(player);
     player.inTown = true;
+    resetFreshDungeonEntryVictoryGate();
     syncPlayerCampaignState();
     if (typeof exitBattleLayout === 'function') exitBattleLayout();
     enemy = null;
@@ -1286,11 +1453,15 @@ window.returnPartyToTown = function returnPartyToTown() {
 
 window.enterDungeonFromTown = function enterDungeonFromTown() {
     if (!player || !player.inTown) return;
+    const goldBeforeEntry = Math.max(0, safeNum(gold, 0));
     floor = 1;
     dungeonStage = 1;
     player.progress = { floor: 1, stage: 1 };
-    player.runWins = 0;
     player.inTown = false;
+    gold = goldBeforeEntry;
+    enemy = null;
+    resetInitiativeTimeline();
+    resetFreshDungeonEntryVictoryGate();
     combatTurnNumber = 1;
     playerTurnSpent = false;
     playerGuardState = null;

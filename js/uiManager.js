@@ -55,6 +55,7 @@ function getSlotClassDisplayName(slot) {
 }
 
 let activeInventoryPartyRole = 'tank';
+let combatTargetSelectionState = null;
 
 function getPartyRoleTabs() {
     return [
@@ -76,6 +77,67 @@ window.setInventoryPartyTab = function setInventoryPartyTab(roleKey) {
     if (!getPartyRoleTabs().some((role) => role.key === roleKey)) return;
     activeInventoryPartyRole = roleKey;
     renderInventoryPanel();
+};
+
+const getCombatTargetActorKey = (actor) => {
+    if (!actor) return '';
+    return String(actor.id || actor.roleKey || actor.name || '');
+};
+
+const setCombatTargetSelection = (actionType, actor) => {
+    combatTargetSelectionState = {
+        actionType,
+        actorKey: getCombatTargetActorKey(actor),
+    };
+};
+
+const clearCombatTargetSelection = () => {
+    combatTargetSelectionState = null;
+};
+
+const getCombatTargetSelectionForTurn = (turn) => {
+    if (!combatTargetSelectionState || !turn || turn.side !== 'player') return null;
+    if (combatTargetSelectionState.actorKey !== getCombatTargetActorKey(turn.actor)) {
+        clearCombatTargetSelection();
+        return null;
+    }
+    return combatTargetSelectionState;
+};
+
+const removeEnemyIntentLaser = () => {
+    const existing = document.getElementById('enemy-intent-laser');
+    if (existing) existing.remove();
+};
+
+const renderEnemyIntentLaser = (sourceSide, targetSide, durationMs) => {
+    const layer = typeof ensureCombatFxLayer === 'function' ? ensureCombatFxLayer() : null;
+    const from = typeof getCardCenter === 'function' ? getCardCenter(sourceSide || 'enemy') : null;
+    const to = typeof getCardCenter === 'function' ? getCardCenter(targetSide || 'player') : null;
+    if (!layer || !from || !to) return null;
+    removeEnemyIntentLaser();
+    const svgNs = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNs, 'svg');
+    svg.id = 'enemy-intent-laser';
+    svg.classList.add('enemy-intent-laser-svg');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+    const glow = document.createElementNS(svgNs, 'line');
+    const core = document.createElementNS(svgNs, 'line');
+    [glow, core].forEach((line) => {
+        line.setAttribute('x1', String(from.x));
+        line.setAttribute('y1', String(from.y));
+        line.setAttribute('x2', String(to.x));
+        line.setAttribute('y2', String(to.y));
+    });
+    glow.classList.add('enemy-intent-laser-glow');
+    core.classList.add('enemy-intent-laser-core');
+    svg.appendChild(glow);
+    svg.appendChild(core);
+    layer.appendChild(svg);
+    setTimeout(() => {
+        if (svg.parentNode) svg.remove();
+    }, Math.max(180, Number(durationMs) || 560));
+    return svg;
 };
 
 function buildLargeHpBarRow({ name, current, max, color, subText, dead }) {
@@ -304,8 +366,16 @@ function bindV35ActionButton(button, actionType) {
         event.preventDefault();
         event.stopPropagation();
         if (event.stopImmediatePropagation) event.stopImmediatePropagation();
-        if (typeof window.useAction === 'function') window.useAction(actionType);
+        if (typeof window.useAction === 'function') window.useAction(actionType, getV35ActionOptionsFromButtonElement(button));
     };
+}
+
+function getV35ActionOptionsFromButtonElement(element) {
+    if (!element || !element.dataset) return null;
+    const options = {};
+    if (element.dataset.v35TargetId) options.targetId = element.dataset.v35TargetId;
+    if (element.dataset.v35TargetSide) options.targetSide = element.dataset.v35TargetSide;
+    return Object.keys(options).length ? options : null;
 }
 
 function getV35ActionFromButtonElement(element) {
@@ -330,11 +400,68 @@ function installV35ActionButtonDelegation() {
         event.preventDefault();
         event.stopPropagation();
         if (button.disabled || button.dataset.v35Disabled === '1') return;
-        if (typeof window.useAction === 'function') window.useAction(actionType);
+        if (typeof window.useAction === 'function') window.useAction(actionType, getV35ActionOptionsFromButtonElement(button));
     }, true);
 }
 
 installV35ActionButtonDelegation();
+
+function renderCombatTargetSelectionPanel(host, actionType, actor) {
+    if (!host || !actor) return;
+    const isAttack = actionType === '공격';
+    const candidates = isAttack
+        ? (typeof getLivingEnemyPartyMembers === 'function' ? getLivingEnemyPartyMembers(enemy) : [])
+        : (typeof getLivingPartyMembers === 'function' ? getLivingPartyMembers(player) : []);
+    if (!candidates.length) return;
+    const panel = document.createElement('div');
+    panel.dataset.v35TargetPanel = '1';
+    panel.style.cssText = 'width:100%;margin-top:8px;padding:9px;background:#10141d;border:1px solid #293142;border-radius:8px;display:flex;flex-direction:column;gap:7px;text-align:left;';
+    const title = document.createElement('div');
+    title.style.cssText = 'color:#d8dee9;font-size:0.76em;font-weight:900;line-height:1.35;';
+    title.textContent = isAttack
+        ? `${actor.name || '파티원'}의 공격 대상 선택`
+        : `${actor.name || '마법사'}의 힐 대상 선택`;
+    panel.appendChild(title);
+
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;';
+    candidates.forEach((target) => {
+        const cur = Math.max(0, Math.floor(safeNum(target.curHp, 0)));
+        const max = Math.max(1, Math.floor(safeNum(target.maxHp, target.hp || 1)));
+        const targetButton = document.createElement('button');
+        targetButton.type = 'button';
+        targetButton.dataset.v35Action = actionType;
+        targetButton.dataset.v35TargetId = String(target.id || target.roleKey || target.name || '');
+        targetButton.dataset.v35TargetSide = isAttack ? 'enemy' : 'player';
+        targetButton.innerText = `${target.name || '대상'} 선택 (${cur}/${max})`;
+        targetButton.title = isAttack ? `${target.name || '대상'}만 공격` : `${target.name || '대상'}만 회복`;
+        targetButton.style.cssText = `flex:1 1 118px;min-width:0;padding:7px 8px;border-radius:7px;border:1px solid ${isAttack ? '#ff6b81' : '#2ed573'};background:${isAttack ? '#2b1218' : '#102419'};color:${isAttack ? '#ffb3bf' : '#b8f7cc'};font-size:0.72em;font-weight:900;cursor:pointer;white-space:normal;line-height:1.25;`;
+        const fullHealTarget = !isAttack && cur >= max;
+        if (fullHealTarget) {
+            targetButton.dataset.v35Disabled = '1';
+            targetButton.disabled = true;
+            targetButton.style.opacity = '0.45';
+            targetButton.style.cursor = 'not-allowed';
+            targetButton.title = `${target.name || '대상'}는 이미 최대 HP`;
+        }
+        bindV35ActionButton(targetButton, actionType);
+        row.appendChild(targetButton);
+    });
+    panel.appendChild(row);
+
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.innerText = '대상 선택 취소';
+    cancel.style.cssText = 'align-self:flex-end;padding:5px 8px;border-radius:6px;border:1px solid #444;background:#151515;color:#aaa;font-size:0.7em;font-weight:800;cursor:pointer;';
+    cancel.onclick = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        clearCombatTargetSelection();
+        renderActions();
+    };
+    panel.appendChild(cancel);
+    host.appendChild(panel);
+}
 
 function renderActions() {
     const div = document.getElementById('action-btns');
@@ -347,20 +474,24 @@ function renderActions() {
         return;
     }
     if (!enemy || window._encounterPhaseActive) {
+        clearCombatTargetSelection();
         div.innerHTML = '';
         return;
     }
     if (typeof hasLivingEnemies === 'function' ? !hasLivingEnemies() : safeNum(enemy.curHp, 0) <= 0) {
+        clearCombatTargetSelection();
         div.innerHTML = '';
         return;
     }
     const turn = typeof getCurrentTurnEntry === 'function' ? getCurrentTurnEntry() : null;
     if (!turn) {
+        clearCombatTargetSelection();
         div.innerHTML = '<div style="color:#888;font-size:0.85em;font-weight:800;padding:8px 0;">턴 순서 계산 중...</div>';
         if (typeof startInitiativeTurnLoop === 'function') setTimeout(() => startInitiativeTurnLoop(), 0);
         return;
     }
     if (turn.side !== 'player') {
+        clearCombatTargetSelection();
         div.innerHTML = `<div style="color:#ffb3b3;font-size:0.85em;font-weight:800;padding:8px 0;">${escapeHtml(turn.actor && turn.actor.name ? turn.actor.name : '적')} 행동 처리 중...</div>`;
         return;
     }
@@ -370,6 +501,14 @@ function renderActions() {
     const canAttack = typeof canActorAttackThisTurn === 'function'
         ? canActorAttackThisTurn(actor)
         : !(safeNum(actor.attackLockTurns, 0) > 0 || actor._attackLockedForThisTurn || actor.weaponDisabledThisTurn);
+    const woundedAllies = typeof getLivingPartyMembers === 'function'
+        ? getLivingPartyMembers(player).some((member) => safeNum(member.curHp, 0) < safeNum(member.maxHp, member.hp || 1))
+        : false;
+    const canHeal = !!(
+        actor &&
+        (actor.roleKey === 'mage' || actor.archetype === 'mage' || (Array.isArray(actor.magic) && actor.magic.includes('heal'))) &&
+        woundedAllies
+    );
     const makeBtn = (id, text, actionType, bg, disabled, title) => {
         const btn = document.createElement('button');
         btn.id = id;
@@ -413,9 +552,11 @@ function renderActions() {
         '✨ 힐',
         '힐',
         '#4b6b50',
-        false,
-        `${actorName}의 지혜 기반 자동 치유`
+        !canHeal,
+        canHeal ? `${actorName}의 지혜 기반 단일 대상 치유` : '마법사 턴이며 회복할 아군이 있을 때 사용 가능'
     );
+    const selection = getCombatTargetSelectionForTurn(turn);
+    if (selection) renderCombatTargetSelectionPanel(div, selection.actionType, actor);
     if (typeof updateCombatButtonsLockState === 'function') updateCombatButtonsLockState();
     return;
 
@@ -1312,7 +1453,7 @@ function waitForElementTransition(el) {
 function cleanupTransientViewDom() {
     const fx = document.getElementById('combat-fx-layer');
     if (fx) fx.replaceChildren();
-    document.querySelectorAll('.floating-damage').forEach((el) => el.remove());
+    document.querySelectorAll('.premium-combat-vfx,.enemy-intent-laser-svg').forEach((el) => el.remove());
     const ep = document.getElementById('encounter-phase');
     if (ep && ep.style.display === 'none') ep.replaceChildren();
 }

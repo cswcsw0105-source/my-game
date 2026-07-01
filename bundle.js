@@ -10258,8 +10258,6 @@ const RESTORED_ITEM_DATA = Object.freeze({
 });
 if (typeof globalThis !== 'undefined') globalThis.RESTORED_ITEM_DATA = RESTORED_ITEM_DATA;
 if (typeof module !== 'undefined' && module.exports) module.exports = RESTORED_ITEM_DATA;
-
-
 'use strict';
 
 /*
@@ -10830,8 +10828,6 @@ if (typeof module !== 'undefined' && module.exports) {
         TURN_RPG_DATA,
     };
 }
-
-
 'use strict';
 
 /*
@@ -11303,8 +11299,6 @@ if (typeof module !== 'undefined' && module.exports) {
 
 const MetaRPG = (typeof window !== 'undefined' ? window.MetaRPG : globalThis.MetaRPG);
 const BASE_CAMP_FLOORS = (typeof window !== 'undefined' ? window.BASE_CAMP_FLOORS : globalThis.BASE_CAMP_FLOORS);
-
-
 // Global runtime state (single source of truth)
 let floor = 1, dungeonStage = 1, gold = 0, player = null, enemy = null;
 let playerState = typeof createDefaultPlayerState === 'function'
@@ -11336,151 +11330,204 @@ const DIVINE_BLESSING_THRESHOLD = (typeof BALANCE !== 'undefined' && BALANCE.div
 const DIVINE_BLESSING_DEF_BONUS = (typeof BALANCE !== 'undefined' && BALANCE.divineBlessingDefBonus) || 20;
 const DIVINE_BLESSING_LIFESTEAL_BONUS =
     (typeof BALANCE !== 'undefined' && BALANCE.divineBlessingLifestealBonus) || 0.05;
-
-
 // VFX/animation module (stage 1 split)
+const PREMIUM_VFX_DEFAULT_MS = 980;
+
 function getCombatTargetCard(side) {
     return document.getElementById(side === 'player' ? 'player-card' : 'enemy-card');
 }
 
-function onceAnimationEnd(el, done) {
-    if (!el) {
-        if (typeof done === 'function') done();
+const removeVfxElement = (element) => {
+    if (!element) return;
+    if (typeof element.remove === 'function') {
+        element.remove();
         return;
     }
-    const finish = (event) => {
-        if (event && event.target !== el) return;
-        el.removeEventListener('animationend', finish);
-        if (typeof done === 'function') done();
-    };
-    el.addEventListener('animationend', finish);
-}
+    if (element.parentNode) element.parentNode.removeChild(element);
+};
 
-function animateClass(el, className) {
-    if (!el || !className) return;
-    el.classList.remove(className);
-    void el.offsetWidth;
-    el.classList.add(className);
-    onceAnimationEnd(el, () => el.classList.remove(className));
-}
+const scheduleVfxRemoval = (element, durationMs) => {
+    if (!element) return null;
+    const timeoutMs = Math.max(120, Number(durationMs) || PREMIUM_VFX_DEFAULT_MS);
+    let removed = false;
+    const cleanup = () => {
+        if (removed) return;
+        removed = true;
+        element.removeEventListener('animationend', onAnimationEnd);
+        removeVfxElement(element);
+    };
+    const onAnimationEnd = (event) => {
+        if (event && event.target !== element) return;
+        setTimeout(cleanup, 0);
+    };
+    element.addEventListener('animationend', onAnimationEnd);
+    return setTimeout(cleanup, timeoutMs);
+};
+
+const pulseCombatCardClass = (side, className, durationMs) => {
+    const card = getCombatTargetCard(side);
+    if (!card || !className) return;
+    card.classList.remove(className);
+    void card.offsetWidth;
+    card.classList.add(className);
+    setTimeout(() => card.classList.remove(className), Math.max(120, Number(durationMs) || 240));
+};
 
 function ensureCombatFxLayer() {
-    const ba = document.getElementById('battle-area');
-    if (!ba) return null;
+    const battleArea = document.getElementById('battle-area');
+    if (!battleArea) return null;
     let layer = document.getElementById('combat-fx-layer');
     if (!layer) {
         layer = document.createElement('div');
         layer.id = 'combat-fx-layer';
         layer.className = 'combat-fx-layer';
-        ba.classList.add('combat-stage');
-        ba.appendChild(layer);
+        battleArea.classList.add('combat-stage');
+        battleArea.appendChild(layer);
     }
     return layer;
 }
 
 function getCardCenter(side) {
     const card = getCombatTargetCard(side);
-    const ba = document.getElementById('battle-area');
-    if (!card || !ba) return null;
-    const cr = card.getBoundingClientRect();
-    const br = ba.getBoundingClientRect();
+    const battleArea = document.getElementById('battle-area');
+    if (!card || !battleArea) return null;
+    const cardRect = card.getBoundingClientRect();
+    const battleRect = battleArea.getBoundingClientRect();
     return {
-        x: cr.left + cr.width / 2 - br.left,
-        y: cr.top + cr.height / 2 - br.top,
+        x: cardRect.left + cardRect.width / 2 - battleRect.left,
+        y: cardRect.top + cardRect.height / 2 - battleRect.top,
     };
 }
 
-function placeFxNode(el, point) {
-    el.style.left = `${point.x}px`;
-    el.style.top = `${point.y}px`;
-}
-
-function spawnFxNode(className, point, opts) {
-    const layer = ensureCombatFxLayer();
-    if (!layer || !point) return Promise.resolve(null);
-    const el = document.createElement('div');
-    el.className = className;
-    placeFxNode(el, point);
-    if (opts && opts.vars) {
-        Object.keys(opts.vars).forEach((key) => el.style.setProperty(key, opts.vars[key]));
-    }
-    if (opts && opts.text != null) el.textContent = opts.text;
-    layer.appendChild(el);
-    return new Promise((resolve) => {
-        onceAnimationEnd(el, () => {
-            if (el.parentNode) el.remove();
-            resolve(el);
-        });
-    });
-}
-
-function triggerScreenShake(kind) {
-    const stage = document.getElementById('battle-area') || document.querySelector('.screen');
-    if (!stage) return;
-    const cls = kind === 'boss' ? 'combat-shake-boss' : kind === 'heavy' ? 'combat-shake-heavy' : 'combat-shake-light';
-    animateClass(stage, cls);
-}
-
-function triggerHitImpact(side) {
+const spawnCardVfx = (side, className, opts) => {
     const card = getCombatTargetCard(side);
-    if (!card) return;
-    animateClass(card, 'hit-impact');
-}
+    if (!card) return null;
+    const options = opts || {};
+    const element = document.createElement('div');
+    element.className = `premium-combat-vfx ${className}`;
+    if (options.text != null) element.textContent = String(options.text);
+    if (options.attrs) {
+        Object.keys(options.attrs).forEach((key) => element.setAttribute(key, options.attrs[key]));
+    }
+    if (options.vars) {
+        Object.keys(options.vars).forEach((key) => element.style.setProperty(key, options.vars[key]));
+    }
+    card.appendChild(element);
+    scheduleVfxRemoval(element, options.durationMs || PREMIUM_VFX_DEFAULT_MS);
+    return element;
+};
 
-function triggerHitFlash(side) {
-    triggerHitImpact(side);
-}
+const addParticleChildren = (host, count, tone) => {
+    if (!host) return;
+    const total = Math.max(0, Math.floor(count || 0));
+    for (let i = 0; i < total; i += 1) {
+        const particle = document.createElement('i');
+        particle.style.setProperty('--x', `${Math.round((Math.random() - 0.5) * 140)}px`);
+        particle.style.setProperty('--rise', `${Math.round(46 + Math.random() * 88)}px`);
+        particle.style.setProperty('--scale', `${(0.62 + Math.random() * 0.95).toFixed(2)}`);
+        particle.style.setProperty('--delay', `${(Math.random() * 0.16).toFixed(3)}s`);
+        if (tone) particle.dataset.tone = tone;
+        host.appendChild(particle);
+    }
+};
+
+const triggerModernCardImpact = (side, intensity) => {
+    const level = intensity === 'heavy' ? 'premium-card-impact-heavy' : 'premium-card-impact';
+    pulseCombatCardClass(side, level, intensity === 'heavy' ? 260 : 190);
+};
+
+const playPhysicalSlashVfx = (targetSide, intensity) => {
+    const slash = spawnCardVfx(targetSide, `premium-physical-slash ${intensity === 'heavy' ? 'premium-physical-slash-heavy' : ''}`, {
+        durationMs: 540,
+    });
+    if (slash) {
+        const spark = document.createElement('span');
+        spark.className = 'premium-physical-spark';
+        slash.appendChild(spark);
+    }
+    triggerModernCardImpact(targetSide, intensity === 'heavy' ? 'heavy' : 'light');
+    return Promise.resolve(slash);
+};
+
+const playMagicBlastVfx = (targetSide) => {
+    const blast = spawnCardVfx(targetSide, 'premium-magic-blast', { durationMs: 860 });
+    addParticleChildren(blast, 14, 'magic');
+    pulseCombatCardClass(targetSide, 'premium-card-arcane-glow', 420);
+    return Promise.resolve(blast);
+};
+
+const playHealAuraVfx = (targetSide, amount) => {
+    const aura = spawnCardVfx(targetSide, 'premium-heal-aura', { durationMs: 1060 });
+    addParticleChildren(aura, 18, 'heal');
+    if (amount > 0) {
+        spawnCardVfx(targetSide, 'premium-heal-number', {
+            text: `+${Math.max(0, Math.floor(amount))}`,
+            durationMs: 920,
+        });
+    }
+    pulseCombatCardClass(targetSide, 'premium-card-heal-glow', 520);
+    return Promise.resolve(aura);
+};
+
+const playPhysicalShieldVfx = (targetSide) => {
+    const shield = spawnCardVfx(targetSide, 'premium-physical-shield', { durationMs: 760 });
+    if (shield) {
+        const core = document.createElement('span');
+        core.className = 'premium-physical-shield-core';
+        shield.appendChild(core);
+    }
+    pulseCombatCardClass(targetSide, 'premium-card-shield-glow', 420);
+    return Promise.resolve(shield);
+};
+
+const playMagicBarrierVfx = (targetSide) => {
+    const barrier = spawnCardVfx(targetSide, 'premium-magic-barrier', { durationMs: 920 });
+    if (barrier) {
+        const grid = document.createElement('span');
+        grid.className = 'premium-magic-barrier-grid';
+        barrier.appendChild(grid);
+    }
+    pulseCombatCardClass(targetSide, 'premium-card-barrier-glow', 520);
+    return Promise.resolve(barrier);
+};
 
 function showDmgFloat(dmg, isCrit, isPlayer) {
     const targetSide = isPlayer ? 'player' : 'enemy';
-    const point = getCardCenter(targetSide);
-    if (!point) return;
-    const cls = ['floating-damage', isPlayer ? 'floating-damage-player' : 'floating-damage-enemy'];
-    if (isCrit) cls.push('floating-damage-crit');
-    triggerHitImpact(targetSide);
-    const numericDmg = Number(dmg);
-    const maxHp = typeof getEffectiveMaxHp === 'function' ? getEffectiveMaxHp() : 0;
-    if (isCrit || (isPlayer && Number.isFinite(numericDmg) && maxHp > 0 && numericDmg >= maxHp * 0.18)) {
-        triggerScreenShakeHeavy();
-    }
-    spawnFxNode(cls.join(' '), { x: point.x, y: point.y - 34 }, { text: `${isCrit ? 'CRIT ' : ''}${dmg}` });
+    const value = Math.max(0, Math.floor(Number(dmg) || 0));
+    spawnCardVfx(targetSide, `premium-damage-number ${isCrit ? 'premium-damage-number-crit' : ''}`, {
+        text: isCrit ? `CRIT ${value}` : value,
+        durationMs: isCrit ? 1020 : 820,
+    });
 }
 
 function triggerCritEffect() {
-    const s = document.querySelector('.screen');
-    if (!s) return;
-    animateClass(s, 'crit-flash');
-    animateClass(s, 'crit-blackout');
+    playPhysicalSlashVfx('enemy', 'heavy');
+    spawnCardVfx('enemy', 'premium-critical-flare', { durationMs: 760 });
 }
 
-function triggerShakeEffect() {
-    triggerScreenShake('light');
+function triggerShakeEffect(side) {
+    triggerModernCardImpact(side === 'player' ? 'player' : 'enemy', 'light');
 }
 
-function triggerScreenShakeHeavy() {
-    triggerScreenShake('heavy');
+function triggerScreenShakeHeavy(side) {
+    triggerModernCardImpact(side === 'player' ? 'player' : 'enemy', 'heavy');
 }
 
-function triggerScreenShakeBoss() {
-    triggerScreenShake('boss');
+function triggerScreenShakeBoss(side) {
+    triggerModernCardImpact(side === 'player' ? 'player' : 'enemy', 'heavy');
+    spawnCardVfx(side === 'player' ? 'player' : 'enemy', 'premium-boss-pressure', { durationMs: 760 });
 }
 
 function triggerBossDim() {
-    const s = document.querySelector('.screen');
-    if (!s) return;
-    animateClass(s, 'boss-dimming');
+    spawnCardVfx('enemy', 'premium-boss-pressure', { durationMs: 760 });
 }
 
 function triggerGuardAura() {
-    const c = getCombatTargetCard('player');
-    if (!c) return;
-    animateClass(c, 'guard-aura');
+    playPhysicalShieldVfx('player');
 }
 
 function triggerDodgeMove(side) {
-    const c = getCombatTargetCard(side === 'enemy' ? 'enemy' : 'player');
-    if (!c) return;
-    animateClass(c, 'dodge-move');
+    pulseCombatCardClass(side === 'enemy' ? 'enemy' : 'player', 'premium-card-dodge', 240);
 }
 
 function normalizeCombatArchetype(jobName) {
@@ -11492,76 +11539,43 @@ function normalizeCombatArchetype(jobName) {
 }
 
 function playMageBoltVfx(fromSide, toSide) {
-    const from = getCardCenter(fromSide);
-    const to = getCardCenter(toSide);
-    if (!from || !to) return Promise.resolve();
-    return spawnFxNode('mage-bolt', from, {
-        vars: {
-            '--fx-dx': `${to.x - from.x}px`,
-            '--fx-dy': `${to.y - from.y}px`,
-        },
-    }).then(() => spawnFxNode('mage-explosion', to));
+    return playMagicBlastVfx(toSide || (fromSide === 'player' ? 'enemy' : 'player'));
 }
 
 function playBerserkerChargeVfx(fromSide, toSide) {
-    const to = getCardCenter(toSide);
-    if (!to) return Promise.resolve();
-    return spawnFxNode('slash-effect', to);
+    return playPhysicalSlashVfx(toSide || (fromSide === 'player' ? 'enemy' : 'player'));
 }
 
 function playHunterStrikeVfx(fromSide, toSide) {
-    const from = getCardCenter(fromSide);
-    const to = getCardCenter(toSide);
-    if (!from || !to) return Promise.resolve();
-    const dx = to.x - from.x;
-    const dy = to.y - from.y;
-    return spawnFxNode('hunter-shot', from, {
-        vars: {
-            '--fx-dx': `${dx}px`,
-            '--fx-dy': `${dy}px`,
-        },
-    }).then(() => spawnFxNode('hunter-impact', to));
+    return playPhysicalSlashVfx(toSide || (fromSide === 'player' ? 'enemy' : 'player'));
 }
 
 function playMagicBurstVfx(targetSide) {
-    const to = getCardCenter(targetSide);
-    if (!to) return Promise.resolve();
-    return spawnFxNode('magic-burst', to);
+    return playMagicBlastVfx(targetSide);
 }
 
 function playAssassinStrikeVfx(targetSide) {
-    const to = getCardCenter(targetSide);
-    if (!to) return Promise.resolve();
-    return spawnFxNode('assassin-strike', to);
+    return playPhysicalSlashVfx(targetSide, 'heavy');
 }
 
 function playCritGoldBurst(targetSide) {
-    const to = getCardCenter(targetSide);
-    if (!to) return Promise.resolve();
-    return spawnFxNode('crit-gold-burst', to);
+    spawnCardVfx(targetSide, 'premium-critical-flare', { durationMs: 760 });
+    return Promise.resolve();
 }
 
 function playBossStrikeVfx(targetSide) {
-    const to = getCardCenter(targetSide);
-    if (!to) return Promise.resolve();
     triggerBossDim();
-    triggerScreenShakeBoss();
-    triggerHitFlash(targetSide);
-    return spawnFxNode('boss-strike', to);
+    return playPhysicalSlashVfx(targetSide, 'heavy');
 }
 
 function showMissFloat(targetSide) {
-    const p = getCardCenter(targetSide);
-    if (!p) return;
-    spawnFxNode('floating-damage floating-damage-miss', { x: p.x, y: p.y - 34 }, { text: 'MISS' });
+    spawnCardVfx(targetSide, 'premium-miss-number', { text: 'MISS', durationMs: 760 });
 }
 
 function playJobAttackVfx(attackerSide, jobName) {
     const archetype = normalizeCombatArchetype(jobName);
     const targetSide = attackerSide === 'player' ? 'enemy' : 'player';
-    if (archetype === 'mage') return playMageBoltVfx(attackerSide, targetSide).then(() => playMagicBurstVfx(targetSide));
-    if (archetype === 'hunter') return playHunterStrikeVfx(attackerSide, targetSide);
-    return playBerserkerChargeVfx(attackerSide, targetSide);
+    return archetype === 'mage' ? playMagicBlastVfx(targetSide) : playPhysicalSlashVfx(targetSide);
 }
 
 function inferV35WeaponKind(actor) {
@@ -11577,20 +11591,11 @@ function inferV35WeaponKind(actor) {
     return 'sword';
 }
 
-function playV35AttackVfx(attackerSide, actor, attackKind) {
-    const targetSide = attackerSide === 'player' ? 'enemy' : 'player';
-    if (attackKind === 'magic_attack') {
-        return playMageBoltVfx(attackerSide, targetSide).then(() => playMagicBurstVfx(targetSide));
-    }
+function playV35AttackVfx(attackerSide, actor, attackKind, target) {
+    const targetSide = target && (typeof isPartyMember === 'function' && isPartyMember(target)) ? 'player' : attackerSide === 'player' ? 'enemy' : 'player';
+    if (attackKind === 'magic_attack') return playMagicBlastVfx(targetSide);
     const weaponKind = inferV35WeaponKind(actor);
-    if (weaponKind === 'ranged') return playHunterStrikeVfx(attackerSide, targetSide);
-    if (weaponKind === 'staff') return playMageBoltVfx(attackerSide, targetSide);
-    if (weaponKind === 'greatScythe') return playAssassinStrikeVfx(targetSide);
-    if (weaponKind === 'hammer') {
-        triggerScreenShakeHeavy();
-        return playBerserkerChargeVfx(attackerSide, targetSide);
-    }
-    return playBerserkerChargeVfx(attackerSide, targetSide);
+    return playPhysicalSlashVfx(targetSide, weaponKind === 'hammer' || weaponKind === 'greatScythe' ? 'heavy' : 'light');
 }
 
 function consumeHunterEvasionMissPenalty() {
@@ -11625,8 +11630,6 @@ window.playJobAttackVfx = playJobAttackVfx;
 window.inferV35WeaponKind = inferV35WeaponKind;
 window.playV35AttackVfx = playV35AttackVfx;
 window.consumeHunterEvasionMissPenalty = consumeHunterEvasionMissPenalty;
-
-
 'use strict';
 
 // 3인 파티 런타임 어댑터. 기존 단일 player DOM 계약은 파티 합산값으로 유지한다.
@@ -11934,8 +11937,6 @@ Object.assign(window, {
     getPlayerGoldGainMult,
     getPlayerFleeBonus,
 });
-
-
 'use strict';
 
 function getCurrentDungeonProgress() {
@@ -12166,8 +12167,6 @@ Object.assign(window, {
     createDepthMonster,
     spawnEnemy,
 });
-
-
 // UI manager module (stage 1 split)
 const BASE_JOB_TITLE_NAMES = Object.freeze({
     Warrior: '워리어',
@@ -12225,6 +12224,7 @@ function getSlotClassDisplayName(slot) {
 }
 
 let activeInventoryPartyRole = 'tank';
+let combatTargetSelectionState = null;
 
 function getPartyRoleTabs() {
     return [
@@ -12246,6 +12246,67 @@ window.setInventoryPartyTab = function setInventoryPartyTab(roleKey) {
     if (!getPartyRoleTabs().some((role) => role.key === roleKey)) return;
     activeInventoryPartyRole = roleKey;
     renderInventoryPanel();
+};
+
+const getCombatTargetActorKey = (actor) => {
+    if (!actor) return '';
+    return String(actor.id || actor.roleKey || actor.name || '');
+};
+
+const setCombatTargetSelection = (actionType, actor) => {
+    combatTargetSelectionState = {
+        actionType,
+        actorKey: getCombatTargetActorKey(actor),
+    };
+};
+
+const clearCombatTargetSelection = () => {
+    combatTargetSelectionState = null;
+};
+
+const getCombatTargetSelectionForTurn = (turn) => {
+    if (!combatTargetSelectionState || !turn || turn.side !== 'player') return null;
+    if (combatTargetSelectionState.actorKey !== getCombatTargetActorKey(turn.actor)) {
+        clearCombatTargetSelection();
+        return null;
+    }
+    return combatTargetSelectionState;
+};
+
+const removeEnemyIntentLaser = () => {
+    const existing = document.getElementById('enemy-intent-laser');
+    if (existing) existing.remove();
+};
+
+const renderEnemyIntentLaser = (sourceSide, targetSide, durationMs) => {
+    const layer = typeof ensureCombatFxLayer === 'function' ? ensureCombatFxLayer() : null;
+    const from = typeof getCardCenter === 'function' ? getCardCenter(sourceSide || 'enemy') : null;
+    const to = typeof getCardCenter === 'function' ? getCardCenter(targetSide || 'player') : null;
+    if (!layer || !from || !to) return null;
+    removeEnemyIntentLaser();
+    const svgNs = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNs, 'svg');
+    svg.id = 'enemy-intent-laser';
+    svg.classList.add('enemy-intent-laser-svg');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+    const glow = document.createElementNS(svgNs, 'line');
+    const core = document.createElementNS(svgNs, 'line');
+    [glow, core].forEach((line) => {
+        line.setAttribute('x1', String(from.x));
+        line.setAttribute('y1', String(from.y));
+        line.setAttribute('x2', String(to.x));
+        line.setAttribute('y2', String(to.y));
+    });
+    glow.classList.add('enemy-intent-laser-glow');
+    core.classList.add('enemy-intent-laser-core');
+    svg.appendChild(glow);
+    svg.appendChild(core);
+    layer.appendChild(svg);
+    setTimeout(() => {
+        if (svg.parentNode) svg.remove();
+    }, Math.max(180, Number(durationMs) || 560));
+    return svg;
 };
 
 function buildLargeHpBarRow({ name, current, max, color, subText, dead }) {
@@ -12474,8 +12535,16 @@ function bindV35ActionButton(button, actionType) {
         event.preventDefault();
         event.stopPropagation();
         if (event.stopImmediatePropagation) event.stopImmediatePropagation();
-        if (typeof window.useAction === 'function') window.useAction(actionType);
+        if (typeof window.useAction === 'function') window.useAction(actionType, getV35ActionOptionsFromButtonElement(button));
     };
+}
+
+function getV35ActionOptionsFromButtonElement(element) {
+    if (!element || !element.dataset) return null;
+    const options = {};
+    if (element.dataset.v35TargetId) options.targetId = element.dataset.v35TargetId;
+    if (element.dataset.v35TargetSide) options.targetSide = element.dataset.v35TargetSide;
+    return Object.keys(options).length ? options : null;
 }
 
 function getV35ActionFromButtonElement(element) {
@@ -12500,11 +12569,68 @@ function installV35ActionButtonDelegation() {
         event.preventDefault();
         event.stopPropagation();
         if (button.disabled || button.dataset.v35Disabled === '1') return;
-        if (typeof window.useAction === 'function') window.useAction(actionType);
+        if (typeof window.useAction === 'function') window.useAction(actionType, getV35ActionOptionsFromButtonElement(button));
     }, true);
 }
 
 installV35ActionButtonDelegation();
+
+function renderCombatTargetSelectionPanel(host, actionType, actor) {
+    if (!host || !actor) return;
+    const isAttack = actionType === '공격';
+    const candidates = isAttack
+        ? (typeof getLivingEnemyPartyMembers === 'function' ? getLivingEnemyPartyMembers(enemy) : [])
+        : (typeof getLivingPartyMembers === 'function' ? getLivingPartyMembers(player) : []);
+    if (!candidates.length) return;
+    const panel = document.createElement('div');
+    panel.dataset.v35TargetPanel = '1';
+    panel.style.cssText = 'width:100%;margin-top:8px;padding:9px;background:#10141d;border:1px solid #293142;border-radius:8px;display:flex;flex-direction:column;gap:7px;text-align:left;';
+    const title = document.createElement('div');
+    title.style.cssText = 'color:#d8dee9;font-size:0.76em;font-weight:900;line-height:1.35;';
+    title.textContent = isAttack
+        ? `${actor.name || '파티원'}의 공격 대상 선택`
+        : `${actor.name || '마법사'}의 힐 대상 선택`;
+    panel.appendChild(title);
+
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;';
+    candidates.forEach((target) => {
+        const cur = Math.max(0, Math.floor(safeNum(target.curHp, 0)));
+        const max = Math.max(1, Math.floor(safeNum(target.maxHp, target.hp || 1)));
+        const targetButton = document.createElement('button');
+        targetButton.type = 'button';
+        targetButton.dataset.v35Action = actionType;
+        targetButton.dataset.v35TargetId = String(target.id || target.roleKey || target.name || '');
+        targetButton.dataset.v35TargetSide = isAttack ? 'enemy' : 'player';
+        targetButton.innerText = `${target.name || '대상'} 선택 (${cur}/${max})`;
+        targetButton.title = isAttack ? `${target.name || '대상'}만 공격` : `${target.name || '대상'}만 회복`;
+        targetButton.style.cssText = `flex:1 1 118px;min-width:0;padding:7px 8px;border-radius:7px;border:1px solid ${isAttack ? '#ff6b81' : '#2ed573'};background:${isAttack ? '#2b1218' : '#102419'};color:${isAttack ? '#ffb3bf' : '#b8f7cc'};font-size:0.72em;font-weight:900;cursor:pointer;white-space:normal;line-height:1.25;`;
+        const fullHealTarget = !isAttack && cur >= max;
+        if (fullHealTarget) {
+            targetButton.dataset.v35Disabled = '1';
+            targetButton.disabled = true;
+            targetButton.style.opacity = '0.45';
+            targetButton.style.cursor = 'not-allowed';
+            targetButton.title = `${target.name || '대상'}는 이미 최대 HP`;
+        }
+        bindV35ActionButton(targetButton, actionType);
+        row.appendChild(targetButton);
+    });
+    panel.appendChild(row);
+
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.innerText = '대상 선택 취소';
+    cancel.style.cssText = 'align-self:flex-end;padding:5px 8px;border-radius:6px;border:1px solid #444;background:#151515;color:#aaa;font-size:0.7em;font-weight:800;cursor:pointer;';
+    cancel.onclick = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        clearCombatTargetSelection();
+        renderActions();
+    };
+    panel.appendChild(cancel);
+    host.appendChild(panel);
+}
 
 function renderActions() {
     const div = document.getElementById('action-btns');
@@ -12517,20 +12643,24 @@ function renderActions() {
         return;
     }
     if (!enemy || window._encounterPhaseActive) {
+        clearCombatTargetSelection();
         div.innerHTML = '';
         return;
     }
     if (typeof hasLivingEnemies === 'function' ? !hasLivingEnemies() : safeNum(enemy.curHp, 0) <= 0) {
+        clearCombatTargetSelection();
         div.innerHTML = '';
         return;
     }
     const turn = typeof getCurrentTurnEntry === 'function' ? getCurrentTurnEntry() : null;
     if (!turn) {
+        clearCombatTargetSelection();
         div.innerHTML = '<div style="color:#888;font-size:0.85em;font-weight:800;padding:8px 0;">턴 순서 계산 중...</div>';
         if (typeof startInitiativeTurnLoop === 'function') setTimeout(() => startInitiativeTurnLoop(), 0);
         return;
     }
     if (turn.side !== 'player') {
+        clearCombatTargetSelection();
         div.innerHTML = `<div style="color:#ffb3b3;font-size:0.85em;font-weight:800;padding:8px 0;">${escapeHtml(turn.actor && turn.actor.name ? turn.actor.name : '적')} 행동 처리 중...</div>`;
         return;
     }
@@ -12540,6 +12670,14 @@ function renderActions() {
     const canAttack = typeof canActorAttackThisTurn === 'function'
         ? canActorAttackThisTurn(actor)
         : !(safeNum(actor.attackLockTurns, 0) > 0 || actor._attackLockedForThisTurn || actor.weaponDisabledThisTurn);
+    const woundedAllies = typeof getLivingPartyMembers === 'function'
+        ? getLivingPartyMembers(player).some((member) => safeNum(member.curHp, 0) < safeNum(member.maxHp, member.hp || 1))
+        : false;
+    const canHeal = !!(
+        actor &&
+        (actor.roleKey === 'mage' || actor.archetype === 'mage' || (Array.isArray(actor.magic) && actor.magic.includes('heal'))) &&
+        woundedAllies
+    );
     const makeBtn = (id, text, actionType, bg, disabled, title) => {
         const btn = document.createElement('button');
         btn.id = id;
@@ -12583,9 +12721,11 @@ function renderActions() {
         '✨ 힐',
         '힐',
         '#4b6b50',
-        false,
-        `${actorName}의 지혜 기반 자동 치유`
+        !canHeal,
+        canHeal ? `${actorName}의 지혜 기반 단일 대상 치유` : '마법사 턴이며 회복할 아군이 있을 때 사용 가능'
     );
+    const selection = getCombatTargetSelectionForTurn(turn);
+    if (selection) renderCombatTargetSelectionPanel(div, selection.actionType, actor);
     if (typeof updateCombatButtonsLockState === 'function') updateCombatButtonsLockState();
     return;
 
@@ -13482,7 +13622,7 @@ function waitForElementTransition(el) {
 function cleanupTransientViewDom() {
     const fx = document.getElementById('combat-fx-layer');
     if (fx) fx.replaceChildren();
-    document.querySelectorAll('.floating-damage').forEach((el) => el.remove());
+    document.querySelectorAll('.premium-combat-vfx,.enemy-intent-laser-svg').forEach((el) => el.remove());
     const ep = document.getElementById('encounter-phase');
     if (ep && ep.style.display === 'none') ep.replaceChildren();
 }
@@ -16364,8 +16504,6 @@ window.startInfiniteMode=()=>{
 
 /** 사망 처리: 보존 골드·퀘스트 페널티 후 허브로 */
 // stage 4 split: moved to js/combatLogic.js
-
-
 'use strict';
 
 // v3.5에는 전투 외 랜덤 인카운터, 직업 이벤트, 전직 이벤트가 없다.
@@ -16405,8 +16543,6 @@ Object.assign(window, {
     renderRestockCrossroad,
     resolveRestockCrossroad,
 });
-
-
 // Shop module (stage 2 split)
 function openShop() {
     setCombatProcessing(false);
@@ -16935,8 +17071,6 @@ window.formatShopItemName = formatShopItemName;
 window.formatShopItemDesc = formatShopItemDesc;
 window.mercCaptainExclusiveItem = mercCaptainExclusiveItem;
 window.getNonMercEquipmentPool = getNonMercEquipmentPool;
-
-
 'use strict';
 
 /*
@@ -16972,7 +17106,7 @@ function getFieldMercAttackMult() { return 0; }
 function buildFieldMercFromTemplate() { return null; }
 function getMercGachaCost() { return Infinity; }
 function tryMercenaryRandomEvent() { return false; }
-function queueEnemyTurnWithPacing() { return enemyTurn(); }
+function queueEnemyTurnWithPacing() { return advanceInitiativeTurn(); }
 function triggerBossWarning() {}
 function applySummonDarkTurnStart() { return false; }
 
@@ -17061,6 +17195,37 @@ function choosePlayerEnemyTarget() {
     return living[0];
 }
 
+const getCombatTargetId = (actor) => String(actor && (actor.id || actor.roleKey || actor.name) || '');
+
+const findCombatTargetById = (candidates, targetId) => {
+    const wanted = String(targetId || '');
+    if (!wanted) return null;
+    return (Array.isArray(candidates) ? candidates : []).find((candidate) =>
+        getCombatTargetId(candidate) === wanted ||
+        String(candidate && candidate.roleKey || '') === wanted ||
+        String(candidate && candidate.name || '') === wanted
+    ) || null;
+};
+
+const getPlayerAttackTargetCandidates = () => (
+    typeof getLivingEnemyPartyMembers === 'function' ? getLivingEnemyPartyMembers(enemy) : []
+);
+
+const getPlayerHealTargetCandidates = () => (
+    typeof getLivingPartyMembers === 'function' ? getLivingPartyMembers(player) : []
+);
+
+const isMageHealerActor = (actor) => !!(
+    actor &&
+    isPartyMember(actor) &&
+    (actor.roleKey === 'mage' || actor.archetype === 'mage' || (Array.isArray(actor.magic) && actor.magic.includes('heal')))
+);
+
+const getWoundedPlayerHealTargets = () => getPlayerHealTargetCandidates()
+    .filter((member) => getCurrentHp(member) > 0 && getCurrentHp(member) < actorMaxHp(member));
+
+const canPlayerActorUseHealAction = (actor) => isMageHealerActor(actor) && getWoundedPlayerHealTargets().length > 0;
+
 function hasLivingEnemies() {
     return (typeof getLivingEnemyPartyMembers === 'function' ? getLivingEnemyPartyMembers(enemy) : []).length > 0;
 }
@@ -17075,6 +17240,24 @@ function resetInitiativeTimeline() {
     initiativeRound = 1;
     initiativeAdvanceInProgress = false;
     playerTurnSpent = false;
+}
+
+function clearPendingVictoryAdvanceState() {
+    if (typeof window !== 'undefined') {
+        window._victoryState = null;
+        window._victoryContinueFn = null;
+    }
+    if (typeof setEnemyVictoryMode === 'function') setEnemyVictoryMode(false);
+    if (typeof updatePrologueBattleControls === 'function') updatePrologueBattleControls();
+}
+
+function resetFreshDungeonEntryVictoryGate() {
+    if (player) {
+        player.runWins = 0;
+        player.hasWonBattle = false;
+        player.victoryCount = 0;
+    }
+    clearPendingVictoryAdvanceState();
 }
 
 function getActorInitiative(actor) {
@@ -17315,12 +17498,36 @@ function calculateAttackChance(attacker, defender) {
     return 0.42 + attackStats.agi * 0.004 + attackStats.int * 0.001 + mastery * 0.002 - defendStats.agi * 0.0015;
 }
 
+function getActorWeaponDisplayName(actor) {
+    const weapon = getEquippedWeapon(actor);
+    if (weapon && weapon.name) return weapon.name;
+    if (actor && actor.roleKey === 'mage') return '지팡이';
+    if (actor && actor.roleKey === 'knight') return '검';
+    return '무기';
+}
+
+function getWeaponEfficiencyPowerBonus(actor, weapon, stats) {
+    const key = weapon && weapon.key
+        ? weapon.key
+        : actor && actor.roleKey === 'mage'
+          ? 'staff'
+          : actor && actor.roleKey === 'tank'
+            ? 'hammer'
+            : 'sword';
+    if (key === 'hammer') return Math.floor(stats.str * 0.22 + stats.def * 0.18);
+    if (key === 'ranged') return Math.floor(stats.agi * 0.3 + stats.int * 0.08);
+    if (key === 'staff') return Math.floor(stats.wis * 0.34 + stats.int * 0.22);
+    if (key === 'greatScythe') return Math.floor(stats.str * 0.2 + safeNum(stats.distortion, 0) * 0.12);
+    return Math.floor(stats.str * 0.18 + stats.agi * 0.08);
+}
+
 function calculatePhysicalDamage(attacker, defender) {
     const attackStats = getActorStats(attacker);
     const defendStats = getActorStats(defender);
     const weapon = getEquippedWeapon(attacker);
     const armor = getEquippedArmor(defender);
     let rawPower = safeNum(attacker && attacker.atk, attackStats.str) + Math.floor(attackStats.str * 0.25);
+    rawPower += getWeaponEfficiencyPowerBonus(attacker, weapon, attackStats);
     const attackerRatio = actorMaxHp(attacker) > 0 ? getCurrentHp(attacker) / actorMaxHp(attacker) : 1;
     const defenderRatio = actorMaxHp(defender) > 0 ? getCurrentHp(defender) / actorMaxHp(defender) : 1;
     if (attacker && attacker.archetype === 'warrior' && attackerRatio <= 0.45) rawPower *= attackerRatio <= 0.25 ? 1.55 : 1.3;
@@ -17410,12 +17617,13 @@ function gainActorMagicMastery(actor, amount) {
 
 function resolveAttackAction(attacker, defender, guardState) {
     const hit = probabilityRoll(calculateAttackChance(attacker, defender), attacker);
-    if (!hit.success) return { type: 'attack', success: false, reason: 'miss', hit };
+    const weaponName = getActorWeaponDisplayName(attacker);
+    if (!hit.success) return { type: 'attack', success: false, reason: 'miss', hit, weaponName };
 
     if (guardState && guardState.mode === 'dodge') {
         const dodgeStats = getActorStats(defender);
         const dodge = probabilityRoll(0.18 + dodgeStats.agi * 0.005, defender);
-        if (dodge.success) return { type: 'attack', success: false, reason: 'dodged', hit, dodge };
+        if (dodge.success) return { type: 'attack', success: false, reason: 'dodged', hit, dodge, weaponName };
         if (dodgeStats.agi < 35) {
             defender.statuses = Array.isArray(defender.statuses) ? defender.statuses : [];
             defender.statuses.push({ key: 'ankleSprain', turns: 2, agilityPenalty: 20 });
@@ -17425,7 +17633,7 @@ function resolveAttackAction(attacker, defender, guardState) {
     const armor = getEquippedArmor(defender);
     if (armor && !((attacker === enemy || isEnemyPartyMember(attacker)) && isPartyMember(defender))) {
         const nullify = probabilityRoll(safeNum(armor.nullifyChance, 0), defender);
-        if (nullify.success) return { type: 'attack', success: true, damage: 0, nullified: true, hit, nullify };
+        if (nullify.success) return { type: 'attack', success: true, damage: 0, nullified: true, hit, nullify, weaponName };
     }
 
     let damage = calculatePhysicalDamage(attacker, defender);
@@ -17436,7 +17644,7 @@ function resolveAttackAction(attacker, defender, guardState) {
         if (block.success) {
             damage = Math.max(getMinimumDamageFor(attacker, defender), Math.floor(damage * (0.45 - partyBonus * 0.25)));
             setCurrentHp(defender, getCurrentHp(defender) - damage);
-            return { type: 'attack', success: true, damage, guarded: true, hit, block };
+            return { type: 'attack', success: true, damage, guarded: true, hit, block, weaponName };
         }
         damage = guardState.partyWide
             ? Math.max(getMinimumDamageFor(attacker, defender), Math.floor(damage * (1 - partyBonus)))
@@ -17444,7 +17652,7 @@ function resolveAttackAction(attacker, defender, guardState) {
     }
 
     setCurrentHp(defender, getCurrentHp(defender) - damage);
-    return { type: 'attack', success: true, damage, hit };
+    return { type: 'attack', success: true, damage, hit, weaponName };
 }
 
 function resolveMagicAttackAction(attacker, defender, guardState) {
@@ -17457,6 +17665,8 @@ function resolveMagicAttackAction(attacker, defender, guardState) {
     }
     if (guardState && guardState.mode === 'shield') {
         damage = Math.max(getMinimumDamageFor(attacker, defender), Math.floor(damage * (guardState.partyWide ? 0.48 : 0.7)));
+        setCurrentHp(defender, getCurrentHp(defender) - damage);
+        return { type: 'attack', attackKind: 'magic', success: true, damage, guarded: true, hit: cast };
     }
     setCurrentHp(defender, getCurrentHp(defender) - damage);
     return { type: 'attack', attackKind: 'magic', success: true, damage, hit: cast };
@@ -17533,14 +17743,17 @@ function describeCombatResult(actor, target, result) {
     const actorName = getActorDisplayName(actor);
     const targetName = getActorDisplayName(target);
     if (result.type === 'attack') {
-        if (result.reason === 'miss') writeLog(`[빗나감] ${actorName}의 공격 실패`);
-        else if (result.reason === 'dodged') writeLog(`[회피] ${targetName}이 공격을 완전히 회피`);
-        else if (result.nullified) writeLog(`[무효화] 장비가 ${actorName}의 공격을 완전히 차단`);
-        else writeLog(`[공격] ${actorName} → ${targetName} ${result.damage} 피해${result.guarded ? ' (방어 성공)' : ''}`);
+        const attackName = result.attackKind === 'magic' ? '마법' : (result.weaponName || getActorWeaponDisplayName(actor));
+        if (result.reason === 'miss') writeLog(`[전투] ${actorName}가 ${targetName} 공격에 실패했습니다.`);
+        else if (result.reason === 'dodged') writeLog(`[전투] ${targetName}이 ${actorName}의 공격을 완전히 회피했습니다.`);
+        else if (result.nullified) writeLog(`[전투] ${targetName}의 장비가 ${actorName}의 공격을 완전히 차단했습니다.`);
+        else writeLog(`[전투] ${actorName}가 ${targetName}를 ${attackName} 공격으로 ${result.damage}의 피해를 입혔습니다.${result.guarded ? ' (방어 성공)' : ''}`);
         return;
     }
     if (result.type === 'heal') {
-        writeLog(result.success ? `[힐] ${actorName} 체력 ${result.healed} 회복` : `[힐 실패] ${actorName}의 마법 실패`);
+        writeLog(result.success
+            ? `[전투] ${actorName}가 ${targetName}에게 힐을 사용해 HP ${result.healed} 회복`
+            : `[전투] ${actorName}의 힐이 실패했습니다.`);
     }
 }
 
@@ -17679,9 +17892,23 @@ function emitCombatResultVfx(target, result) {
         return;
     }
     if (result.type === 'attack') {
+        if (result.nullified || result.guarded) {
+            if (result.attackKind === 'magic' && typeof playMagicBarrierVfx === 'function') playMagicBarrierVfx(targetSide);
+            else if (typeof playPhysicalShieldVfx === 'function') playPhysicalShieldVfx(targetSide);
+        }
         showDmgFloat(Math.max(0, result.damage || 0), false, isPlayerSide);
-        if ((result.damage || 0) > 0) triggerShakeEffect();
+        if ((result.damage || 0) > 0) triggerShakeEffect(targetSide);
     }
+}
+
+async function previewEnemyTargetIntent(unit, target) {
+    if (!unit || !target) return;
+    window._enemyThinkingHint = `${unit.name || '적'} → ${target.name || '대상'} 조준`;
+    if (typeof updateUi === 'function') updateUi();
+    if (typeof renderEnemyIntentLaser === 'function') renderEnemyIntentLaser('enemy', 'player', 560);
+    await waitMs(260);
+    window._enemyThinkingHint = '';
+    if (typeof updateUi === 'function') updateUi();
 }
 
 function chooseEnemyAction(actor) {
@@ -17717,6 +17944,7 @@ async function enemyTurn() {
             const targetAlly = allies.slice().sort((a, b) => a.curHp / a.maxHp - b.curHp / b.maxHp)[0] || unit;
             const result = resolveHealAction(unit, targetAlly);
             describeCombatResult(unit, targetAlly, result);
+            if (result && result.success && typeof playHealAuraVfx === 'function') playHealAuraVfx('enemy', result.healed);
         } else if (action === 'defend' || action === 'dodge') {
             enemyGuardState = enemyGuardState && enemyGuardState.members ? enemyGuardState : { members: {} };
             enemyGuardState.members[unit.id] = { mode: action === 'defend' ? 'shield' : 'dodge', turn: combatTurnNumber };
@@ -17729,7 +17957,8 @@ async function enemyTurn() {
             }
             writeLog(`[어그로] ${unit.name} → ${target.name} 타겟`);
             unit._attackMultiplier = unit._bossChargeReady ? 2.5 : 1;
-            await playV35AttackVfx('enemy', unit, action);
+            await previewEnemyTargetIntent(unit, target);
+            await playV35AttackVfx('enemy', unit, action, target);
             const result = action === 'magic_attack'
                 ? resolveMagicAttackAction(unit, target, getPartyGuardStateFor(target))
                 : resolveAttackAction(unit, target, getPartyGuardStateFor(target));
@@ -17768,6 +17997,7 @@ async function executeEnemyUnitTurn(unit) {
         const targetAlly = allies.slice().sort((a, b) => a.curHp / a.maxHp - b.curHp / b.maxHp)[0] || unit;
         const result = resolveHealAction(unit, targetAlly);
         describeCombatResult(unit, targetAlly, result);
+        if (result && result.success && typeof playHealAuraVfx === 'function') playHealAuraVfx('enemy', result.healed);
     } else if (action === 'defend' || action === 'dodge') {
         enemyGuardState = enemyGuardState && enemyGuardState.members ? enemyGuardState : { members: {} };
         enemyGuardState.members[unit.id] = { mode: action === 'defend' ? 'shield' : 'dodge', turn: combatTurnNumber };
@@ -17780,7 +18010,8 @@ async function executeEnemyUnitTurn(unit) {
         }
         writeLog(`[어그로] ${unit.name} → ${target.name} 타겟`);
         unit._attackMultiplier = unit._bossChargeReady ? 2.5 : 1;
-        await playV35AttackVfx('enemy', unit, action);
+        await previewEnemyTargetIntent(unit, target);
+        await playV35AttackVfx('enemy', unit, action, target);
         const result = action === 'magic_attack'
             ? resolveMagicAttackAction(unit, target, getPartyGuardStateFor(target))
             : resolveAttackAction(unit, target, getPartyGuardStateFor(target));
@@ -17818,8 +18049,14 @@ async function advanceInitiativeTurn() {
                 return;
             }
             if (!initiativeQueue.length) {
+                const roundNo = initiativeRound;
+                if (roundNo > 1) {
+                    playerGuardState = null;
+                    enemyGuardState = null;
+                    writeLog(`[라운드] ${roundNo - 1}라운드 종료`);
+                }
                 initiativeQueue = buildInitiativeQueue();
-                if (initiativeRound > 1) writeLog(`[라운드] ${initiativeRound}라운드 — 민첩 순서 재정렬: ${getTurnOrderPreviewText()}`);
+                writeLog(`[라운드] ${roundNo}라운드 시작 — 민첩 순서: ${getTurnOrderPreviewText()}`);
                 initiativeRound += 1;
             }
             const next = initiativeQueue.shift();
@@ -17879,7 +18116,7 @@ function startInitiativeTurnLoop() {
     advanceInitiativeTurn();
 }
 
-window.useAction = async function useAction(type) {
+window.useAction = async function useAction(type, options) {
     const turn = currentTurnEntry;
     if (
         isProcessing ||
@@ -17892,30 +18129,85 @@ window.useAction = async function useAction(type) {
         !hasLivingEnemies()
     ) return;
     const actor = turn.actor;
-    if (type === '공격' && !canActorAttackThisTurn(actor)) {
-        writeLog(`[공격 불가] ${actor.name}는 공속 패널티 또는 뒤틀림으로 이번 턴 공격할 수 없습니다.`);
-        updateUi();
-        renderActions();
-        return;
+    const actionOptions = options && typeof options === 'object' ? options : {};
+    let selectedEnemyTarget = null;
+    let selectedHealTarget = null;
+
+    if (type === '공격') {
+        if (!canActorAttackThisTurn(actor)) {
+            writeLog(`[공격 불가] ${actor.name}는 공속 패널티 또는 뒤틀림으로 이번 턴 공격할 수 없습니다.`);
+            updateUi();
+            renderActions();
+            return;
+        }
+        const candidates = getPlayerAttackTargetCandidates();
+        selectedEnemyTarget = actionOptions.targetSide === 'player'
+            ? null
+            : findCombatTargetById(candidates, actionOptions.targetId);
+        if (!selectedEnemyTarget) {
+            if (candidates.length > 1 && typeof setCombatTargetSelection === 'function') {
+                setCombatTargetSelection('공격', actor);
+                updateUi();
+                renderActions();
+                return;
+            }
+            selectedEnemyTarget = candidates[0] || null;
+        }
+        if (!selectedEnemyTarget) {
+            writeLog('[공격 실패] 살아있는 적 대상을 찾지 못했습니다.');
+            updateUi();
+            renderActions();
+            return;
+        }
+    } else if (type === '힐') {
+        if (!canPlayerActorUseHealAction(actor)) {
+            writeLog(`[힐 불가] ${actor.name}는 힐을 사용할 수 없거나 회복할 아군이 없습니다.`);
+            updateUi();
+            renderActions();
+            return;
+        }
+        const candidates = getPlayerHealTargetCandidates();
+        selectedHealTarget = actionOptions.targetSide === 'enemy'
+            ? null
+            : findCombatTargetById(candidates, actionOptions.targetId);
+        if (!selectedHealTarget) {
+            if (candidates.length > 1 && typeof setCombatTargetSelection === 'function') {
+                setCombatTargetSelection('힐', actor);
+                updateUi();
+                renderActions();
+                return;
+            }
+            selectedHealTarget = getWoundedPlayerHealTargets()[0] || candidates[0] || null;
+        }
+        if (!selectedHealTarget || getCurrentHp(selectedHealTarget) >= actorMaxHp(selectedHealTarget)) {
+            writeLog('[힐 실패] 회복 가능한 아군 대상을 선택해야 합니다.');
+            if (typeof setCombatTargetSelection === 'function') setCombatTargetSelection('힐', actor);
+            updateUi();
+            renderActions();
+            return;
+        }
     }
+
     if (!spendPlayerAction()) {
         writeLog('[턴 제한] 한 턴에는 공격/방어/힐 중 하나만 선택할 수 있습니다.');
         return;
     }
     setCombatProcessing(true);
     try {
+        if (typeof clearCombatTargetSelection === 'function') clearCombatTargetSelection();
         let result = null;
         if (type === '공격') {
             const learnedAction = classifyPlayerAttackAction(actor);
             recordPlayerBehavior(learnedAction);
             const strikes = learnedAction === 'physical_attack' ? getActorAttackStrikeCount(actor) : 1;
             for (let i = 0; i < strikes; i++) {
-                const target = choosePlayerEnemyTarget();
+                const target = selectedEnemyTarget;
                 if (!target) {
                     writeLog('[공격 실패] 살아있는 적 대상을 찾지 못했습니다.');
                     break;
                 }
-                if (typeof playV35AttackVfx === 'function') await playV35AttackVfx('player', actor, learnedAction);
+                if (getCurrentHp(target) <= 0) break;
+                if (typeof playV35AttackVfx === 'function') await playV35AttackVfx('player', actor, learnedAction, target);
                 result = learnedAction === 'magic_attack'
                     ? resolveMagicAttackAction(actor, target, getEnemyGuardStateFor(target))
                     : resolveAttackAction(actor, target, getEnemyGuardStateFor(target));
@@ -17925,6 +18217,7 @@ window.useAction = async function useAction(type) {
                 else gainActorWeaponMastery(actor, 1);
                 if (enemy && Array.isArray(enemy.party)) syncEnemyPartyAggregateState(enemy);
                 if (!hasLivingEnemies()) break;
+                if (getCurrentHp(target) <= 0) break;
                 if (strikes > 1) await waitMs(90);
             }
             const cooldownTurns = getActorPostAttackCooldownTurns(actor);
@@ -17936,17 +18229,17 @@ window.useAction = async function useAction(type) {
             enemyGuardState = null;
         } else if (type === '힐') {
             recordPlayerBehavior('heal');
-            if (typeof playMagicBurstVfx === 'function') await playMagicBurstVfx('player');
-            const living = getLivingPartyMembers(player);
-            const target = living.slice().sort((a, b) => a.curHp / a.maxHp - b.curHp / b.maxHp)[0];
+            const target = selectedHealTarget;
             result = resolveHealAction(actor, target);
             describeCombatResult(actor, target, result);
             if (result && result.success) {
+                if (typeof playHealAuraVfx === 'function') await playHealAuraVfx('player', result.healed);
                 gainActorMagicMastery(actor, 1);
                 maybeTriggerCorruptedHeal(actor, target);
             }
             syncPartyAggregateState(player);
         } else {
+            if (typeof clearCombatTargetSelection === 'function') clearCombatTargetSelection();
             const mode = 'shield';
             const members = Object.fromEntries(getLivingPartyMembers(player).map((member) => [
                 member.id,
@@ -17984,6 +18277,7 @@ window.usePotion = function usePotion() {
     const turn = currentTurnEntry;
     if (isProcessing || !player || !turn || turn.side !== 'player' || getLivingPartyMembers(player).length === 0) return;
     if (!spendPlayerAction()) return writeLog('[턴 제한] 이번 턴의 행동을 이미 사용했습니다.');
+    if (typeof clearCombatTargetSelection === 'function') clearCombatTargetSelection();
     const target = getLivingPartyMembers(player).slice().sort((a, b) => a.curHp / a.maxHp - b.curHp / b.maxHp)[0];
     const result = resolveHealAction(turn.actor, target);
     describeCombatResult(turn.actor, target, result);
@@ -18045,6 +18339,8 @@ function winBattle() {
     });
     gold = Math.max(0, safeNum(gold, 0)) + reward;
     player.runWins = Math.max(0, safeNum(player.runWins, 0)) + 1;
+    player.hasWonBattle = true;
+    player.victoryCount = player.runWins;
     if (typeof totalGoldEarned !== 'undefined') totalGoldEarned = Math.max(0, safeNum(totalGoldEarned, 0)) + reward;
     writeLog(`[승리] ${formatDungeonPosition({ floor, stage: dungeonStage })} 전투 종료 · ${reward}G 획득`);
     tryAwardDefectiveEquipmentDrop();
@@ -18165,6 +18461,10 @@ function initHumanRunFromActiveSlot() {
     floor = player.progress.floor;
     dungeonStage = player.progress.stage;
     gold = Math.max(0, safeNum(slot.gold, 0));
+    if (floor === 1 && dungeonStage === 1) {
+        resetFreshDungeonEntryVictoryGate();
+        syncPlayerCampaignState();
+    }
     combatTurnNumber = 1;
     playerTurnSpent = false;
     playerGuardState = null;
@@ -18216,6 +18516,7 @@ window.returnPartyToTown = function returnPartyToTown() {
     getPartyMembers(player).forEach((member) => setCurrentHp(member, member.maxHp));
     syncPartyAggregateState(player);
     player.inTown = true;
+    resetFreshDungeonEntryVictoryGate();
     syncPlayerCampaignState();
     if (typeof exitBattleLayout === 'function') exitBattleLayout();
     enemy = null;
@@ -18225,11 +18526,15 @@ window.returnPartyToTown = function returnPartyToTown() {
 
 window.enterDungeonFromTown = function enterDungeonFromTown() {
     if (!player || !player.inTown) return;
+    const goldBeforeEntry = Math.max(0, safeNum(gold, 0));
     floor = 1;
     dungeonStage = 1;
     player.progress = { floor: 1, stage: 1 };
-    player.runWins = 0;
     player.inTown = false;
+    gold = goldBeforeEntry;
+    enemy = null;
+    resetInitiativeTimeline();
+    resetFreshDungeonEntryVictoryGate();
     combatTurnNumber = 1;
     playerTurnSpent = false;
     playerGuardState = null;
@@ -18371,8 +18676,6 @@ Object.assign(window, {
     triggerBossWarning,
     applySummonDarkTurnStart,
 });
-
-
 // Bootstrap shell (post-migration)
 (function bootstrapShellInit() {
     // keep file as orchestrator placeholder only
@@ -18382,15 +18685,11 @@ Object.assign(window, {
 window.addEventListener('load', () => {
     // All runtime logic is loaded from domain modules.
 });
-
-
 // Thin controller entrypoint after modular split.
 // Core runtime lives in js/bootstrapCore.js and feature modules.
 (function gameControllerInit() {
     window.__gameControllerReady = true;
 })();
-
-
 // Browser hardening layer. Loaded last inside bundle.js.
 (function installDungeonClientHardening() {
     try {
