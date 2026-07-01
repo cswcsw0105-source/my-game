@@ -57,6 +57,20 @@ function getSlotClassDisplayName(slot) {
 let activeInventoryPartyRole = 'tank';
 let combatTargetSelectionState = null;
 
+function getBuildVersionLabel() {
+    const version = typeof GAME_VERSION !== 'undefined' ? GAME_VERSION : '베타 v3.9';
+    const updated = typeof LAST_UPDATE !== 'undefined' ? LAST_UPDATE : '2026-07-01 00:00';
+    return `${version} · ${updated}`;
+}
+
+function renderBuildVersionLabels() {
+    const label = getBuildVersionLabel();
+    ['game-version-label', 'start-version-label', 'battle-version-label'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = label;
+    });
+}
+
 function getPartyRoleTabs() {
     return [
         { key: 'tank', label: '탱커', color: '#74b9ff' },
@@ -605,6 +619,7 @@ function renderPassiveContractHistoryPanels() {
 }
 
 function updateUi() {
+    renderBuildVersionLabels();
     if (!player) return;
     syncV35PlayerStatDisplay();
     if (!enemy) {
@@ -2382,7 +2397,7 @@ function showPreGameScreen() {
     document.getElementById('start-area').innerHTML = `
         <div style="text-align:center; margin-bottom:16px;">
             <h2 style="color:#f1c40f; margin-bottom:5px;">⚔️ 프로젝트 성혼</h2>
-            <p style="color:#9b59b6;font-size:0.88em;margin:0 0 8px;font-weight:700;">베타 v 1.0</p>
+            <p id="start-version-label" style="color:#9b59b6;font-size:0.88em;margin:0 0 8px;font-weight:700;">${getBuildVersionLabel()}</p>
             ${saveFileBar}
             <p style="color:#888; font-size:0.85em;">3인 파티 · 100층 미궁 · 6-1 이후 복귀 불가</p>
         </div>
@@ -2400,6 +2415,7 @@ function showPreGameScreen() {
             '</span></p>';
     }
     ensureHubCreateEntryRendered();
+    renderBuildVersionLabels();
 }
 
 window.resumeMetaSlot = (slotId) => {
@@ -3961,6 +3977,33 @@ window.toggleRank=(show)=>{
         loadRank();
     }
 };
+function buildGuideHtml() {
+    const rows = [
+        ['힘', '물리 공격 피해와 무기 공격 효율을 높입니다.'],
+        ['방어력', '받는 물리 피해를 줄이고 방어 행동의 효율을 높입니다.'],
+        ['체력', '최대 HP를 높여 전투 지속력을 강화합니다.'],
+        ['지능', '마법 공격 피해와 마법 계열 행동 효율을 높입니다.'],
+        ['지혜', '힐 회복량과 마법 안정성을 높입니다.'],
+        ['민첩', '턴 순서와 행동 우선권에 영향을 주며 빠른 행동을 돕습니다.'],
+    ];
+    return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;text-align:left;">${rows
+        .map(
+            ([name, desc]) => `<div style="background:#111;border:1px solid #333;border-left:3px solid #9b59b6;border-radius:8px;padding:10px 12px;">
+                <div style="color:#f1c40f;font-weight:800;margin-bottom:5px;">${escapeHtml(name)}</div>
+                <div style="color:#aaa;font-size:0.84em;line-height:1.5;">${escapeHtml(desc)}</div>
+            </div>`
+        )
+        .join('')}</div>`;
+}
+window.toggleGuide=(show)=>{
+    const modal = document.getElementById('guide-modal');
+    if (!modal) return;
+    if (show) {
+        const body = document.getElementById('guide-content');
+        if (body) body.innerHTML = buildGuideHtml();
+    }
+    modal.style.display = show ? 'flex' : 'none';
+};
 window.toggleInv = () => {};
 
 window.mercGoldSkipCooldown = () => {
@@ -3984,6 +4027,55 @@ window.mercGoldSkipCooldown = () => {
 window.useMercenarySlot = () => {
     writeLog('[고용] 고용 아이템 시스템은 폐지되었습니다. 시작 시 동료 선택·쿨 종료·🪙 긴급 재가동을 이용하세요.');
 };
+
+const CODEX_CURRENT_JOB_TABS = Object.freeze(['공용', '기사', '마법사', '탱커']);
+const CODEX_MERC_JOB_TABS = Object.freeze(['용병', '기사', '마법사', '탱커']);
+const CODEX_LEGACY_JOB_MAP = Object.freeze({
+    워리어: Object.freeze(['기사', '탱커']),
+    나이트: Object.freeze(['기사']),
+    버서커: Object.freeze(['기사', '탱커']),
+    헌터: Object.freeze(['기사']),
+    궁수: Object.freeze(['기사']),
+    암살자: Object.freeze(['기사']),
+    마법사: Object.freeze(['마법사']),
+    위저드: Object.freeze(['마법사']),
+    소환사: Object.freeze(['마법사']),
+    성직자: Object.freeze(['마법사']),
+    기사: Object.freeze(['기사']),
+    탱커: Object.freeze(['탱커']),
+});
+
+function getCodexCurrentJobsForItem(it) {
+    const jobs = new Set();
+    const onlyFor = it && Array.isArray(it.onlyFor) ? it.onlyFor : [];
+    onlyFor.forEach((jobName) => {
+        const mapped = CODEX_LEGACY_JOB_MAP[jobName] || [];
+        mapped.forEach((job) => jobs.add(job));
+    });
+    return Array.from(jobs);
+}
+
+function sanitizeCodexLegacyJobText(text) {
+    return String(text || '')
+        .replace(/워리어|나이트|버서커/g, '기사')
+        .replace(/헌터|궁수|암살자/g, '기사')
+        .replace(/성직자|위저드|소환사/g, '마법사');
+}
+
+function formatCodexItemName(name) {
+    return sanitizeCodexLegacyJobText(formatShopItemName(name));
+}
+
+function formatCodexItemDesc(desc) {
+    return sanitizeCodexLegacyJobText(formatShopItemDesc(desc));
+}
+
+function getCodexCurrentJobLineHtml(it) {
+    const jobs = getCodexCurrentJobsForItem(it);
+    if (!jobs.length) return '';
+    return `<div style="color:#888;font-size:0.72em;margin-top:3px;line-height:1.35;">장착: ${jobs.map((job) => escapeHtml(job)).join(' · ')}</div>`;
+}
+
 function codexItemMatchesTab(it, tab) {
     if (!it || !it.name) return false;
     if (tab === '용병') {
@@ -3992,22 +4084,11 @@ function codexItemMatchesTab(it, tab) {
         if (!it.onlyFor || !Array.isArray(it.onlyFor) || it.onlyFor.length === 0) return true;
         return it.onlyFor.some((j) => keys.has(j));
     }
-    if (tab === '성직자') {
-        if (it.type === 'merc') return false;
-        const of = it.onlyFor;
-        return Array.isArray(of) && of.includes('성직자');
-    }
     if (it.type === 'merc') return false;
     const of = it.onlyFor;
     if (tab === '공용') return !of || (Array.isArray(of) && of.length === 0);
     if (!of || !Array.isArray(of)) return false;
-    const W = ['워리어', '나이트', '버서커'];
-    const H = ['헌터', '궁수', '암살자'];
-    const M = ['마법사', '위저드', '소환사'];
-    if (tab === '워리어') return of.some((j) => W.includes(j));
-    if (tab === '헌터') return of.some((j) => H.includes(j));
-    if (tab === '마법사') return of.some((j) => M.includes(j));
-    return false;
+    return getCodexCurrentJobsForItem(it).includes(tab);
 }
 
 window.setCodexTab = (t) => {
@@ -4033,10 +4114,11 @@ window.toggleCollection = (show) => {
         if (!window._codexTab) window._codexTab = '공용';
         if (!window._codexStatFilter) window._codexStatFilter = 'all';
         const mercMode = player && player.baseJob === '용병단장';
-        if (mercMode && window._codexTab === '공용') window._codexTab = '용병';
+        if (mercMode && !CODEX_MERC_JOB_TABS.includes(window._codexTab)) window._codexTab = '용병';
+        if (!mercMode && !CODEX_CURRENT_JOB_TABS.includes(window._codexTab)) window._codexTab = '공용';
         const tab = window._codexTab;
         const statFilter = window._codexStatFilter;
-        const tabs = mercMode ? ['용병', '워리어', '헌터', '마법사'] : ['공용', '워리어', '헌터', '마법사', '성직자'];
+        const tabs = mercMode ? Array.from(CODEX_MERC_JOB_TABS) : Array.from(CODEX_CURRENT_JOB_TABS);
         const collection = JSON.parse(localStorage.getItem('item_collection_v5') || '[]');
         const allItems = [
             ...equipmentPool,
@@ -4094,15 +4176,15 @@ window.toggleCollection = (show) => {
         if (tab === '용병') {
             html += `<p style="color:#b87333;font-size:0.78em;margin:-8px 0 12px;line-height:1.45;">📜 <b>동료 장비 풀</b> — 전투 <b>💰 용병 지원</b>·상점 <b>직거래/자금 지원</b>으로 얻는 장비입니다. (이름 중복 없이 랜덤)</p>`;
         }
-        if (tab === '성직자') {
-            html += `<p style="color:#9b59b6;font-size:0.78em;margin:-8px 0 12px;line-height:1.45;">📜 <b>성직자 전용 장비</b> — 일부 장비에 <b>신성력 획득량 증가</b> 옵션이 붙어 있습니다.</p>`;
+        if (['기사', '마법사', '탱커'].includes(tab)) {
+            html += `<p style="color:#9b59b6;font-size:0.78em;margin:-8px 0 12px;line-height:1.45;">📜 <b>${tab} 장비</b> — 현재 3인 파티 직업 기준으로 장착 가능한 장비만 표시합니다.</p>`;
         }
         if (relicItems.length > 0) {
             html += `<div style="margin-bottom:16px;border-bottom:1px solid #333;padding-bottom:12px;"><div style="background:#2a2a0a;color:#f1c40f;font-size:0.7em;font-weight:700;padding:3px 8px;border-radius:4px;display:inline-block;margin-bottom:8px;letter-spacing:1px;">✨ RELIC (유물)</div>`;
             relicItems.forEach((it) => {
                 if (collection.includes(it.name)) {
                     const pref = isPreferredItem(it.name);
-                    html += `<div style="padding:8px 10px;background:#111;border-radius:6px;margin-bottom:4px;border-left:3px solid #f1c40f;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div><div style="color:#f1c40f;font-weight:700;font-size:0.9em;">✅ ✨ ${formatShopItemName(it.name)}${pref ? ' <span style="color:#f1c40f;">★</span>' : ''}</div><div style="color:#666;font-size:0.78em;margin-top:3px;">${formatShopItemDesc(it.desc)}</div></div><button type="button" onclick="togglePreferredItem('${escapeJsSingleQuoteString(it.name)}')" style="background:${pref ? '#f1c40f' : '#111'};color:${pref ? '#111' : '#f1c40f'};border:1px solid #f1c40f;border-radius:8px;padding:6px 10px;font-weight:900;cursor:pointer;font-size:0.78em;">★</button></div>`;
+                    html += `<div style="padding:8px 10px;background:#111;border-radius:6px;margin-bottom:4px;border-left:3px solid #f1c40f;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div><div style="color:#f1c40f;font-weight:700;font-size:0.9em;">✅ ✨ ${formatCodexItemName(it.name)}${pref ? ' <span style="color:#f1c40f;">★</span>' : ''}</div><div style="color:#666;font-size:0.78em;margin-top:3px;">${formatCodexItemDesc(it.desc)}</div></div><button type="button" onclick="togglePreferredItem('${escapeJsSingleQuoteString(it.name)}')" style="background:${pref ? '#f1c40f' : '#111'};color:${pref ? '#111' : '#f1c40f'};border:1px solid #f1c40f;border-radius:8px;padding:6px 10px;font-weight:900;cursor:pointer;font-size:0.78em;">★</button></div>`;
                 }
                 else html += `<div style="padding:8px 10px;background:#0a0a0a;border-radius:6px;margin-bottom:4px;border-left:3px solid #333;"><div style="color:#444;font-weight:700;font-size:0.9em;">🔒 ???</div></div>`;
             });
@@ -4122,7 +4204,7 @@ window.toggleCollection = (show) => {
             items.forEach((it) => {
                 if (it.owned) {
                     const pref = isPreferredItem(it.name);
-                    html += `<div style="padding:8px 10px;background:#111;border-radius:6px;margin-bottom:4px;border-left:3px solid ${color};display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div><div style="color:${color};font-weight:700;font-size:0.9em;">✅ ${formatShopItemName(it.name)}${pref ? ' <span style="color:#f1c40f;">★</span>' : ''}</div>${getEquipSlotLineHtml(it)}<div style="color:#666;font-size:0.78em;margin-top:3px;">${formatShopItemDesc(it.desc)}</div></div><button type="button" onclick="togglePreferredItem('${escapeJsSingleQuoteString(it.name)}')" style="background:${pref ? '#f1c40f' : '#111'};color:${pref ? '#111' : '#f1c40f'};border:1px solid #f1c40f;border-radius:8px;padding:6px 10px;font-weight:900;cursor:pointer;font-size:0.78em;">★</button></div>`;
+                    html += `<div style="padding:8px 10px;background:#111;border-radius:6px;margin-bottom:4px;border-left:3px solid ${color};display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div><div style="color:${color};font-weight:700;font-size:0.9em;">✅ ${formatCodexItemName(it.name)}${pref ? ' <span style="color:#f1c40f;">★</span>' : ''}</div>${getEquipSlotLineHtml(it)}${getCodexCurrentJobLineHtml(it)}<div style="color:#666;font-size:0.78em;margin-top:3px;">${formatCodexItemDesc(it.desc)}</div></div><button type="button" onclick="togglePreferredItem('${escapeJsSingleQuoteString(it.name)}')" style="background:${pref ? '#f1c40f' : '#111'};color:${pref ? '#111' : '#f1c40f'};border:1px solid #f1c40f;border-radius:8px;padding:6px 10px;font-weight:900;cursor:pointer;font-size:0.78em;">★</button></div>`;
                 }
                 else html += `<div style="padding:8px 10px;background:#0a0a0a;border-radius:6px;margin-bottom:4px;border-left:3px solid #333;"><div style="color:#444;font-weight:700;font-size:0.9em;">🔒 ???</div></div>`;
             });
@@ -4276,7 +4358,10 @@ window.onclick=function(event){
     if(event.target===document.getElementById('rank-modal'))toggleRank(false);
     if(event.target===document.getElementById('collection-modal'))toggleCollection(false);
     if(event.target===document.getElementById('evolution-modal'))toggleEvolutionMap(false);
+    if(event.target===document.getElementById('guide-modal'))toggleGuide(false);
 };
+
+renderBuildVersionLabels();
 
 // stage 1 split: moved to js/uiManager.js
 

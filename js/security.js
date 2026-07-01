@@ -149,6 +149,7 @@
         'setInventoryPartyTab',
         'togglePatchNotes',
         'toggleRank',
+        'toggleGuide',
         'toggleInv',
         'mercGoldSkipCooldown',
         'useMercenarySlot',

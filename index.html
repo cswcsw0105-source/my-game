@@ -15,7 +15,7 @@
 <body>
     <div class="container">
         <h1 style="color: #fff; letter-spacing: 1px;">⚔️ 프로젝트 성혼</h1>
-        <p style="color:#9b59b6;font-size:0.9em;margin:2px 0 8px;letter-spacing:0.5px;">베타 v 1.0</p>
+        <p id="game-version-label" style="color:#9b59b6;font-size:0.9em;margin:2px 0 8px;letter-spacing:0.5px;">베타 v3.9 · 2026-07-01 00:00</p>
         
         <div class="game-layout" id="main-layout">
             <!-- 던전·상점 중 왼쪽: 인벤 상시 -->
@@ -43,6 +43,7 @@
                     <div id="battle-run-controls" class="battle-run-controls">
                         <div class="battle-run-statline">
                             <span>층 <b id="floor-t-battle">1</b>F</span>
+                            <span id="battle-version-label" style="color:#888;font-size:0.78em;">베타 v3.9 · 2026-07-01 00:00</span>
                             <span>골드 <b id="gold-t-battle">0</b>G</span>
                             <span>포션 <b id="potion-t-battle">0</b></span>
                         </div>
@@ -106,6 +107,7 @@
                     <button type="button" class="sidebar-action-btn sidebar-btn-collection" onclick="toggleEvolutionMap(true)">🧭 전직도</button>
                     <button type="button" class="sidebar-action-btn sidebar-btn-collection" onclick="toggleCollection(true)">📖 장비 도감</button>
                     <button type="button" class="sidebar-action-btn sidebar-btn-rank" onclick="toggleRank(true)">🏆 명예의 전당 보기</button>
+                    <button type="button" id="guide-btn" class="sidebar-action-btn sidebar-btn-collection" onclick="toggleGuide(true)">📚 가이드</button>
                 </div>
             </div>
 
@@ -139,6 +141,15 @@
             <button class="close-btn" onclick="toggleRank(false)">✖</button>
             <h2>🏆 글로벌 명예의 전당</h2>
             <div id="rank-list" style="font-size:0.9em; color:#888; margin-top:15px;">데이터 불러오는 중...</div>
+        </div>
+    </div>
+
+    <!-- 가이드 모달 -->
+    <div id="guide-modal" class="modal-overlay">
+        <div class="modal-content">
+            <button class="close-btn" onclick="toggleGuide(false)">✖</button>
+            <h2>📚 가이드</h2>
+            <div id="guide-content" style="font-size:0.9em; margin-top:15px;"></div>
         </div>
     </div>
 
@@ -374,6 +385,6 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <!-- ?v= 쿼리로 브라우저 캐시 무효화 (수정이 안 보일 때 강력 새로고침도 함께) -->
-<script src="bundle.js?v=beta-v3-role-reroll"></script>
+<script src="bundle.js?v=beta-v3-guide-codex"></script>
 </body>
 </html>

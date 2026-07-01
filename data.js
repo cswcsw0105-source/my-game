@@ -7,6 +7,8 @@
  */
 
 const RULESET_VERSION = '3.5';
+const GAME_VERSION = '베타 v3.9';
+const LAST_UPDATE = '2026-07-01 00:00';
 const HUMAN_JOB_KEY = 'Human';
 const PARTY_ROLE_KEYS = Object.freeze(['tank', 'mage', 'knight']);
 const PARTY_ROLE_DEFINITIONS = Object.freeze({
@@ -544,6 +546,8 @@ const TURN_RPG_DATA = Object.freeze({
 if (typeof globalThis !== 'undefined') {
     Object.assign(globalThis, {
         RULESET_VERSION,
+        GAME_VERSION,
+        LAST_UPDATE,
         HUMAN_JOB_KEY,
         PARTY_ROLE_KEYS,
         PARTY_ROLE_DEFINITIONS,
@@ -577,6 +581,8 @@ if (typeof globalThis !== 'undefined') {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         RULESET_VERSION,
+        GAME_VERSION,
+        LAST_UPDATE,
         HUMAN_JOB_KEY,
         PARTY_ROLE_KEYS,
         PARTY_ROLE_DEFINITIONS,
