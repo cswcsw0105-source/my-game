@@ -507,7 +507,12 @@ function renderActions() {
     }
     if (turn.side !== 'player') {
         clearCombatTargetSelection();
-        div.innerHTML = `<div style="color:#ffb3b3;font-size:0.85em;font-weight:800;padding:8px 0;">${escapeHtml(turn.actor && turn.actor.name ? turn.actor.name : '적')} 행동 처리 중...</div>`;
+        div.innerHTML = `
+            <div style="width:100%;color:#ffb3b3;font-size:0.85em;font-weight:800;padding:8px 0;">${escapeHtml(turn.actor && turn.actor.name ? turn.actor.name : '적')} 행동 처리 중...</div>
+            <button id="attack-btn" type="button" data-v35-action="공격" disabled style="background:#444;opacity:0.45;cursor:not-allowed;">⚔️ 공격</button>
+            <button id="defense-btn" type="button" data-v35-action="방패방어" disabled style="background:#444;opacity:0.45;cursor:not-allowed;">🛡️ 파티 방어</button>
+            <button id="heal-btn" type="button" data-v35-action="힐" data-v35-heal="1" disabled style="background:#444;opacity:0.45;cursor:not-allowed;">✨ 힐</button>`;
+        if (typeof updateCombatButtonsLockState === 'function') updateCombatButtonsLockState();
         return;
     }
     div.innerHTML = '';
@@ -551,8 +556,8 @@ function renderActions() {
         `⚔️ 공격`,
         '공격',
         player.color || '#d8d8d8',
-        !canAttack,
-        canAttack ? `${actorName}의 힘·민첩·공속 기반 공격` : `${actorName}는 공속 패널티 또는 뒤틀림으로 공격 불가`
+        false,
+        canAttack ? `${actorName}의 힘·민첩·공속 기반 공격` : `${actorName}는 공속 패널티 상태지만 상태 머신이 턴을 진행합니다.`
     );
     makeBtn(
         'defense-btn',
@@ -567,8 +572,8 @@ function renderActions() {
         '✨ 힐',
         '힐',
         '#4b6b50',
-        !canHeal,
-        canHeal ? `${actorName}의 지혜 기반 단일 대상 치유` : '마법사 턴이며 회복할 아군이 있을 때 사용 가능'
+        false,
+        canHeal ? `${actorName}의 지혜 기반 단일 대상 치유` : '마법사 턴이며 회복할 아군이 있을 때 가장 효과적'
     );
     clearCombatTargetSelection();
     rebindV35PrimaryActionButtons();

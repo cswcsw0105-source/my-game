@@ -23,6 +23,12 @@ let initiativeRound = 1;
 let initiativeAdvanceInProgress = false;
 let combatVictorySettlementLocked = false;
 
+window.combatState = window.combatState || {
+    turnQueue: [],
+    currentTurnIndex: 0,
+    isCombatActive: false,
+};
+
 function isMercenaryCaptainJob() { return false; }
 function getAffinityRelKey() { return '인간 모험가'; }
 function getMercGoldSkipCost() { return Infinity; }
@@ -168,6 +174,11 @@ function resetInitiativeTimeline() {
     initiativeRound = 1;
     initiativeAdvanceInProgress = false;
     playerTurnSpent = false;
+    window.combatState.turnQueue = [];
+    window.combatState.currentTurnIndex = 0;
+    window.combatState.isCombatActive = false;
+    window.combatState.isResolvingTurn = false;
+    window.combatState.awaitingPlayerInput = false;
 }
 
 function clearPendingVictoryAdvanceState() {
@@ -225,12 +236,54 @@ function buildInitiativeQueue() {
 }
 
 function getTurnOrderPreviewText() {
-    const rows = currentTurnEntry ? [currentTurnEntry, ...initiativeQueue] : initiativeQueue;
+    const state = window.combatState || {};
+    const rows = Array.isArray(state.turnQueue) && state.turnQueue.length
+        ? state.turnQueue.slice(state.currentTurnIndex || 0)
+        : currentTurnEntry
+          ? [currentTurnEntry, ...initiativeQueue]
+          : initiativeQueue;
     return rows
         .filter((entry) => entry && entry.actor)
         .slice(0, 6)
         .map((entry) => `${entry.actor.name || '?'}(${entry.initiative})`)
         .join(' → ');
+}
+
+function setCombatActionButtonsDisabled(disabled) {
+    ['attack-btn', 'btn-attack', 'defense-btn', 'btn-party-defend', 'heal-btn', 'btn-heal'].forEach((id) => {
+        const button = document.getElementById(id);
+        if (!button) return;
+        if (disabled && button.dataset && button.dataset.v35Disabled === '1') {
+            button.disabled = true;
+            return;
+        }
+        button.disabled = !!disabled;
+        button.classList.toggle('combat-btn-processing', !!disabled);
+    });
+}
+
+function rebindCombatActionButtonsForActiveTurn() {
+    const bindings = [
+        ['attack-btn', '공격'],
+        ['btn-attack', '공격'],
+        ['defense-btn', '방패방어'],
+        ['btn-party-defend', '방패방어'],
+        ['heal-btn', '힐'],
+        ['btn-heal', '힐'],
+    ];
+    bindings.forEach(([id, actionType]) => {
+        const button = document.getElementById(id);
+        if (!button) return;
+        button.onclick = (event) => {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+            }
+            if (button.disabled || (button.dataset && button.dataset.v35Disabled === '1')) return;
+            window.useAction(actionType);
+        };
+    });
 }
 
 function getEquippedWeapon(actor) {
@@ -862,64 +915,11 @@ function chooseEnemyAction(actor) {
 }
 
 async function enemyTurn() {
-    if (!enemy || !player || !hasLivingEnemies() || getLivingPartyMembers(player).length === 0) return;
-    setCombatProcessing(true);
-    await waitMs(300);
-    const actingEnemies = getLivingEnemyPartyMembers(enemy);
-    for (const unit of actingEnemies) {
-        if (!player || getLivingPartyMembers(player).length === 0 || getCurrentHp(unit) <= 0) break;
-        const action = chooseEnemyAction(unit);
-        if (action === 'charge') {
-            unit._bossChargeReady = true;
-            writeLog(`[적 행동] ${unit.name} — 강공격 준비`);
-        } else if (action === 'heal') {
-            const allies = getLivingEnemyPartyMembers(enemy);
-            const targetAlly = allies.slice().sort((a, b) => a.curHp / a.maxHp - b.curHp / b.maxHp)[0] || unit;
-            const result = resolveHealAction(unit, targetAlly);
-            describeCombatResult(unit, targetAlly, result);
-            if (result && result.success && typeof playHealAuraVfx === 'function') playHealAuraVfx('enemy', result.healed);
-        } else if (action === 'defend' || action === 'dodge') {
-            enemyGuardState = enemyGuardState && enemyGuardState.members ? enemyGuardState : { members: {} };
-            enemyGuardState.members[unit.id] = { mode: action === 'defend' ? 'shield' : 'dodge', turn: combatTurnNumber };
-            writeLog(`[적 행동] ${unit.name} — ${action === 'defend' ? '방어' : '회피'} 준비`);
-        } else {
-            const target = chooseEnemyPartyTarget();
-            if (!target) {
-                gameOver();
-                return;
-            }
-            writeLog(`[어그로] ${unit.name} → ${target.name} 타겟`);
-            unit._attackMultiplier = unit._bossChargeReady ? 2.5 : 1;
-            await previewEnemyTargetIntent(unit, target);
-            await playV35AttackVfx('enemy', unit, action, target);
-            const result = action === 'magic_attack'
-                ? resolveMagicAttackAction(unit, target, getPartyGuardStateFor(target))
-                : resolveAttackAction(unit, target, getPartyGuardStateFor(target));
-            unit._attackMultiplier = 1;
-            unit._bossChargeReady = false;
-            describeCombatResult(unit, target, result);
-            emitCombatResultVfx(target, result);
-        }
-        if (enemy && Array.isArray(enemy.party)) syncEnemyPartyAggregateState(enemy);
-    }
-    playerGuardState = null;
-    if (enemy.isBoss) enemy.turnCount = Math.max(1, safeNum(enemy.turnCount, 1)) + 1;
-    syncPartyAggregateState(player);
-    if (getLivingPartyMembers(player).length === 0) {
-        gameOver();
-        return;
-    }
-    if (applyDefectiveEquipmentTurnEndEffects()) {
-        if (!player || getLivingPartyMembers(player).length === 0) return;
-    }
-    combatTurnNumber += 1;
-    playerTurnSpent = false;
-    setCombatProcessing(false);
-    updateUi();
-    renderActions();
+    if (!window.combatState || !window.combatState.isCombatActive) startCombat();
+    else await executeActiveTurn();
 }
 
-async function executeEnemyUnitTurn(unit) {
+async function executeEnemyUnitTurn(unit, forcedTarget) {
     if (!unit || getCurrentHp(unit) <= 0 || !player || getLivingPartyMembers(player).length === 0) return;
     const action = chooseEnemyAction(unit);
     if (action === 'charge') {
@@ -936,14 +936,13 @@ async function executeEnemyUnitTurn(unit) {
         enemyGuardState.members[unit.id] = { mode: action === 'defend' ? 'shield' : 'dodge', turn: combatTurnNumber };
         writeLog(`[적 행동] ${unit.name} — ${action === 'defend' ? '방어' : '회피'} 준비`);
     } else {
-        const target = chooseEnemyPartyTarget();
+        const target = forcedTarget && getCurrentHp(forcedTarget) > 0 ? forcedTarget : chooseEnemyPartyTarget();
         if (!target) {
             gameOver();
             return;
         }
         writeLog(`[어그로] ${unit.name} → ${target.name} 타겟`);
         unit._attackMultiplier = unit._bossChargeReady ? 2.5 : 1;
-        await previewEnemyTargetIntent(unit, target);
         await playV35AttackVfx('enemy', unit, action, target);
         const result = action === 'magic_attack'
             ? resolveMagicAttackAction(unit, target, getPartyGuardStateFor(target))
@@ -957,96 +956,150 @@ async function executeEnemyUnitTurn(unit) {
 }
 
 async function finishActiveInitiativeTurn() {
-    currentTurnEntry = null;
+    await advanceNextTurn();
+}
+
+function refreshCombatTurnQueue() {
+    window.combatState.turnQueue = buildInitiativeQueue();
+    initiativeQueue = window.combatState.turnQueue.slice();
+    if (!window.combatState.turnQueue.length) return;
+    writeLog(`[라운드] ${initiativeRound}라운드 시작 — 민첩 순서: ${getTurnOrderPreviewText()}`);
+    initiativeRound += 1;
+}
+
+function startCombat() {
+    if (!player || !enemy) return;
+    resetCombatVictorySettlementLock();
+    window.combatState.isCombatActive = true;
+    window.combatState.currentTurnIndex = 0;
+    window.combatState.isResolvingTurn = false;
+    window.combatState.awaitingPlayerInput = false;
+    initiativeRound = 1;
+    playerGuardState = null;
+    enemyGuardState = null;
     playerTurnSpent = false;
-    if (applyDefectiveEquipmentTurnEndEffects()) {
-        if (!player || getLivingPartyMembers(player).length === 0) return;
-    }
-    combatTurnNumber += 1;
-    updateUi();
-    renderActions();
-    await advanceInitiativeTurn();
+    refreshCombatTurnQueue();
+    executeActiveTurn();
 }
 
 async function advanceInitiativeTurn() {
-    if (initiativeAdvanceInProgress || !player || !enemy) return;
-    initiativeAdvanceInProgress = true;
-    try {
-        while (player && enemy) {
-            if (getLivingPartyMembers(player).length === 0) {
-                gameOver();
-                return;
-            }
-            if (!hasLivingEnemies()) {
-                winBattle();
-                return;
-            }
-            if (!initiativeQueue.length) {
-                const roundNo = initiativeRound;
-                if (roundNo > 1) {
-                    playerGuardState = null;
-                    enemyGuardState = null;
-                    writeLog(`[라운드] ${roundNo - 1}라운드 종료`);
-                }
-                initiativeQueue = buildInitiativeQueue();
-                writeLog(`[라운드] ${roundNo}라운드 시작 — 민첩 순서: ${getTurnOrderPreviewText()}`);
-                initiativeRound += 1;
-            }
-            const next = initiativeQueue.shift();
-            if (!isTurnActorAlive(next)) continue;
-            currentTurnEntry = next;
-            if (next.side === 'player') {
-                playerTurnSpent = false;
-                next.actor.weaponDisabledThisTurn = false;
-                next.actor._attackLockedForThisTurn = false;
-                if (safeNum(next.actor.attackLockTurns, 0) > 0) {
-                    next.actor._attackLockedForThisTurn = true;
-                    next.actor.attackLockTurns = Math.max(0, safeNum(next.actor.attackLockTurns, 0) - 1);
-                    writeLog(`[공속 패널티] ${next.actor.name}는 이번 턴 공격할 수 없습니다.`);
-                }
-                if (tryResolveSecondSelfTurn(next.actor)) {
-                    currentTurnEntry = null;
-                    syncPartyAggregateState(player);
-                    if (getLivingPartyMembers(player).length === 0) {
-                        gameOver();
-                        return;
-                    }
-                    if (applyDefectiveEquipmentTurnEndEffects()) {
-                        if (!player || getLivingPartyMembers(player).length === 0) return;
-                    }
-                    combatTurnNumber += 1;
-                    continue;
-                }
-                setCombatProcessing(false);
-                writeLog(`[턴] ${next.actor.name}의 턴 — 행동을 선택하세요.`);
-                updateUi();
-                renderActions();
-                return;
-            }
-            setCombatProcessing(true);
-            updateUi();
-            renderActions();
-            await waitMs(260);
-            await executeEnemyUnitTurn(next.actor);
-            currentTurnEntry = null;
-            if (enemy && enemy.isBoss) enemy.turnCount = Math.max(1, safeNum(enemy.turnCount, 1)) + 1;
-            if (applyDefectiveEquipmentTurnEndEffects()) {
-                if (!player || getLivingPartyMembers(player).length === 0) return;
-            }
-            combatTurnNumber += 1;
-        }
-    } finally {
-        initiativeAdvanceInProgress = false;
-        if (player && enemy) {
-            updateUi();
-            renderActions();
-        }
-    }
+    return executeActiveTurn();
 }
 
 function startInitiativeTurnLoop() {
-    if (!player || !enemy || currentTurnEntry || initiativeAdvanceInProgress) return;
-    advanceInitiativeTurn();
+    if (!player || !enemy) return;
+    if (!window.combatState.isCombatActive) {
+        startCombat();
+        return;
+    }
+    if (window.combatState.awaitingPlayerInput) return;
+    executeActiveTurn();
+}
+
+async function executeActiveTurn() {
+    const state = window.combatState;
+    if (!state || !state.isCombatActive || state.isResolvingTurn || !player || !enemy) return;
+    if (state.awaitingPlayerInput && currentTurnEntry && currentTurnEntry.side === 'player') return;
+    if (getLivingPartyMembers(player).length === 0) {
+        state.isCombatActive = false;
+        currentTurnEntry = null;
+        gameOver();
+        return;
+    }
+    if (!hasLivingEnemies()) {
+        state.isCombatActive = false;
+        currentTurnEntry = null;
+        winBattle();
+        return;
+    }
+    if (!Array.isArray(state.turnQueue) || !state.turnQueue.length || state.currentTurnIndex >= state.turnQueue.length) {
+        state.currentTurnIndex = 0;
+        playerGuardState = null;
+        enemyGuardState = null;
+        refreshCombatTurnQueue();
+    }
+
+    const activeEntry = state.turnQueue[state.currentTurnIndex];
+    currentTurnEntry = activeEntry || null;
+    initiativeQueue = state.turnQueue.slice(state.currentTurnIndex + 1);
+    if (!activeEntry || !isTurnActorAlive(activeEntry)) {
+        await advanceNextTurn({ skipTurnEffects: true });
+        return;
+    }
+
+    if (activeEntry.side === 'player') {
+        state.awaitingPlayerInput = true;
+        playerTurnSpent = false;
+        activeEntry.actor.weaponDisabledThisTurn = false;
+        activeEntry.actor._attackLockedForThisTurn = false;
+        if (safeNum(activeEntry.actor.attackLockTurns, 0) > 0) {
+            activeEntry.actor._attackLockedForThisTurn = true;
+            activeEntry.actor.attackLockTurns = Math.max(0, safeNum(activeEntry.actor.attackLockTurns, 0) - 1);
+            writeLog(`[공속 패널티] ${activeEntry.actor.name}는 이번 턴 공격할 수 없습니다.`);
+        }
+        setCombatProcessing(false);
+        writeLog(`[턴] ${activeEntry.actor.name}의 턴 — 행동을 선택하세요.`);
+        updateUi();
+        renderActions();
+        rebindCombatActionButtonsForActiveTurn();
+        setCombatActionButtonsDisabled(false);
+        return;
+    }
+
+    state.isResolvingTurn = true;
+    state.awaitingPlayerInput = false;
+    setCombatProcessing(true);
+    const target = chooseEnemyPartyTarget();
+    window._enemyThinkingHint = target ? `🎯 타겟: ${target.name}` : '';
+    updateUi();
+    renderActions();
+    setCombatActionButtonsDisabled(true);
+    if (target && typeof renderEnemyIntentLaser === 'function') renderEnemyIntentLaser('enemy', 'player', 900);
+    await waitMs(650);
+    await executeEnemyUnitTurn(activeEntry.actor, target);
+    window._enemyThinkingHint = '';
+    state.isResolvingTurn = false;
+    await advanceNextTurn();
+}
+
+async function advanceNextTurn(options) {
+    const state = window.combatState;
+    if (!state || !state.isCombatActive) return;
+    const opt = options && typeof options === 'object' ? options : {};
+    if (!opt.skipTurnEffects) {
+        if (currentTurnEntry && currentTurnEntry.side === 'enemy' && enemy && enemy.isBoss) {
+            enemy.turnCount = Math.max(1, safeNum(enemy.turnCount, 1)) + 1;
+        }
+        if (applyDefectiveEquipmentTurnEndEffects()) {
+            if (!player || getLivingPartyMembers(player).length === 0) {
+                state.isCombatActive = false;
+                return;
+            }
+        }
+        combatTurnNumber += 1;
+    }
+
+    if (!player || getLivingPartyMembers(player).length === 0) {
+        state.isCombatActive = false;
+        currentTurnEntry = null;
+        gameOver();
+        return;
+    }
+    if (!enemy || !hasLivingEnemies()) {
+        state.isCombatActive = false;
+        currentTurnEntry = null;
+        winBattle();
+        return;
+    }
+
+    state.currentTurnIndex += 1;
+    if (state.currentTurnIndex >= state.turnQueue.length) {
+        state.currentTurnIndex = 0;
+        playerGuardState = null;
+        enemyGuardState = null;
+        refreshCombatTurnQueue();
+    }
+    await executeActiveTurn();
 }
 
 window.useAction = async function useAction(type) {
@@ -1071,25 +1124,20 @@ window.useAction = async function useAction(type) {
         if (typeof renderActions === 'function') renderActions();
         return;
     }
+    if (window.combatState) window.combatState.awaitingPlayerInput = false;
 
     if (typeof clearCombatTargetSelection === 'function') clearCombatTargetSelection();
 
-    if (normalizedType === '공격' && !canActorAttackThisTurn(actor)) {
-        writeLog(`[공격 불가] ${actor.name}는 공속 패널티 또는 뒤틀림으로 이번 턴 공격할 수 없습니다.`);
-        updateUi();
-        renderActions();
-        return;
-    }
-
     if (normalizedType === '힐' && !canPlayerActorUseHealAction(actor)) {
         writeLog(`[힐 불가] ${actor.name}는 힐을 사용할 수 없거나 회복할 아군이 없습니다.`);
-        updateUi();
-        renderActions();
+        setCombatProcessing(true);
+        await advanceNextTurn();
         return;
     }
 
     if (!spendPlayerAction()) {
         writeLog('[턴 제한] 한 턴에는 공격/방어/힐 중 하나만 선택할 수 있습니다.');
+        if (window.combatState) window.combatState.awaitingPlayerInput = true;
         updateUi();
         renderActions();
         return;
@@ -1165,6 +1213,7 @@ window.useAction = async function useAction(type) {
     } catch (err) {
         console.error('[전투 행동 오류]', err);
         playerTurnSpent = false;
+        if (window.combatState) window.combatState.awaitingPlayerInput = true;
         setCombatProcessing(false);
         writeLog(`[오류] ${actor.name}의 행동 처리 중 문제가 발생했습니다. 다시 선택하세요.`);
         updateUi();
@@ -1574,6 +1623,10 @@ Object.assign(window, {
     probabilityRoll,
     getCurrentTurnEntry,
     resetInitiativeTimeline,
+    startCombat,
+    executeActiveTurn,
+    advanceNextTurn,
+    advanceInitiativeTurn,
     startInitiativeTurnLoop,
     calculateAttackChance,
     calculatePhysicalDamage,
