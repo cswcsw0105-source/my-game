@@ -1,5 +1,103 @@
 // Browser hardening layer. Loaded last inside bundle.js.
 (function installDungeonClientHardening() {
+    try {
+    const warnSecurityFailure = (message, err) => {
+        try {
+            console.warn(message, err);
+        } catch (_) {
+            // 보안 초기화 중 경고 출력 자체가 실패해도 게임 루프는 계속 진행한다.
+        }
+    };
+
+    const safeHasOwn = (target, name) => {
+        try {
+            return Object.prototype.hasOwnProperty.call(target, name);
+        } catch (err) {
+            warnSecurityFailure(`[보안] 프로퍼티 확인 실패: ${name}`, err);
+            return false;
+        }
+    };
+
+    const safeGetDescriptor = (target, name) => {
+        try {
+            return Object.getOwnPropertyDescriptor(target, name);
+        } catch (err) {
+            warnSecurityFailure(`[보안] 프로퍼티 설명자 확인 실패: ${name}`, err);
+            return null;
+        }
+    };
+
+    const safeGetValue = (target, name) => {
+        try {
+            return target[name];
+        } catch (err) {
+            warnSecurityFailure(`[보안] 프로퍼티 접근 실패: ${name}`, err);
+            return undefined;
+        }
+    };
+
+    const safeDeleteWindowProperty = (name) => {
+        try {
+            const descriptor = safeGetDescriptor(window, name);
+            if (descriptor && descriptor.configurable === false) {
+                warnSecurityFailure(`[보안] 내부 전역 제거 건너뜀(삭제 불가): ${name}`);
+                return false;
+            }
+            const deleted = delete window[name];
+            if (!deleted && safeHasOwn(window, name)) {
+                warnSecurityFailure(`[보안] 내부 전역 제거 실패(반환 false): ${name}`);
+            }
+            return deleted;
+        } catch (err) {
+            warnSecurityFailure(`[보안] 내부 전역 제거 실패: ${name}`, err);
+            return false;
+        }
+    };
+
+    const safeDefineWindowProperty = (name, descriptor, label) => {
+        try {
+            const current = safeGetDescriptor(window, name);
+            if (current && current.configurable === false) {
+                warnSecurityFailure(`[보안] ${label} 건너뜀(재정의 불가): ${name}`);
+                return false;
+            }
+            Object.defineProperty(window, name, descriptor);
+            return true;
+        } catch (err) {
+            warnSecurityFailure(`[보안] ${label} 실패: ${name}`, err);
+            return false;
+        }
+    };
+
+    const runtimeKeepNames = new Set([
+        'renderActions',
+        'updateUi',
+        'writeLog',
+        'setCombatProcessing',
+        'updateCombatButtonsLockState',
+        'getActorAttackSpeed',
+        'getActorAttackStrikeCount',
+        'getActorPostAttackCooldownTurns',
+        'canActorAttackThisTurn',
+        'getEnemyGuardStateFor',
+        'choosePlayerEnemyTarget',
+        'hasLivingEnemies',
+        'getEnemyPartyMembers',
+        'getLivingEnemyPartyMembers',
+        'isEnemyPartyMember',
+        'syncEnemyPartyAggregateState',
+        'ensurePartyMemberRuntimeShape',
+        'getPartyMembers',
+        'getLivingPartyMembers',
+        'isPartyMember',
+        'syncPartyAggregateState',
+        'playV35AttackVfx',
+        'playMagicBurstVfx',
+        'showMissFloat',
+        'triggerGuardAura',
+        'triggerDodgeMove',
+    ]);
+
     const protectedStateNames = [
         'player',
         'playerState',
@@ -276,56 +374,48 @@
     ];
 
     for (const name of internalExportNames) {
-        if (!Object.prototype.hasOwnProperty.call(window, name)) continue;
-        try {
-            delete window[name];
-        } catch (err) {
-            console.warn(`[보안] 내부 전역 제거 실패: ${name}`, err);
-        }
+        if (!safeHasOwn(window, name)) continue;
+        if (runtimeKeepNames.has(name)) continue;
+        safeDeleteWindowProperty(name);
     }
 
     for (const name of protectedStateNames) {
-        if (Object.prototype.hasOwnProperty.call(window, name)) continue;
-        try {
-            Object.defineProperty(window, name, {
-                get() {
-                    return undefined;
-                },
-                set() {
-                    console.warn(`[보안] '${name}' 상태는 런타임 클로저 내부에 캡슐화되어 있습니다.`);
-                    return false;
-                },
-                enumerable: false,
-                configurable: false,
-            });
-        } catch (err) {
-            console.warn(`[보안] 전역 상태 보호 실패: ${name}`, err);
-        }
+        if (safeHasOwn(window, name)) continue;
+        safeDefineWindowProperty(name, {
+            get() {
+                return undefined;
+            },
+            set() {
+                warnSecurityFailure(`[보안] '${name}' 상태는 런타임 클로저 내부에 캡슐화되어 있습니다.`);
+                return false;
+            },
+            enumerable: false,
+            configurable: false,
+        }, '전역 상태 보호');
     }
 
     for (const name of publicApiNames) {
-        const value = window[name];
+        const value = safeGetValue(window, name);
         if (typeof value !== 'function') continue;
-        try {
-            Object.defineProperty(window, name, {
-                value,
-                writable: false,
-                enumerable: false,
-                configurable: false,
-            });
-        } catch (err) {
-            console.warn(`[보안] 공개 API 잠금 실패: ${name}`, err);
-        }
-    }
-
-    try {
-        Object.defineProperty(window, '__DUNGEON_SECURE_BUILD', {
-            value: true,
+        safeDefineWindowProperty(name, {
+            value,
             writable: false,
             enumerable: false,
             configurable: false,
-        });
-    } catch (err) {
-        console.warn('[보안] 보안 빌드 플래그 설정 실패', err);
+        }, '공개 API 잠금');
+    }
+
+    safeDefineWindowProperty('__DUNGEON_SECURE_BUILD', {
+        value: true,
+        writable: false,
+        enumerable: false,
+        configurable: false,
+    }, '보안 빌드 플래그 설정');
+    } catch (fatalErr) {
+        try {
+            console.warn('[보안] 보안 초기화 중 치명 예외를 흡수하고 게임 실행을 계속합니다.', fatalErr);
+        } catch (_) {
+            // 최후 방어선: 콘솔 경고조차 실패해도 예외를 재전파하지 않는다.
+        }
     }
 })();
