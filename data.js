@@ -148,12 +148,53 @@ function rollHumanStartingStats(random) {
     };
 }
 
-function rollPartyStartingStats(random) {
-    return PARTY_ROLE_KEYS.map((roleKey) => ({
-        roleKey,
-        name: PARTY_ROLE_DEFINITIONS[roleKey].name,
+function normalizeStartingRollStats(raw) {
+    const source = raw || {};
+    return {
+        str: clamp(source.str, 1, 30),
+        def: clamp(source.def, 1, 30),
+        hp: clamp(source.hp, 1, 30),
+        int: clamp(source.int, 1, 30),
+        wis: clamp(source.wis, 1, 30),
+        agi: clamp(source.agi, 1, 30),
+        divinity: 0,
+        distortion: 0,
+    };
+}
+
+function cloneStartingPartyRollMember(raw, roleKey) {
+    const role = PARTY_ROLE_DEFINITIONS[roleKey] || PARTY_ROLE_DEFINITIONS.knight;
+    if (!raw || !raw.stats) return null;
+    return {
+        roleKey: role.key,
+        name: role.name,
+        stats: normalizeStartingRollStats(raw.stats),
+    };
+}
+
+function rollPartyRoleStartingStats(roleKey, random) {
+    const role = PARTY_ROLE_DEFINITIONS[roleKey] || PARTY_ROLE_DEFINITIONS.knight;
+    return {
+        roleKey: role.key,
+        name: role.name,
         stats: rollHumanStartingStats(random),
-    }));
+    };
+}
+
+function rollPartyStartingStats(random) {
+    return PARTY_ROLE_KEYS.map((roleKey) => rollPartyRoleStartingStats(roleKey, random));
+}
+
+function rerollPartyRoleStartingStats(rawParty, roleKey, random) {
+    const role = PARTY_ROLE_DEFINITIONS[roleKey] || PARTY_ROLE_DEFINITIONS.knight;
+    const source = Array.isArray(rawParty) ? rawParty : [];
+    return PARTY_ROLE_KEYS
+        .map((key, index) => {
+            if (key === role.key) return rollPartyRoleStartingStats(key, random);
+            const existing = source.find((member) => member && member.roleKey === key) || source[index];
+            return cloneStartingPartyRollMember(existing, key);
+        })
+        .filter(Boolean);
 }
 
 function normalizeHumanStats(raw) {
@@ -512,7 +553,9 @@ if (typeof globalThis !== 'undefined') {
         LAST_SAFE_RETURN_STAGE,
         TURN_RPG_DATA,
         rollHumanStartingStats,
+        rollPartyRoleStartingStats,
         rollPartyStartingStats,
+        rerollPartyRoleStartingStats,
         normalizeHumanStats,
         normalizePartyMember,
         normalizeAdventurerParty,
@@ -549,7 +592,9 @@ if (typeof module !== 'undefined' && module.exports) {
         magicTable,
         monsterArchetypeTable,
         rollHumanStartingStats,
+        rollPartyRoleStartingStats,
         rollPartyStartingStats,
+        rerollPartyRoleStartingStats,
         normalizeHumanStats,
         normalizePartyMember,
         normalizeAdventurerParty,

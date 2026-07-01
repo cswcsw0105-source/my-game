@@ -21,6 +21,7 @@ let initiativeQueue = [];
 let currentTurnEntry = null;
 let initiativeRound = 1;
 let initiativeAdvanceInProgress = false;
+let combatVictorySettlementLocked = false;
 
 function isMercenaryCaptainJob() { return false; }
 function getAffinityRelKey() { return '인간 모험가'; }
@@ -178,7 +179,12 @@ function clearPendingVictoryAdvanceState() {
     if (typeof updatePrologueBattleControls === 'function') updatePrologueBattleControls();
 }
 
+function resetCombatVictorySettlementLock() {
+    combatVictorySettlementLocked = false;
+}
+
 function resetFreshDungeonEntryVictoryGate() {
+    resetCombatVictorySettlementLock();
     if (player) {
         player.runWins = 0;
         player.hasWonBattle = false;
@@ -1043,99 +1049,65 @@ function startInitiativeTurnLoop() {
     advanceInitiativeTurn();
 }
 
-window.useAction = async function useAction(type, options) {
+window.useAction = async function useAction(type) {
     const turn = currentTurnEntry;
+    const actor = turn && turn.side === 'player' ? turn.actor : null;
+    const livingPlayers = player ? getLivingPartyMembers(player) : [];
+    const livingEnemies = enemy ? getPlayerAttackTargetCandidates() : [];
+    const normalizedType = type === '힐' ? '힐' : type === '공격' ? '공격' : '방패방어';
+
     if (
         isProcessing ||
         !player ||
         !enemy ||
         !turn ||
         turn.side !== 'player' ||
+        !actor ||
         !isTurnActorAlive(turn) ||
-        getLivingPartyMembers(player).length === 0 ||
-        !hasLivingEnemies()
-    ) return;
-    const actor = turn.actor;
-    const actionOptions = options && typeof options === 'object' ? options : {};
-    let selectedEnemyTarget = null;
-    let selectedHealTarget = null;
+        livingPlayers.length === 0 ||
+        livingEnemies.length === 0
+    ) {
+        if (typeof updateUi === 'function') updateUi();
+        if (typeof renderActions === 'function') renderActions();
+        return;
+    }
 
-    if (type === '공격') {
-        if (!canActorAttackThisTurn(actor)) {
-            writeLog(`[공격 불가] ${actor.name}는 공속 패널티 또는 뒤틀림으로 이번 턴 공격할 수 없습니다.`);
-            updateUi();
-            renderActions();
-            return;
-        }
-        const candidates = getPlayerAttackTargetCandidates();
-        selectedEnemyTarget = actionOptions.targetSide === 'player'
-            ? null
-            : findCombatTargetById(candidates, actionOptions.targetId);
-        if (!selectedEnemyTarget) {
-            if (candidates.length > 1 && typeof setCombatTargetSelection === 'function') {
-                setCombatTargetSelection('공격', actor);
-                updateUi();
-                renderActions();
-                return;
-            }
-            selectedEnemyTarget = candidates[0] || null;
-        }
-        if (!selectedEnemyTarget) {
-            writeLog('[공격 실패] 살아있는 적 대상을 찾지 못했습니다.');
-            updateUi();
-            renderActions();
-            return;
-        }
-    } else if (type === '힐') {
-        if (!canPlayerActorUseHealAction(actor)) {
-            writeLog(`[힐 불가] ${actor.name}는 힐을 사용할 수 없거나 회복할 아군이 없습니다.`);
-            updateUi();
-            renderActions();
-            return;
-        }
-        const candidates = getPlayerHealTargetCandidates();
-        selectedHealTarget = actionOptions.targetSide === 'enemy'
-            ? null
-            : findCombatTargetById(candidates, actionOptions.targetId);
-        if (!selectedHealTarget) {
-            if (candidates.length > 1 && typeof setCombatTargetSelection === 'function') {
-                setCombatTargetSelection('힐', actor);
-                updateUi();
-                renderActions();
-                return;
-            }
-            selectedHealTarget = getWoundedPlayerHealTargets()[0] || candidates[0] || null;
-        }
-        if (!selectedHealTarget || getCurrentHp(selectedHealTarget) >= actorMaxHp(selectedHealTarget)) {
-            writeLog('[힐 실패] 회복 가능한 아군 대상을 선택해야 합니다.');
-            if (typeof setCombatTargetSelection === 'function') setCombatTargetSelection('힐', actor);
-            updateUi();
-            renderActions();
-            return;
-        }
+    if (typeof clearCombatTargetSelection === 'function') clearCombatTargetSelection();
+
+    if (normalizedType === '공격' && !canActorAttackThisTurn(actor)) {
+        writeLog(`[공격 불가] ${actor.name}는 공속 패널티 또는 뒤틀림으로 이번 턴 공격할 수 없습니다.`);
+        updateUi();
+        renderActions();
+        return;
+    }
+
+    if (normalizedType === '힐' && !canPlayerActorUseHealAction(actor)) {
+        writeLog(`[힐 불가] ${actor.name}는 힐을 사용할 수 없거나 회복할 아군이 없습니다.`);
+        updateUi();
+        renderActions();
+        return;
     }
 
     if (!spendPlayerAction()) {
         writeLog('[턴 제한] 한 턴에는 공격/방어/힐 중 하나만 선택할 수 있습니다.');
+        updateUi();
+        renderActions();
         return;
     }
+
     setCombatProcessing(true);
     try {
-        if (typeof clearCombatTargetSelection === 'function') clearCombatTargetSelection();
-        let result = null;
-        if (type === '공격') {
+        if (normalizedType === '공격') {
             const learnedAction = classifyPlayerAttackAction(actor);
-            recordPlayerBehavior(learnedAction);
+            const target = livingEnemies[0];
             const strikes = learnedAction === 'physical_attack' ? getActorAttackStrikeCount(actor) : 1;
+            recordPlayerBehavior(learnedAction);
+            writeLog(`[타겟] ${actor.name} → ${target.name || '적'} 자동 지정`);
+
             for (let i = 0; i < strikes; i++) {
-                const target = selectedEnemyTarget;
-                if (!target) {
-                    writeLog('[공격 실패] 살아있는 적 대상을 찾지 못했습니다.');
-                    break;
-                }
                 if (getCurrentHp(target) <= 0) break;
                 if (typeof playV35AttackVfx === 'function') await playV35AttackVfx('player', actor, learnedAction, target);
-                result = learnedAction === 'magic_attack'
+                const result = learnedAction === 'magic_attack'
                     ? resolveMagicAttackAction(actor, target, getEnemyGuardStateFor(target))
                     : resolveAttackAction(actor, target, getEnemyGuardStateFor(target));
                 describeCombatResult(actor, target, result);
@@ -1143,21 +1115,22 @@ window.useAction = async function useAction(type, options) {
                 if (learnedAction === 'magic_attack') gainActorMagicMastery(actor, 1);
                 else gainActorWeaponMastery(actor, 1);
                 if (enemy && Array.isArray(enemy.party)) syncEnemyPartyAggregateState(enemy);
-                if (!hasLivingEnemies()) break;
-                if (getCurrentHp(target) <= 0) break;
+                if (!hasLivingEnemies() || getCurrentHp(target) <= 0) break;
                 if (strikes > 1) await waitMs(90);
             }
+
             const cooldownTurns = getActorPostAttackCooldownTurns(actor);
             if (cooldownTurns > 0) {
                 actor.attackLockTurns = Math.max(safeNum(actor.attackLockTurns, 0), cooldownTurns);
                 writeLog(`[공속 패널티] ${actor.name}는 공격 후 ${cooldownTurns}턴 동안 공격 버튼이 잠깁니다.`);
             }
-            if (enemy && Array.isArray(enemy.party)) syncEnemyPartyAggregateState(enemy);
             enemyGuardState = null;
-        } else if (type === '힐') {
+            if (enemy && Array.isArray(enemy.party)) syncEnemyPartyAggregateState(enemy);
+        } else if (normalizedType === '힐') {
+            const target = getWoundedPlayerHealTargets()[0] || livingPlayers[0];
             recordPlayerBehavior('heal');
-            const target = selectedHealTarget;
-            result = resolveHealAction(actor, target);
+            writeLog(`[타겟] ${actor.name} → ${target.name || '아군'} 자동 힐 지정`);
+            const result = resolveHealAction(actor, target);
             describeCombatResult(actor, target, result);
             if (result && result.success) {
                 if (typeof playHealAuraVfx === 'function') await playHealAuraVfx('player', result.healed);
@@ -1166,15 +1139,13 @@ window.useAction = async function useAction(type, options) {
             }
             syncPartyAggregateState(player);
         } else {
-            if (typeof clearCombatTargetSelection === 'function') clearCombatTargetSelection();
-            const mode = 'shield';
             const members = Object.fromEntries(getLivingPartyMembers(player).map((member) => [
                 member.id,
-                { mode, turn: combatTurnNumber, partyWide: true, defBonus: PLAYER_PARTY_DEFENSE_BONUS },
+                { mode: 'shield', turn: combatTurnNumber, partyWide: true, defBonus: PLAYER_PARTY_DEFENSE_BONUS },
             ]));
             recordPlayerBehavior('defend');
             playerGuardState = {
-                mode,
+                mode: 'shield',
                 turn: combatTurnNumber,
                 partyWide: true,
                 members,
@@ -1182,13 +1153,15 @@ window.useAction = async function useAction(type, options) {
             if (typeof triggerGuardAura === 'function') triggerGuardAura();
             writeLog(`[플레이어 행동] ${actor.name} — 파티 방어. 이번 라운드 아군 전체 방어 태세`);
         }
+
+        syncPartyAggregateState(player);
         updateUi();
         if (!hasLivingEnemies()) {
             await waitMs(120);
             winBattle();
-            return;
+        } else {
+            await finishActiveInitiativeTurn();
         }
-        await finishActiveInitiativeTurn();
     } catch (err) {
         console.error('[전투 행동 오류]', err);
         playerTurnSpent = false;
@@ -1196,7 +1169,6 @@ window.useAction = async function useAction(type, options) {
         writeLog(`[오류] ${actor.name}의 행동 처리 중 문제가 발생했습니다. 다시 선택하세요.`);
         updateUi();
         renderActions();
-        return;
     }
 };
 
@@ -1252,15 +1224,19 @@ function enterNextDungeonStage() {
     if (hasCrossedPointOfNoReturn(player.progress)) MetaRPG.clearRunSnapshot(player.metaSlotId);
     syncPlayerCampaignState();
     writeLog(`[전진] ${formatDungeonPosition(player.progress)} 진입${hasCrossedPointOfNoReturn(player.progress) ? ' · 복귀 불가' : ''}`);
+    resetCombatVictorySettlementLock();
+    const goldBeforeStageEntry = Math.max(0, safeNum(gold, 0));
     spawnEnemy();
+    if (Math.max(0, safeNum(gold, 0)) !== goldBeforeStageEntry) {
+        gold = goldBeforeStageEntry;
+        syncPlayerCampaignState();
+        updateUi();
+    }
 }
 
-function winBattle() {
-    setCombatProcessing(false);
-    resetInitiativeTimeline();
-    playerTurnSpent = false;
-    playerGuardState = null;
-    enemyGuardState = null;
+function onCombatVictory() {
+    if (!player || combatVictorySettlementLocked) return null;
+    combatVictorySettlementLocked = true;
     const reward = computeFloorGoldReward(floor + (dungeonStage - 1) / STAGES_PER_FLOOR, {
         isBoss: dungeonStage === STAGES_PER_FLOOR,
     });
@@ -1270,6 +1246,26 @@ function winBattle() {
     player.victoryCount = player.runWins;
     if (typeof totalGoldEarned !== 'undefined') totalGoldEarned = Math.max(0, safeNum(totalGoldEarned, 0)) + reward;
     writeLog(`[승리] ${formatDungeonPosition({ floor, stage: dungeonStage })} 전투 종료 · ${reward}G 획득`);
+    syncPlayerCampaignState();
+    return {
+        reward,
+        clearedFloor: floor,
+        defeatedBoss: dungeonStage === STAGES_PER_FLOOR,
+    };
+}
+
+function winBattle() {
+    setCombatProcessing(false);
+    resetInitiativeTimeline();
+    playerTurnSpent = false;
+    playerGuardState = null;
+    enemyGuardState = null;
+    const settlement = onCombatVictory();
+    if (!settlement) {
+        updateUi();
+        renderActions();
+        return;
+    }
     tryAwardDefectiveEquipmentDrop();
     getLivingPartyMembers(player).forEach((member) => {
         setCurrentHp(member, member.curHp + Math.max(1, Math.floor(member.maxHp * 0.08)));
@@ -1279,7 +1275,7 @@ function winBattle() {
     const continueForward = () => enterNextDungeonStage();
     if (typeof showVictoryRewardAndAwaitContinue === 'function') {
         showVictoryRewardAndAwaitContinue(
-            { clearedFloor: floor, goldGain: reward, expGain: 0, defeatedBoss: dungeonStage === STAGES_PER_FLOOR },
+            { clearedFloor: settlement.clearedFloor, goldGain: settlement.reward, expGain: 0, defeatedBoss: settlement.defeatedBoss },
             continueForward
         );
     } else {
@@ -1405,7 +1401,13 @@ function initHumanRunFromActiveSlot() {
             `${member.name}(힘 ${member.stats.str}/방 ${member.stats.def}/체 ${member.stats.hp}/지 ${member.stats.int}/지혜 ${member.stats.wis}/민 ${member.stats.agi})`
         ).join(' · ')}`
     );
+    const goldBeforeInitialSpawn = Math.max(0, safeNum(gold, 0));
     spawnEnemy();
+    if (Math.max(0, safeNum(gold, 0)) !== goldBeforeInitialSpawn) {
+        gold = goldBeforeInitialSpawn;
+        syncPlayerCampaignState();
+        updateUi();
+    }
     return true;
 }
 
@@ -1474,6 +1476,11 @@ window.enterDungeonFromTown = function enterDungeonFromTown() {
     if (typeof enterBattleLayout === 'function') enterBattleLayout();
     writeLog('[출정] 장비·골드·영구 강화 유지 · 미궁 진행도 1-1층 초기화');
     spawnEnemy();
+    if (Math.max(0, safeNum(gold, 0)) !== goldBeforeEntry) {
+        gold = goldBeforeEntry;
+        syncPlayerCampaignState();
+        updateUi();
+    }
 };
 
 window.openPartyTownFromHub = function openPartyTownFromHub() {

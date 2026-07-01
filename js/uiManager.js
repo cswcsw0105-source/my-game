@@ -406,6 +406,21 @@ function installV35ActionButtonDelegation() {
 
 installV35ActionButtonDelegation();
 
+function rebindV35PrimaryActionButtons() {
+    [
+        'attack-btn',
+        'btn-attack',
+        'defense-btn',
+        'btn-party-defend',
+        'heal-btn',
+        'btn-heal',
+    ].forEach((id) => {
+        const button = document.getElementById(id);
+        const actionType = getV35ActionFromButtonElement(button);
+        if (button && actionType) bindV35ActionButton(button, actionType);
+    });
+}
+
 function renderCombatTargetSelectionPanel(host, actionType, actor) {
     if (!host || !actor) return;
     const isAttack = actionType === '공격';
@@ -555,109 +570,10 @@ function renderActions() {
         !canHeal,
         canHeal ? `${actorName}의 지혜 기반 단일 대상 치유` : '마법사 턴이며 회복할 아군이 있을 때 사용 가능'
     );
-    const selection = getCombatTargetSelectionForTurn(turn);
-    if (selection) renderCombatTargetSelectionPanel(div, selection.actionType, actor);
+    clearCombatTargetSelection();
+    rebindV35PrimaryActionButtons();
     if (typeof updateCombatButtonsLockState === 'function') updateCombatButtonsLockState();
     return;
-
-    const atkBtn = document.createElement('button');
-    atkBtn.id = 'btn-attack';
-    atkBtn.innerText='⚔️ 공격'; atkBtn.style.background=player.color;
-    const gcdLeft = attackGcdUntil - Date.now();
-    if (gcdLeft > 0) {
-        atkBtn.disabled = true;
-        atkBtn.style.opacity = '0.45';
-        atkBtn.style.cursor = 'not-allowed';
-        atkBtn.title = `쿨다운 ${Math.ceil(gcdLeft/100)/10}초`;
-    }
-    atkBtn.onclick=()=>useAction('공격'); div.appendChild(atkBtn);
-
-    const defBtn = document.createElement('button');
-    defBtn.style.background='#888';
-    const jn = player.name;
-    if(['워리어','나이트','버서커'].includes(jn)){defBtn.innerText='🛡️ 방어 (70%)';defBtn.onclick=()=>useAction('방패방어');}
-    else if(player.baseJob === '용병단장'){defBtn.innerText='💨 회피 (75%)';defBtn.onclick=()=>useAction('회피');}
-    else if(['헌터','궁수','암살자'].includes(jn)){defBtn.innerText='💨 회피 (75%)';defBtn.onclick=()=>useAction('회피');}
-    else if(['마법사','위저드','소환사','성직자'].includes(jn)){defBtn.innerText='✨ 방어막 (60%)';defBtn.onclick=()=>useAction('방어막');}
-    div.appendChild(defBtn);
-
-    if (player.name === '성직자') {
-        const prayBtn = document.createElement('button');
-        const divinePower = clampDivinePower(player.divinePower);
-        const divineAtCap = divinePower >= DIVINE_POWER_MAX;
-        prayBtn.style.background = '#9b59b6';
-        prayBtn.style.color = '#fff';
-        prayBtn.innerText = divineAtCap ? `🙏 신성력 최대 (${DIVINE_POWER_MAX})` : '🙏 기도 (+신성력)';
-        prayBtn.disabled = divineAtCap;
-        if (divineAtCap) {
-            prayBtn.style.opacity = '0.5';
-            prayBtn.style.cursor = 'not-allowed';
-        }
-        prayBtn.onclick = () => useAction('기도');
-        div.appendChild(prayBtn);
-    }
-
-    const tacticalKeys = uniqueTacticalSkillKeys(player.tacticalSkills);
-    tacticalKeys.forEach((key) => {
-        const def = typeof getTacticalSkillDef === 'function' ? getTacticalSkillDef(key) : null;
-        if (!def) return;
-        const used = !!(player.tacticalSkillUses && player.tacticalSkillUses[key]);
-        const alreadyReady =
-            (key === 'focus' && player.tacticalFocusReady) ||
-            (key === 'parry' && player.tacticalParryReady) ||
-            (key === 'barrier' && player.tacticalBarrierReady);
-        const tBtn = document.createElement('button');
-        tBtn.className = 'tactical-action-btn';
-        tBtn.style.background = def.type === 'attack' ? '#7c3aed' : '#0f766e';
-        tBtn.style.color = '#fff';
-        tBtn.innerText = `${def.icon || '✦'} ${def.name}`;
-        tBtn.title = def.shortDesc || def.name;
-        tBtn.disabled = used || alreadyReady;
-        if (tBtn.disabled) {
-            tBtn.style.opacity = '0.5';
-            tBtn.style.cursor = 'not-allowed';
-        }
-        tBtn.onclick = () => useAction(`전술:${key}`);
-        div.appendChild(tBtn);
-    });
-
-    if (isMercenaryCaptainJob() && player.mercCooldownTurns > 0 && (!player.fieldMerc || player.fieldMerc.mercHp <= 0)) {
-        const cost = getMercGoldSkipCost();
-        if (gold >= cost) {
-            const gBtn = document.createElement('button');
-            gBtn.style.background = '#f1c40f';
-            gBtn.style.color = '#111';
-            gBtn.innerText = `🪙 긴급 재가동 (${cost}G)`;
-            gBtn.onclick = () => mercGoldSkipCooldown();
-            div.appendChild(gBtn);
-        }
-    }
-
-    if (player.unlockedSkill && floor >= 20) {
-        const ultBtn = document.createElement('button');
-        const isReady = player.ultStack >= player.ultMaxStack;
-        ultBtn.style.background = isReady ? '#9b59b6' : '#333';
-        ultBtn.style.color = isReady ? '#fff' : '#666';
-        ultBtn.style.border = `2px solid ${isReady ? '#9b59b6' : '#555'}`;
-        ultBtn.innerHTML = `🔥 ${player.unlockedSkill} <span style="font-size:0.8em;">[${player.ultStack}/${player.ultMaxStack}]</span>`;
-        ultBtn.disabled = !isReady;
-        ultBtn.onclick = () => useAction('궁극기');
-        div.appendChild(ultBtn);
-    }
-
-    const pBtn = document.createElement('button');
-    pBtn.innerText=`🧪 포션 (${player.potions})`; pBtn.className='potion-btn';
-    pBtn.onclick=usePotion; div.appendChild(pBtn);
-
-    if (isMercenaryCaptainJob() && player.fieldMerc && player.fieldMerc.mercHp > 0) {
-        const gc = document.createElement('button');
-        gc.style.background = '#16a085';
-        gc.style.color = '#fff';
-        gc.innerText = `💰 용병 지원 (${getMercGachaCost()}G)`;
-        gc.onclick = () => mercenaryFundGacha();
-        div.appendChild(gc);
-    }
-    updateCombatButtonsLockState();
 }
 
 function renderPassiveContractHistoryPanels() {
@@ -2269,6 +2185,36 @@ function hasOpenCharacterSlot(meta) {
 
 let pendingPartyRoll = null;
 
+function getPendingPartyRollMember(roleKey) {
+    if (!Array.isArray(pendingPartyRoll)) return null;
+    return pendingPartyRoll.find((entry) => entry && entry.roleKey === roleKey && entry.stats) || null;
+}
+
+function hasCompletePendingPartyRoll() {
+    return PARTY_ROLE_KEYS.every((roleKey) => !!getPendingPartyRollMember(roleKey));
+}
+
+function buildFinalPendingPartyRoll() {
+    return PARTY_ROLE_KEYS.map((roleKey) => {
+        const role = PARTY_ROLE_DEFINITIONS[roleKey];
+        const member = getPendingPartyRollMember(roleKey);
+        return {
+            roleKey,
+            name: role.name,
+            stats: {
+                str: member.stats.str,
+                def: member.stats.def,
+                hp: member.stats.hp,
+                int: member.stats.int,
+                wis: member.stats.wis,
+                agi: member.stats.agi,
+                divinity: 0,
+                distortion: 0,
+            },
+        };
+    });
+}
+
 function buildPartyRollRowsHtml() {
     const party = Array.isArray(pendingPartyRoll) ? pendingPartyRoll : [];
     return PARTY_ROLE_KEYS.map((roleKey) => {
@@ -2277,10 +2223,13 @@ function buildPartyRollRowsHtml() {
         const stats = member && member.stats;
         const values = stats
             ? `힘 ${stats.str} · 방 ${stats.def} · 체 ${stats.hp} · 지 ${stats.int} · 지혜 ${stats.wis} · 민 ${stats.agi}`
-            : '주사위를 굴려 능력치를 결정하세요.';
+            : `${role.name} 주사위를 굴려 능력치를 결정하세요.`;
         return `<div style="background:#111;border:1px solid #333;border-radius:8px;padding:9px 10px;margin-bottom:7px;text-align:left;">
-            <b style="color:#f1c40f;">${escapeHtml(role.name)}</b>
-            <div style="color:${stats ? '#ccc' : '#666'};font-size:0.78em;margin-top:4px;">${values}</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+                <b style="color:#f1c40f;">${escapeHtml(role.name)}</b>
+                <button type="button" class="new-adventure-start-btn" onclick="rollPartyRoleStats('${roleKey}')" style="width:auto;margin:0;padding:7px 10px;font-size:0.78em;">🎲 ${escapeHtml(role.name)} 주사위 굴리기</button>
+            </div>
+            <div style="color:${stats ? '#ccc' : '#666'};font-size:0.78em;margin-top:6px;">${values}</div>
             <div style="color:#555;font-size:0.7em;margin-top:2px;">성혼 0 · 뒤틀림 0</div>
         </div>`;
     }).join('');
@@ -2293,25 +2242,31 @@ function buildNewAdventureStartHtml(extraClass) {
             <div style="width:100%;max-width:560px;margin:0 auto 10px;">
                 <h4 style="color:#f1c40f;margin:0 0 10px;">🎲 3인 파티 스탯 주사위</h4>
                 ${buildPartyRollRowsHtml()}
-                <button id="new-adventure-start-btn" class="new-adventure-start-btn" type="button" onclick="rollPartyStats()">🎲 주사위 굴리기</button>
-                <button class="new-adventure-start-btn" type="button" onclick="confirmPartyAdventure()" ${pendingPartyRoll ? '' : 'disabled'} style="margin-top:8px;">⚔️ 모험 시작</button>
+                <button id="new-adventure-start-btn" class="new-adventure-start-btn" type="button" onclick="confirmPartyAdventure()" ${hasCompletePendingPartyRoll() ? '' : 'disabled'} style="margin-top:8px;">⚔️ 모험 시작</button>
             </div>
         </div>`;
 }
 
 window.rollPartyStats = function rollPartyStats() {
-    pendingPartyRoll = rollPartyStartingStats();
+    if (!Array.isArray(pendingPartyRoll)) pendingPartyRoll = [];
+    showPreGameScreen();
+};
+
+window.rollPartyRoleStats = function rollPartyRoleStats(roleKey) {
+    if (!PARTY_ROLE_KEYS.includes(roleKey)) return;
+    pendingPartyRoll = rerollPartyRoleStartingStats(pendingPartyRoll, roleKey);
     showPreGameScreen();
 };
 
 window.confirmPartyAdventure = function confirmPartyAdventure() {
-    if (!Array.isArray(pendingPartyRoll)) {
-        writeLog('[주사위] 먼저 파티 능력치를 굴려 주세요.');
+    if (!hasCompletePendingPartyRoll()) {
+        writeLog('[주사위] 탱커, 마법사, 기사 주사위를 각각 한 번 이상 굴려 주세요.');
         return;
     }
     const name = prompt('원정대 이름을 입력하세요:', '성혼 원정대');
     if (name == null) return;
-    const result = MetaRPG.createCharacter(name || '성혼 원정대', pendingPartyRoll);
+    const finalPartyRoll = buildFinalPendingPartyRoll();
+    const result = MetaRPG.createCharacter(name || '성혼 원정대', finalPartyRoll);
     if (!result.ok) {
         alert(result.msg || '원정대 생성 실패');
         return;
