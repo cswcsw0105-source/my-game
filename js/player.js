@@ -44,7 +44,10 @@ function getLivingPartyMembers(actor) {
 }
 
 function isPartyMember(actor) {
-    return !!(player && Array.isArray(player.party) && player.party.includes(actor));
+    if (!actor || !player || !Array.isArray(player.party)) return false;
+    if (player.party.includes(actor)) return true;
+    // 안전장치: 객체 교체로 레퍼런스가 어긋나도 id가 같으면 파티원으로 인정한다.
+    return !!(actor.id && player.party.some((member) => member && member.id === actor.id));
 }
 
 function syncPartyAggregateState(actor) {
@@ -64,9 +67,20 @@ function syncPartyAggregateState(actor) {
 function ensureHumanRuntimeShape(actor) {
     if (!actor) return actor;
     if (Array.isArray(actor.party)) {
-        actor.party = normalizeAdventurerParty(actor.party).map((member, index) => {
-            const source = actor.party[index] || member;
-            return ensurePartyMemberRuntimeShape({ ...member, ...source, stats: normalizeHumanStats(source.stats || member.stats) });
+        // [버그 수정] 파티원 객체의 레퍼런스(정체성)를 보존하며 정규화한다.
+        // 매번 새 객체로 교체하면 전투 턴 큐(combatState.turnQueue)가 들고 있는
+        // 액터 참조가 고아가 되어 isPartyMember() 검사가 실패하고
+        // 공격/방어/힐 버튼이 아무 반응 없이 무시된다.
+        const previousParty = actor.party;
+        actor.party = normalizeAdventurerParty(previousParty).map((template, index) => {
+            const source = previousParty.find((member) => member && member.roleKey === template.roleKey)
+                || previousParty[index];
+            if (!source || typeof source !== 'object') return ensurePartyMemberRuntimeShape(template);
+            Object.keys(template).forEach((key) => {
+                if (source[key] === undefined) source[key] = template[key];
+            });
+            source.stats = normalizeHumanStats(source.stats || template.stats);
+            return ensurePartyMemberRuntimeShape(source);
         });
         actor.name = actor.name || '성혼 원정대';
         actor.baseJob = '3인 파티';

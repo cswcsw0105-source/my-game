@@ -281,7 +281,12 @@ function rebindCombatActionButtonsForActiveTurn() {
                 if (event.stopImmediatePropagation) event.stopImmediatePropagation();
             }
             if (button.disabled || (button.dataset && button.dataset.v35Disabled === '1')) return;
-            window.useAction(actionType);
+            window.useAction(
+                actionType,
+                typeof getV35ActionOptionsFromButtonElement === 'function'
+                    ? getV35ActionOptionsFromButtonElement(button)
+                    : null
+            );
         };
     });
 }
@@ -1102,12 +1107,15 @@ async function advanceNextTurn(options) {
     await executeActiveTurn();
 }
 
-window.useAction = async function useAction(type) {
+window.useAction = async function useAction(type, options) {
     const turn = currentTurnEntry;
     const actor = turn && turn.side === 'player' ? turn.actor : null;
     const livingPlayers = player ? getLivingPartyMembers(player) : [];
     const livingEnemies = enemy ? getPlayerAttackTargetCandidates() : [];
     const normalizedType = type === '힐' ? '힐' : type === '공격' ? '공격' : '방패방어';
+    const requestedTargetId = options && options.targetId ? String(options.targetId) : null;
+    const matchesTargetId = (candidate) =>
+        !!candidate && String(candidate.id || candidate.roleKey || candidate.name || '') === requestedTargetId;
 
     if (
         isProcessing ||
@@ -1124,16 +1132,37 @@ window.useAction = async function useAction(type) {
         if (typeof renderActions === 'function') renderActions();
         return;
     }
+    if (normalizedType === '힐' && !canPlayerActorUseHealAction(actor)) {
+        // 턴을 소모하지 않고 다시 행동을 선택하게 한다.
+        writeLog(`[힐 불가] ${actor.name}는 힐을 사용할 수 없거나 회복할 아군이 없습니다. 다른 행동을 선택하세요.`);
+        if (window.combatState) window.combatState.awaitingPlayerInput = true;
+        updateUi();
+        renderActions();
+        return;
+    }
+
+    // 대상 선택: 공격은 살아있는 적이 2명 이상, 힐은 부상당한 아군(자신 포함)이
+    // 2명 이상일 때 대상 선택 패널을 먼저 보여준다. 대상이 하나면 자동 지정.
+    if (!requestedTargetId && typeof renderCombatTargetSelectionPanel === 'function') {
+        const woundedAllies = normalizedType === '힐' ? getWoundedPlayerHealTargets() : [];
+        const needsTargetPanel = normalizedType === '공격'
+            ? livingEnemies.length > 1
+            : normalizedType === '힐' && woundedAllies.length > 1;
+        if (needsTargetPanel) {
+            if (typeof clearCombatTargetSelection === 'function') clearCombatTargetSelection();
+            const panelHost = document.getElementById('action-btns');
+            if (panelHost) {
+                panelHost.querySelectorAll('[data-v35-target-panel]').forEach((el) => el.remove());
+                renderCombatTargetSelectionPanel(panelHost, normalizedType, actor);
+                if (window.combatState) window.combatState.awaitingPlayerInput = true;
+                return;
+            }
+        }
+    }
+
     if (window.combatState) window.combatState.awaitingPlayerInput = false;
 
     if (typeof clearCombatTargetSelection === 'function') clearCombatTargetSelection();
-
-    if (normalizedType === '힐' && !canPlayerActorUseHealAction(actor)) {
-        writeLog(`[힐 불가] ${actor.name}는 힐을 사용할 수 없거나 회복할 아군이 없습니다.`);
-        setCombatProcessing(true);
-        await advanceNextTurn();
-        return;
-    }
 
     if (!spendPlayerAction()) {
         writeLog('[턴 제한] 한 턴에는 공격/방어/힐 중 하나만 선택할 수 있습니다.');
@@ -1147,10 +1176,10 @@ window.useAction = async function useAction(type) {
     try {
         if (normalizedType === '공격') {
             const learnedAction = classifyPlayerAttackAction(actor);
-            const target = livingEnemies[0];
+            const target = (requestedTargetId && livingEnemies.find(matchesTargetId)) || livingEnemies[0];
             const strikes = learnedAction === 'physical_attack' ? getActorAttackStrikeCount(actor) : 1;
             recordPlayerBehavior(learnedAction);
-            writeLog(`[타겟] ${actor.name} → ${target.name || '적'} 자동 지정`);
+            writeLog(`[타겟] ${actor.name} → ${target.name || '적'} ${requestedTargetId ? '지정' : '자동 지정'}`);
 
             for (let i = 0; i < strikes; i++) {
                 if (getCurrentHp(target) <= 0) break;
@@ -1175,9 +1204,13 @@ window.useAction = async function useAction(type) {
             enemyGuardState = null;
             if (enemy && Array.isArray(enemy.party)) syncEnemyPartyAggregateState(enemy);
         } else if (normalizedType === '힐') {
-            const target = getWoundedPlayerHealTargets()[0] || livingPlayers[0];
+            const woundedTargets = getWoundedPlayerHealTargets();
+            const target = (requestedTargetId
+                && (woundedTargets.find(matchesTargetId) || livingPlayers.find(matchesTargetId)))
+                || woundedTargets[0]
+                || livingPlayers[0];
             recordPlayerBehavior('heal');
-            writeLog(`[타겟] ${actor.name} → ${target.name || '아군'} 자동 힐 지정`);
+            writeLog(`[타겟] ${actor.name} → ${target.name || '아군'} ${requestedTargetId ? '힐 지정' : '자동 힐 지정'}`);
             const result = resolveHealAction(actor, target);
             describeCombatResult(actor, target, result);
             if (result && result.success) {

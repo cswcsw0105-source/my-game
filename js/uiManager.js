@@ -586,8 +586,8 @@ function renderActions() {
         '✨ 힐',
         '힐',
         '#4b6b50',
-        false,
-        canHeal ? `${actorName}의 지혜 기반 단일 대상 치유` : '마법사 턴이며 회복할 아군이 있을 때 가장 효과적'
+        !canHeal,
+        canHeal ? `${actorName}의 지혜 기반 단일 대상 치유 (파티원/자신 선택 가능)` : '마법사의 턴에 회복할 아군이 있을 때만 사용할 수 있습니다.'
     );
     clearCombatTargetSelection();
     rebindV35PrimaryActionButtons();
