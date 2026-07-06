@@ -69,6 +69,8 @@ function pickEnemyPartyRoles(count) {
 function getEnemyPartySize(progress, isBoss) {
     const current = normalizeDungeonProgress(progress);
     if (isBoss) return 3;
+    // [던전 생성기 수리] 1-1 스타터 전투는 무전투 승리 버그 방지를 위해 최소 편성을 강제한다.
+    if (current.floor === 1 && current.stage === 1) return 3;
     if (current.floor <= 2) return 3;
     if (current.floor <= 5) return Math.random() < 0.7 ? 3 : 2;
     return 1 + Math.floor(Math.random() * 3);
@@ -177,7 +179,13 @@ function createDepthMonster(progress) {
     const current = normalizeDungeonProgress(progress);
     const isBoss = current.stage === STAGES_PER_FLOOR;
     const size = getEnemyPartySize(current, isBoss);
-    const roles = pickEnemyPartyRoles(size);
+    let roles = pickEnemyPartyRoles(size);
+    // [던전 생성기 수리] 1-1 스타터 몹은 기사 1 · 탱커 1을 반드시 포함하도록 하드코딩 편성한다.
+    if (current.floor === 1 && current.stage === 1) {
+        roles = ['knight', 'tank', 'knight'];
+    }
+    // 방어적 하한선: 어떤 경로로도 적 파티가 비어 무전투 승리가 나지 않도록 최소 1명을 보장한다.
+    if (!Array.isArray(roles) || roles.length === 0) roles = ['knight'];
     const party = roles.map((roleKey, index) => createEnemyPartyMember(current, roleKey, index, isBoss));
     const container = {
         id: `enemy-party-${current.floor}-${current.stage}-${Date.now().toString(36)}`,
@@ -200,6 +208,12 @@ function spawnEnemy() {
     dungeonStage = progress.stage;
     const ghost = typeof MetaRPG !== 'undefined' ? MetaRPG.getGhostEncounter(progress) : null;
     enemy = ghost ? ghostToEnemy(ghost) : createDepthMonster(progress);
+    // [무전투 보상 차단] 스폰 순간 살아있는 적 수를 기록해 두고, 실제 전투가 성립한 경우에만 보상을 허용한다.
+    const spawnLivingEnemies = typeof getLivingEnemyPartyMembers === 'function'
+        ? getLivingEnemyPartyMembers(enemy)
+        : (enemy && safeNum(enemy.curHp, 0) > 0 ? [enemy] : []);
+    enemy._spawnLivingCount = spawnLivingEnemies.length;
+    enemy._battleRewardEligible = spawnLivingEnemies.length > 0;
     if (typeof resetInitiativeTimeline === 'function') resetInitiativeTimeline();
     if (typeof writeLog === 'function') {
         const partyInfo = !ghost && enemy && Array.isArray(enemy.party)

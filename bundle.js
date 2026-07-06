@@ -11874,11 +11874,13 @@ function fullResyncPlayerCombatStatsFromMetaAndInventory() {
         for (const item of player.items || []) {
             if (!item) continue;
             const itemText = `${item.name || ''} ${(item.tags || []).join(' ')}`;
-            const target = item.type === 'hp' || safeNum(item.def, 0) > 0 || safeNum(item.damageReduction, 0) > 0
+            // [구매 지급 대상 지정] 유저가 명시적으로 귀속시킨 캐릭터가 있으면 자동 분배 휴리스틱보다 우선한다.
+            const assignedTarget = item._assignedRole && byRole[item._assignedRole] ? byRole[item._assignedRole] : null;
+            const target = assignedTarget || (item.type === 'hp' || safeNum(item.def, 0) > 0 || safeNum(item.damageReduction, 0) > 0
                 ? byRole.tank
                 : /지팡이|마법|마력|마도|보주|주문|arcane/i.test(itemText)
                   ? byRole.mage
-                  : byRole.knight;
+                  : byRole.knight);
             if (!target) continue;
             target.items.push(item);
             if (item.type === 'atk' || item.type === 'ring' || item.type === 'rune') target.atk += safeNum(item.value, 0);
@@ -12073,6 +12075,8 @@ function pickEnemyPartyRoles(count) {
 function getEnemyPartySize(progress, isBoss) {
     const current = normalizeDungeonProgress(progress);
     if (isBoss) return 3;
+    // [던전 생성기 수리] 1-1 스타터 전투는 무전투 승리 버그 방지를 위해 최소 편성을 강제한다.
+    if (current.floor === 1 && current.stage === 1) return 3;
     if (current.floor <= 2) return 3;
     if (current.floor <= 5) return Math.random() < 0.7 ? 3 : 2;
     return 1 + Math.floor(Math.random() * 3);
@@ -12181,7 +12185,13 @@ function createDepthMonster(progress) {
     const current = normalizeDungeonProgress(progress);
     const isBoss = current.stage === STAGES_PER_FLOOR;
     const size = getEnemyPartySize(current, isBoss);
-    const roles = pickEnemyPartyRoles(size);
+    let roles = pickEnemyPartyRoles(size);
+    // [던전 생성기 수리] 1-1 스타터 몹은 기사 1 · 탱커 1을 반드시 포함하도록 하드코딩 편성한다.
+    if (current.floor === 1 && current.stage === 1) {
+        roles = ['knight', 'tank', 'knight'];
+    }
+    // 방어적 하한선: 어떤 경로로도 적 파티가 비어 무전투 승리가 나지 않도록 최소 1명을 보장한다.
+    if (!Array.isArray(roles) || roles.length === 0) roles = ['knight'];
     const party = roles.map((roleKey, index) => createEnemyPartyMember(current, roleKey, index, isBoss));
     const container = {
         id: `enemy-party-${current.floor}-${current.stage}-${Date.now().toString(36)}`,
@@ -12204,6 +12214,12 @@ function spawnEnemy() {
     dungeonStage = progress.stage;
     const ghost = typeof MetaRPG !== 'undefined' ? MetaRPG.getGhostEncounter(progress) : null;
     enemy = ghost ? ghostToEnemy(ghost) : createDepthMonster(progress);
+    // [무전투 보상 차단] 스폰 순간 살아있는 적 수를 기록해 두고, 실제 전투가 성립한 경우에만 보상을 허용한다.
+    const spawnLivingEnemies = typeof getLivingEnemyPartyMembers === 'function'
+        ? getLivingEnemyPartyMembers(enemy)
+        : (enemy && safeNum(enemy.curHp, 0) > 0 ? [enemy] : []);
+    enemy._spawnLivingCount = spawnLivingEnemies.length;
+    enemy._battleRewardEligible = spawnLivingEnemies.length > 0;
     if (typeof resetInitiativeTimeline === 'function') resetInitiativeTimeline();
     if (typeof writeLog === 'function') {
         const partyInfo = !ghost && enemy && Array.isArray(enemy.party)
@@ -17131,6 +17147,12 @@ window.buyItem = (event, idx) => {
         if(!player.items.some(i=>i.name===it.name)){
             ensureOwnedItemUid(it);
             it._buyPrice = safeNum(it.price, 0);
+            // [구매 지급 대상 지정] 현재 활성화된 인벤토리 탭의 캐릭터에게 장비를 귀속시킨다.
+            const assignMember = typeof getActiveInventoryPartyMember === 'function' ? getActiveInventoryPartyMember() : null;
+            if (assignMember && assignMember.roleKey) {
+                it._assignedRole = assignMember.roleKey;
+                writeLog(`[지급] <b>${it.name}</b> → ${assignMember.name}에게 귀속`);
+            }
             player.items.push(it); saveCollection(it.name);
             if (it.type === 'rune') {
                 if (typeof it.value === 'number' && it.value) player.atk += it.value;
@@ -17210,7 +17232,9 @@ window.combatState = window.combatState || {
     turnQueue: [],
     currentTurnIndex: 0,
     isCombatActive: false,
+    isActionLocked: false,
 };
+if (typeof window.combatState.isActionLocked !== 'boolean') window.combatState.isActionLocked = false;
 
 function isMercenaryCaptainJob() { return false; }
 function getAffinityRelKey() { return '인간 모험가'; }
@@ -17235,9 +17259,10 @@ function setCombatProcessing(flag) {
 function updateCombatButtonsLockState() {
     const host = document.getElementById('action-btns');
     if (!host) return;
+    const locked = !!isProcessing || !!(window.combatState && window.combatState.isActionLocked);
     host.querySelectorAll('button').forEach((button) => {
-        button.disabled = !!isProcessing || button.dataset.v35Disabled === '1';
-        button.classList.toggle('combat-btn-processing', !!isProcessing);
+        button.disabled = locked || button.dataset.v35Disabled === '1';
+        button.classList.toggle('combat-btn-processing', locked);
     });
 }
 
@@ -17385,6 +17410,7 @@ function resetInitiativeTimeline() {
     window.combatState.isCombatActive = false;
     window.combatState.isResolvingTurn = false;
     window.combatState.awaitingPlayerInput = false;
+    window.combatState.isActionLocked = false;
 }
 
 function clearPendingVictoryAdvanceState() {
@@ -17466,6 +17492,22 @@ function setCombatActionButtonsDisabled(disabled) {
         button.disabled = !!disabled;
         button.classList.toggle('combat-btn-processing', !!disabled);
     });
+}
+
+const TURN_TRANSITION_LOCK_MS = 900;
+
+function setCombatActionLock(locked) {
+    if (window.combatState) window.combatState.isActionLocked = !!locked;
+    setCombatActionButtonsDisabled(!!locked);
+    updateCombatButtonsLockState();
+}
+
+// 행동/턴 전환마다 강제 딜레이를 걸어 VFX 재생 시간을 확보하고 버튼 연타를 원천 차단한다.
+async function lockedAdvanceToNextTurn(options) {
+    setCombatActionLock(true);
+    await waitMs(TURN_TRANSITION_LOCK_MS);
+    if (window.combatState) window.combatState.isActionLocked = false;
+    await advanceNextTurn(options);
 }
 
 function rebindCombatActionButtonsForActiveTurn() {
@@ -18175,7 +18217,7 @@ async function executeEnemyUnitTurn(unit, forcedTarget) {
 }
 
 async function finishActiveInitiativeTurn() {
-    await advanceNextTurn();
+    await lockedAdvanceToNextTurn();
 }
 
 function refreshCombatTurnQueue() {
@@ -18193,6 +18235,7 @@ function startCombat() {
     window.combatState.currentTurnIndex = 0;
     window.combatState.isResolvingTurn = false;
     window.combatState.awaitingPlayerInput = false;
+    window.combatState.isActionLocked = false;
     initiativeRound = 1;
     playerGuardState = null;
     enemyGuardState = null;
@@ -18256,6 +18299,7 @@ async function executeActiveTurn() {
             activeEntry.actor.attackLockTurns = Math.max(0, safeNum(activeEntry.actor.attackLockTurns, 0) - 1);
             writeLog(`[공속 패널티] ${activeEntry.actor.name}는 이번 턴 공격할 수 없습니다.`);
         }
+        if (window.combatState) window.combatState.isActionLocked = false;
         setCombatProcessing(false);
         writeLog(`[턴] ${activeEntry.actor.name}의 턴 — 행동을 선택하세요.`);
         updateUi();
@@ -18278,7 +18322,7 @@ async function executeActiveTurn() {
     await executeEnemyUnitTurn(activeEntry.actor, target);
     window._enemyThinkingHint = '';
     state.isResolvingTurn = false;
-    await advanceNextTurn();
+    await lockedAdvanceToNextTurn();
 }
 
 async function advanceNextTurn(options) {
@@ -18333,6 +18377,7 @@ window.useAction = async function useAction(type, options) {
 
     if (
         isProcessing ||
+        (window.combatState && window.combatState.isActionLocked) ||
         !player ||
         !enemy ||
         !turn ||
@@ -18386,6 +18431,7 @@ window.useAction = async function useAction(type, options) {
         return;
     }
 
+    setCombatActionLock(true);
     setCombatProcessing(true);
     try {
         if (normalizedType === '공격') {
@@ -18532,6 +18578,13 @@ function enterNextDungeonStage() {
 
 function onCombatVictory() {
     if (!player || combatVictorySettlementLocked) return null;
+    // [무전투 보상 차단] 스폰 시점에 살아있는 적이 한 명도 없던 인카운터(적 배열 길이 0)는
+    // 실제 전투가 성립하지 않은 것으로 간주하여 골드/진행 보상을 지급하지 않는다.
+    if (!enemy || safeNum(enemy._spawnLivingCount, undefined) === 0) {
+        combatVictorySettlementLocked = true;
+        writeLog('[경고] 유효한 전투 없이 승리 판정이 발생하여 보상 지급을 차단했습니다.');
+        return null;
+    }
     combatVictorySettlementLocked = true;
     const reward = computeFloorGoldReward(floor + (dungeonStage - 1) / STAGES_PER_FLOOR, {
         isBoss: dungeonStage === STAGES_PER_FLOOR,

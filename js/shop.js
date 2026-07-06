@@ -476,6 +476,12 @@ window.buyItem = (event, idx) => {
         if(!player.items.some(i=>i.name===it.name)){
             ensureOwnedItemUid(it);
             it._buyPrice = safeNum(it.price, 0);
+            // [구매 지급 대상 지정] 현재 활성화된 인벤토리 탭의 캐릭터에게 장비를 귀속시킨다.
+            const assignMember = typeof getActiveInventoryPartyMember === 'function' ? getActiveInventoryPartyMember() : null;
+            if (assignMember && assignMember.roleKey) {
+                it._assignedRole = assignMember.roleKey;
+                writeLog(`[지급] <b>${it.name}</b> → ${assignMember.name}에게 귀속`);
+            }
             player.items.push(it); saveCollection(it.name);
             if (it.type === 'rune') {
                 if (typeof it.value === 'number' && it.value) player.atk += it.value;

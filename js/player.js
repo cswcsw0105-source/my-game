@@ -191,11 +191,13 @@ function fullResyncPlayerCombatStatsFromMetaAndInventory() {
         for (const item of player.items || []) {
             if (!item) continue;
             const itemText = `${item.name || ''} ${(item.tags || []).join(' ')}`;
-            const target = item.type === 'hp' || safeNum(item.def, 0) > 0 || safeNum(item.damageReduction, 0) > 0
+            // [구매 지급 대상 지정] 유저가 명시적으로 귀속시킨 캐릭터가 있으면 자동 분배 휴리스틱보다 우선한다.
+            const assignedTarget = item._assignedRole && byRole[item._assignedRole] ? byRole[item._assignedRole] : null;
+            const target = assignedTarget || (item.type === 'hp' || safeNum(item.def, 0) > 0 || safeNum(item.damageReduction, 0) > 0
                 ? byRole.tank
                 : /지팡이|마법|마력|마도|보주|주문|arcane/i.test(itemText)
                   ? byRole.mage
-                  : byRole.knight;
+                  : byRole.knight);
             if (!target) continue;
             target.items.push(item);
             if (item.type === 'atk' || item.type === 'ring' || item.type === 'rune') target.atk += safeNum(item.value, 0);
