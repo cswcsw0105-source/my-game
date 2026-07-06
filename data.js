@@ -28,7 +28,7 @@ const RESTORED_ITEMS = typeof globalThis !== 'undefined' && globalThis.RESTORED_
 
 const BALANCE = Object.freeze({
     statBaseCap: 100,
-    probabilityCap: 0.75,
+    probabilityCap: 0.85,
     divinityMin: -5,
     divinityMax: 5,
     distortionMin: 0,

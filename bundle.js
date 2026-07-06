@@ -10288,7 +10288,7 @@ const RESTORED_ITEMS = typeof globalThis !== 'undefined' && globalThis.RESTORED_
 
 const BALANCE = Object.freeze({
     statBaseCap: 100,
-    probabilityCap: 0.75,
+    probabilityCap: 0.85,
     divinityMin: -5,
     divinityMax: 5,
     distortionMin: 0,
@@ -17273,6 +17273,29 @@ function getActorDisplayName(actor) {
     return actor && actor.name ? actor.name : '대상';
 }
 
+const KOREAN_DIGIT_HAS_BATCHIM = Object.freeze({ '0': false, '1': true, '2': false, '3': true, '4': false, '5': false, '6': true, '7': true, '8': true, '9': false });
+
+function hasKoreanBatchim(text) {
+    const str = String(text || '').trim();
+    if (!str) return false;
+    const lastChar = str.charAt(str.length - 1);
+    if (lastChar >= '0' && lastChar <= '9') return !!KOREAN_DIGIT_HAS_BATCHIM[lastChar];
+    const code = lastChar.charCodeAt(0);
+    if (code >= 0xac00 && code <= 0xd7a3) return (code - 0xac00) % 28 !== 0;
+    return false;
+}
+
+function withEulReul(text) { return `${text}${hasKoreanBatchim(text) ? '을' : '를'}`; }
+function withIGa(text) { return `${text}${hasKoreanBatchim(text) ? '이' : '가'}`; }
+
+function getActorSideLabel(actor) {
+    return (actor === player || isPartyMember(actor)) ? '아군' : '적';
+}
+
+function getActorFullLabel(actor) {
+    return `${getActorSideLabel(actor)} ${getActorDisplayName(actor)}`;
+}
+
 function chooseEnemyPartyTarget(random) {
     const living = getLivingPartyMembers(player);
     if (!living.length) return null;
@@ -17669,7 +17692,8 @@ function calculateAttackChance(attacker, defender) {
     const attackStats = getActorStats(attacker);
     const defendStats = getActorStats(defender);
     const mastery = safeNum(attacker && attacker.mastery && attacker.mastery.weapon, 0);
-    return 0.42 + attackStats.agi * 0.004 + attackStats.int * 0.001 + mastery * 0.002 - defendStats.agi * 0.0015;
+    const chance = 0.68 + attackStats.agi * 0.004 + attackStats.int * 0.001 + mastery * 0.002 - defendStats.agi * 0.0006;
+    return Math.max(0.5, chance);
 }
 
 function getActorWeaponDisplayName(actor) {
@@ -17695,6 +17719,13 @@ function getWeaponEfficiencyPowerBonus(actor, weapon, stats) {
     return Math.floor(stats.str * 0.18 + stats.agi * 0.08);
 }
 
+const EARLY_FLOOR_DAMAGE_BUFF_MULT = 1.45;
+const EARLY_FLOOR_DAMAGE_BUFF_MAX_FLOOR = 5;
+
+function getEarlyFloorDamageMultiplier() {
+    return safeNum(floor, 1) <= EARLY_FLOOR_DAMAGE_BUFF_MAX_FLOOR ? EARLY_FLOOR_DAMAGE_BUFF_MULT : 1;
+}
+
 function calculatePhysicalDamage(attacker, defender) {
     const attackStats = getActorStats(attacker);
     const defendStats = getActorStats(defender);
@@ -17714,7 +17745,7 @@ function calculatePhysicalDamage(attacker, defender) {
         0.6,
         Math.max(0, safeNum(armor && armor.mitigation, 0) + safeNum(defender && defender.damageReduction, 0))
     );
-    const reduced = Math.floor(ratioReduced * (1 - mitigation));
+    const reduced = Math.floor(ratioReduced * (1 - mitigation) * getEarlyFloorDamageMultiplier());
     return Math.max(getMinimumDamageFor(attacker, defender), reduced);
 }
 
@@ -17723,7 +17754,7 @@ function calculateMagicDamage(attacker, defender) {
     const defendStats = getActorStats(defender);
     const mastery = safeNum(attacker && attacker.mastery && (attacker.mastery.magic || attacker.mastery.holyMagic), 0);
     const rawPower = attackStats.wis * 1.45 + attackStats.int * 0.45 + mastery * 0.25;
-    const reduced = Math.floor(rawPower * (100 / (100 + Math.max(0, defendStats.def * 0.7))));
+    const reduced = Math.floor(rawPower * (100 / (100 + Math.max(0, defendStats.def * 0.7))) * getEarlyFloorDamageMultiplier());
     return Math.max(getMinimumDamageFor(attacker, defender), reduced);
 }
 
@@ -17914,14 +17945,14 @@ function spendPlayerAction() {
 
 function describeCombatResult(actor, target, result) {
     if (!result) return;
-    const actorName = getActorDisplayName(actor);
-    const targetName = getActorDisplayName(target);
+    const actorName = getActorFullLabel(actor);
+    const targetName = getActorFullLabel(target);
     if (result.type === 'attack') {
-        const attackName = result.attackKind === 'magic' ? '마법' : (result.weaponName || getActorWeaponDisplayName(actor));
-        if (result.reason === 'miss') writeLog(`[전투] ${actorName}가 ${targetName} 공격에 실패했습니다.`);
-        else if (result.reason === 'dodged') writeLog(`[전투] ${targetName}이 ${actorName}의 공격을 완전히 회피했습니다.`);
+        const dmgType = result.attackKind === 'magic' ? '마법' : '물리';
+        if (result.reason === 'miss') writeLog(`[전투] ${withIGa(actorName)} ${targetName} 공격에 실패했습니다.`);
+        else if (result.reason === 'dodged') writeLog(`[전투] ${withIGa(targetName)} ${actorName}의 공격을 완전히 회피했습니다.`);
         else if (result.nullified) writeLog(`[전투] ${targetName}의 장비가 ${actorName}의 공격을 완전히 차단했습니다.`);
-        else writeLog(`[전투] ${actorName}가 ${targetName}를 ${attackName} 공격으로 ${result.damage}의 피해를 입혔습니다.${result.guarded ? ' (방어 성공)' : ''}`);
+        else writeLog(`[전투] ${withIGa(actorName)} ${withEulReul(targetName)} 공격하여 ${result.damage}의 ${dmgType} 피해를 입혔습니다.${result.guarded ? ' (방어 성공)' : ''}`);
         return;
     }
     if (result.type === 'heal') {
