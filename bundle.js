@@ -10278,6 +10278,8 @@ const PARTY_ROLE_DEFINITIONS = Object.freeze({
 });
 // [MP 시스템] 직업별 기본 최대 마나. 액티브 스킬 자원으로 사용한다.
 const PARTY_ROLE_BASE_MAX_MP = Object.freeze({ tank: 40, knight: 50, mage: 100 });
+// [배속 토글] 전투 템포 글로벌 배속 (1 = 기본 900ms 턴 전환, 2 = 2배속 450ms)
+if (typeof window !== 'undefined' && !Number.isFinite(Number(window.gameSpeed))) window.gameSpeed = 1;
 
 function getRoleBaseMaxMp(roleKey) {
     return PARTY_ROLE_BASE_MAX_MP[roleKey] || 50;
@@ -12466,6 +12468,26 @@ let combatTargetSelectionState = null;
 
 // [UI 청소] 버전/타임스탬프 라벨 렌더링 제거됨 (구 getBuildVersionLabel / renderBuildVersionLabels)
 
+// ===== [배속 토글] 1배속 ↔ 2배속 글로벌 전투 템포 전환 =====
+function updateGameSpeedButtonLabel() {
+    const button = document.getElementById('battle-speed-btn');
+    if (!button) return;
+    const speed = Number(window.gameSpeed) === 2 ? 2 : 1;
+    button.innerText = speed === 2 ? '⚡ 2배속' : '⚡ 1배속';
+    button.title = speed === 2
+        ? '2배속 진행 중 — 턴 전환 450ms. 클릭하면 1배속으로 전환'
+        : '1배속 진행 중 — 턴 전환 900ms. 클릭하면 2배속으로 전환';
+    button.style.background = speed === 2 ? '#3d2f00' : '';
+}
+
+window.toggleGameSpeed = function toggleGameSpeed() {
+    window.gameSpeed = Number(window.gameSpeed) === 2 ? 1 : 2;
+    updateGameSpeedButtonLabel();
+    if (typeof writeLog === 'function') {
+        writeLog(`[배속] 전투 진행 속도가 ${Number(window.gameSpeed)}배속으로 전환되었습니다.`);
+    }
+};
+
 function getPartyRoleTabs() {
     return [
         { key: 'tank', label: '탱커', color: '#74b9ff' },
@@ -12680,8 +12702,8 @@ function syncV35PlayerStatDisplay() {
         if (defenseElement) defenseElement.textContent = String(getTotalPlayerDefenseForHit());
         if (hpTextElement) hpTextElement.title = '파티 생존 HP 합계';
         if (statusElement) {
-            statusElement.innerHTML = `<span style="color:#9aa4b2;font-size:0.74em;">개별 HP/스탯은 분할 게이지에 표시</span>`;
-            statusElement.style.cssText += ';display:block;text-align:center;font-size:0.74em;line-height:1.25;margin:6px auto 4px;max-width:96%;white-space:normal;';
+            // [UI 청소] '개별 HP/스탯은 분할 게이지에 표시' 안내 문구 제거
+            statusElement.innerHTML = '';
             statusElement.title = '성혼 0 · 뒤틀림 0';
         }
         return;
@@ -12840,6 +12862,36 @@ function installV35ActionButtonDelegation() {
 
 installV35ActionButtonDelegation();
 
+// [클릭 타겟팅] 공격/공격형 스킬 대상 선택 중, 화면의 적 체력바/카드(행)를 직접 클릭해도
+// 해당 적이 즉시 타겟으로 지정되어 행동이 실행되도록 하는 문서 단위 위임 리스너.
+function installEnemyRowClickTargetingDelegation() {
+    if (window.__enemyRowClickTargetingInstalled) return;
+    window.__enemyRowClickTargetingInstalled = true;
+    document.addEventListener('click', (event) => {
+        const row = event.target && event.target.closest
+            ? event.target.closest('[data-combat-unit-id][data-combat-unit-side="enemy"]')
+            : null;
+        if (!row) return;
+        const state = window.combatState || {};
+        if (state.isActionLocked || (typeof isProcessing !== 'undefined' && isProcessing)) return;
+        const turn = typeof getCurrentTurnEntry === 'function' ? getCurrentTurnEntry() : null;
+        if (!turn || turn.side !== 'player' || !state.awaitingPlayerInput) return;
+        const selection = getCombatTargetSelectionForTurn(turn);
+        if (!selection || (selection.actionType !== '공격' && selection.actionType !== '스킬')) return;
+        const targetId = row.getAttribute('data-combat-unit-id');
+        if (!targetId) return;
+        // 죽은 적/유령 행 클릭 방지: 살아있는 적 목록에서 id가 일치할 때만 실행한다.
+        const living = typeof getLivingEnemyPartyMembers === 'function' ? getLivingEnemyPartyMembers(enemy) : [];
+        const isAlive = living.some((member) => String(member.id || member.roleKey || member.name || '') === targetId);
+        if (!isAlive) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (typeof window.useAction === 'function') window.useAction(selection.actionType, { targetId });
+    }, true);
+}
+
+installEnemyRowClickTargetingDelegation();
+
 function rebindV35PrimaryActionButtons() {
     [
         'attack-btn',
@@ -12864,6 +12916,8 @@ function renderCombatTargetSelectionPanel(host, actionType, actor) {
         ? (typeof getLivingEnemyPartyMembers === 'function' ? getLivingEnemyPartyMembers(enemy) : [])
         : (typeof getLivingPartyMembers === 'function' ? getLivingPartyMembers(player) : []);
     if (!candidates.length) return;
+    // [클릭 타겟팅] 대상 선택 상태를 기록해, 적 체력바/카드 직접 클릭으로도 타겟 지정이 가능하게 한다.
+    setCombatTargetSelection(actionType, actor);
     const panel = document.createElement('div');
     panel.dataset.v35TargetPanel = '1';
     panel.style.cssText = 'width:100%;margin-top:8px;padding:9px;background:#10141d;border:1px solid #293142;border-radius:8px;display:flex;flex-direction:column;gap:7px;text-align:left;';
@@ -12871,9 +12925,9 @@ function renderCombatTargetSelectionPanel(host, actionType, actor) {
     title.style.cssText = 'color:#d8dee9;font-size:0.76em;font-weight:900;line-height:1.35;';
     const skillDef = actionType === '스킬' && typeof getPartyActiveSkillFor === 'function' ? getPartyActiveSkillFor(actor) : null;
     title.textContent = actionType === '스킬'
-        ? `${actor.name || '파티원'}의 ${skillDef ? skillDef.name : '스킬'} 대상 선택`
+        ? `${actor.name || '파티원'}의 ${skillDef ? skillDef.name : '스킬'} 대상 선택 — 적 카드를 직접 클릭해도 됩니다`
         : isAttack
-          ? `${actor.name || '파티원'}의 공격 대상 선택`
+          ? `${actor.name || '파티원'}의 공격 대상 선택 — 적 카드를 직접 클릭해도 됩니다`
           : `${actor.name || '마법사'}의 힐 대상 선택`;
     panel.appendChild(title);
 
@@ -12950,7 +13004,6 @@ function renderActions() {
             <div style="width:100%;color:#ffb3b3;font-size:0.85em;font-weight:800;padding:8px 0;">${escapeHtml(turn.actor && turn.actor.name ? turn.actor.name : '적')} 행동 처리 중...</div>
             <button id="attack-btn" type="button" data-v35-action="공격" disabled style="background:#444;opacity:0.45;cursor:not-allowed;">⚔️ 공격</button>
             <button id="defense-btn" type="button" data-v35-action="방패방어" disabled style="background:#444;opacity:0.45;cursor:not-allowed;">🛡️ 파티 방어</button>
-            <button id="heal-btn" type="button" data-v35-action="힐" data-v35-heal="1" disabled style="background:#444;opacity:0.45;cursor:not-allowed;">✨ 힐</button>
             <button id="skill-btn" type="button" data-v35-action="스킬" disabled style="background:#444;opacity:0.45;cursor:not-allowed;">✴️ 특수 스킬</button>
             <button id="potion-btn" type="button" disabled style="background:#444;opacity:0.45;cursor:not-allowed;">🧪 포션 사용 (${Math.max(0, safeNum(player && player.potions, 0))}개)</button>`;
         if (typeof updateCombatButtonsLockState === 'function') updateCombatButtonsLockState();
@@ -13008,14 +13061,21 @@ function renderActions() {
         false,
         `${actorName}가 이번 라운드 아군 전체 방어 보정`
     );
-    makeBtn(
-        'heal-btn',
-        '✨ 힐',
-        '힐',
-        '#4b6b50',
-        !canHeal,
-        canHeal ? `${actorName}의 지혜 기반 단일 대상 치유 (파티원/자신 선택 가능)` : '마법사의 턴에 회복할 아군이 있을 때만 사용할 수 있습니다.'
+    // [힐 버튼 동적 숨김] 마법사(힐 보유) 계열이 아닌 파티원의 턴에는 힐 버튼 자체를 렌더링하지 않는다.
+    const isHealerRoleActor = !!(
+        actor &&
+        (actor.roleKey === 'mage' || actor.archetype === 'mage' || (Array.isArray(actor.magic) && actor.magic.includes('heal')))
     );
+    if (isHealerRoleActor) {
+        makeBtn(
+            'heal-btn',
+            '✨ 힐',
+            '힐',
+            '#4b6b50',
+            !canHeal,
+            canHeal ? `${actorName}의 지혜 기반 단일 대상 치유 (파티원/자신 선택 가능)` : '마법사의 턴에 회복할 아군이 있을 때만 사용할 수 있습니다.'
+        );
+    }
     // [직업별 특수 스킬] 마나가 충분할 때만 활성화되는 액티브 스킬 버튼
     const activeSkill = typeof getPartyActiveSkillFor === 'function' ? getPartyActiveSkillFor(actor) : null;
     if (activeSkill) {
@@ -13089,6 +13149,7 @@ function renderPassiveContractHistoryPanels() {
 }
 
 function updateUi() {
+    if (typeof updateGameSpeedButtonLabel === 'function') updateGameSpeedButtonLabel();
     if (!player) return;
     syncV35PlayerStatDisplay();
     if (!enemy) {
@@ -13160,8 +13221,8 @@ function updateUi() {
             const synStatus = '';
             const lvTxt = player.runLevel ? ` · Lv.${player.runLevel}` : '';
             if (isPartyRun) {
-                summLine.style.cssText += ';display:block;text-align:center;max-width:92%;margin:6px auto 4px;font-size:0.72em;line-height:1.25;';
-                summLine.innerHTML = '<span style="color:#888;">민첩 순서 기반 개별 턴제</span>';
+                // [UI 청소] '민첩 순서 기반 개별 턴제' 안내 문구 제거
+                summLine.innerHTML = '';
             } else if (isMercenaryCaptainJob()) {
                 summLine.innerHTML = `<span style="color:#e67e22;">🎖️ 지휘관 ${escapeHtml(getPlayerClassDisplayName())}</span> <span style="color:#888;">| HP ${pCur}/${pMax}${lvTxt} · 전열 없음${player.mercCooldownTurns > 0 ? ` · 재가동 ${player.mercCooldownTurns}T` : ''}${synHint}</span>${synStatus}`;
             } else if (player.summon && player.summon.name) {
@@ -13214,12 +13275,8 @@ function updateUi() {
     renderTurnIndicator();
     const enemyStatus = document.querySelector('#enemy-card .status-badge');
     if (enemyStatus) {
-        if (Array.isArray(enemy.party)) {
-            enemyStatus.innerHTML = `<span style="color:#9aa4b2;font-size:0.72em;">적 개별 HP는 분할 게이지에 표시</span>`;
-            enemyStatus.style.cssText += ';display:block;text-align:center;font-size:0.72em;line-height:1.25;margin:6px auto 4px;max-width:96%;white-space:normal;';
-        } else {
-            enemyStatus.innerHTML = '';
-        }
+        // [UI 청소] '적 개별 HP는 분할 게이지에 표시' 안내 문구 제거
+        enemyStatus.innerHTML = '';
     }
     renderInventoryPanel();
     renderPassiveContractHistoryPanels();
@@ -17459,8 +17516,15 @@ function updateCombatButtonsLockState() {
     });
 }
 
+// [배속 토글] 전투 페이싱 대기 시간은 window.gameSpeed(1/2배속)에 따라 가변된다.
+// 2배속이면 턴 전환 락(TURN_TRANSITION_LOCK_MS 900ms)이 450ms로, AI 사고/연타 딜레이도 절반으로 축소된다.
+function getCombatSpeedDivisor() {
+    return Number(typeof window !== 'undefined' && window.gameSpeed) === 2 ? 2 : 1;
+}
+
 function waitMs(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    const scaled = Math.max(0, Math.round((Number(ms) || 0) / getCombatSpeedDivisor()));
+    return new Promise((resolve) => setTimeout(resolve, scaled));
 }
 
 function getActorRollBonus(actor) {
@@ -17787,6 +17851,7 @@ function setCombatActionButtonsDisabled(disabled) {
     });
 }
 
+// 1배속 기준 900ms. waitMs가 gameSpeed로 나눠 적용하므로 2배속 활성화 시 450ms로 다이렉트 축소된다.
 const TURN_TRANSITION_LOCK_MS = 900;
 
 function setCombatActionLock(locked) {

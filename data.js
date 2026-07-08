@@ -18,6 +18,8 @@ const PARTY_ROLE_DEFINITIONS = Object.freeze({
 });
 // [MP 시스템] 직업별 기본 최대 마나. 액티브 스킬 자원으로 사용한다.
 const PARTY_ROLE_BASE_MAX_MP = Object.freeze({ tank: 40, knight: 50, mage: 100 });
+// [배속 토글] 전투 템포 글로벌 배속 (1 = 기본 900ms 턴 전환, 2 = 2배속 450ms)
+if (typeof window !== 'undefined' && !Number.isFinite(Number(window.gameSpeed))) window.gameSpeed = 1;
 
 function getRoleBaseMaxMp(roleKey) {
     return PARTY_ROLE_BASE_MAX_MP[roleKey] || 50;

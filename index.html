@@ -15,6 +15,7 @@
 <body>
     <div class="container">
         <h1 style="color: #fff; letter-spacing: 1px;">⚔️ 프로젝트 성혼</h1>
+        <p id="game-version-label" style="color:#9b59b6;font-size:0.9em;margin:2px 0 8px;letter-spacing:0.5px;font-weight:700;">베타 v1.0</p>
 
         <div class="game-layout" id="main-layout">
             <!-- 던전·상점 중 왼쪽: 인벤 상시 -->
@@ -46,6 +47,7 @@
                             <span>포션 <b id="potion-t-battle">0</b></span>
                         </div>
                         <div class="battle-run-actions">
+                            <button type="button" id="battle-speed-btn" class="battle-mini-btn" onclick="toggleGameSpeed()" title="전투 턴 전환/AI 행동 템포 배속 전환" style="border-color:#f1c40f;color:#f1c40f;">⚡ 1배속</button>
                             <button type="button" id="battle-save-main-btn" class="battle-mini-btn battle-mini-btn-save" onclick="saveAndExitToMain()">저장 후 메인</button>
                             <button type="button" id="battle-exit-main-btn" class="battle-mini-btn battle-mini-btn-exit" onclick="exitToMainWithoutSave()">저장 없이 메인</button>
                         </div>

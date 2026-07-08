@@ -1716,3 +1716,12 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     15% { opacity: 1; }
     100% { opacity: 0; transform: translate(calc(-50% + var(--fx, 0px)), calc(-50% + var(--fy, 0px))) scale(var(--fscale, 1)); }
 }
+
+/* ===== [클릭 타겟팅] 적 유닛 행 직접 클릭 어포던스 ===== */
+[data-combat-unit-side="enemy"] {
+    cursor: pointer;
+    transition: filter 0.12s ease;
+}
+[data-combat-unit-side="enemy"]:hover {
+    filter: brightness(1.18);
+}

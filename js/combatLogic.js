@@ -64,8 +64,15 @@ function updateCombatButtonsLockState() {
     });
 }
 
+// [배속 토글] 전투 페이싱 대기 시간은 window.gameSpeed(1/2배속)에 따라 가변된다.
+// 2배속이면 턴 전환 락(TURN_TRANSITION_LOCK_MS 900ms)이 450ms로, AI 사고/연타 딜레이도 절반으로 축소된다.
+function getCombatSpeedDivisor() {
+    return Number(typeof window !== 'undefined' && window.gameSpeed) === 2 ? 2 : 1;
+}
+
 function waitMs(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    const scaled = Math.max(0, Math.round((Number(ms) || 0) / getCombatSpeedDivisor()));
+    return new Promise((resolve) => setTimeout(resolve, scaled));
 }
 
 function getActorRollBonus(actor) {
@@ -392,6 +399,7 @@ function setCombatActionButtonsDisabled(disabled) {
     });
 }
 
+// 1배속 기준 900ms. waitMs가 gameSpeed로 나눠 적용하므로 2배속 활성화 시 450ms로 다이렉트 축소된다.
 const TURN_TRANSITION_LOCK_MS = 900;
 
 function setCombatActionLock(locked) {
