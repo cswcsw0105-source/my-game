@@ -22,6 +22,9 @@ let currentTurnEntry = null;
 let initiativeRound = 1;
 let initiativeAdvanceInProgress = false;
 let combatVictorySettlementLocked = false;
+// [철벽 도발] 탱커 어그로 강제 고정 버프. roundsLeft가 남아 있는 동안
+// 적 AI의 공격 타겟 연산(Intent)이 무조건 탱커로 변조된다.
+let tankTauntState = null;
 
 window.combatState = window.combatState || {
     turnQueue: [],
@@ -84,7 +87,13 @@ function probabilityRoll(chance, actorOrRandom, maybeRandom) {
 
 function getActorStats(actor) {
     if (actor === player) ensureHumanRuntimeShape(actor);
-    return normalizeHumanStats(actor && actor.stats || {});
+    const raw = actor && actor.stats || {};
+    const stats = normalizeHumanStats(raw);
+    // [적 스탯 오버홀] 적 데이터에는 '지혜' 스탯이 존재하지 않는다.
+    // 마법 대미지/시전 성공률 등 지혜 기반 수식이 깨지지 않도록 지능 스탯을 대신 연결한다.
+    // (아군 파티원은 항상 지혜를 보유하므로 이 분기는 적에게만 적용된다.)
+    if (!(raw && raw.wis != null && Number.isFinite(Number(raw.wis)))) stats.wis = stats.int;
+    return stats;
 }
 
 function getActorDisplayName(actor) {
@@ -116,9 +125,102 @@ function getActorFullLabel(actor) {
     return `${getActorSideLabel(actor)} ${getActorDisplayName(actor)}`;
 }
 
+// ===== [MP 시스템 + 직업별 액티브 스킬] =====
+const PARTY_ACTIVE_SKILLS = Object.freeze({
+    tank: Object.freeze({
+        key: 'ironTaunt',
+        name: '🛡️ 철벽 도발',
+        mpCost: 20,
+        targeting: 'self',
+        description: '다음 1라운드 동안 적 전원의 공격 타겟을 탱커로 강제 고정',
+    }),
+    knight: Object.freeze({
+        key: 'chainSlash',
+        name: '💥 연속 베기',
+        mpCost: 25,
+        targeting: 'enemy',
+        description: '적 1명에게 기본 물리 공격력 1.8배의 강타',
+    }),
+    mage: Object.freeze({
+        key: 'fireball',
+        name: '🔥 파이어 볼',
+        mpCost: 30,
+        targeting: 'enemy',
+        description: '적 1명에게 지능 비례 2.2배의 극딜 마법 폭발',
+    }),
+});
+
+function getPartyActiveSkillFor(actor) {
+    if (!actor || !isPartyMember(actor)) return null;
+    return PARTY_ACTIVE_SKILLS[actor.roleKey] || null;
+}
+
+function getActorMaxMp(actor) {
+    return Math.max(0, safeNum(actor && actor.maxMp, 0));
+}
+
+function getActorMp(actor) {
+    return Math.max(0, Math.min(getActorMaxMp(actor), safeNum(actor && actor.mp, 0)));
+}
+
+function setActorMp(actor, value) {
+    if (!actor) return;
+    actor.mp = Math.max(0, Math.min(getActorMaxMp(actor), safeNum(value, 0)));
+}
+
+function spendActorMp(actor, cost) {
+    const amount = Math.max(0, safeNum(cost, 0));
+    if (getActorMp(actor) < amount) return false;
+    setActorMp(actor, getActorMp(actor) - amount);
+    return true;
+}
+
+function canActorUseActiveSkill(actor) {
+    const skill = getPartyActiveSkillFor(actor);
+    return !!skill && getActorMp(actor) >= skill.mpCost;
+}
+
+// [MP 자연 회복] 지혜/민첩 스탯에 비례한 5~10 MP 리젠
+function getActorMpRegenAmount(actor) {
+    const stats = getActorStats(actor);
+    return Math.max(5, Math.min(10, 5 + Math.floor((Math.max(0, stats.wis) + Math.max(0, stats.agi)) / 30)));
+}
+
+function regenPartyMpAtRoundStart() {
+    if (!player || !Array.isArray(player.party)) return;
+    const rows = [];
+    getLivingPartyMembers(player).forEach((member) => {
+        if (getActorMaxMp(member) <= 0) return;
+        const before = getActorMp(member);
+        setActorMp(member, before + getActorMpRegenAmount(member));
+        const gained = getActorMp(member) - before;
+        if (gained > 0) rows.push(`${member.name} +${gained}`);
+    });
+    if (rows.length) writeLog(`[마나 회복] ${rows.join(' · ')} MP`);
+}
+
+function getActiveTauntTank() {
+    if (!tankTauntState || safeNum(tankTauntState.roundsLeft, 0) <= 0) return null;
+    const tank = getLivingPartyMembers(player).find((member) => member.id === tankTauntState.tankId) || null;
+    if (!tank) tankTauntState = null;
+    return tank;
+}
+
+function tickTauntStateAtRoundStart() {
+    if (!tankTauntState) return;
+    tankTauntState.roundsLeft = safeNum(tankTauntState.roundsLeft, 0) - 1;
+    if (tankTauntState.roundsLeft <= 0) {
+        tankTauntState = null;
+        writeLog('[도발 해제] 철벽 도발의 효과가 끝나 적들의 시선이 다시 흩어집니다.');
+    }
+}
+
 function chooseEnemyPartyTarget(random) {
     const living = getLivingPartyMembers(player);
     if (!living.length) return null;
+    // [철벽 도발] 도발 버프가 살아있는 동안 적 AI의 타겟 연산은 무조건 탱커로 고정된다.
+    const tauntTank = getActiveTauntTank();
+    if (tauntTank) return tauntTank;
     const total = living.reduce((sum, member) => sum + Math.max(0.1, safeNum(member.aggroWeight, 1)), 0);
     const rng = typeof random === 'function' ? random : Math.random;
     let roll = rng() * total;
@@ -200,6 +302,7 @@ function resetInitiativeTimeline() {
     initiativeRound = 1;
     initiativeAdvanceInProgress = false;
     playerTurnSpent = false;
+    tankTauntState = null;
     window.combatState.turnQueue = [];
     window.combatState.currentTurnIndex = 0;
     window.combatState.isCombatActive = false;
@@ -277,7 +380,7 @@ function getTurnOrderPreviewText() {
 }
 
 function setCombatActionButtonsDisabled(disabled) {
-    ['attack-btn', 'btn-attack', 'defense-btn', 'btn-party-defend', 'heal-btn', 'btn-heal'].forEach((id) => {
+    ['attack-btn', 'btn-attack', 'defense-btn', 'btn-party-defend', 'heal-btn', 'btn-heal', 'skill-btn', 'potion-btn'].forEach((id) => {
         const button = document.getElementById(id);
         if (!button) return;
         if (disabled && button.dataset && button.dataset.v35Disabled === '1') {
@@ -313,6 +416,7 @@ function rebindCombatActionButtonsForActiveTurn() {
         ['btn-party-defend', '방패방어'],
         ['heal-btn', '힐'],
         ['btn-heal', '힐'],
+        ['skill-btn', '스킬'],
     ];
     bindings.forEach(([id, actionType]) => {
         const button = document.getElementById(id);
@@ -714,6 +818,25 @@ function resolveMagicAttackAction(attacker, defender, guardState) {
     return { type: 'attack', attackKind: 'magic', success: true, damage, hit: cast };
 }
 
+// [파이어 볼] 지능 스탯 비례 2.2배 극딜 마법. 일반 마법 공격(지혜 주 계수)과 달리 지능이 주 계수다.
+function resolveFireballSkillAction(attacker, defender, guardState) {
+    const stats = getActorStats(attacker);
+    const cast = probabilityRoll(0.55 + stats.wis * 0.004, attacker);
+    if (!cast.success) return { type: 'attack', attackKind: 'magic', success: false, reason: 'miss', hit: cast, skillKey: 'fireball' };
+    const defendStats = getActorStats(defender);
+    if (guardState && guardState.mode === 'dodge') {
+        const dodge = probabilityRoll(0.1 + defendStats.agi * 0.003, defender);
+        if (dodge.success) return { type: 'attack', attackKind: 'magic', success: false, reason: 'dodged', hit: cast, dodge, skillKey: 'fireball' };
+    }
+    const mastery = safeNum(attacker && attacker.mastery && attacker.mastery.magic, 0);
+    const rawPower = stats.int * 2.2 + stats.wis * 0.8 + mastery * 0.25;
+    let damage = Math.floor(rawPower * (100 / (100 + Math.max(0, defendStats.def * 0.7))) * getEarlyFloorDamageMultiplier());
+    if (guardState && guardState.mode === 'shield') damage = Math.floor(damage * 0.7);
+    damage = Math.max(getMinimumDamageFor(attacker, defender), damage);
+    setCurrentHp(defender, getCurrentHp(defender) - damage);
+    return { type: 'attack', attackKind: 'magic', success: true, damage, hit: cast, skillKey: 'fireball' };
+}
+
 function resolveHealAction(actor, healTarget) {
     const stats = getActorStats(actor);
     const cast = probabilityRoll(0.4 + stats.wis * 0.004, actor);
@@ -928,9 +1051,16 @@ function emitCombatResultVfx(target, result) {
     if (!result) return;
     const isPlayerSide = target === player || isPartyMember(target);
     const targetSide = isPlayerSide ? 'player' : 'enemy';
+    // [유닛 타격 연동] 대상의 개별 카드(행)가 렌더링되어 있으면 파티 전체가 아닌
+    // '정확한 피격 대상 카드'에만 데미지 플로트/셰이크를 재생한다.
+    const hasUnitRow = typeof getCombatUnitRowElement === 'function' && !!getCombatUnitRowElement(target);
     if (result.reason === 'miss' || result.reason === 'dodged') {
-        showMissFloat(targetSide);
-        if (result.reason === 'dodged') triggerDodgeMove(targetSide);
+        if (hasUnitRow && typeof showUnitMissFloat === 'function') showUnitMissFloat(target);
+        else showMissFloat(targetSide);
+        if (result.reason === 'dodged') {
+            if (hasUnitRow && typeof pulseCombatUnitClass === 'function') pulseCombatUnitClass(target, 'premium-card-dodge', 240);
+            else triggerDodgeMove(targetSide);
+        }
         return;
     }
     if (result.type === 'attack') {
@@ -938,8 +1068,12 @@ function emitCombatResultVfx(target, result) {
             if (result.attackKind === 'magic' && typeof playMagicBarrierVfx === 'function') playMagicBarrierVfx(targetSide);
             else if (typeof playPhysicalShieldVfx === 'function') playPhysicalShieldVfx(targetSide);
         }
-        showDmgFloat(Math.max(0, result.damage || 0), false, isPlayerSide);
-        if ((result.damage || 0) > 0) triggerShakeEffect(targetSide);
+        if (hasUnitRow && typeof showUnitDmgFloat === 'function') showUnitDmgFloat(target, Math.max(0, result.damage || 0), false);
+        else showDmgFloat(Math.max(0, result.damage || 0), false, isPlayerSide);
+        if ((result.damage || 0) > 0) {
+            if (hasUnitRow && typeof triggerUnitHitShake === 'function') triggerUnitHitShake(target, false);
+            else triggerShakeEffect(targetSide);
+        }
     }
 }
 
@@ -1019,6 +1153,9 @@ function refreshCombatTurnQueue() {
     window.combatState.turnQueue = buildInitiativeQueue();
     initiativeQueue = window.combatState.turnQueue.slice();
     if (!window.combatState.turnQueue.length) return;
+    // [라운드 시작 훅] 도발 지속시간 차감 + 파티 전원 MP 자연 회복
+    tickTauntStateAtRoundStart();
+    regenPartyMpAtRoundStart();
     writeLog(`[라운드] ${initiativeRound}라운드 시작 — 민첩 순서: ${getTurnOrderPreviewText()}`);
     initiativeRound += 1;
 }
@@ -1035,6 +1172,7 @@ function startCombat() {
     playerGuardState = null;
     enemyGuardState = null;
     playerTurnSpent = false;
+    tankTauntState = null;
     refreshCombatTurnQueue();
     executeActiveTurn();
 }
@@ -1165,7 +1303,7 @@ window.useAction = async function useAction(type, options) {
     const actor = turn && turn.side === 'player' ? turn.actor : null;
     const livingPlayers = player ? getLivingPartyMembers(player) : [];
     const livingEnemies = enemy ? getPlayerAttackTargetCandidates() : [];
-    const normalizedType = type === '힐' ? '힐' : type === '공격' ? '공격' : '방패방어';
+    const normalizedType = type === '힐' ? '힐' : type === '공격' ? '공격' : type === '스킬' ? '스킬' : '방패방어';
     const requestedTargetId = options && options.targetId ? String(options.targetId) : null;
     const matchesTargetId = (candidate) =>
         !!candidate && String(candidate.id || candidate.roleKey || candidate.name || '') === requestedTargetId;
@@ -1194,14 +1332,35 @@ window.useAction = async function useAction(type, options) {
         renderActions();
         return;
     }
+    // [액티브 스킬] 스킬 미보유/마나 부족은 턴을 소모하지 않고 행동을 다시 고르게 한다.
+    if (normalizedType === '스킬') {
+        const requestedSkill = getPartyActiveSkillFor(actor);
+        if (!requestedSkill) {
+            writeLog(`[스킬 불가] ${actor.name}가 사용할 수 있는 특수 스킬이 없습니다. 다른 행동을 선택하세요.`);
+            if (window.combatState) window.combatState.awaitingPlayerInput = true;
+            updateUi();
+            renderActions();
+            return;
+        }
+        if (getActorMp(actor) < requestedSkill.mpCost) {
+            writeLog(`[마나 부족] ${requestedSkill.name} 시전에는 MP ${requestedSkill.mpCost}가 필요합니다. (현재 ${getActorMp(actor)} MP)`);
+            if (window.combatState) window.combatState.awaitingPlayerInput = true;
+            updateUi();
+            renderActions();
+            return;
+        }
+    }
 
     // 대상 선택: 공격은 살아있는 적이 2명 이상, 힐은 부상당한 아군(자신 포함)이
     // 2명 이상일 때 대상 선택 패널을 먼저 보여준다. 대상이 하나면 자동 지정.
     if (!requestedTargetId && typeof renderCombatTargetSelectionPanel === 'function') {
         const woundedAllies = normalizedType === '힐' ? getWoundedPlayerHealTargets() : [];
+        const offensiveSkill = normalizedType === '스킬' ? getPartyActiveSkillFor(actor) : null;
         const needsTargetPanel = normalizedType === '공격'
             ? livingEnemies.length > 1
-            : normalizedType === '힐' && woundedAllies.length > 1;
+            : normalizedType === '스킬'
+              ? !!(offensiveSkill && offensiveSkill.targeting === 'enemy' && livingEnemies.length > 1)
+              : normalizedType === '힐' && woundedAllies.length > 1;
         if (needsTargetPanel) {
             if (typeof clearCombatTargetSelection === 'function') clearCombatTargetSelection();
             const panelHost = document.getElementById('action-btns');
@@ -1274,6 +1433,47 @@ window.useAction = async function useAction(type, options) {
                 maybeTriggerCorruptedHeal(actor, target);
             }
             syncPartyAggregateState(player);
+        } else if (normalizedType === '스킬') {
+            const skill = getPartyActiveSkillFor(actor);
+            spendActorMp(actor, skill.mpCost);
+            if (skill.key === 'ironTaunt') {
+                // [탱커 - 철벽 도발] 남은 현재 라운드 + 다음 1라운드 동안 어그로 강제 고정
+                recordPlayerBehavior('defend');
+                tankTauntState = { tankId: actor.id, roundsLeft: 2 };
+                writeLog(`[전투] 탱커가 철벽 도발을 시전하여 적들의 시선을 끌어 모읍니다! (MP -${skill.mpCost})`);
+                if (typeof playPhysicalShieldVfx === 'function') playPhysicalShieldVfx('player');
+                if (typeof triggerUnitHitShake === 'function') triggerUnitHitShake(actor, false);
+            } else if (skill.key === 'chainSlash') {
+                // [기사 - 연속 베기] 물리 공격력 1.8배 강타 + 피격 카드 2연속 셰이크
+                recordPlayerBehavior('physical_attack');
+                const target = (requestedTargetId && livingEnemies.find(matchesTargetId)) || livingEnemies[0];
+                writeLog(`[스킬] ${withIGa(actor.name)} ${withEulReul(target.name || '적')} 향해 연속 베기를 발동합니다! (MP -${skill.mpCost})`);
+                actor._attackMultiplier = 1.8;
+                if (typeof playV35AttackVfx === 'function') await playV35AttackVfx('player', actor, 'physical_attack', target);
+                const result = resolveAttackAction(actor, target, getEnemyGuardStateFor(target));
+                actor._attackMultiplier = 1;
+                describeCombatResult(actor, target, result);
+                emitCombatResultVfx(target, result);
+                if (result && result.success && (result.damage || 0) > 0 && typeof triggerUnitHitShake === 'function') {
+                    setTimeout(() => triggerUnitHitShake(target, true), 220);
+                }
+                gainActorWeaponMastery(actor, 1);
+                enemyGuardState = null;
+                if (enemy && Array.isArray(enemy.party)) syncEnemyPartyAggregateState(enemy);
+            } else if (skill.key === 'fireball') {
+                // [마법사 - 파이어 볼] 지능 비례 2.2배 마법 폭발 + 보라/붉은색 폭발 파티클
+                recordPlayerBehavior('magic_attack');
+                const target = (requestedTargetId && livingEnemies.find(matchesTargetId)) || livingEnemies[0];
+                writeLog(`[스킬] ${withIGa(actor.name)} ${withEulReul(target.name || '적')} 향해 파이어 볼을 시전합니다! (MP -${skill.mpCost})`);
+                const result = resolveFireballSkillAction(actor, target, getEnemyGuardStateFor(target));
+                if (typeof playFireballExplosionVfx === 'function') await playFireballExplosionVfx(target);
+                describeCombatResult(actor, target, result);
+                emitCombatResultVfx(target, result);
+                gainActorMagicMastery(actor, 2);
+                enemyGuardState = null;
+                if (enemy && Array.isArray(enemy.party)) syncEnemyPartyAggregateState(enemy);
+            }
+            syncPartyAggregateState(player);
         } else {
             const members = Object.fromEntries(getLivingPartyMembers(player).map((member) => [
                 member.id,
@@ -1304,6 +1504,79 @@ window.useAction = async function useAction(type, options) {
         if (window.combatState) window.combatState.awaitingPlayerInput = true;
         setCombatProcessing(false);
         writeLog(`[오류] ${actor.name}의 행동 처리 중 문제가 발생했습니다. 다시 선택하세요.`);
+        updateUi();
+        renderActions();
+    }
+};
+
+// [포션 사용] 기존 턴제 파이프라인 위에 증분 결합된 긴급 회복 커맨드.
+// HP 비율(현재HP/최대HP)이 가장 낮은 아군 1명을 자동 정밀 타겟팅해
+// 대상 최대 체력의 40%를 즉시 회복시키고, lockedAdvanceToNextTurn으로 900ms 턴 전환을 보장한다.
+const COMBAT_POTION_HEAL_RATIO = 0.4;
+
+window.useCombatPotion = async function useCombatPotion() {
+    const turn = currentTurnEntry;
+    const actor = turn && turn.side === 'player' ? turn.actor : null;
+    if (
+        isProcessing ||
+        (window.combatState && window.combatState.isActionLocked) ||
+        !player ||
+        !enemy ||
+        !turn ||
+        turn.side !== 'player' ||
+        !actor ||
+        !isTurnActorAlive(turn) ||
+        getLivingPartyMembers(player).length === 0 ||
+        !hasLivingEnemies()
+    ) {
+        if (typeof updateUi === 'function') updateUi();
+        if (typeof renderActions === 'function') renderActions();
+        return;
+    }
+    const potionCount = Math.max(0, safeNum(player.potions, 0));
+    if (potionCount <= 0) {
+        // 턴을 소모하지 않고 다시 행동을 선택하게 한다.
+        writeLog('[포션 없음] 소지한 포션이 없습니다. 다른 행동을 선택하세요.');
+        if (window.combatState) window.combatState.awaitingPlayerInput = true;
+        updateUi();
+        renderActions();
+        return;
+    }
+    if (!spendPlayerAction()) {
+        writeLog('[턴 제한] 한 턴에는 공격/방어/힐/포션 중 하나만 선택할 수 있습니다.');
+        if (window.combatState) window.combatState.awaitingPlayerInput = true;
+        updateUi();
+        renderActions();
+        return;
+    }
+    if (typeof clearCombatTargetSelection === 'function') clearCombatTargetSelection();
+    if (window.combatState) window.combatState.awaitingPlayerInput = false;
+    // 클릭 즉시 액션 락을 발동해 연타 꼼수를 차단하고 모든 커맨드 버튼을 잠근다.
+    setCombatActionLock(true);
+    setCombatProcessing(true);
+    try {
+        const target = getLivingPartyMembers(player)
+            .slice()
+            .sort((a, b) => getCurrentHp(a) / actorMaxHp(a) - getCurrentHp(b) / actorMaxHp(b))[0] || actor;
+        const healMultiplier = typeof getPlayerPotionHealMultiplier === 'function' ? getPlayerPotionHealMultiplier() : 1;
+        const healAmount = Math.max(1, Math.floor(actorMaxHp(target) * COMBAT_POTION_HEAL_RATIO * healMultiplier));
+        const before = getCurrentHp(target);
+        setCurrentHp(target, before + healAmount);
+        const healed = getCurrentHp(target) - before;
+        player.potions = potionCount - 1;
+        writeLog(`[전투] ${withIGa(getActorFullLabel(actor))} 포션을 사용하여 체력이 가장 낮은 ${withEulReul(getActorFullLabel(target))} 치유하고 ${healed}의 체력을 회복시켰습니다. (남은 포션 ${player.potions}개)`);
+        if (typeof playHealAuraVfx === 'function') await playHealAuraVfx('player', healed);
+        syncPartyAggregateState(player);
+        updateUi();
+        // 기존에 구축된 900ms 잠금 턴 전환 파이프라인으로 다음 캐릭터 턴으로 자연스럽게 넘어간다.
+        await finishActiveInitiativeTurn();
+    } catch (err) {
+        console.error('[포션 사용 오류]', err);
+        playerTurnSpent = false;
+        if (window.combatState) window.combatState.awaitingPlayerInput = true;
+        setCombatProcessing(false);
+        setCombatActionLock(false);
+        writeLog('[오류] 포션 사용 처리 중 문제가 발생했습니다. 다시 선택하세요.');
         updateUi();
         renderActions();
     }
@@ -1733,6 +2006,12 @@ Object.assign(window, {
     choosePlayerEnemyTarget,
     hasLivingEnemies,
     chooseEnemyPartyTarget,
+    getPartyActiveSkillFor,
+    canActorUseActiveSkill,
+    getActorMp,
+    getActorMaxMp,
+    getActorMpRegenAmount,
+    getActiveTauntTank,
     enemyTurn,
     winBattle,
     gameOver,

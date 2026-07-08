@@ -57,19 +57,7 @@ function getSlotClassDisplayName(slot) {
 let activeInventoryPartyRole = 'tank';
 let combatTargetSelectionState = null;
 
-function getBuildVersionLabel() {
-    const version = typeof GAME_VERSION !== 'undefined' ? GAME_VERSION : '베타 v3.9';
-    const updated = typeof LAST_UPDATE !== 'undefined' ? LAST_UPDATE : '2026-07-01 00:00';
-    return `${version} · ${updated}`;
-}
-
-function renderBuildVersionLabels() {
-    const label = getBuildVersionLabel();
-    ['game-version-label', 'start-version-label', 'battle-version-label'].forEach((id) => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = label;
-    });
-}
+// [UI 청소] 버전/타임스탬프 라벨 렌더링 제거됨 (구 getBuildVersionLabel / renderBuildVersionLabels)
 
 function getPartyRoleTabs() {
     return [
@@ -154,11 +142,27 @@ const renderEnemyIntentLaser = (sourceSide, targetSide, durationMs) => {
     return svg;
 };
 
-function buildLargeHpBarRow({ name, current, max, color, subText, dead }) {
+function buildLargeHpBarRow({ name, current, max, color, subText, dead, mpCurrent, mpMax, unitId, unitSide }) {
     const safeMax = Math.max(1, Math.floor(safeNum(max, 1)));
     const safeCur = Math.max(0, Math.floor(safeNum(current, 0)));
     const pct = Math.max(0, Math.min(100, (safeCur / safeMax) * 100));
-    return `<div style="margin:8px 0 10px;${dead ? 'opacity:0.5;' : ''}">
+    // [유닛 타격 연동] data-combat-unit-id로 개별 피격 VFX/셰이크 좌표를 추적한다.
+    const unitAttrs = unitId
+        ? ` data-combat-unit-id="${escapeHtml(String(unitId))}" data-combat-unit-side="${escapeHtml(String(unitSide || ''))}"`
+        : '';
+    // [MP 시스템] mpMax가 있으면 HP바 바로 밑에 파란 마나 게이지 + 수치를 렌더링한다.
+    const safeMpMax = Math.max(0, Math.floor(safeNum(mpMax, 0)));
+    const safeMpCur = Math.max(0, Math.min(safeMpMax, Math.floor(safeNum(mpCurrent, 0))));
+    const mpPct = safeMpMax > 0 ? Math.max(0, Math.min(100, (safeMpCur / safeMpMax) * 100)) : 0;
+    const mpHtml = safeMpMax > 0
+        ? `<div style="display:flex;align-items:center;gap:6px;margin:3px 0 0;">
+            <div class="mp-bar-outer" style="flex:1;">
+                <div class="mp-bar-inner" style="width:${mpPct}%;"></div>
+            </div>
+            <span style="font-size:0.7em;font-weight:900;color:#7fb3ff;white-space:nowrap;">MP ${safeMpCur} / ${safeMpMax}</span>
+        </div>`
+        : '';
+    return `<div class="combat-unit-row"${unitAttrs} style="margin:8px 0 10px;position:relative;${dead ? 'opacity:0.5;' : ''}">
         <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-end;margin:0 2px 4px;line-height:1.25;">
             <span style="font-size:0.86em;font-weight:900;color:${color};white-space:nowrap;">${escapeHtml(name)}</span>
             <span style="font-size:0.82em;font-weight:900;color:#fff;white-space:nowrap;">${safeCur} / ${safeMax}</span>
@@ -166,6 +170,7 @@ function buildLargeHpBarRow({ name, current, max, color, subText, dead }) {
         <div class="hp-bar-outer" style="margin:0;">
             <div class="hp-bar-inner" style="width:${pct}%;background:${color};"></div>
         </div>
+        ${mpHtml}
         ${subText ? `<div style="font-size:0.68em;color:#9aa4b2;line-height:1.35;margin:4px 2px 0;text-align:left;white-space:normal;">${subText}</div>` : ''}
     </div>`;
 }
@@ -192,6 +197,10 @@ function renderPartyHpBars() {
             color: '#2ed573',
             subText: sub,
             dead: safeNum(member.curHp, 0) <= 0,
+            mpCurrent: member.mp,
+            mpMax: member.maxMp,
+            unitId: member.id || member.roleKey,
+            unitSide: 'player',
         });
     }).join('');
     host.style.display = 'block';
@@ -213,7 +222,8 @@ function renderEnemyHpBars() {
     const members = getEnemyPartyMembers(enemy);
     host.innerHTML = members.map((member) => {
         const stats = member.stats || {};
-        const sub = `ATK ${safeNum(member.atk, 0)} · DEF ${safeNum(member.def, 0)} · 민${safeNum(stats.agi, 0)}`;
+        // [적 스탯 오버홀] 구형 ATK/DEF 표기 대신 아군과 동일 체계의 5대 스탯(지혜 제외)을 직관 표기
+        const sub = `힘${safeNum(stats.str, safeNum(member.atk, 0))} · 방${safeNum(stats.def, safeNum(member.def, 0))} · 체${safeNum(stats.hp, 0)} · 지${safeNum(stats.int, 0)} · 민${safeNum(stats.agi, 0)}`;
         return buildLargeHpBarRow({
             name: member.name,
             current: member.curHp,
@@ -221,6 +231,8 @@ function renderEnemyHpBars() {
             color: '#ff4757',
             subText: sub,
             dead: safeNum(member.curHp, 0) <= 0,
+            unitId: member.id || member.roleKey,
+            unitSide: 'enemy',
         });
     }).join('');
     host.style.display = 'block';
@@ -398,6 +410,7 @@ function getV35ActionFromButtonElement(element) {
     if (element.id === 'attack-btn' || element.id === 'btn-attack') return '공격';
     if (element.id === 'defense-btn' || element.id === 'btn-party-defend') return '방패방어';
     if (element.id === 'heal-btn' || element.id === 'btn-heal') return '힐';
+    if (element.id === 'skill-btn') return '스킬';
     return null;
 }
 
@@ -428,6 +441,7 @@ function rebindV35PrimaryActionButtons() {
         'btn-party-defend',
         'heal-btn',
         'btn-heal',
+        'skill-btn',
     ].forEach((id) => {
         const button = document.getElementById(id);
         const actionType = getV35ActionFromButtonElement(button);
@@ -437,7 +451,8 @@ function rebindV35PrimaryActionButtons() {
 
 function renderCombatTargetSelectionPanel(host, actionType, actor) {
     if (!host || !actor) return;
-    const isAttack = actionType === '공격';
+    // [액티브 스킬] 공격형 스킬(연속 베기/파이어 볼)도 적 대상 선택 패널을 공유한다.
+    const isAttack = actionType === '공격' || actionType === '스킬';
     const candidates = isAttack
         ? (typeof getLivingEnemyPartyMembers === 'function' ? getLivingEnemyPartyMembers(enemy) : [])
         : (typeof getLivingPartyMembers === 'function' ? getLivingPartyMembers(player) : []);
@@ -447,9 +462,12 @@ function renderCombatTargetSelectionPanel(host, actionType, actor) {
     panel.style.cssText = 'width:100%;margin-top:8px;padding:9px;background:#10141d;border:1px solid #293142;border-radius:8px;display:flex;flex-direction:column;gap:7px;text-align:left;';
     const title = document.createElement('div');
     title.style.cssText = 'color:#d8dee9;font-size:0.76em;font-weight:900;line-height:1.35;';
-    title.textContent = isAttack
-        ? `${actor.name || '파티원'}의 공격 대상 선택`
-        : `${actor.name || '마법사'}의 힐 대상 선택`;
+    const skillDef = actionType === '스킬' && typeof getPartyActiveSkillFor === 'function' ? getPartyActiveSkillFor(actor) : null;
+    title.textContent = actionType === '스킬'
+        ? `${actor.name || '파티원'}의 ${skillDef ? skillDef.name : '스킬'} 대상 선택`
+        : isAttack
+          ? `${actor.name || '파티원'}의 공격 대상 선택`
+          : `${actor.name || '마법사'}의 힐 대상 선택`;
     panel.appendChild(title);
 
     const row = document.createElement('div');
@@ -525,7 +543,9 @@ function renderActions() {
             <div style="width:100%;color:#ffb3b3;font-size:0.85em;font-weight:800;padding:8px 0;">${escapeHtml(turn.actor && turn.actor.name ? turn.actor.name : '적')} 행동 처리 중...</div>
             <button id="attack-btn" type="button" data-v35-action="공격" disabled style="background:#444;opacity:0.45;cursor:not-allowed;">⚔️ 공격</button>
             <button id="defense-btn" type="button" data-v35-action="방패방어" disabled style="background:#444;opacity:0.45;cursor:not-allowed;">🛡️ 파티 방어</button>
-            <button id="heal-btn" type="button" data-v35-action="힐" data-v35-heal="1" disabled style="background:#444;opacity:0.45;cursor:not-allowed;">✨ 힐</button>`;
+            <button id="heal-btn" type="button" data-v35-action="힐" data-v35-heal="1" disabled style="background:#444;opacity:0.45;cursor:not-allowed;">✨ 힐</button>
+            <button id="skill-btn" type="button" data-v35-action="스킬" disabled style="background:#444;opacity:0.45;cursor:not-allowed;">✴️ 특수 스킬</button>
+            <button id="potion-btn" type="button" disabled style="background:#444;opacity:0.45;cursor:not-allowed;">🧪 포션 사용 (${Math.max(0, safeNum(player && player.potions, 0))}개)</button>`;
         if (typeof updateCombatButtonsLockState === 'function') updateCombatButtonsLockState();
         return;
     }
@@ -589,6 +609,49 @@ function renderActions() {
         !canHeal,
         canHeal ? `${actorName}의 지혜 기반 단일 대상 치유 (파티원/자신 선택 가능)` : '마법사의 턴에 회복할 아군이 있을 때만 사용할 수 있습니다.'
     );
+    // [직업별 특수 스킬] 마나가 충분할 때만 활성화되는 액티브 스킬 버튼
+    const activeSkill = typeof getPartyActiveSkillFor === 'function' ? getPartyActiveSkillFor(actor) : null;
+    if (activeSkill) {
+        const actorMp = typeof getActorMp === 'function' ? getActorMp(actor) : Math.max(0, safeNum(actor.mp, 0));
+        const hasEnoughMp = actorMp >= activeSkill.mpCost;
+        makeBtn(
+            'skill-btn',
+            `${activeSkill.name} (MP ${activeSkill.mpCost})`,
+            '스킬',
+            hasEnoughMp ? '#5f27cd' : '#333',
+            !hasEnoughMp,
+            hasEnoughMp
+                ? `${activeSkill.description} — 현재 ${actorMp} MP`
+                : `마나가 부족합니다. (현재 ${actorMp} / 필요 ${activeSkill.mpCost} MP)`
+        );
+    }
+    // [포션 사용] 잔여 개수를 실시간 표기하고, 0개이거나 액션 락 중에는 비활성화되는 긴급 회복 커맨드
+    const potionCount = Math.max(0, safeNum(player.potions, 0));
+    const potionBtn = document.createElement('button');
+    potionBtn.id = 'potion-btn';
+    potionBtn.type = 'button';
+    potionBtn.innerText = `🧪 포션 사용 (${potionCount}개)`;
+    potionBtn.style.background = potionCount > 0 ? '#0a7e64' : '#333';
+    potionBtn.style.position = 'relative';
+    potionBtn.style.zIndex = '1000';
+    potionBtn.style.pointerEvents = 'auto';
+    potionBtn.title = potionCount > 0
+        ? `HP 비율이 가장 낮은 아군 1명을 자동 타겟팅해 최대 체력의 40%를 즉시 회복 (남은 포션 ${potionCount}개)`
+        : '소지한 포션이 없습니다.';
+    if (potionCount <= 0) {
+        potionBtn.dataset.v35Disabled = '1';
+        potionBtn.disabled = true;
+        potionBtn.style.opacity = '0.45';
+        potionBtn.style.cursor = 'not-allowed';
+    }
+    potionBtn.onclick = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+        if (potionBtn.disabled || potionBtn.dataset.v35Disabled === '1') return;
+        if (typeof window.useCombatPotion === 'function') window.useCombatPotion();
+    };
+    div.appendChild(potionBtn);
     clearCombatTargetSelection();
     rebindV35PrimaryActionButtons();
     if (typeof updateCombatButtonsLockState === 'function') updateCombatButtonsLockState();
@@ -619,7 +682,6 @@ function renderPassiveContractHistoryPanels() {
 }
 
 function updateUi() {
-    renderBuildVersionLabels();
     if (!player) return;
     syncV35PlayerStatDisplay();
     if (!enemy) {
@@ -671,7 +733,6 @@ function updateUi() {
     const mercUi = isMercenaryCaptainJob() && player.fieldMerc && player.fieldMerc.mercHp > 0;
     const fm = player.fieldMerc;
     const summLine = document.getElementById('p-summon-line');
-    const critMultEl = document.getElementById('p-crit-mult-val');
     if (mercUi) {
         const mMax = Math.max(1, safeNum(fm.mercMaxHp, 1));
         const mCur = Math.max(0, safeNum(fm.mercHp, 0));
@@ -681,15 +742,7 @@ function updateUi() {
         if (summLine) {
             summLine.innerHTML = `<span style="color:#e67e22;">🎖️ 후열 · 지휘</span> <b>${escapeHtml(getPlayerClassDisplayName())}</b> <span style="color:#888;">| HP ${pCur}/${pMax} · 악성 ${Math.round(getMercGachaBadChance() * 100)}% · 지원 ${getMercGachaCost()}G</span>`;
         }
-        document.getElementById('p-atk-val').textContent = String(getMercEffectiveAttackPower());
-        document.getElementById('p-def-val').textContent = String(safeNum(fm.mercBonusDef, 0));
-        document.getElementById('p-crit-val').textContent = `${Math.round(getMercEffectiveCritForMercAttack())}%`;
-        const ecmM = getMercEffectiveCritMultForMercAttack();
-        if (critMultEl) critMultEl.textContent = `${(Number.isFinite(ecmM) ? ecmM : 1.8).toFixed(2)}x`;
-        const lsMain = document.getElementById('p-lifesteal-val');
-        const lsNote = document.getElementById('p-lifesteal-note');
-        if (lsMain) lsMain.textContent = `${Math.round(safeNum(fm.mercBonusLifesteal, 0) * 100)}%`;
-        if (lsNote) lsNote.textContent = '용병 장비 흡혈 (전열)';
+        // [UI 청소] 구형 합산 스탯 바(ATK/DEF/CRIT/흡혈) 레이아웃 제거로 관련 렌더링 삭제됨
     } else {
         const isPartyRun = Array.isArray(player.party);
         document.getElementById('p-name').innerText = isPartyRun ? '성혼 원정대 · 3인 파티' : getPlayerClassDisplayName();
@@ -718,24 +771,8 @@ function updateUi() {
                 summLine.innerHTML = `<span style="color:#888;font-size:0.85em;"><b>${escapeHtml(getPlayerClassDisplayName())}</b>${lvTxt} · <span style="color:#f1c40f;">✨ 신성력 ${dp}/${DIVINE_POWER_MAX}</span> · 획득×${gm.toFixed(2)} · ${st}${synHint}</span>${synStatus}`;
             } else summLine.innerHTML = `<span style="color:#888;font-size:0.85em;"><b>${escapeHtml(getPlayerClassDisplayName())}</b>${lvTxt}${synHint}</span>${synStatus}`;
         }
-        document.getElementById('p-atk-val').textContent = String(getEffectiveAttackPower());
-        document.getElementById('p-def-val').textContent = String(getTotalPlayerDefenseForHit());
-        const critInfo = getCritInfo();
-        document.getElementById('p-crit-val').textContent = `${Math.round(safeNum(critInfo.effectiveCrit, 0))}%`;
-        const ecm = getEffectiveCritMult();
-        if (critMultEl) critMultEl.textContent = `${(Number.isFinite(ecm) ? ecm : 1.8).toFixed(2)}x`;
-        const lsOv = getLifestealOverflowAtk();
-        const lsMain = document.getElementById('p-lifesteal-val');
-        const lsNote = document.getElementById('p-lifesteal-note');
-        if (lsMain) lsMain.textContent = `${Math.round(safeNum(getLifestealEffective(), 0) * 100)}%`;
-        if (lsNote) lsNote.textContent = lsOv > 0 ? `흡혈 초과분 → 공격력 +${lsOv}` : '';
-        const statTag = document.querySelector('#player-card .stat-tag');
-        if (statTag && isPartyRun) {
-            statTag.style.fontSize = '0.72em';
-            statTag.style.lineHeight = '1.45';
-            statTag.style.marginTop = '6px';
-            statTag.style.whiteSpace = 'normal';
-        }
+        // [UI 청소] 구형 합산 스탯 바(ATK/DEF/CRIT/흡혈) 레이아웃 제거로 관련 렌더링 삭제됨.
+        // 개별 파티원 스탯은 renderPartyHpBars의 분할 게이지 서브라인에만 표시된다.
     }
     renderPartyHpBars();
     renderTurnIndicator();
@@ -2397,7 +2434,6 @@ function showPreGameScreen() {
     document.getElementById('start-area').innerHTML = `
         <div style="text-align:center; margin-bottom:16px;">
             <h2 style="color:#f1c40f; margin-bottom:5px;">⚔️ 프로젝트 성혼</h2>
-            <p id="start-version-label" style="color:#9b59b6;font-size:0.88em;margin:0 0 8px;font-weight:700;">${getBuildVersionLabel()}</p>
             ${saveFileBar}
             <p style="color:#888; font-size:0.85em;">3인 파티 · 100층 미궁 · 6-1 이후 복귀 불가</p>
         </div>
@@ -2415,7 +2451,6 @@ function showPreGameScreen() {
             '</span></p>';
     }
     ensureHubCreateEntryRendered();
-    renderBuildVersionLabels();
 }
 
 window.resumeMetaSlot = (slotId) => {
@@ -4360,8 +4395,6 @@ window.onclick=function(event){
     if(event.target===document.getElementById('evolution-modal'))toggleEvolutionMap(false);
     if(event.target===document.getElementById('guide-modal'))toggleGuide(false);
 };
-
-renderBuildVersionLabels();
 
 // stage 1 split: moved to js/uiManager.js
 

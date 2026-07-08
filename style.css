@@ -1532,3 +1532,187 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
         width: 100% !important;
     }
 }
+
+/* ===================== [MP 시스템] 파란 마나 게이지바 ===================== */
+.mp-bar-outer {
+    width: 100%;
+    background: #101a2c;
+    height: 9px;
+    border-radius: 5px;
+    border: 1px solid #24406b;
+    overflow: hidden;
+}
+.mp-bar-inner {
+    height: 100%;
+    background: linear-gradient(90deg, #1e6fd9, #4dabff);
+    border-radius: 4px;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 6px rgba(77, 171, 255, 0.55);
+}
+
+/* ============ [유닛 단위 타격 연출] 피격 대상 카드(행) 국소 VFX ============ */
+.combat-unit-row {
+    position: relative;
+    border-radius: 8px;
+    will-change: transform;
+}
+.unit-combat-vfx {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    overflow: visible;
+    z-index: 1320;
+}
+@keyframes unitHitShake {
+    0% { transform: translate(0, 0); }
+    15% { transform: translate(-7px, 2px) rotate(-0.9deg); }
+    30% { transform: translate(6px, -3px) rotate(0.8deg); }
+    45% { transform: translate(-5px, 2px) rotate(-0.5deg); }
+    60% { transform: translate(4px, -1px); }
+    78% { transform: translate(-2px, 1px); }
+    100% { transform: translate(0, 0); }
+}
+.unit-hit-shake {
+    animation: unitHitShake 0.34s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+@keyframes unitHitShakeHeavy {
+    0% { transform: translate(0, 0) scale(1); }
+    12% { transform: translate(-11px, 5px) rotate(-1.7deg) scale(1.02); }
+    26% { transform: translate(10px, -6px) rotate(1.5deg) scale(1.02); }
+    42% { transform: translate(-8px, 4px) rotate(-1deg); }
+    58% { transform: translate(6px, -3px) rotate(0.7deg); }
+    76% { transform: translate(-3px, 2px); }
+    100% { transform: translate(0, 0) scale(1); }
+}
+.unit-hit-shake-heavy {
+    animation: unitHitShakeHeavy 0.42s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+@keyframes unitHitFlashCore {
+    0% { opacity: 0; transform: scale(0.55); }
+    22% { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.3); }
+}
+.unit-hit-flash-physical::before {
+    content: "";
+    position: absolute;
+    width: 72%;
+    height: 84%;
+    left: 14%;
+    top: 8%;
+    background: radial-gradient(ellipse at center, rgba(255, 242, 205, 0.95) 0%, rgba(255, 172, 62, 0.6) 38%, rgba(255, 122, 42, 0) 72%);
+    animation: unitHitFlashCore 0.5s ease-out both;
+}
+@keyframes unitHitSlashSweep {
+    0% { opacity: 0; transform: rotate(-24deg) scaleX(0.2); }
+    30% { opacity: 1; transform: rotate(-24deg) scaleX(1); }
+    100% { opacity: 0; transform: rotate(-24deg) scaleX(1.18); }
+}
+.unit-hit-flash-physical::after {
+    content: "";
+    position: absolute;
+    width: 88%;
+    height: 4px;
+    left: 6%;
+    top: 50%;
+    background: linear-gradient(90deg, transparent, #fff8e1 30%, #ffd166 55%, transparent);
+    box-shadow: 0 0 14px rgba(255, 210, 120, 0.9);
+    animation: unitHitSlashSweep 0.5s ease-out both;
+}
+.unit-hit-flash-magic::before {
+    content: "";
+    position: absolute;
+    width: 76%;
+    height: 88%;
+    left: 12%;
+    top: 6%;
+    background: radial-gradient(ellipse at center, rgba(238, 224, 255, 0.95) 0%, rgba(168, 110, 255, 0.62) 40%, rgba(120, 70, 220, 0) 74%);
+    animation: unitHitFlashCore 0.56s ease-out both;
+}
+@keyframes unitMagicRing {
+    0% { opacity: 0; transform: scale(0.4); }
+    30% { opacity: 1; }
+    100% { opacity: 0; transform: scale(1.5); }
+}
+.unit-hit-flash-magic::after {
+    content: "";
+    position: absolute;
+    width: 58%;
+    height: 74%;
+    left: 21%;
+    top: 13%;
+    border: 2px solid rgba(190, 140, 255, 0.85);
+    border-radius: 50%;
+    box-shadow: 0 0 18px rgba(168, 110, 255, 0.8), inset 0 0 12px rgba(168, 110, 255, 0.5);
+    animation: unitMagicRing 0.56s ease-out both;
+}
+@keyframes unitDmgFloat {
+    0% { opacity: 0; transform: translateY(7px) scale(0.8); }
+    20% { opacity: 1; transform: translateY(-2px) scale(1.1); }
+    100% { opacity: 0; transform: translateY(-28px) scale(1); }
+}
+.unit-damage-number {
+    font-family: Inter, Pretendard, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 1.24rem;
+    font-weight: 950;
+    line-height: 1;
+    color: #fff2cf;
+    text-shadow: 0 0 9px rgba(255, 232, 168, 0.9), 0 0 22px rgba(255, 150, 44, 0.7), 0 2px 0 rgba(0, 0, 0, 0.66);
+    animation: unitDmgFloat 0.82s cubic-bezier(0.15, 0.86, 0.28, 1) both;
+}
+.unit-damage-number-crit {
+    font-size: 1.62rem;
+    color: #fff8dc;
+    text-shadow: 0 0 11px rgba(255, 255, 255, 0.95), 0 0 26px rgba(255, 196, 66, 0.94), 0 0 46px rgba(255, 0, 85, 0.7);
+}
+.unit-miss-number {
+    font-family: Inter, Pretendard, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 0.98rem;
+    font-weight: 900;
+    color: #aeb8c8;
+    text-shadow: 0 0 12px rgba(175, 189, 210, 0.58), 0 1px 0 rgba(0, 0, 0, 0.74);
+    animation: unitDmgFloat 0.76s ease-out both;
+}
+
+/* ============ [파이어 볼] 보라/붉은색 대형 폭발 파티클 ============ */
+@keyframes unitFireballCore {
+    0% { opacity: 0; transform: scale(0.3); }
+    22% { opacity: 1; transform: scale(1.12); }
+    100% { opacity: 0; transform: scale(1.65); }
+}
+.unit-fireball-burst::before {
+    content: "";
+    position: absolute;
+    width: 82%;
+    height: 96%;
+    left: 9%;
+    top: 2%;
+    background: radial-gradient(circle at center, rgba(255, 235, 205, 0.95) 0%, rgba(255, 92, 60, 0.78) 30%, rgba(176, 60, 255, 0.58) 58%, rgba(120, 40, 200, 0) 78%);
+    filter: saturate(1.35);
+    animation: unitFireballCore 0.9s ease-out both;
+}
+.unit-fireball-burst i {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    opacity: 0;
+    animation: unitFireballParticle 0.92s ease-out both;
+    animation-delay: var(--fdelay, 0s);
+}
+.unit-fireball-burst i[data-tone="violet"] {
+    background: #b06cff;
+    box-shadow: 0 0 10px #b06cff, 0 0 20px rgba(176, 108, 255, 0.6);
+}
+.unit-fireball-burst i[data-tone="crimson"] {
+    background: #ff5252;
+    box-shadow: 0 0 10px #ff6b6b, 0 0 20px rgba(255, 82, 82, 0.6);
+}
+@keyframes unitFireballParticle {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
+    15% { opacity: 1; }
+    100% { opacity: 0; transform: translate(calc(-50% + var(--fx, 0px)), calc(-50% + var(--fy, 0px))) scale(var(--fscale, 1)); }
+}

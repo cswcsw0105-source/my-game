@@ -17,6 +17,9 @@ function ensurePartyMemberRuntimeShape(member) {
     member.maxHp = Math.max(1, safeNum(member.maxHp, getMaxHpFromStat(member.stats.hp)));
     member.curHp = Math.min(member.maxHp, Math.max(0, safeNum(member.curHp, member.hp == null ? member.maxHp : member.hp)));
     member.hp = member.maxHp;
+    // [MP 시스템] 직업별 최대 마나(탱커 40 / 기사 50 / 마법사 100)와 현재 마나를 보정한다.
+    member.maxMp = Math.max(0, safeNum(member.maxMp, typeof getRoleBaseMaxMp === 'function' ? getRoleBaseMaxMp(role.key) : 50));
+    member.mp = Math.min(member.maxMp, Math.max(0, safeNum(member.mp, member.maxMp)));
     member.atk = Math.max(1, safeNum(member.atk, member.stats.str));
     member.def = Math.max(0, safeNum(member.def, member.stats.def));
     member.int = member.stats.int;

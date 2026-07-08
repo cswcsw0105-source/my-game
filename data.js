@@ -16,6 +16,12 @@ const PARTY_ROLE_DEFINITIONS = Object.freeze({
     mage: Object.freeze({ key: 'mage', name: '마법사', aggroWeight: 1, archetype: 'mage' }),
     knight: Object.freeze({ key: 'knight', name: '기사', aggroWeight: 2.5, archetype: 'warrior' }),
 });
+// [MP 시스템] 직업별 기본 최대 마나. 액티브 스킬 자원으로 사용한다.
+const PARTY_ROLE_BASE_MAX_MP = Object.freeze({ tank: 40, knight: 50, mage: 100 });
+
+function getRoleBaseMaxMp(roleKey) {
+    return PARTY_ROLE_BASE_MAX_MP[roleKey] || 50;
+}
 const MAX_DUNGEON_FLOOR = 100;
 const STAGES_PER_FLOOR = 10;
 const LAST_SAFE_RETURN_FLOOR = 5;
@@ -222,6 +228,7 @@ function normalizePartyMember(raw, roleKey) {
     const source = raw || {};
     const stats = normalizeHumanStats(source.stats || source);
     const maxHp = Math.max(1, safeNumber(source.maxHp, getMaxHpFromStat(stats.hp)));
+    const maxMp = Math.max(0, safeNumber(source.maxMp, getRoleBaseMaxMp(role.key)));
     return {
         id: source.id || `${role.key}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
         roleKey: role.key,
@@ -231,6 +238,8 @@ function normalizePartyMember(raw, roleKey) {
         stats,
         hp: clamp(source.hp == null ? maxHp : source.hp, 0, maxHp),
         maxHp,
+        mp: clamp(source.mp == null ? maxMp : source.mp, 0, maxMp),
+        maxMp,
         equipment: JSON.parse(JSON.stringify(source.equipment || { weapon: null, armor: null, accessories: [] })),
         magic: Array.isArray(source.magic) ? source.magic.slice() : role.key === 'mage' ? ['fire', 'heal'] : [],
         mastery: source.mastery && typeof source.mastery === 'object' ? JSON.parse(JSON.stringify(source.mastery)) : {},
@@ -606,6 +615,8 @@ if (typeof module !== 'undefined' && module.exports) {
         normalizeAdventurerParty,
         createAdventurerParty,
         getMaxHpFromStat,
+        PARTY_ROLE_BASE_MAX_MP,
+        getRoleBaseMaxMp,
         createHumanAdventurer,
         createDungeonProgress,
         normalizeDungeonProgress,

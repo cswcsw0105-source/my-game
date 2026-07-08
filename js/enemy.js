@@ -76,14 +76,29 @@ function getEnemyPartySize(progress, isBoss) {
     return 1 + Math.floor(Math.random() * 3);
 }
 
+// [적 스탯 오버홀] 층수 난이도 스케일 안에서 스탯이 지극히 랜덤하게 균형을 맞추도록 하는 지터(0.85~1.15배)
+function rollEnemyStatJitter() {
+    return 0.85 + Math.random() * 0.3;
+}
+
 function createEnemyPartyMember(progress, roleKey, index, isBoss) {
     const current = normalizeDungeonProgress(progress);
     const base = buildEnemyStatsForFloor(current.floor, isBoss, current.stage);
     const role = ENEMY_PARTY_ROLE_DEFS[roleKey] || ENEMY_PARTY_ROLE_DEFS.knight;
     const earlyNormalNerf = !isBoss && current.floor >= 1 && current.floor <= 5 ? EARLY_NORMAL_ENEMY_STAT_MULT : 1;
-    const maxHp = Math.max(1, Math.floor(base.hp * role.hpMult * earlyNormalNerf));
-    const atk = Math.max(1, Math.floor(base.atk * role.atkMult * earlyNormalNerf));
-    const def = Math.max(0, Math.floor(base.def * role.defMult));
+    // [적 스탯 오버홀] 아군과 동일 체계의 5대 스탯 [힘/방어/체력/지능/민첩]을
+    // 층수 스케일링 기반으로 랜덤 생성한다. (★마법 계열 '지혜' 스탯은 적 데이터에서 완전히 제외)
+    const strStat = Math.max(1, Math.round(base.atk * role.atkMult * earlyNormalNerf * rollEnemyStatJitter()));
+    const defStat = Math.max(1, Math.round(Math.max(1, base.def) * role.defMult * rollEnemyStatJitter()));
+    const hpStat = Math.max(1, Math.round(Math.max(1, base.hpStat) * role.hpMult * rollEnemyStatJitter()));
+    const intStat = Math.max(1, Math.round((role.key === 'mage' ? base.int + 8 : base.int) * rollEnemyStatJitter()));
+    const agiStat = Math.max(1, Math.round((role.key === 'tank' ? Math.max(1, base.agi - 4) : base.agi) * rollEnemyStatJitter()));
+    // 최대 HP는 생성된 [체력] 스탯과 정비례한다. (층수 스케일 HP 총량을 체력 1포인트당 가치로 환산)
+    const hpPerPoint = (base.hp * earlyNormalNerf) / Math.max(1, base.hpStat);
+    const maxHp = Math.max(1, Math.floor(hpStat * hpPerPoint));
+    // 전투 수식 연동: 물리 대미지는 힘, 피격 방어는 방어, 명중/회피는 민첩 스탯이 런타임 값의 원천이다.
+    const atk = strStat;
+    const def = defStat;
     return {
         id: `enemy-${current.floor}-${current.stage}-${index}-${Date.now().toString(36)}`,
         name: `${role.name} ${index + 1}`,
@@ -98,12 +113,11 @@ function createEnemyPartyMember(progress, roleKey, index, isBoss) {
         atk,
         def,
         stats: {
-            str: Math.min(100, Math.max(1, atk)),
-            def: Math.min(100, Math.max(1, def)),
-            hp: base.hpStat,
-            int: role.key === 'mage' ? base.int + 8 : base.int,
-            wis: role.key === 'mage' ? base.wis + 10 : base.wis,
-            agi: role.key === 'tank' ? Math.max(1, base.agi - 4) : base.agi,
+            str: Math.min(100, strStat),
+            def: Math.min(100, defStat),
+            hp: Math.min(100, hpStat),
+            int: Math.min(100, intStat),
+            agi: Math.min(100, agiStat),
             divinity: 0,
             distortion: Math.min(100, current.floor),
         },

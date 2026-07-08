@@ -259,8 +259,129 @@ function inferV35WeaponKind(actor) {
     return 'sword';
 }
 
+// ===== [유닛 단위 타격 연출] 피격당하는 '정확한 대상 캐릭터의 카드(행)' 좌표를 추적해 VFX를 재생한다 =====
+function getCombatUnitRowElement(actor) {
+    if (!actor) return null;
+    const unitId = String(actor.id || actor.roleKey || actor.name || '');
+    if (!unitId) return null;
+    try {
+        const selectorId = (typeof CSS !== 'undefined' && CSS.escape) ? CSS.escape(unitId) : unitId.replace(/"/g, '\\"');
+        return document.querySelector(`[data-combat-unit-id="${selectorId}"]`);
+    } catch (err) {
+        return null;
+    }
+}
+
+function getActorVfxSide(actor) {
+    const playerSide = (typeof player !== 'undefined' && actor === player) ||
+        (typeof isPartyMember === 'function' && isPartyMember(actor));
+    return playerSide ? 'player' : 'enemy';
+}
+
+// 대상 유닛 행의 화면 좌표를 계산해 combat-fx-layer 위에 오버레이를 띄운다.
+// 행(innerHTML)이 매 프레임 재렌더링되어도 오버레이가 살아남도록 fx 레이어에 부착한다.
+const spawnUnitVfx = (actor, className, opts) => {
+    const row = getCombatUnitRowElement(actor);
+    if (!row) return spawnCardVfx(getActorVfxSide(actor), className, opts);
+    const layer = ensureCombatFxLayer();
+    const battleArea = document.getElementById('battle-area');
+    const options = opts || {};
+    const element = document.createElement('div');
+    element.className = `premium-combat-vfx unit-combat-vfx ${className}`;
+    if (options.text != null) element.textContent = String(options.text);
+    if (options.vars) {
+        Object.keys(options.vars).forEach((key) => element.style.setProperty(key, options.vars[key]));
+    }
+    if (layer && battleArea) {
+        const rowRect = row.getBoundingClientRect();
+        const battleRect = battleArea.getBoundingClientRect();
+        element.style.left = `${Math.round(rowRect.left - battleRect.left)}px`;
+        element.style.top = `${Math.round(rowRect.top - battleRect.top)}px`;
+        element.style.width = `${Math.round(rowRect.width)}px`;
+        element.style.height = `${Math.round(rowRect.height)}px`;
+        element.style.inset = 'auto';
+        layer.appendChild(element);
+    } else {
+        row.appendChild(element);
+    }
+    scheduleVfxRemoval(element, options.durationMs || PREMIUM_VFX_DEFAULT_MS);
+    return element;
+};
+
+const pulseCombatUnitClass = (actor, className, durationMs) => {
+    const row = getCombatUnitRowElement(actor);
+    if (!row || !className) {
+        pulseCombatCardClass(getActorVfxSide(actor), className, durationMs);
+        return;
+    }
+    row.classList.remove(className);
+    void row.offsetWidth;
+    row.classList.add(className);
+    setTimeout(() => row.classList.remove(className), Math.max(120, Number(durationMs) || 240));
+};
+
+// [국소 셰이크] 파티 전체가 아니라 피가 깎인 '그 캐릭터의 카드만' 쿵 하고 흔들린다.
+// 행동 직후 updateUi가 행을 재생성할 수 있어, 다음 틱에 id로 행을 재탐색해 흔든다.
+function triggerUnitHitShake(actor, heavy) {
+    setTimeout(() => {
+        const row = getCombatUnitRowElement(actor);
+        if (!row) {
+            triggerModernCardImpact(getActorVfxSide(actor), heavy ? 'heavy' : 'light');
+            return;
+        }
+        const className = heavy ? 'unit-hit-shake-heavy' : 'unit-hit-shake';
+        row.classList.remove('unit-hit-shake');
+        row.classList.remove('unit-hit-shake-heavy');
+        void row.offsetWidth;
+        row.classList.add(className);
+        setTimeout(() => row.classList.remove(className), heavy ? 460 : 380);
+    }, 40);
+}
+
+// 피격 대상 카드 전면 중앙에 번쩍이는 물리/마법 피격 플래시 오버레이
+function playUnitHitFlashVfx(target, attackKind) {
+    const className = attackKind === 'magic' ? 'unit-hit-flash-magic' : 'unit-hit-flash-physical';
+    return Promise.resolve(spawnUnitVfx(target, className, { durationMs: 620 }));
+}
+
+function showUnitDmgFloat(target, dmg, isCrit) {
+    const value = Math.max(0, Math.floor(Number(dmg) || 0));
+    spawnUnitVfx(target, `unit-damage-number ${isCrit ? 'unit-damage-number-crit' : ''}`, {
+        text: isCrit ? `CRIT ${value}` : String(value),
+        durationMs: isCrit ? 1020 : 820,
+    });
+}
+
+function showUnitMissFloat(target) {
+    spawnUnitVfx(target, 'unit-miss-number', { text: 'MISS', durationMs: 760 });
+}
+
+// [파이어 볼] 타겟 카드 전면의 보라/붉은색 대형 폭발 파티클
+function playFireballExplosionVfx(target) {
+    const burst = spawnUnitVfx(target, 'unit-fireball-burst', { durationMs: 1040 });
+    if (burst) {
+        for (let i = 0; i < 22; i += 1) {
+            const particle = document.createElement('i');
+            const angle = Math.random() * Math.PI * 2;
+            const distance = 34 + Math.random() * 78;
+            particle.style.setProperty('--fx', `${Math.round(Math.cos(angle) * distance)}px`);
+            particle.style.setProperty('--fy', `${Math.round(Math.sin(angle) * distance)}px`);
+            particle.style.setProperty('--fscale', `${(0.6 + Math.random() * 1.15).toFixed(2)}`);
+            particle.style.setProperty('--fdelay', `${(Math.random() * 0.15).toFixed(3)}s`);
+            particle.dataset.tone = Math.random() < 0.5 ? 'violet' : 'crimson';
+            burst.appendChild(particle);
+        }
+    }
+    triggerUnitHitShake(target, true);
+    return Promise.resolve(burst);
+}
+
 function playV35AttackVfx(attackerSide, actor, attackKind, target) {
     const targetSide = target && (typeof isPartyMember === 'function' && isPartyMember(target)) ? 'player' : attackerSide === 'player' ? 'enemy' : 'player';
+    // 대상 유닛 행이 있으면 파티 전체가 아닌 '정확한 피격 대상 카드'에만 타격 플래시를 띄운다.
+    if (target && getCombatUnitRowElement(target)) {
+        return playUnitHitFlashVfx(target, attackKind === 'magic_attack' ? 'magic' : 'physical');
+    }
     if (attackKind === 'magic_attack') return playMagicBlastVfx(targetSide);
     const weaponKind = inferV35WeaponKind(actor);
     return playPhysicalSlashVfx(targetSide, weaponKind === 'hammer' || weaponKind === 'greatScythe' ? 'heavy' : 'light');
@@ -298,3 +419,11 @@ window.playJobAttackVfx = playJobAttackVfx;
 window.inferV35WeaponKind = inferV35WeaponKind;
 window.playV35AttackVfx = playV35AttackVfx;
 window.consumeHunterEvasionMissPenalty = consumeHunterEvasionMissPenalty;
+window.getCombatUnitRowElement = getCombatUnitRowElement;
+window.spawnUnitVfx = spawnUnitVfx;
+window.pulseCombatUnitClass = pulseCombatUnitClass;
+window.triggerUnitHitShake = triggerUnitHitShake;
+window.playUnitHitFlashVfx = playUnitHitFlashVfx;
+window.showUnitDmgFloat = showUnitDmgFloat;
+window.showUnitMissFloat = showUnitMissFloat;
+window.playFireballExplosionVfx = playFireballExplosionVfx;
