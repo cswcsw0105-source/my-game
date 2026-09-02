@@ -201,6 +201,14 @@ function createDepthMonster(progress) {
     // 방어적 하한선: 어떤 경로로도 적 파티가 비어 무전투 승리가 나지 않도록 최소 1명을 보장한다.
     if (!Array.isArray(roles) || roles.length === 0) roles = ['knight'];
     const party = roles.map((roleKey, index) => createEnemyPartyMember(current, roleKey, index, isBoss));
+    // [스폰 HP 강제 주입] 5대 스탯 기반 maxHp가 계산된 직후, 모든 파티원을 만피 상태로 못박아 0 HP 스폰을 원천 차단한다.
+    party.forEach((member) => {
+        if (!member) return;
+        const memberMaxHp = Math.max(1, Math.floor(safeNum(member.maxHp, member.hp || 1)));
+        member.maxHp = memberMaxHp;
+        member.hp = memberMaxHp;
+        member.curHp = memberMaxHp;
+    });
     const container = {
         id: `enemy-party-${current.floor}-${current.stage}-${Date.now().toString(36)}`,
         name: isBoss ? `👑 ${current.floor}-${current.stage}층 적 파티` : `${current.floor}-${current.stage}층 적 파티`,
@@ -222,6 +230,23 @@ function spawnEnemy() {
     dungeonStage = progress.stage;
     const ghost = typeof MetaRPG !== 'undefined' ? MetaRPG.getGhostEncounter(progress) : null;
     enemy = ghost ? ghostToEnemy(ghost) : createDepthMonster(progress);
+    // [스폰 HP 강제 주입] 컨테이너/망령을 포함한 모든 적 개체가 maxHp 계산 직후 만피로 스폰되도록 강제한다.
+    if (enemy) {
+        if (Array.isArray(enemy.party) && enemy.party.length) {
+            enemy.party.forEach((member) => {
+                if (!member) return;
+                const memberMaxHp = Math.max(1, Math.floor(safeNum(member.maxHp, member.hp || 1)));
+                member.maxHp = memberMaxHp;
+                member.hp = memberMaxHp;
+                member.curHp = memberMaxHp;
+            });
+            if (typeof syncEnemyPartyAggregateState === 'function') syncEnemyPartyAggregateState(enemy);
+        }
+        const enemyMaxHp = Math.max(1, Math.floor(safeNum(enemy.maxHp, enemy.hp || 1)));
+        enemy.maxHp = enemyMaxHp;
+        enemy.hp = enemyMaxHp;
+        if (!(safeNum(enemy.curHp, 0) > 0)) enemy.curHp = enemyMaxHp;
+    }
     // [무전투 보상 차단] 스폰 순간 살아있는 적 수를 기록해 두고, 실제 전투가 성립한 경우에만 보상을 허용한다.
     const spawnLivingEnemies = typeof getLivingEnemyPartyMembers === 'function'
         ? getLivingEnemyPartyMembers(enemy)

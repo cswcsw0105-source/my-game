@@ -12352,6 +12352,14 @@ function createDepthMonster(progress) {
     // 방어적 하한선: 어떤 경로로도 적 파티가 비어 무전투 승리가 나지 않도록 최소 1명을 보장한다.
     if (!Array.isArray(roles) || roles.length === 0) roles = ['knight'];
     const party = roles.map((roleKey, index) => createEnemyPartyMember(current, roleKey, index, isBoss));
+    // [스폰 HP 강제 주입] 5대 스탯 기반 maxHp가 계산된 직후, 모든 파티원을 만피 상태로 못박아 0 HP 스폰을 원천 차단한다.
+    party.forEach((member) => {
+        if (!member) return;
+        const memberMaxHp = Math.max(1, Math.floor(safeNum(member.maxHp, member.hp || 1)));
+        member.maxHp = memberMaxHp;
+        member.hp = memberMaxHp;
+        member.curHp = memberMaxHp;
+    });
     const container = {
         id: `enemy-party-${current.floor}-${current.stage}-${Date.now().toString(36)}`,
         name: isBoss ? `👑 ${current.floor}-${current.stage}층 적 파티` : `${current.floor}-${current.stage}층 적 파티`,
@@ -12373,6 +12381,23 @@ function spawnEnemy() {
     dungeonStage = progress.stage;
     const ghost = typeof MetaRPG !== 'undefined' ? MetaRPG.getGhostEncounter(progress) : null;
     enemy = ghost ? ghostToEnemy(ghost) : createDepthMonster(progress);
+    // [스폰 HP 강제 주입] 컨테이너/망령을 포함한 모든 적 개체가 maxHp 계산 직후 만피로 스폰되도록 강제한다.
+    if (enemy) {
+        if (Array.isArray(enemy.party) && enemy.party.length) {
+            enemy.party.forEach((member) => {
+                if (!member) return;
+                const memberMaxHp = Math.max(1, Math.floor(safeNum(member.maxHp, member.hp || 1)));
+                member.maxHp = memberMaxHp;
+                member.hp = memberMaxHp;
+                member.curHp = memberMaxHp;
+            });
+            if (typeof syncEnemyPartyAggregateState === 'function') syncEnemyPartyAggregateState(enemy);
+        }
+        const enemyMaxHp = Math.max(1, Math.floor(safeNum(enemy.maxHp, enemy.hp || 1)));
+        enemy.maxHp = enemyMaxHp;
+        enemy.hp = enemyMaxHp;
+        if (!(safeNum(enemy.curHp, 0) > 0)) enemy.curHp = enemyMaxHp;
+    }
     // [무전투 보상 차단] 스폰 순간 살아있는 적 수를 기록해 두고, 실제 전투가 성립한 경우에만 보상을 허용한다.
     const spawnLivingEnemies = typeof getLivingEnemyPartyMembers === 'function'
         ? getLivingEnemyPartyMembers(enemy)
@@ -19139,8 +19164,16 @@ function winBattle() {
     enemyGuardState = null;
     const settlement = onCombatVictory();
     if (!settlement) {
-        updateUi();
-        renderActions();
+        // [무전투 승리 소프트락 방어] 유효하지 않은 전투 판정으로 보상이 차단되더라도 게임이 멈추지 않도록,
+        // 정산 락을 해제하고 현재 층 적을 정상 체력으로 즉시 재스폰하는 비상구를 연결한다.
+        // (900ms 순차 턴제 엔진 / 액션 락 / MP·스킬 로직은 건드리지 않는다.)
+        if (typeof resetCombatVictorySettlementLock === 'function') resetCombatVictorySettlementLock();
+        if (typeof spawnEnemy === 'function') {
+            spawnEnemy();
+        } else {
+            updateUi();
+            renderActions();
+        }
         return;
     }
     tryAwardDefectiveEquipmentDrop();

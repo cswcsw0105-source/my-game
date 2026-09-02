@@ -1687,8 +1687,16 @@ function winBattle() {
     enemyGuardState = null;
     const settlement = onCombatVictory();
     if (!settlement) {
-        updateUi();
-        renderActions();
+        // [무전투 승리 소프트락 방어] 유효하지 않은 전투 판정으로 보상이 차단되더라도 게임이 멈추지 않도록,
+        // 정산 락을 해제하고 현재 층 적을 정상 체력으로 즉시 재스폰하는 비상구를 연결한다.
+        // (900ms 순차 턴제 엔진 / 액션 락 / MP·스킬 로직은 건드리지 않는다.)
+        if (typeof resetCombatVictorySettlementLock === 'function') resetCombatVictorySettlementLock();
+        if (typeof spawnEnemy === 'function') {
+            spawnEnemy();
+        } else {
+            updateUi();
+            renderActions();
+        }
         return;
     }
     tryAwardDefectiveEquipmentDrop();
