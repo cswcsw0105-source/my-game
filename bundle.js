@@ -10467,6 +10467,108 @@ function rerollPartyRoleStartingStats(rawParty, roleKey, random) {
         .filter(Boolean);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// [포인트 분배 시스템] 주사위 굴림을 대체하는 직업별 포인트 바이 규칙.
+//  - 단일 스탯 상한선: 30
+//  - 직업별 하한선(Floor) = 아래 base 값. 이 수치 미만으로는 [-] 차감 불가.
+//  - 캐릭터당 자유 분배 포인트: 20 (전부 소진해야 모험 시작 가능)
+// ─────────────────────────────────────────────────────────────────────────────
+const POINT_BUY_FREE_POINTS = 20;
+const POINT_BUY_STAT_CAP = 30;
+const POINT_BUY_STAT_KEYS = Object.freeze(['str', 'def', 'hp', 'int', 'wis', 'agi']);
+const PARTY_ROLE_POINT_BUY = Object.freeze({
+    // 탱커: [방어 15 · 체력 15] 고정 하한선 / 기본값 힘 8 · 민 8 · 지 5 · 지혜 5
+    tank: Object.freeze({ base: Object.freeze({ str: 8, def: 15, hp: 15, int: 5, wis: 5, agi: 8 }) }),
+    // 마법사: [지능 15 · 지혜 15] 고정 하한선 / 기본값 힘 5 · 방 5 · 체 8 · 민 8
+    mage: Object.freeze({ base: Object.freeze({ str: 5, def: 5, hp: 8, int: 15, wis: 15, agi: 8 }) }),
+    // 기사: [힘 15 · 민첩 15] 고정 하한선 / 기본값 방 8 · 체 8 · 지 5 · 지혜 5
+    knight: Object.freeze({ base: Object.freeze({ str: 15, def: 8, hp: 8, int: 5, wis: 5, agi: 15 }) }),
+});
+
+function getPointBuyBaseStats(roleKey) {
+    const role = PARTY_ROLE_POINT_BUY[roleKey] || PARTY_ROLE_POINT_BUY.knight;
+    return { ...role.base };
+}
+
+function getPointBuyStatFloor(roleKey, statKey) {
+    const base = getPointBuyBaseStats(roleKey);
+    return safeNumber(base[statKey], 1);
+}
+
+function getPointBuySpent(roleKey, stats) {
+    const base = getPointBuyBaseStats(roleKey);
+    return POINT_BUY_STAT_KEYS.reduce(
+        (sum, key) => sum + Math.max(0, safeNumber(stats && stats[key], base[key]) - base[key]),
+        0
+    );
+}
+
+function getPointBuyRemaining(roleKey, stats) {
+    return POINT_BUY_FREE_POINTS - getPointBuySpent(roleKey, stats);
+}
+
+function createPointBuyDraftMember(roleKey) {
+    const role = PARTY_ROLE_DEFINITIONS[roleKey] || PARTY_ROLE_DEFINITIONS.knight;
+    return {
+        roleKey: role.key,
+        name: role.name,
+        stats: { ...getPointBuyBaseStats(role.key), divinity: 0, distortion: 0 },
+    };
+}
+
+function createPointBuyDraftParty() {
+    return PARTY_ROLE_KEYS.map((roleKey) => createPointBuyDraftMember(roleKey));
+}
+
+// 임의의 입력을 하한선/상한선/예산 규칙을 만족하는 3인 포인트 바이 초안으로 정규화·복구한다.
+function ensurePointBuyDraftParty(rawParty) {
+    const source = Array.isArray(rawParty) ? rawParty : [];
+    return PARTY_ROLE_KEYS.map((roleKey, index) => {
+        const role = PARTY_ROLE_DEFINITIONS[roleKey] || PARTY_ROLE_DEFINITIONS.knight;
+        const existing = source.find((member) => member && member.roleKey === roleKey) || source[index];
+        const base = getPointBuyBaseStats(roleKey);
+        const stats = {};
+        let budget = POINT_BUY_FREE_POINTS;
+        for (const key of POINT_BUY_STAT_KEYS) {
+            const floor = base[key];
+            let value = existing && existing.stats ? Math.round(safeNumber(existing.stats[key], floor)) : floor;
+            value = clamp(value, floor, POINT_BUY_STAT_CAP);
+            if (value - floor > budget) value = floor + budget;
+            budget -= Math.max(0, value - floor);
+            stats[key] = value;
+        }
+        stats.divinity = 0;
+        stats.distortion = 0;
+        return { roleKey: role.key, name: role.name, stats };
+    });
+}
+
+// 스탯 1포인트 증감. dir > 0 이면 [+], dir < 0 이면 [-]. 규칙 위반 시 값 변화 없이 정규화 결과만 반환.
+function adjustPointBuyStat(rawParty, roleKey, statKey, dir) {
+    const party = ensurePointBuyDraftParty(rawParty);
+    const targetKey = (PARTY_ROLE_DEFINITIONS[roleKey] || PARTY_ROLE_DEFINITIONS.knight).key;
+    if (!POINT_BUY_STAT_KEYS.includes(statKey)) return party;
+    return party.map((member) => {
+        if (member.roleKey !== targetKey) return member;
+        const floor = getPointBuyStatFloor(targetKey, statKey);
+        const current = member.stats[statKey];
+        const remaining = getPointBuyRemaining(targetKey, member.stats);
+        const stats = { ...member.stats };
+        if (dir > 0 && current < POINT_BUY_STAT_CAP && remaining > 0) stats[statKey] = current + 1;
+        else if (dir < 0 && current > floor) stats[statKey] = current - 1;
+        return { ...member, stats };
+    });
+}
+
+// 3인 파티 전원이 자유 포인트를 전부 소진했는지(= 던전 진입 가능 여부).
+function isPointBuyPartyComplete(rawParty) {
+    const source = Array.isArray(rawParty) ? rawParty : [];
+    return PARTY_ROLE_KEYS.every((roleKey) => {
+        const member = source.find((entry) => entry && entry.roleKey === roleKey);
+        return !!member && getPointBuyRemaining(roleKey, member.stats) === 0;
+    });
+}
+
 function normalizeHumanStats(raw) {
     const source = raw || {};
     return {
@@ -10516,13 +10618,14 @@ function normalizeAdventurerParty(rawParty) {
     const source = Array.isArray(rawParty) ? rawParty : [];
     return PARTY_ROLE_KEYS.map((roleKey, index) => {
         const matched = source.find((member) => member && member.roleKey === roleKey) || source[index];
-        return normalizePartyMember(matched || { stats: rollHumanStartingStats() }, roleKey);
+        return normalizePartyMember(matched || createPointBuyDraftMember(roleKey), roleKey);
     });
 }
 
 function createAdventurerParty(options) {
     const input = options || {};
-    const rolled = Array.isArray(input.party) ? input.party : rollPartyStartingStats(input.random);
+    // [포인트 분배 시스템] 명시적 파티 스탯이 없으면 주사위 대신 직업별 포인트 바이 기본값으로 초기화한다.
+    const rolled = Array.isArray(input.party) ? input.party : createPointBuyDraftParty();
     return normalizeAdventurerParty(rolled);
 }
 
@@ -10831,6 +10934,19 @@ if (typeof globalThis !== 'undefined') {
         rollPartyRoleStartingStats,
         rollPartyStartingStats,
         rerollPartyRoleStartingStats,
+        POINT_BUY_FREE_POINTS,
+        POINT_BUY_STAT_CAP,
+        POINT_BUY_STAT_KEYS,
+        PARTY_ROLE_POINT_BUY,
+        getPointBuyBaseStats,
+        getPointBuyStatFloor,
+        getPointBuySpent,
+        getPointBuyRemaining,
+        createPointBuyDraftMember,
+        createPointBuyDraftParty,
+        ensurePointBuyDraftParty,
+        adjustPointBuyStat,
+        isPointBuyPartyComplete,
         normalizeHumanStats,
         normalizePartyMember,
         normalizeAdventurerParty,
@@ -10872,6 +10988,19 @@ if (typeof module !== 'undefined' && module.exports) {
         rollPartyRoleStartingStats,
         rollPartyStartingStats,
         rerollPartyRoleStartingStats,
+        POINT_BUY_FREE_POINTS,
+        POINT_BUY_STAT_CAP,
+        POINT_BUY_STAT_KEYS,
+        PARTY_ROLE_POINT_BUY,
+        getPointBuyBaseStats,
+        getPointBuyStatFloor,
+        getPointBuySpent,
+        getPointBuyRemaining,
+        createPointBuyDraftMember,
+        createPointBuyDraftParty,
+        ensurePointBuyDraftParty,
+        adjustPointBuyStat,
+        isPointBuyPartyComplete,
         normalizeHumanStats,
         normalizePartyMember,
         normalizeAdventurerParty,
@@ -14761,52 +14890,67 @@ function buildFinalPendingPartyRoll() {
     });
 }
 
+const POINT_BUY_STAT_LABELS = Object.freeze({ str: '힘', def: '방어', hp: '체력', int: '지능', wis: '지혜', agi: '민첩' });
+
 function buildPartyRollRowsHtml() {
-    const party = Array.isArray(pendingPartyRoll) ? pendingPartyRoll : [];
-    return PARTY_ROLE_KEYS.map((roleKey) => {
-        const role = PARTY_ROLE_DEFINITIONS[roleKey];
-        const member = party.find((entry) => entry && entry.roleKey === roleKey);
-        const stats = member && member.stats;
-        const values = stats
-            ? `힘 ${stats.str} · 방 ${stats.def} · 체 ${stats.hp} · 지 ${stats.int} · 지혜 ${stats.wis} · 민 ${stats.agi}`
-            : `${role.name} 주사위를 굴려 능력치를 결정하세요.`;
-        return `<div style="background:#111;border:1px solid #333;border-radius:8px;padding:9px 10px;margin-bottom:7px;text-align:left;">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+    const party = ensurePointBuyDraftParty(pendingPartyRoll);
+    return party.map((member) => {
+        const role = PARTY_ROLE_DEFINITIONS[member.roleKey] || PARTY_ROLE_DEFINITIONS.knight;
+        const remaining = getPointBuyRemaining(member.roleKey, member.stats);
+        const statRows = POINT_BUY_STAT_KEYS.map((statKey) => {
+            const value = member.stats[statKey];
+            const floor = getPointBuyStatFloor(member.roleKey, statKey);
+            const isFloorStat = floor >= 15;
+            const minusDisabled = value <= floor;
+            const plusDisabled = value >= POINT_BUY_STAT_CAP || remaining <= 0;
+            return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:3px 0;">
+                <span style="color:${isFloorStat ? '#f1c40f' : '#bbb'};font-size:0.8em;min-width:92px;">${POINT_BUY_STAT_LABELS[statKey]}${isFloorStat ? ` <span style="color:#777;">(하한 ${floor})</span>` : ''}</span>
+                <span style="display:flex;align-items:center;gap:6px;">
+                    <button type="button" onclick="adjustPartyStat('${member.roleKey}','${statKey}',-1)" ${minusDisabled ? 'disabled' : ''} style="width:26px;height:26px;border:none;border-radius:6px;cursor:${minusDisabled ? 'not-allowed' : 'pointer'};background:${minusDisabled ? '#222' : '#5a2d2d'};color:#fff;font-weight:700;line-height:1;">−</button>
+                    <b style="color:#fff;min-width:26px;text-align:center;font-size:0.9em;">${value}</b>
+                    <button type="button" onclick="adjustPartyStat('${member.roleKey}','${statKey}',1)" ${plusDisabled ? 'disabled' : ''} style="width:26px;height:26px;border:none;border-radius:6px;cursor:${plusDisabled ? 'not-allowed' : 'pointer'};background:${plusDisabled ? '#222' : '#2d5a3d'};color:#fff;font-weight:700;line-height:1;">+</button>
+                </span>
+            </div>`;
+        }).join('');
+        return `<div style="background:#111;border:1px solid #333;border-radius:8px;padding:10px;margin-bottom:8px;text-align:left;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
                 <b style="color:#f1c40f;">${escapeHtml(role.name)}</b>
-                <button type="button" class="new-adventure-start-btn" onclick="rollPartyRoleStats('${roleKey}')" style="width:auto;margin:0;padding:7px 10px;font-size:0.78em;">🎲 ${escapeHtml(role.name)} 주사위 굴리기</button>
+                <span style="color:${remaining === 0 ? '#2ecc71' : '#e67e22'};font-size:0.82em;font-weight:700;">남은 포인트: ${remaining}</span>
             </div>
-            <div style="color:${stats ? '#ccc' : '#666'};font-size:0.78em;margin-top:6px;">${values}</div>
-            <div style="color:#555;font-size:0.7em;margin-top:2px;">성혼 0 · 뒤틀림 0</div>
+            ${statRows}
+            <div style="color:#555;font-size:0.7em;margin-top:4px;">성혼 0 · 뒤틀림 0</div>
         </div>`;
     }).join('');
 }
 
 function buildNewAdventureStartHtml(extraClass) {
     const className = ['new-adventure-entry', extraClass || ''].filter(Boolean).join(' ');
+    const ready = isPointBuyPartyComplete(ensurePointBuyDraftParty(pendingPartyRoll));
     return `
         <div id="new-adventure-entry" class="${className}">
             <div style="width:100%;max-width:560px;margin:0 auto 10px;">
-                <h4 style="color:#f1c40f;margin:0 0 10px;">🎲 3인 파티 스탯 주사위</h4>
+                <h4 style="color:#f1c40f;margin:0 0 4px;">🎯 3인 파티 스탯 포인트 분배</h4>
+                <p style="color:#777;font-size:0.74em;margin:0 0 10px;">파티원마다 자유 포인트 ${POINT_BUY_FREE_POINTS}점을 분배하세요. 단일 스탯 상한 ${POINT_BUY_STAT_CAP}. 3명 전원의 남은 포인트가 0이 되어야 던전에 진입할 수 있습니다.</p>
                 ${buildPartyRollRowsHtml()}
-                <button id="new-adventure-start-btn" class="new-adventure-start-btn" type="button" onclick="confirmPartyAdventure()" ${hasCompletePendingPartyRoll() ? '' : 'disabled'} style="margin-top:8px;">⚔️ 모험 시작</button>
+                <button id="new-adventure-start-btn" class="new-adventure-start-btn" type="button" onclick="confirmPartyAdventure()" ${ready ? '' : 'disabled'} style="margin-top:8px;">⚔️ 던전 진입</button>
             </div>
         </div>`;
 }
 
 window.rollPartyStats = function rollPartyStats() {
-    if (!Array.isArray(pendingPartyRoll)) pendingPartyRoll = [];
+    pendingPartyRoll = ensurePointBuyDraftParty(pendingPartyRoll);
     showPreGameScreen();
 };
 
-window.rollPartyRoleStats = function rollPartyRoleStats(roleKey) {
-    if (!PARTY_ROLE_KEYS.includes(roleKey)) return;
-    pendingPartyRoll = rerollPartyRoleStartingStats(pendingPartyRoll, roleKey);
+window.adjustPartyStat = function adjustPartyStat(roleKey, statKey, dir) {
+    pendingPartyRoll = adjustPointBuyStat(pendingPartyRoll, roleKey, statKey, Number(dir) || 0);
     showPreGameScreen();
 };
 
 window.confirmPartyAdventure = function confirmPartyAdventure() {
-    if (!hasCompletePendingPartyRoll()) {
-        writeLog('[주사위] 탱커, 마법사, 기사 주사위를 각각 한 번 이상 굴려 주세요.');
+    pendingPartyRoll = ensurePointBuyDraftParty(pendingPartyRoll);
+    if (!isPointBuyPartyComplete(pendingPartyRoll)) {
+        writeLog('[스탯 분배] 3인 파티 전원이 자유 포인트를 모두 소진해야 던전에 진입할 수 있습니다.');
         return;
     }
     const name = prompt('원정대 이름을 입력하세요:', '성혼 원정대');
@@ -19705,6 +19849,7 @@ window.addEventListener('load', () => {
         'startInfiniteMode',
         'rollPartyStats',
         'rollPartyRoleStats',
+        'adjustPartyStat',
         'confirmPartyAdventure',
         'returnPartyToTown',
         'enterDungeonFromTown',

@@ -159,6 +159,7 @@
         'startInfiniteMode',
         'rollPartyStats',
         'rollPartyRoleStats',
+        'adjustPartyStat',
         'confirmPartyAdventure',
         'returnPartyToTown',
         'enterDungeonFromTown',

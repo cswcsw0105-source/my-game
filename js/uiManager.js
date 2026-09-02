@@ -2327,52 +2327,67 @@ function buildFinalPendingPartyRoll() {
     });
 }
 
+const POINT_BUY_STAT_LABELS = Object.freeze({ str: '힘', def: '방어', hp: '체력', int: '지능', wis: '지혜', agi: '민첩' });
+
 function buildPartyRollRowsHtml() {
-    const party = Array.isArray(pendingPartyRoll) ? pendingPartyRoll : [];
-    return PARTY_ROLE_KEYS.map((roleKey) => {
-        const role = PARTY_ROLE_DEFINITIONS[roleKey];
-        const member = party.find((entry) => entry && entry.roleKey === roleKey);
-        const stats = member && member.stats;
-        const values = stats
-            ? `힘 ${stats.str} · 방 ${stats.def} · 체 ${stats.hp} · 지 ${stats.int} · 지혜 ${stats.wis} · 민 ${stats.agi}`
-            : `${role.name} 주사위를 굴려 능력치를 결정하세요.`;
-        return `<div style="background:#111;border:1px solid #333;border-radius:8px;padding:9px 10px;margin-bottom:7px;text-align:left;">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+    const party = ensurePointBuyDraftParty(pendingPartyRoll);
+    return party.map((member) => {
+        const role = PARTY_ROLE_DEFINITIONS[member.roleKey] || PARTY_ROLE_DEFINITIONS.knight;
+        const remaining = getPointBuyRemaining(member.roleKey, member.stats);
+        const statRows = POINT_BUY_STAT_KEYS.map((statKey) => {
+            const value = member.stats[statKey];
+            const floor = getPointBuyStatFloor(member.roleKey, statKey);
+            const isFloorStat = floor >= 15;
+            const minusDisabled = value <= floor;
+            const plusDisabled = value >= POINT_BUY_STAT_CAP || remaining <= 0;
+            return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:3px 0;">
+                <span style="color:${isFloorStat ? '#f1c40f' : '#bbb'};font-size:0.8em;min-width:92px;">${POINT_BUY_STAT_LABELS[statKey]}${isFloorStat ? ` <span style="color:#777;">(하한 ${floor})</span>` : ''}</span>
+                <span style="display:flex;align-items:center;gap:6px;">
+                    <button type="button" onclick="adjustPartyStat('${member.roleKey}','${statKey}',-1)" ${minusDisabled ? 'disabled' : ''} style="width:26px;height:26px;border:none;border-radius:6px;cursor:${minusDisabled ? 'not-allowed' : 'pointer'};background:${minusDisabled ? '#222' : '#5a2d2d'};color:#fff;font-weight:700;line-height:1;">−</button>
+                    <b style="color:#fff;min-width:26px;text-align:center;font-size:0.9em;">${value}</b>
+                    <button type="button" onclick="adjustPartyStat('${member.roleKey}','${statKey}',1)" ${plusDisabled ? 'disabled' : ''} style="width:26px;height:26px;border:none;border-radius:6px;cursor:${plusDisabled ? 'not-allowed' : 'pointer'};background:${plusDisabled ? '#222' : '#2d5a3d'};color:#fff;font-weight:700;line-height:1;">+</button>
+                </span>
+            </div>`;
+        }).join('');
+        return `<div style="background:#111;border:1px solid #333;border-radius:8px;padding:10px;margin-bottom:8px;text-align:left;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
                 <b style="color:#f1c40f;">${escapeHtml(role.name)}</b>
-                <button type="button" class="new-adventure-start-btn" onclick="rollPartyRoleStats('${roleKey}')" style="width:auto;margin:0;padding:7px 10px;font-size:0.78em;">🎲 ${escapeHtml(role.name)} 주사위 굴리기</button>
+                <span style="color:${remaining === 0 ? '#2ecc71' : '#e67e22'};font-size:0.82em;font-weight:700;">남은 포인트: ${remaining}</span>
             </div>
-            <div style="color:${stats ? '#ccc' : '#666'};font-size:0.78em;margin-top:6px;">${values}</div>
-            <div style="color:#555;font-size:0.7em;margin-top:2px;">성혼 0 · 뒤틀림 0</div>
+            ${statRows}
+            <div style="color:#555;font-size:0.7em;margin-top:4px;">성혼 0 · 뒤틀림 0</div>
         </div>`;
     }).join('');
 }
 
 function buildNewAdventureStartHtml(extraClass) {
     const className = ['new-adventure-entry', extraClass || ''].filter(Boolean).join(' ');
+    const ready = isPointBuyPartyComplete(ensurePointBuyDraftParty(pendingPartyRoll));
     return `
         <div id="new-adventure-entry" class="${className}">
             <div style="width:100%;max-width:560px;margin:0 auto 10px;">
-                <h4 style="color:#f1c40f;margin:0 0 10px;">🎲 3인 파티 스탯 주사위</h4>
+                <h4 style="color:#f1c40f;margin:0 0 4px;">🎯 3인 파티 스탯 포인트 분배</h4>
+                <p style="color:#777;font-size:0.74em;margin:0 0 10px;">파티원마다 자유 포인트 ${POINT_BUY_FREE_POINTS}점을 분배하세요. 단일 스탯 상한 ${POINT_BUY_STAT_CAP}. 3명 전원의 남은 포인트가 0이 되어야 던전에 진입할 수 있습니다.</p>
                 ${buildPartyRollRowsHtml()}
-                <button id="new-adventure-start-btn" class="new-adventure-start-btn" type="button" onclick="confirmPartyAdventure()" ${hasCompletePendingPartyRoll() ? '' : 'disabled'} style="margin-top:8px;">⚔️ 모험 시작</button>
+                <button id="new-adventure-start-btn" class="new-adventure-start-btn" type="button" onclick="confirmPartyAdventure()" ${ready ? '' : 'disabled'} style="margin-top:8px;">⚔️ 던전 진입</button>
             </div>
         </div>`;
 }
 
 window.rollPartyStats = function rollPartyStats() {
-    if (!Array.isArray(pendingPartyRoll)) pendingPartyRoll = [];
+    pendingPartyRoll = ensurePointBuyDraftParty(pendingPartyRoll);
     showPreGameScreen();
 };
 
-window.rollPartyRoleStats = function rollPartyRoleStats(roleKey) {
-    if (!PARTY_ROLE_KEYS.includes(roleKey)) return;
-    pendingPartyRoll = rerollPartyRoleStartingStats(pendingPartyRoll, roleKey);
+window.adjustPartyStat = function adjustPartyStat(roleKey, statKey, dir) {
+    pendingPartyRoll = adjustPointBuyStat(pendingPartyRoll, roleKey, statKey, Number(dir) || 0);
     showPreGameScreen();
 };
 
 window.confirmPartyAdventure = function confirmPartyAdventure() {
-    if (!hasCompletePendingPartyRoll()) {
-        writeLog('[주사위] 탱커, 마법사, 기사 주사위를 각각 한 번 이상 굴려 주세요.');
+    pendingPartyRoll = ensurePointBuyDraftParty(pendingPartyRoll);
+    if (!isPointBuyPartyComplete(pendingPartyRoll)) {
+        writeLog('[스탯 분배] 3인 파티 전원이 자유 포인트를 모두 소진해야 던전에 진입할 수 있습니다.');
         return;
     }
     const name = prompt('원정대 이름을 입력하세요:', '성혼 원정대');
