@@ -2302,59 +2302,66 @@ function getPendingPartyRollMember(roleKey) {
     return pendingPartyRoll.find((entry) => entry && entry.roleKey === roleKey && entry.stats) || null;
 }
 
-function hasCompletePendingPartyRoll() {
-    return PARTY_ROLE_KEYS.every((roleKey) => !!getPendingPartyRollMember(roleKey));
-}
-
 function buildFinalPendingPartyRoll() {
-    return PARTY_ROLE_KEYS.map((roleKey) => {
-        const role = PARTY_ROLE_DEFINITIONS[roleKey];
-        const member = getPendingPartyRollMember(roleKey);
-        return {
-            roleKey,
-            name: role.name,
-            stats: {
-                str: member.stats.str,
-                def: member.stats.def,
-                hp: member.stats.hp,
-                int: member.stats.int,
-                wis: member.stats.wis,
-                agi: member.stats.agi,
-                divinity: 0,
-                distortion: 0,
-            },
-        };
-    });
+    // [파티 편성] 슬롯 순서를 그대로 유지하며 각 슬롯이 선택한 직업(roleKey)으로 확정한다.
+    return ensurePointBuyDraftParty(pendingPartyRoll).map((member) => ({
+        roleKey: member.roleKey,
+        name: (PARTY_ROLE_DEFINITIONS[member.roleKey] || PARTY_ROLE_DEFINITIONS.knight).name,
+        stats: {
+            str: member.stats.str,
+            def: member.stats.def,
+            hp: member.stats.hp,
+            int: member.stats.int,
+            wis: member.stats.wis,
+            agi: member.stats.agi,
+            divinity: 0,
+            distortion: 0,
+        },
+    }));
 }
 
 const POINT_BUY_STAT_LABELS = Object.freeze({ str: '힘', def: '방어', hp: '체력', int: '지능', wis: '지혜', agi: '민첩' });
+const PARTY_JOB_ORDER = Object.freeze(['tank', 'knight', 'mage']);
+
+function buildPartyStatStepperHtml(slotIndex, member) {
+    const remaining = getPointBuyRemaining(member.roleKey, member.stats);
+    return POINT_BUY_STAT_KEYS.map((statKey) => {
+        const value = member.stats[statKey];
+        const floor = getPointBuyStatFloor(member.roleKey, statKey);
+        const isFloorStat = floor >= 15;
+        const minusDisabled = value <= floor;
+        const plusDisabled = value >= POINT_BUY_STAT_CAP || remaining <= 0;
+        const btnBase = 'width:28px;height:28px;flex:0 0 28px;border:none;border-radius:6px;font-weight:700;line-height:1;font-size:1em;color:#fff;display:inline-flex;align-items:center;justify-content:center;';
+        const minusStyle = `${btnBase}cursor:${minusDisabled ? 'not-allowed' : 'pointer'};background:${minusDisabled ? '#242424' : '#5a2d2d'};opacity:${minusDisabled ? '0.4' : '1'};`;
+        const plusStyle = `${btnBase}cursor:${plusDisabled ? 'not-allowed' : 'pointer'};background:${plusDisabled ? '#242424' : '#2d5a3d'};opacity:${plusDisabled ? '0.4' : '1'};`;
+        // [정렬] 좌: 스탯명(flex:1) — 우: [-] (값) [+] 블록(중앙 정렬 · 8px 간격)
+        return `<div style="display:flex;align-items:center;gap:12px;margin:5px 0;">
+            <span style="flex:1;min-width:0;color:${isFloorStat ? '#f1c40f' : '#cfcfcf'};font-size:0.82em;">${POINT_BUY_STAT_LABELS[statKey]}${isFloorStat ? ` <span style="color:#777;font-weight:400;">· 하한 ${floor}</span>` : ''}</span>
+            <span style="display:inline-flex;align-items:center;justify-content:center;gap:8px;flex:0 0 auto;">
+                <button type="button" onclick="adjustPartyStat(${slotIndex},'${statKey}',-1)" ${minusDisabled ? 'disabled' : ''} style="${minusStyle}">−</button>
+                <b style="color:#fff;min-width:30px;text-align:center;font-size:0.95em;">${value}</b>
+                <button type="button" onclick="adjustPartyStat(${slotIndex},'${statKey}',1)" ${plusDisabled ? 'disabled' : ''} style="${plusStyle}">+</button>
+            </span>
+        </div>`;
+    }).join('');
+}
 
 function buildPartyRollRowsHtml() {
     const party = ensurePointBuyDraftParty(pendingPartyRoll);
-    return party.map((member) => {
-        const role = PARTY_ROLE_DEFINITIONS[member.roleKey] || PARTY_ROLE_DEFINITIONS.knight;
+    return party.map((member, slotIndex) => {
         const remaining = getPointBuyRemaining(member.roleKey, member.stats);
-        const statRows = POINT_BUY_STAT_KEYS.map((statKey) => {
-            const value = member.stats[statKey];
-            const floor = getPointBuyStatFloor(member.roleKey, statKey);
-            const isFloorStat = floor >= 15;
-            const minusDisabled = value <= floor;
-            const plusDisabled = value >= POINT_BUY_STAT_CAP || remaining <= 0;
-            return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:3px 0;">
-                <span style="color:${isFloorStat ? '#f1c40f' : '#bbb'};font-size:0.8em;min-width:92px;">${POINT_BUY_STAT_LABELS[statKey]}${isFloorStat ? ` <span style="color:#777;">(하한 ${floor})</span>` : ''}</span>
-                <span style="display:flex;align-items:center;gap:6px;">
-                    <button type="button" onclick="adjustPartyStat('${member.roleKey}','${statKey}',-1)" ${minusDisabled ? 'disabled' : ''} style="width:26px;height:26px;border:none;border-radius:6px;cursor:${minusDisabled ? 'not-allowed' : 'pointer'};background:${minusDisabled ? '#222' : '#5a2d2d'};color:#fff;font-weight:700;line-height:1;">−</button>
-                    <b style="color:#fff;min-width:26px;text-align:center;font-size:0.9em;">${value}</b>
-                    <button type="button" onclick="adjustPartyStat('${member.roleKey}','${statKey}',1)" ${plusDisabled ? 'disabled' : ''} style="width:26px;height:26px;border:none;border-radius:6px;cursor:${plusDisabled ? 'not-allowed' : 'pointer'};background:${plusDisabled ? '#222' : '#2d5a3d'};color:#fff;font-weight:700;line-height:1;">+</button>
-                </span>
-            </div>`;
+        const jobToggles = PARTY_JOB_ORDER.map((jobKey) => {
+            const jobRole = PARTY_ROLE_DEFINITIONS[jobKey];
+            const active = member.roleKey === jobKey;
+            return `<button type="button" onclick="setPartySlotRole(${slotIndex},'${jobKey}')" style="flex:1;padding:6px 4px;border-radius:6px;font-size:0.78em;font-weight:700;cursor:pointer;border:1px solid ${active ? '#f1c40f' : '#444'};background:${active ? '#3a3320' : '#1a1a1a'};color:${active ? '#f1c40f' : '#999'};">${escapeHtml(jobRole.name)}</button>`;
         }).join('');
-        return `<div style="background:#111;border:1px solid #333;border-radius:8px;padding:10px;margin-bottom:8px;text-align:left;">
+        return `<div style="background:#111;border:1px solid #333;border-radius:8px;padding:11px;margin-bottom:8px;text-align:left;">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
-                <b style="color:#f1c40f;">${escapeHtml(role.name)}</b>
-                <span style="color:${remaining === 0 ? '#2ecc71' : '#e67e22'};font-size:0.82em;font-weight:700;">남은 포인트: ${remaining}</span>
+                <b style="color:#f1c40f;">슬롯 ${slotIndex + 1}</b>
+                <span style="color:${remaining === 0 ? '#2ecc71' : '#e67e22'};font-size:0.82em;font-weight:700;">남은 포인트: ${remaining} pt</span>
             </div>
-            ${statRows}
+            <div style="display:flex;gap:6px;margin-bottom:8px;">${jobToggles}</div>
+            ${buildPartyStatStepperHtml(slotIndex, member)}
             <div style="color:#555;font-size:0.7em;margin-top:4px;">성혼 0 · 뒤틀림 0</div>
         </div>`;
     }).join('');
@@ -2362,13 +2369,20 @@ function buildPartyRollRowsHtml() {
 
 function buildNewAdventureStartHtml(extraClass) {
     const className = ['new-adventure-entry', extraClass || ''].filter(Boolean).join(' ');
-    const ready = isPointBuyPartyComplete(ensurePointBuyDraftParty(pendingPartyRoll));
+    const party = ensurePointBuyDraftParty(pendingPartyRoll);
+    const composition = party.map((member) => member.roleKey);
+    const validComposition = isValidPartyComposition(composition);
+    const ready = isPointBuyPartyComplete(party);
+    const warning = !validComposition
+        ? `<p style="color:#e74c3c;font-size:0.78em;font-weight:700;margin:6px 0 0;">동일 직업 3명 편성은 불가능합니다.</p>`
+        : '';
     return `
         <div id="new-adventure-entry" class="${className}">
             <div style="width:100%;max-width:560px;margin:0 auto 10px;">
-                <h4 style="color:#f1c40f;margin:0 0 4px;">🎯 3인 파티 스탯 포인트 분배</h4>
-                <p style="color:#777;font-size:0.74em;margin:0 0 10px;">파티원마다 자유 포인트 ${POINT_BUY_FREE_POINTS}점을 분배하세요. 단일 스탯 상한 ${POINT_BUY_STAT_CAP}. 3명 전원의 남은 포인트가 0이 되어야 던전에 진입할 수 있습니다.</p>
+                <h4 style="color:#f1c40f;margin:0 0 4px;">🎯 3인 파티 편성 & 스탯 포인트 분배</h4>
+                <p style="color:#777;font-size:0.74em;margin:0 0 10px;">슬롯마다 직업을 고르고 자유 포인트 ${POINT_BUY_FREE_POINTS}pt를 분배하세요. 단일 스탯 상한 ${POINT_BUY_STAT_CAP}. 3명 전원 잔여 포인트가 0이고 동일 직업 3명이 아니어야 던전에 진입할 수 있습니다.</p>
                 ${buildPartyRollRowsHtml()}
+                ${warning}
                 <button id="new-adventure-start-btn" class="new-adventure-start-btn" type="button" onclick="confirmPartyAdventure()" ${ready ? '' : 'disabled'} style="margin-top:8px;">⚔️ 던전 진입</button>
             </div>
         </div>`;
@@ -2379,13 +2393,22 @@ window.rollPartyStats = function rollPartyStats() {
     showPreGameScreen();
 };
 
-window.adjustPartyStat = function adjustPartyStat(roleKey, statKey, dir) {
-    pendingPartyRoll = adjustPointBuyStat(pendingPartyRoll, roleKey, statKey, Number(dir) || 0);
+window.setPartySlotRole = function setPartySlotRole(slotIndex, roleKey) {
+    pendingPartyRoll = setPointBuyMemberRole(pendingPartyRoll, Number(slotIndex), roleKey);
+    showPreGameScreen();
+};
+
+window.adjustPartyStat = function adjustPartyStat(slotIndex, statKey, dir) {
+    pendingPartyRoll = adjustPointBuyStat(pendingPartyRoll, Number(slotIndex), statKey, Number(dir) || 0);
     showPreGameScreen();
 };
 
 window.confirmPartyAdventure = function confirmPartyAdventure() {
     pendingPartyRoll = ensurePointBuyDraftParty(pendingPartyRoll);
+    if (!isValidPartyComposition(pendingPartyRoll.map((member) => member.roleKey))) {
+        writeLog('[파티 편성] 동일 직업 3명 편성은 불가능합니다. 최소 두 직업 이상으로 구성하세요.');
+        return;
+    }
     if (!isPointBuyPartyComplete(pendingPartyRoll)) {
         writeLog('[스탯 분배] 3인 파티 전원이 자유 포인트를 모두 소진해야 던전에 진입할 수 있습니다.');
         return;

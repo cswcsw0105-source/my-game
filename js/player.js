@@ -76,12 +76,13 @@ function ensureHumanRuntimeShape(actor) {
         // 공격/방어/힐 버튼이 아무 반응 없이 무시된다.
         const previousParty = actor.party;
         actor.party = normalizeAdventurerParty(previousParty).map((template, index) => {
-            const source = previousParty.find((member) => member && member.roleKey === template.roleKey)
-                || previousParty[index];
+            // [파티 편성] roleKey 중복이 허용되므로 슬롯 위치(index)로 원본 객체 정체성을 보존한다.
+            const source = previousParty[index];
             if (!source || typeof source !== 'object') return ensurePartyMemberRuntimeShape(template);
             Object.keys(template).forEach((key) => {
                 if (source[key] === undefined) source[key] = template[key];
             });
+            source.roleKey = template.roleKey;
             source.stats = normalizeHumanStats(source.stats || template.stats);
             return ensurePartyMemberRuntimeShape(source);
         });

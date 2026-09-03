@@ -208,14 +208,17 @@ function rerollPartyRoleStartingStats(rawParty, roleKey, random) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// [포인트 분배 시스템] 주사위 굴림을 대체하는 직업별 포인트 바이 규칙.
-//  - 단일 스탯 상한선: 30
-//  - 직업별 하한선(Floor) = 아래 base 값. 이 수치 미만으로는 [-] 차감 불가.
-//  - 캐릭터당 자유 분배 포인트: 20 (전부 소진해야 모험 시작 가능)
+// [파티 편성 + 포인트 분배 시스템] 주사위 굴림을 대체한다.
+//  - 슬롯 1/2/3 각각 [탱커 / 기사 / 마법사] 자유 선택 (roleKey 는 더 이상 유니크 키가 아님 → 슬롯 인덱스로 식별)
+//  - 3명 전원 동일 직업 편성 금지 (유효 조합 7가지)
+//  - 단일 스탯 상한선: 30 / 직업별 하한선(Floor) = 아래 base 값 / 캐릭터당 자유 포인트 20
 // ─────────────────────────────────────────────────────────────────────────────
 const POINT_BUY_FREE_POINTS = 20;
 const POINT_BUY_STAT_CAP = 30;
 const POINT_BUY_STAT_KEYS = Object.freeze(['str', 'def', 'hp', 'int', 'wis', 'agi']);
+const PARTY_SLOT_COUNT = 3;
+// 슬롯 기본 편성(신규 생성 시). 탱커 → 기사 → 마법사.
+const DEFAULT_PARTY_COMPOSITION = Object.freeze(['tank', 'knight', 'mage']);
 const PARTY_ROLE_POINT_BUY = Object.freeze({
     // 탱커: [방어 15 · 체력 15] 고정 하한선 / 기본값 힘 8 · 민 8 · 지 5 · 지혜 5
     tank: Object.freeze({ base: Object.freeze({ str: 8, def: 15, hp: 15, int: 5, wis: 5, agi: 8 }) }),
@@ -224,6 +227,11 @@ const PARTY_ROLE_POINT_BUY = Object.freeze({
     // 기사: [힘 15 · 민첩 15] 고정 하한선 / 기본값 방 8 · 체 8 · 지 5 · 지혜 5
     knight: Object.freeze({ base: Object.freeze({ str: 15, def: 8, hp: 8, int: 5, wis: 5, agi: 15 }) }),
 });
+
+function resolvePartyRoleKey(roleKey, fallbackKey) {
+    if (PARTY_ROLE_DEFINITIONS[roleKey]) return PARTY_ROLE_DEFINITIONS[roleKey].key;
+    return PARTY_ROLE_DEFINITIONS[fallbackKey] ? PARTY_ROLE_DEFINITIONS[fallbackKey].key : 'knight';
+}
 
 function getPointBuyBaseStats(roleKey) {
     const role = PARTY_ROLE_POINT_BUY[roleKey] || PARTY_ROLE_POINT_BUY.knight;
@@ -256,57 +264,89 @@ function createPointBuyDraftMember(roleKey) {
     };
 }
 
-function createPointBuyDraftParty() {
-    return PARTY_ROLE_KEYS.map((roleKey) => createPointBuyDraftMember(roleKey));
+function createPointBuyDraftParty(composition) {
+    const comp = Array.isArray(composition) && composition.length === PARTY_SLOT_COUNT
+        ? composition
+        : DEFAULT_PARTY_COMPOSITION;
+    return comp.map((roleKey, index) => createPointBuyDraftMember(resolvePartyRoleKey(roleKey, DEFAULT_PARTY_COMPOSITION[index])));
 }
 
-// 임의의 입력을 하한선/상한선/예산 규칙을 만족하는 3인 포인트 바이 초안으로 정규화·복구한다.
+// 하한선/상한선/예산(20pt) 규칙에 맞게 한 슬롯의 스탯 블록을 정규화·복구한다.
+function normalizePointBuyMemberStats(roleKey, rawStats) {
+    const base = getPointBuyBaseStats(roleKey);
+    const stats = {};
+    let budget = POINT_BUY_FREE_POINTS;
+    for (const key of POINT_BUY_STAT_KEYS) {
+        const floor = base[key];
+        let value = rawStats ? Math.round(safeNumber(rawStats[key], floor)) : floor;
+        value = clamp(value, floor, POINT_BUY_STAT_CAP);
+        if (value - floor > budget) value = floor + budget;
+        budget -= Math.max(0, value - floor);
+        stats[key] = value;
+    }
+    stats.divinity = 0;
+    stats.distortion = 0;
+    return stats;
+}
+
+// 임의의 입력을 3슬롯 포인트 바이 초안으로 정규화·복구한다. 각 슬롯은 자신의 roleKey 를 그대로 유지한다.
 function ensurePointBuyDraftParty(rawParty) {
     const source = Array.isArray(rawParty) ? rawParty : [];
-    return PARTY_ROLE_KEYS.map((roleKey, index) => {
-        const role = PARTY_ROLE_DEFINITIONS[roleKey] || PARTY_ROLE_DEFINITIONS.knight;
-        const existing = source.find((member) => member && member.roleKey === roleKey) || source[index];
-        const base = getPointBuyBaseStats(roleKey);
-        const stats = {};
-        let budget = POINT_BUY_FREE_POINTS;
-        for (const key of POINT_BUY_STAT_KEYS) {
-            const floor = base[key];
-            let value = existing && existing.stats ? Math.round(safeNumber(existing.stats[key], floor)) : floor;
-            value = clamp(value, floor, POINT_BUY_STAT_CAP);
-            if (value - floor > budget) value = floor + budget;
-            budget -= Math.max(0, value - floor);
-            stats[key] = value;
-        }
-        stats.divinity = 0;
-        stats.distortion = 0;
-        return { roleKey: role.key, name: role.name, stats };
-    });
+    const party = [];
+    for (let index = 0; index < PARTY_SLOT_COUNT; index += 1) {
+        const existing = source[index] && typeof source[index] === 'object' ? source[index] : null;
+        const roleKey = resolvePartyRoleKey(existing && existing.roleKey, DEFAULT_PARTY_COMPOSITION[index]);
+        party.push({
+            roleKey,
+            name: (PARTY_ROLE_DEFINITIONS[roleKey] || PARTY_ROLE_DEFINITIONS.knight).name,
+            stats: normalizePointBuyMemberStats(roleKey, existing && existing.stats),
+        });
+    }
+    return party;
 }
 
-// 스탯 1포인트 증감. dir > 0 이면 [+], dir < 0 이면 [-]. 규칙 위반 시 값 변화 없이 정규화 결과만 반환.
-function adjustPointBuyStat(rawParty, roleKey, statKey, dir) {
+// 슬롯의 직업을 교체한다. 하한선이 달라지므로 해당 슬롯 스탯은 기본값으로 초기화한다.
+function setPointBuyMemberRole(rawParty, slotIndex, roleKey) {
     const party = ensurePointBuyDraftParty(rawParty);
-    const targetKey = (PARTY_ROLE_DEFINITIONS[roleKey] || PARTY_ROLE_DEFINITIONS.knight).key;
-    if (!POINT_BUY_STAT_KEYS.includes(statKey)) return party;
-    return party.map((member) => {
-        if (member.roleKey !== targetKey) return member;
-        const floor = getPointBuyStatFloor(targetKey, statKey);
-        const current = member.stats[statKey];
-        const remaining = getPointBuyRemaining(targetKey, member.stats);
-        const stats = { ...member.stats };
-        if (dir > 0 && current < POINT_BUY_STAT_CAP && remaining > 0) stats[statKey] = current + 1;
-        else if (dir < 0 && current > floor) stats[statKey] = current - 1;
-        return { ...member, stats };
-    });
+    const idx = Math.floor(safeNumber(slotIndex, -1));
+    if (idx < 0 || idx >= PARTY_SLOT_COUNT || !PARTY_ROLE_DEFINITIONS[roleKey]) return party;
+    party[idx] = createPointBuyDraftMember(PARTY_ROLE_DEFINITIONS[roleKey].key);
+    return party;
 }
 
-// 3인 파티 전원이 자유 포인트를 전부 소진했는지(= 던전 진입 가능 여부).
+// 슬롯 인덱스 기준 스탯 1포인트 증감. dir > 0 이면 [+], dir < 0 이면 [-]. 규칙 위반 시 값 변화 없이 정규화 결과만 반환.
+function adjustPointBuyStat(rawParty, slotIndex, statKey, dir) {
+    const party = ensurePointBuyDraftParty(rawParty);
+    const idx = Math.floor(safeNumber(slotIndex, -1));
+    if (idx < 0 || idx >= PARTY_SLOT_COUNT || !POINT_BUY_STAT_KEYS.includes(statKey)) return party;
+    const member = party[idx];
+    const floor = getPointBuyStatFloor(member.roleKey, statKey);
+    const current = member.stats[statKey];
+    const remaining = getPointBuyRemaining(member.roleKey, member.stats);
+    const stats = { ...member.stats };
+    if (dir > 0 && current < POINT_BUY_STAT_CAP && remaining > 0) stats[statKey] = current + 1;
+    else if (dir < 0 && current > floor) stats[statKey] = current - 1;
+    party[idx] = { ...member, stats };
+    return party;
+}
+
+function getPartyComposition(rawParty) {
+    return ensurePointBuyDraftParty(rawParty).map((member) => member.roleKey);
+}
+
+// 3인 파티 조합 검증: 3슬롯 모두 유효 직업 + 전원 동일 직업 편성 금지(유효 조합 7가지).
+function isValidPartyComposition(roleKeys) {
+    const keys = Array.isArray(roleKeys) ? roleKeys : [];
+    if (keys.length !== PARTY_SLOT_COUNT) return false;
+    if (!keys.every((key) => !!PARTY_ROLE_DEFINITIONS[key])) return false;
+    return !keys.every((key) => key === keys[0]);
+}
+
+// 던전 진입 가능 여부: 유효 조합 + 3슬롯 전원 자유 포인트 소진(잔여 0).
 function isPointBuyPartyComplete(rawParty) {
-    const source = Array.isArray(rawParty) ? rawParty : [];
-    return PARTY_ROLE_KEYS.every((roleKey) => {
-        const member = source.find((entry) => entry && entry.roleKey === roleKey);
-        return !!member && getPointBuyRemaining(roleKey, member.stats) === 0;
-    });
+    const party = ensurePointBuyDraftParty(rawParty);
+    if (!isValidPartyComposition(party.map((member) => member.roleKey))) return false;
+    return party.every((member) => getPointBuyRemaining(member.roleKey, member.stats) === 0);
 }
 
 function normalizeHumanStats(raw) {
@@ -356,9 +396,16 @@ function normalizePartyMember(raw, roleKey) {
 
 function normalizeAdventurerParty(rawParty) {
     const source = Array.isArray(rawParty) ? rawParty : [];
-    return PARTY_ROLE_KEYS.map((roleKey, index) => {
-        const matched = source.find((member) => member && member.roleKey === roleKey) || source[index];
-        return normalizePartyMember(matched || createPointBuyDraftMember(roleKey), roleKey);
+    // [파티 편성] roleKey 는 더 이상 유니크하지 않으므로 슬롯 위치(index)로 매칭한다.
+    // 각 슬롯 멤버는 자신의 roleKey 를 그대로 유지하며, 없으면 기본 편성값으로 채운다.
+    return Array.from({ length: PARTY_SLOT_COUNT }, (_, index) => {
+        const matched = source[index];
+        if (matched && typeof matched === 'object') {
+            const roleKey = resolvePartyRoleKey(matched.roleKey, DEFAULT_PARTY_COMPOSITION[index]);
+            return normalizePartyMember({ ...matched, roleKey }, roleKey);
+        }
+        const fallbackKey = DEFAULT_PARTY_COMPOSITION[index];
+        return normalizePartyMember(createPointBuyDraftMember(fallbackKey), fallbackKey);
     });
 }
 
@@ -678,14 +725,21 @@ if (typeof globalThis !== 'undefined') {
         POINT_BUY_STAT_CAP,
         POINT_BUY_STAT_KEYS,
         PARTY_ROLE_POINT_BUY,
+        PARTY_SLOT_COUNT,
+        DEFAULT_PARTY_COMPOSITION,
+        resolvePartyRoleKey,
         getPointBuyBaseStats,
         getPointBuyStatFloor,
         getPointBuySpent,
         getPointBuyRemaining,
         createPointBuyDraftMember,
         createPointBuyDraftParty,
+        normalizePointBuyMemberStats,
         ensurePointBuyDraftParty,
         adjustPointBuyStat,
+        setPointBuyMemberRole,
+        getPartyComposition,
+        isValidPartyComposition,
         isPointBuyPartyComplete,
         normalizeHumanStats,
         normalizePartyMember,
@@ -732,14 +786,21 @@ if (typeof module !== 'undefined' && module.exports) {
         POINT_BUY_STAT_CAP,
         POINT_BUY_STAT_KEYS,
         PARTY_ROLE_POINT_BUY,
+        PARTY_SLOT_COUNT,
+        DEFAULT_PARTY_COMPOSITION,
+        resolvePartyRoleKey,
         getPointBuyBaseStats,
         getPointBuyStatFloor,
         getPointBuySpent,
         getPointBuyRemaining,
         createPointBuyDraftMember,
         createPointBuyDraftParty,
+        normalizePointBuyMemberStats,
         ensurePointBuyDraftParty,
         adjustPointBuyStat,
+        setPointBuyMemberRole,
+        getPartyComposition,
+        isValidPartyComposition,
         isPointBuyPartyComplete,
         normalizeHumanStats,
         normalizePartyMember,

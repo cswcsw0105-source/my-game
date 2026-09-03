@@ -160,6 +160,7 @@
         'rollPartyStats',
         'rollPartyRoleStats',
         'adjustPartyStat',
+        'setPartySlotRole',
         'confirmPartyAdventure',
         'returnPartyToTown',
         'enterDungeonFromTown',
