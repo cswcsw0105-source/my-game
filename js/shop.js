@@ -483,6 +483,17 @@ window.buyItem = (event, idx) => {
                 writeLog(`[지급] <b>${it.name}</b> → ${assignMember.name}에게 귀속`);
             }
             player.items.push(it); saveCollection(it.name);
+            // [장비 착용 레벨 제한] 요구 레벨 미달 시 구매는 되지만 장착은 차단되고 가방에 보관된다.
+            if (typeof getItemReqLevel === 'function') {
+                const reqLevel = getItemReqLevel(it);
+                it.reqLevel = reqLevel;
+                const charLevel = typeof getCharacterLevel === 'function' ? getCharacterLevel() : 1;
+                if (charLevel < reqLevel) {
+                    const msg = `장착 레벨이 부족합니다! (요구 레벨: ${reqLevel})`;
+                    if (typeof alert === 'function') alert(msg);
+                    writeLog(`[장착 불가] <b>${it.name}</b> — ${msg} 가방에 보관됩니다. (현재 Lv.${charLevel})`);
+                }
+            }
             if (it.type === 'rune') {
                 if (typeof it.value === 'number' && it.value) player.atk += it.value;
                 if (typeof it.hpBonus === 'number' && it.hpBonus) {

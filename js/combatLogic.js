@@ -1397,6 +1397,8 @@ window.useAction = async function useAction(type, options) {
     setCombatProcessing(true);
     try {
         if (normalizedType === '공격') {
+            // [마법사 0 MP 평타 보장] 기본 [공격] 커맨드는 MP를 소모/검사하지 않는다.
+            // 마나가 0이어도 magic_attack(평타) 또는 physical_attack 으로 반드시 행동이 성립해 턴이 굳지 않는다.
             const learnedAction = classifyPlayerAttackAction(actor);
             const target = (requestedTargetId && livingEnemies.find(matchesTargetId)) || livingEnemies[0];
             const strikes = learnedAction === 'physical_attack' ? getActorAttackStrikeCount(actor) : 1;
@@ -1642,6 +1644,7 @@ function enterNextDungeonStage() {
     if (hasCrossedPointOfNoReturn(player.progress)) MetaRPG.clearRunSnapshot(player.metaSlotId);
     syncPlayerCampaignState();
     writeLog(`[전진] ${formatDungeonPosition(player.progress)} 진입${hasCrossedPointOfNoReturn(player.progress) ? ' · 복귀 불가' : ''}`);
+    // [MP 지속 시스템] 층 이동 시 파티 MP는 의도적으로 유지한다 (전투 종료·층간 100% 회복 없음).
     resetCombatVictorySettlementLock();
     const goldBeforeStageEntry = Math.max(0, safeNum(gold, 0));
     spawnEnemy();
@@ -1876,6 +1879,9 @@ window.returnPartyToTown = function returnPartyToTown() {
         return;
     }
     getPartyMembers(player).forEach((member) => setCurrentHp(member, member.maxHp));
+    // [MP 지속 시스템 / 드퀘식] MP는 전투 종료·층 이동으로는 회복되지 않고,
+    // 마을 복귀(= 여관 휴식) 시에만 maxMp 전량으로 회복된다.
+    getPartyMembers(player).forEach((member) => setActorMp(member, getActorMaxMp(member)));
     syncPartyAggregateState(player);
     player.inTown = true;
     resetFreshDungeonEntryVictoryGate();

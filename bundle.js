@@ -10384,6 +10384,30 @@ const magicTable = Object.freeze({
 });
 
 const bodyParts = Object.freeze(['head', 'torso', 'arm', 'leg', 'eye']);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// [장비 착용 레벨 제한] 모든 장비 아이템은 요구 레벨(reqLevel, 1~5)을 가진다.
+//  - 명시적 item.reqLevel 이 있으면 1~5 로 clamp 후 사용.
+//  - 없으면 희귀도에서 파생: common 1 · rare 2 · epic 3 · legendary 4 · legend 5 · relic 1
+//  - 캐릭터 레벨(= 이번 회차 도달 최고 층) < reqLevel 이면 장착 차단, 가방에는 그대로 보관.
+// ─────────────────────────────────────────────────────────────────────────────
+const EQUIPMENT_MAX_REQ_LEVEL = 5;
+const EQUIPMENT_RARITY_REQ_LEVEL = Object.freeze({
+    common: 1,
+    rare: 2,
+    epic: 3,
+    legendary: 4,
+    legend: 5,
+    relic: 1,
+});
+
+function getItemReqLevel(item) {
+    if (!item || typeof item !== 'object') return 1;
+    const explicit = Math.floor(Number(item.reqLevel));
+    if (Number.isFinite(explicit)) return Math.min(EQUIPMENT_MAX_REQ_LEVEL, Math.max(1, explicit));
+    return EQUIPMENT_RARITY_REQ_LEVEL[item.rarity] || 1;
+}
+
 const monsterArchetypeTable = Object.freeze({
     warrior: Object.freeze({ key: 'warrior', job: '워리어형', element: 'earth', strong: 'hunter', weak: 'mage', traitTags: Object.freeze(['warrior', 'earth']) }),
     hunter: Object.freeze({ key: 'hunter', job: '헌터형', element: 'wind', strong: 'mage', weak: 'warrior', traitTags: Object.freeze(['hunter', 'wind']) }),
@@ -11016,6 +11040,9 @@ if (typeof globalThis !== 'undefined') {
         snapshotAdventurerForGhost,
         capProbability,
         monsterArchetypeTable,
+        EQUIPMENT_RARITY_REQ_LEVEL,
+        EQUIPMENT_MAX_REQ_LEVEL,
+        getItemReqLevel,
     });
 }
 
@@ -11038,6 +11065,9 @@ if (typeof module !== 'undefined' && module.exports) {
         armorTable,
         magicTable,
         monsterArchetypeTable,
+        EQUIPMENT_RARITY_REQ_LEVEL,
+        EQUIPMENT_MAX_REQ_LEVEL,
+        getItemReqLevel,
         rollHumanStartingStats,
         rollPartyRoleStartingStats,
         rollPartyStartingStats,
@@ -12021,6 +12051,17 @@ function safeNum(value, fallback) {
     return Number.isFinite(number) ? number : fallback;
 }
 
+// [장비 착용 레벨 제한] 캐릭터 레벨 = 이번 회차에 도달한 최고 던전 층(마을 복귀로는 감소하지 않음).
+// 레벨 성장 시스템(addExpToSlot)이 스텁이라 층 진행도를 레벨 척도로 사용한다.
+function getCharacterLevel() {
+    const currentFloor = Math.max(1, Math.floor(safeNum(typeof floor !== 'undefined' ? floor : 1, 1)));
+    if (typeof player !== 'undefined' && player) {
+        player._maxFloorReached = Math.max(1, Math.floor(safeNum(player._maxFloorReached, 1)), currentFloor);
+        return player._maxFloorReached;
+    }
+    return currentFloor;
+}
+
 function ensurePartyMemberRuntimeShape(member) {
     if (!member) return member;
     const role = PARTY_ROLE_DEFINITIONS[member.roleKey] || PARTY_ROLE_DEFINITIONS.knight;
@@ -12207,8 +12248,18 @@ function fullResyncPlayerCombatStatsFromMetaAndInventory() {
             member.potionHealBonus = 0;
             member.curHp = Math.min(member.maxHp, Math.max(0, previousHp));
         });
+        const characterLevel = typeof getCharacterLevel === 'function' ? getCharacterLevel() : 1;
         for (const item of player.items || []) {
             if (!item) continue;
+            // [장비 착용 레벨 제한] 캐릭터 레벨 < 요구 레벨이면 장착(스탯 반영)을 차단한다.
+            // 아이템은 player.items(가방)에 그대로 남는다. 인벤 슬롯 제한은 없다.
+            const reqLevel = typeof getItemReqLevel === 'function' ? getItemReqLevel(item) : 1;
+            item.reqLevel = reqLevel;
+            if (characterLevel < reqLevel) {
+                item._equipLocked = true;
+                continue;
+            }
+            item._equipLocked = false;
             const itemText = `${item.name || ''} ${(item.tags || []).join(' ')}`;
             // [구매 지급 대상 지정] 유저가 명시적으로 귀속시킨 캐릭터가 있으면 자동 분배 휴리스틱보다 우선한다.
             const assignedTarget = item._assignedRole && byRole[item._assignedRole] ? byRole[item._assignedRole] : null;
@@ -12251,8 +12302,17 @@ function fullResyncPlayerCombatStatsFromMetaAndInventory() {
     let lifesteal = 0;
     let damageReduction = 0;
     let potionHealBonus = 0;
+    const singleCharacterLevel = typeof getCharacterLevel === 'function' ? getCharacterLevel() : 1;
     for (const item of player.items || []) {
         if (!item) continue;
+        // [장비 착용 레벨 제한] 요구 레벨 미달 장비는 스탯 미반영(가방 보관).
+        const reqLevel = typeof getItemReqLevel === 'function' ? getItemReqLevel(item) : 1;
+        item.reqLevel = reqLevel;
+        if (singleCharacterLevel < reqLevel) {
+            item._equipLocked = true;
+            continue;
+        }
+        item._equipLocked = false;
         if (item.type === 'atk' || item.type === 'ring' || item.type === 'rune') attack += safeNum(item.value, 0);
         if (item.type === 'hp') maxHp += safeNum(item.value, 0);
         maxHp += safeNum(item.hpBonus, 0);
@@ -12303,6 +12363,7 @@ function getPlayerFleeBonus() { return 0; }
 
 Object.assign(window, {
     safeNum,
+    getCharacterLevel,
     ensureHumanRuntimeShape,
     ensurePartyMemberRuntimeShape,
     getPartyMembers,
@@ -16649,6 +16710,8 @@ function buildShopSynergyHintsHtml(it) {
 function ensureOwnedItemUid(it) {
     if (!it) return;
     if (!it._uid) it._uid = 'it_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    // [장비 착용 레벨 제한] 소유하는 순간 요구 레벨(1~5)을 못박아 저장한다.
+    if (it.reqLevel == null && typeof getItemReqLevel === 'function') it.reqLevel = getItemReqLevel(it);
 }
 function removeOwnedItemEffects(it) {
     if (!it || !player) return;
@@ -17082,10 +17145,14 @@ function renderInventoryPanel() {
                   ? '<span class="inventory-item-price" style="margin:0;color:#ff7675;">녹슨 · 출혈</span>'
                   : '';
             const lockedInDungeon = it.defectType === 'twisted' && player && !player.inTown;
+            // [장비 착용 레벨 제한] 요구 레벨 미달로 미장착 상태면 배지로 안내한다.
+            const reqLevelBadge = it._equipLocked
+                ? `<span class="inventory-item-price" style="margin:0;color:#ff7675;">🔒 요구 Lv.${safeNum(it.reqLevel, getItemReqLevel(it))}</span>`
+                : '';
             html += `<div class="inventory-slot-cell inventory-slot-cell-filled" style="--rarity-color:${rarityInfo.color};">
                 <div class="inventory-item-top">
                     <span class="inventory-item-rarity" style="background:${rarityInfo.bg};color:${rarityInfo.color};">${rarityInfo.label}</span>
-                    ${defectBadge || ''}
+                    ${reqLevelBadge}${defectBadge || ''}
                     ${lockedInDungeon
                         ? '<span class="inventory-item-price" style="margin:0;color:#d980fa;">잠김</span>'
                         : starterGear
@@ -17655,6 +17722,17 @@ window.buyItem = (event, idx) => {
                 writeLog(`[지급] <b>${it.name}</b> → ${assignMember.name}에게 귀속`);
             }
             player.items.push(it); saveCollection(it.name);
+            // [장비 착용 레벨 제한] 요구 레벨 미달 시 구매는 되지만 장착은 차단되고 가방에 보관된다.
+            if (typeof getItemReqLevel === 'function') {
+                const reqLevel = getItemReqLevel(it);
+                it.reqLevel = reqLevel;
+                const charLevel = typeof getCharacterLevel === 'function' ? getCharacterLevel() : 1;
+                if (charLevel < reqLevel) {
+                    const msg = `장착 레벨이 부족합니다! (요구 레벨: ${reqLevel})`;
+                    if (typeof alert === 'function') alert(msg);
+                    writeLog(`[장착 불가] <b>${it.name}</b> — ${msg} 가방에 보관됩니다. (현재 Lv.${charLevel})`);
+                }
+            }
             if (it.type === 'rune') {
                 if (typeof it.value === 'number' && it.value) player.atk += it.value;
                 if (typeof it.hpBonus === 'number' && it.hpBonus) {
@@ -19103,6 +19181,8 @@ window.useAction = async function useAction(type, options) {
     setCombatProcessing(true);
     try {
         if (normalizedType === '공격') {
+            // [마법사 0 MP 평타 보장] 기본 [공격] 커맨드는 MP를 소모/검사하지 않는다.
+            // 마나가 0이어도 magic_attack(평타) 또는 physical_attack 으로 반드시 행동이 성립해 턴이 굳지 않는다.
             const learnedAction = classifyPlayerAttackAction(actor);
             const target = (requestedTargetId && livingEnemies.find(matchesTargetId)) || livingEnemies[0];
             const strikes = learnedAction === 'physical_attack' ? getActorAttackStrikeCount(actor) : 1;
@@ -19348,6 +19428,7 @@ function enterNextDungeonStage() {
     if (hasCrossedPointOfNoReturn(player.progress)) MetaRPG.clearRunSnapshot(player.metaSlotId);
     syncPlayerCampaignState();
     writeLog(`[전진] ${formatDungeonPosition(player.progress)} 진입${hasCrossedPointOfNoReturn(player.progress) ? ' · 복귀 불가' : ''}`);
+    // [MP 지속 시스템] 층 이동 시 파티 MP는 의도적으로 유지한다 (전투 종료·층간 100% 회복 없음).
     resetCombatVictorySettlementLock();
     const goldBeforeStageEntry = Math.max(0, safeNum(gold, 0));
     spawnEnemy();
@@ -19582,6 +19663,9 @@ window.returnPartyToTown = function returnPartyToTown() {
         return;
     }
     getPartyMembers(player).forEach((member) => setCurrentHp(member, member.maxHp));
+    // [MP 지속 시스템 / 드퀘식] MP는 전투 종료·층 이동으로는 회복되지 않고,
+    // 마을 복귀(= 여관 휴식) 시에만 maxMp 전량으로 회복된다.
+    getPartyMembers(player).forEach((member) => setActorMp(member, getActorMaxMp(member)));
     syncPartyAggregateState(player);
     player.inTown = true;
     resetFreshDungeonEntryVictoryGate();

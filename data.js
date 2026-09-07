@@ -124,6 +124,30 @@ const magicTable = Object.freeze({
 });
 
 const bodyParts = Object.freeze(['head', 'torso', 'arm', 'leg', 'eye']);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// [장비 착용 레벨 제한] 모든 장비 아이템은 요구 레벨(reqLevel, 1~5)을 가진다.
+//  - 명시적 item.reqLevel 이 있으면 1~5 로 clamp 후 사용.
+//  - 없으면 희귀도에서 파생: common 1 · rare 2 · epic 3 · legendary 4 · legend 5 · relic 1
+//  - 캐릭터 레벨(= 이번 회차 도달 최고 층) < reqLevel 이면 장착 차단, 가방에는 그대로 보관.
+// ─────────────────────────────────────────────────────────────────────────────
+const EQUIPMENT_MAX_REQ_LEVEL = 5;
+const EQUIPMENT_RARITY_REQ_LEVEL = Object.freeze({
+    common: 1,
+    rare: 2,
+    epic: 3,
+    legendary: 4,
+    legend: 5,
+    relic: 1,
+});
+
+function getItemReqLevel(item) {
+    if (!item || typeof item !== 'object') return 1;
+    const explicit = Math.floor(Number(item.reqLevel));
+    if (Number.isFinite(explicit)) return Math.min(EQUIPMENT_MAX_REQ_LEVEL, Math.max(1, explicit));
+    return EQUIPMENT_RARITY_REQ_LEVEL[item.rarity] || 1;
+}
+
 const monsterArchetypeTable = Object.freeze({
     warrior: Object.freeze({ key: 'warrior', job: '워리어형', element: 'earth', strong: 'hunter', weak: 'mage', traitTags: Object.freeze(['warrior', 'earth']) }),
     hunter: Object.freeze({ key: 'hunter', job: '헌터형', element: 'wind', strong: 'mage', weak: 'warrior', traitTags: Object.freeze(['hunter', 'wind']) }),
@@ -756,6 +780,9 @@ if (typeof globalThis !== 'undefined') {
         snapshotAdventurerForGhost,
         capProbability,
         monsterArchetypeTable,
+        EQUIPMENT_RARITY_REQ_LEVEL,
+        EQUIPMENT_MAX_REQ_LEVEL,
+        getItemReqLevel,
     });
 }
 
@@ -778,6 +805,9 @@ if (typeof module !== 'undefined' && module.exports) {
         armorTable,
         magicTable,
         monsterArchetypeTable,
+        EQUIPMENT_RARITY_REQ_LEVEL,
+        EQUIPMENT_MAX_REQ_LEVEL,
+        getItemReqLevel,
         rollHumanStartingStats,
         rollPartyRoleStartingStats,
         rollPartyStartingStats,

@@ -4024,6 +4024,8 @@ function buildShopSynergyHintsHtml(it) {
 function ensureOwnedItemUid(it) {
     if (!it) return;
     if (!it._uid) it._uid = 'it_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    // [장비 착용 레벨 제한] 소유하는 순간 요구 레벨(1~5)을 못박아 저장한다.
+    if (it.reqLevel == null && typeof getItemReqLevel === 'function') it.reqLevel = getItemReqLevel(it);
 }
 function removeOwnedItemEffects(it) {
     if (!it || !player) return;
@@ -4457,10 +4459,14 @@ function renderInventoryPanel() {
                   ? '<span class="inventory-item-price" style="margin:0;color:#ff7675;">녹슨 · 출혈</span>'
                   : '';
             const lockedInDungeon = it.defectType === 'twisted' && player && !player.inTown;
+            // [장비 착용 레벨 제한] 요구 레벨 미달로 미장착 상태면 배지로 안내한다.
+            const reqLevelBadge = it._equipLocked
+                ? `<span class="inventory-item-price" style="margin:0;color:#ff7675;">🔒 요구 Lv.${safeNum(it.reqLevel, getItemReqLevel(it))}</span>`
+                : '';
             html += `<div class="inventory-slot-cell inventory-slot-cell-filled" style="--rarity-color:${rarityInfo.color};">
                 <div class="inventory-item-top">
                     <span class="inventory-item-rarity" style="background:${rarityInfo.bg};color:${rarityInfo.color};">${rarityInfo.label}</span>
-                    ${defectBadge || ''}
+                    ${reqLevelBadge}${defectBadge || ''}
                     ${lockedInDungeon
                         ? '<span class="inventory-item-price" style="margin:0;color:#d980fa;">잠김</span>'
                         : starterGear
