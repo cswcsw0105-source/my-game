@@ -249,6 +249,15 @@ function renderShopItems(keepCurrentStock) {
         list.appendChild(b);
     }
     if (typeof MetaRPG !== 'undefined' && player && player.inTown) {
+        // [마을 스탯 투자] statPoints 보유 캐릭터에게 [스탯 강화 / Lv.UP] 버튼 노출.
+        if (typeof buildTownStatPointsRowHtml === 'function') {
+            const statRowHtml = buildTownStatPointsRowHtml();
+            if (statRowHtml) {
+                const statRow = document.createElement('div');
+                statRow.innerHTML = statRowHtml;
+                if (statRow.firstElementChild) list.appendChild(statRow.firstElementChild);
+            }
+        }
         const campRow = document.createElement('div');
         campRow.style.cssText = 'margin-bottom:12px;text-align:center;';
         campRow.innerHTML = `<button type="button" onclick="openBaseCampTech()" style="width:100%;padding:12px;background:#9b59b6;color:#fff;border:1px solid #8e44ad;border-radius:8px;font-weight:700;cursor:pointer;">🏕️ 베이스캠프 (연구·영구 강화)</button>`;

@@ -126,10 +126,68 @@ const magicTable = Object.freeze({
 const bodyParts = Object.freeze(['head', 'torso', 'arm', 'leg', 'eye']);
 
 // ─────────────────────────────────────────────────────────────────────────────
+// [2채널 탭 로그 시스템] 전투 내부 이벤트와 시스템 알림을 별도 큐로 분리한다.
+//  - combatLogs: 명중/빗나감/피해량/MP 소모 등 턴제 전투 로그 (최대 100줄)
+//  - notificationLogs: 레벨업/장비·골드 획득/층 이동 등 { id, text, timestamp, type }
+//  - activeLogTab: 'combat'(기본) | 'notification'
+// ─────────────────────────────────────────────────────────────────────────────
+const COMBAT_LOG_MAX = 100;
+let combatLogs = [];
+let notificationLogs = [];
+let activeLogTab = 'combat';
+let _notificationLogSeq = 0;
+
+function pushCombatLog(text) {
+    const line = String(text == null ? '' : text);
+    combatLogs.push(line);
+    if (combatLogs.length > COMBAT_LOG_MAX) combatLogs.splice(0, combatLogs.length - COMBAT_LOG_MAX);
+    return line;
+}
+
+function pushNotificationLog(text, type) {
+    const entry = {
+        id: `noti_${Date.now().toString(36)}_${(_notificationLogSeq += 1)}`,
+        text: String(text == null ? '' : text),
+        timestamp: Date.now(),
+        type: type || 'info',
+    };
+    notificationLogs.push(entry);
+    if (typeof window !== 'undefined' && typeof window.renderLogPanel === 'function') window.renderLogPanel();
+    return entry;
+}
+
+function clearCombatLogs() {
+    combatLogs.length = 0;
+}
+
+function clearNotificationLogs() {
+    notificationLogs.length = 0;
+}
+
+function removeNotificationLog(id) {
+    const idx = notificationLogs.findIndex((entry) => entry && entry.id === id);
+    if (idx >= 0) notificationLogs.splice(idx, 1);
+    return idx >= 0;
+}
+
+function setActiveLogTab(tab) {
+    activeLogTab = tab === 'notification' ? 'notification' : 'combat';
+    return activeLogTab;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// [레벨링] 현재 레벨 구간에서 다음 레벨까지 필요한 EXP.
+// ─────────────────────────────────────────────────────────────────────────────
+function getExpToNextLevel(level) {
+    const lv = Math.max(1, Math.floor(safeNumber(level, 1)));
+    return Math.round(20 + (lv - 1) * 16 + Math.pow(lv - 1, 1.7) * 4);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // [장비 착용 레벨 제한] 모든 장비 아이템은 요구 레벨(reqLevel, 1~5)을 가진다.
 //  - 명시적 item.reqLevel 이 있으면 1~5 로 clamp 후 사용.
 //  - 없으면 희귀도에서 파생: common 1 · rare 2 · epic 3 · legendary 4 · legend 5 · relic 1
-//  - 캐릭터 레벨(= 이번 회차 도달 최고 층) < reqLevel 이면 장착 차단, 가방에는 그대로 보관.
+//  - 캐릭터(파티원) level < reqLevel 이면 장착 차단, 가방에는 그대로 보관.
 // ─────────────────────────────────────────────────────────────────────────────
 const EQUIPMENT_MAX_REQ_LEVEL = 5;
 const EQUIPMENT_RARITY_REQ_LEVEL = Object.freeze({
@@ -404,6 +462,10 @@ function normalizePartyMember(raw, roleKey) {
         archetype: role.archetype,
         aggroWeight: role.aggroWeight,
         stats,
+        // [레벨링] 캐릭터별 레벨/경험치/미사용 스탯 포인트. 생성 시 Lv.1 · EXP 0.
+        level: Math.max(1, Math.floor(safeNumber(source.level, 1))),
+        exp: Math.max(0, Math.floor(safeNumber(source.exp, 0))),
+        statPoints: Math.max(0, Math.floor(safeNumber(source.statPoints, 0))),
         hp: clamp(source.hp == null ? maxHp : source.hp, 0, maxHp),
         maxHp,
         mp: clamp(source.mp == null ? maxMp : source.mp, 0, maxMp),
@@ -783,6 +845,16 @@ if (typeof globalThis !== 'undefined') {
         EQUIPMENT_RARITY_REQ_LEVEL,
         EQUIPMENT_MAX_REQ_LEVEL,
         getItemReqLevel,
+        COMBAT_LOG_MAX,
+        combatLogs,
+        notificationLogs,
+        pushCombatLog,
+        pushNotificationLog,
+        clearCombatLogs,
+        clearNotificationLogs,
+        removeNotificationLog,
+        setActiveLogTab,
+        getExpToNextLevel,
     });
 }
 
@@ -808,6 +880,16 @@ if (typeof module !== 'undefined' && module.exports) {
         EQUIPMENT_RARITY_REQ_LEVEL,
         EQUIPMENT_MAX_REQ_LEVEL,
         getItemReqLevel,
+        COMBAT_LOG_MAX,
+        combatLogs,
+        notificationLogs,
+        pushCombatLog,
+        pushNotificationLog,
+        clearCombatLogs,
+        clearNotificationLogs,
+        removeNotificationLog,
+        setActiveLogTab,
+        getExpToNextLevel,
         rollHumanStartingStats,
         rollPartyRoleStartingStats,
         rollPartyStartingStats,

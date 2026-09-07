@@ -6,15 +6,90 @@ function safeNum(value, fallback) {
     return Number.isFinite(number) ? number : fallback;
 }
 
-// [장비 착용 레벨 제한] 캐릭터 레벨 = 이번 회차에 도달한 최고 던전 층(마을 복귀로는 감소하지 않음).
-// 레벨 성장 시스템(addExpToSlot)이 스텁이라 층 진행도를 레벨 척도로 사용한다.
+// [레벨링] 캐릭터 레벨 = 파티원 실제 레벨 중 최고값. (장비 요구 레벨 검사·표시용 대표값)
+// 개별 장착 판정은 fullResyncPlayerCombatStatsFromMetaAndInventory 에서 장착 대상 파티원의 level 로 수행한다.
 function getCharacterLevel() {
-    const currentFloor = Math.max(1, Math.floor(safeNum(typeof floor !== 'undefined' ? floor : 1, 1)));
-    if (typeof player !== 'undefined' && player) {
-        player._maxFloorReached = Math.max(1, Math.floor(safeNum(player._maxFloorReached, 1)), currentFloor);
-        return player._maxFloorReached;
+    if (typeof player !== 'undefined' && player && Array.isArray(player.party) && player.party.length) {
+        return Math.max(1, ...player.party.map((member) => Math.floor(safeNum(member && member.level, 1))));
     }
-    return currentFloor;
+    return 1;
+}
+
+// 전투를 멈추지 않고 EXP를 지급하고, 요구치 도달 시 즉시 레벨업(스탯 포인트 +2/레벨)을 처리한다.
+function grantPartyMemberExp(member, amount) {
+    if (!member) return 0;
+    const gain = Math.max(0, Math.floor(safeNum(amount, 0)));
+    if (gain <= 0) return 0;
+    member.level = Math.max(1, Math.floor(safeNum(member.level, 1)));
+    member.exp = Math.max(0, Math.floor(safeNum(member.exp, 0))) + gain;
+    member.statPoints = Math.max(0, Math.floor(safeNum(member.statPoints, 0)));
+    let levelsGained = 0;
+    let need = getExpToNextLevel(member.level);
+    while (member.exp >= need && member.level < 999) {
+        member.exp -= need;
+        member.level += 1;
+        member.statPoints += 2;
+        levelsGained += 1;
+        if (typeof pushNotificationLog === 'function') {
+            pushNotificationLog(`[레벨업] ${member.name} 캐릭터 Lv.${member.level} 달성! (보너스 스탯 +2pt)`, 'levelup');
+        }
+        if (typeof writeLog === 'function') {
+            writeLog(`[레벨업] ${member.name} 캐릭터 Lv.${member.level} 달성! (보너스 스탯 +2pt)`);
+        }
+        need = getExpToNextLevel(member.level);
+    }
+    return levelsGained;
+}
+
+// 처치한 적 1인당 EXP 가치 (층수 + 5대 스탯 총합 기반).
+function getEnemyMemberExpValue(enemyMember) {
+    const stats = enemyMember && enemyMember.stats ? enemyMember.stats : {};
+    const statSum = ['str', 'def', 'hp', 'int', 'wis', 'agi'].reduce((sum, key) => sum + Math.max(0, safeNum(stats[key], 0)), 0);
+    const floorRef = Math.max(1, Math.floor(safeNum(typeof floor !== 'undefined' ? floor : 1, 1)));
+    const base = 6 + floorRef * 1.5 + statSum / 12;
+    return Math.max(1, Math.round(enemyMember && enemyMember.isBoss ? base * 2.5 : base));
+}
+
+// 전투 승리 시 살아있는 파티원 전원에게 처치 EXP 총합을 지급한다. 반환값은 지급 EXP.
+function awardCombatExp(defeatedEnemyActor) {
+    if (!player || !Array.isArray(player.party)) return 0;
+    const enemyMembers = defeatedEnemyActor && Array.isArray(defeatedEnemyActor.party) && defeatedEnemyActor.party.length
+        ? defeatedEnemyActor.party
+        : (defeatedEnemyActor ? [defeatedEnemyActor] : []);
+    const totalExp = enemyMembers.reduce((sum, foe) => sum + getEnemyMemberExpValue(foe), 0);
+    if (totalExp <= 0) return 0;
+    const recipients = getLivingPartyMembers(player);
+    const targets = recipients.length ? recipients : getPartyMembers(player);
+    targets.forEach((member) => grantPartyMemberExp(member, totalExp));
+    if (typeof pushNotificationLog === 'function') {
+        pushNotificationLog(`[경험치] 파티원이 각각 ${totalExp} EXP를 획득했습니다.`, 'exp');
+    }
+    if (typeof syncPartyAggregateState === 'function') syncPartyAggregateState(player);
+    return totalExp;
+}
+
+// [마을 스탯 투자] 미사용 statPoints 1점을 지정 스탯에 투자. 단일 스탯 상한 30.
+function applyTownStatPoint(member, statKey, dir) {
+    if (!member || !member.stats) return false;
+    const STAT_CAP = 30;
+    const keys = ['str', 'def', 'hp', 'int', 'wis', 'agi'];
+    if (!keys.includes(statKey)) return false;
+    member.statPoints = Math.max(0, Math.floor(safeNum(member.statPoints, 0)));
+    const current = Math.max(1, Math.floor(safeNum(member.stats[statKey], 1)));
+    if (dir > 0) {
+        if (member.statPoints <= 0 || current >= STAT_CAP) return false;
+        member.stats[statKey] = current + 1;
+        member.statPoints -= 1;
+        return true;
+    }
+    // 되돌리기: 이번 세션에서 투자한 분만 회수 가능하도록 호출부에서 baseline 관리. 여기선 단순 -1/+포인트.
+    if (dir < 0) {
+        if (current <= 1) return false;
+        member.stats[statKey] = current - 1;
+        member.statPoints += 1;
+        return true;
+    }
+    return false;
 }
 
 function ensurePartyMemberRuntimeShape(member) {
@@ -24,6 +99,10 @@ function ensurePartyMemberRuntimeShape(member) {
     member.name = member.name || role.name;
     member.archetype = role.archetype;
     member.aggroWeight = safeNum(member.aggroWeight, role.aggroWeight);
+    // [레벨링] 캐릭터별 레벨/경험치/미사용 스탯 포인트.
+    member.level = Math.max(1, Math.floor(safeNum(member.level, 1)));
+    member.exp = Math.max(0, Math.floor(safeNum(member.exp, 0)));
+    member.statPoints = Math.max(0, Math.floor(safeNum(member.statPoints, 0)));
     member.stats = normalizeHumanStats(member.stats || {});
     member.maxHp = Math.max(1, safeNum(member.maxHp, getMaxHpFromStat(member.stats.hp)));
     member.curHp = Math.min(member.maxHp, Math.max(0, safeNum(member.curHp, member.hp == null ? member.maxHp : member.hp)));
@@ -203,18 +282,10 @@ function fullResyncPlayerCombatStatsFromMetaAndInventory() {
             member.potionHealBonus = 0;
             member.curHp = Math.min(member.maxHp, Math.max(0, previousHp));
         });
-        const characterLevel = typeof getCharacterLevel === 'function' ? getCharacterLevel() : 1;
         for (const item of player.items || []) {
             if (!item) continue;
-            // [장비 착용 레벨 제한] 캐릭터 레벨 < 요구 레벨이면 장착(스탯 반영)을 차단한다.
-            // 아이템은 player.items(가방)에 그대로 남는다. 인벤 슬롯 제한은 없다.
             const reqLevel = typeof getItemReqLevel === 'function' ? getItemReqLevel(item) : 1;
             item.reqLevel = reqLevel;
-            if (characterLevel < reqLevel) {
-                item._equipLocked = true;
-                continue;
-            }
-            item._equipLocked = false;
             const itemText = `${item.name || ''} ${(item.tags || []).join(' ')}`;
             // [구매 지급 대상 지정] 유저가 명시적으로 귀속시킨 캐릭터가 있으면 자동 분배 휴리스틱보다 우선한다.
             const assignedTarget = item._assignedRole && byRole[item._assignedRole] ? byRole[item._assignedRole] : null;
@@ -224,6 +295,13 @@ function fullResyncPlayerCombatStatsFromMetaAndInventory() {
                   ? byRole.mage
                   : byRole.knight);
             if (!target) continue;
+            // [장비 착용 레벨 제한] 실제 캐릭터(장착 대상 파티원) level >= item.reqLevel 이어야 장착된다.
+            // 레벨 미달이면 스탯 미반영, 아이템은 player.items(가방)에 그대로 남는다. 인벤 슬롯 제한 없음.
+            if (Math.floor(safeNum(target.level, 1)) < reqLevel) {
+                item._equipLocked = true;
+                continue;
+            }
+            item._equipLocked = false;
             target.items.push(item);
             if (item.type === 'atk' || item.type === 'ring' || item.type === 'rune') target.atk += safeNum(item.value, 0);
             if (item.type === 'hp') target.maxHp += safeNum(item.value, 0);
@@ -319,6 +397,10 @@ function getPlayerFleeBonus() { return 0; }
 Object.assign(window, {
     safeNum,
     getCharacterLevel,
+    grantPartyMemberExp,
+    getEnemyMemberExpValue,
+    awardCombatExp,
+    applyTownStatPoint,
     ensureHumanRuntimeShape,
     ensurePartyMemberRuntimeShape,
     getPartyMembers,

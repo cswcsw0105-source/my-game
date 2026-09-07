@@ -10386,10 +10386,68 @@ const magicTable = Object.freeze({
 const bodyParts = Object.freeze(['head', 'torso', 'arm', 'leg', 'eye']);
 
 // ─────────────────────────────────────────────────────────────────────────────
+// [2채널 탭 로그 시스템] 전투 내부 이벤트와 시스템 알림을 별도 큐로 분리한다.
+//  - combatLogs: 명중/빗나감/피해량/MP 소모 등 턴제 전투 로그 (최대 100줄)
+//  - notificationLogs: 레벨업/장비·골드 획득/층 이동 등 { id, text, timestamp, type }
+//  - activeLogTab: 'combat'(기본) | 'notification'
+// ─────────────────────────────────────────────────────────────────────────────
+const COMBAT_LOG_MAX = 100;
+let combatLogs = [];
+let notificationLogs = [];
+let activeLogTab = 'combat';
+let _notificationLogSeq = 0;
+
+function pushCombatLog(text) {
+    const line = String(text == null ? '' : text);
+    combatLogs.push(line);
+    if (combatLogs.length > COMBAT_LOG_MAX) combatLogs.splice(0, combatLogs.length - COMBAT_LOG_MAX);
+    return line;
+}
+
+function pushNotificationLog(text, type) {
+    const entry = {
+        id: `noti_${Date.now().toString(36)}_${(_notificationLogSeq += 1)}`,
+        text: String(text == null ? '' : text),
+        timestamp: Date.now(),
+        type: type || 'info',
+    };
+    notificationLogs.push(entry);
+    if (typeof window !== 'undefined' && typeof window.renderLogPanel === 'function') window.renderLogPanel();
+    return entry;
+}
+
+function clearCombatLogs() {
+    combatLogs.length = 0;
+}
+
+function clearNotificationLogs() {
+    notificationLogs.length = 0;
+}
+
+function removeNotificationLog(id) {
+    const idx = notificationLogs.findIndex((entry) => entry && entry.id === id);
+    if (idx >= 0) notificationLogs.splice(idx, 1);
+    return idx >= 0;
+}
+
+function setActiveLogTab(tab) {
+    activeLogTab = tab === 'notification' ? 'notification' : 'combat';
+    return activeLogTab;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// [레벨링] 현재 레벨 구간에서 다음 레벨까지 필요한 EXP.
+// ─────────────────────────────────────────────────────────────────────────────
+function getExpToNextLevel(level) {
+    const lv = Math.max(1, Math.floor(safeNumber(level, 1)));
+    return Math.round(20 + (lv - 1) * 16 + Math.pow(lv - 1, 1.7) * 4);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // [장비 착용 레벨 제한] 모든 장비 아이템은 요구 레벨(reqLevel, 1~5)을 가진다.
 //  - 명시적 item.reqLevel 이 있으면 1~5 로 clamp 후 사용.
 //  - 없으면 희귀도에서 파생: common 1 · rare 2 · epic 3 · legendary 4 · legend 5 · relic 1
-//  - 캐릭터 레벨(= 이번 회차 도달 최고 층) < reqLevel 이면 장착 차단, 가방에는 그대로 보관.
+//  - 캐릭터(파티원) level < reqLevel 이면 장착 차단, 가방에는 그대로 보관.
 // ─────────────────────────────────────────────────────────────────────────────
 const EQUIPMENT_MAX_REQ_LEVEL = 5;
 const EQUIPMENT_RARITY_REQ_LEVEL = Object.freeze({
@@ -10664,6 +10722,10 @@ function normalizePartyMember(raw, roleKey) {
         archetype: role.archetype,
         aggroWeight: role.aggroWeight,
         stats,
+        // [레벨링] 캐릭터별 레벨/경험치/미사용 스탯 포인트. 생성 시 Lv.1 · EXP 0.
+        level: Math.max(1, Math.floor(safeNumber(source.level, 1))),
+        exp: Math.max(0, Math.floor(safeNumber(source.exp, 0))),
+        statPoints: Math.max(0, Math.floor(safeNumber(source.statPoints, 0))),
         hp: clamp(source.hp == null ? maxHp : source.hp, 0, maxHp),
         maxHp,
         mp: clamp(source.mp == null ? maxMp : source.mp, 0, maxMp),
@@ -11043,6 +11105,16 @@ if (typeof globalThis !== 'undefined') {
         EQUIPMENT_RARITY_REQ_LEVEL,
         EQUIPMENT_MAX_REQ_LEVEL,
         getItemReqLevel,
+        COMBAT_LOG_MAX,
+        combatLogs,
+        notificationLogs,
+        pushCombatLog,
+        pushNotificationLog,
+        clearCombatLogs,
+        clearNotificationLogs,
+        removeNotificationLog,
+        setActiveLogTab,
+        getExpToNextLevel,
     });
 }
 
@@ -11068,6 +11140,16 @@ if (typeof module !== 'undefined' && module.exports) {
         EQUIPMENT_RARITY_REQ_LEVEL,
         EQUIPMENT_MAX_REQ_LEVEL,
         getItemReqLevel,
+        COMBAT_LOG_MAX,
+        combatLogs,
+        notificationLogs,
+        pushCombatLog,
+        pushNotificationLog,
+        clearCombatLogs,
+        clearNotificationLogs,
+        removeNotificationLog,
+        setActiveLogTab,
+        getExpToNextLevel,
         rollHumanStartingStats,
         rollPartyRoleStartingStats,
         rollPartyStartingStats,
@@ -12051,15 +12133,90 @@ function safeNum(value, fallback) {
     return Number.isFinite(number) ? number : fallback;
 }
 
-// [장비 착용 레벨 제한] 캐릭터 레벨 = 이번 회차에 도달한 최고 던전 층(마을 복귀로는 감소하지 않음).
-// 레벨 성장 시스템(addExpToSlot)이 스텁이라 층 진행도를 레벨 척도로 사용한다.
+// [레벨링] 캐릭터 레벨 = 파티원 실제 레벨 중 최고값. (장비 요구 레벨 검사·표시용 대표값)
+// 개별 장착 판정은 fullResyncPlayerCombatStatsFromMetaAndInventory 에서 장착 대상 파티원의 level 로 수행한다.
 function getCharacterLevel() {
-    const currentFloor = Math.max(1, Math.floor(safeNum(typeof floor !== 'undefined' ? floor : 1, 1)));
-    if (typeof player !== 'undefined' && player) {
-        player._maxFloorReached = Math.max(1, Math.floor(safeNum(player._maxFloorReached, 1)), currentFloor);
-        return player._maxFloorReached;
+    if (typeof player !== 'undefined' && player && Array.isArray(player.party) && player.party.length) {
+        return Math.max(1, ...player.party.map((member) => Math.floor(safeNum(member && member.level, 1))));
     }
-    return currentFloor;
+    return 1;
+}
+
+// 전투를 멈추지 않고 EXP를 지급하고, 요구치 도달 시 즉시 레벨업(스탯 포인트 +2/레벨)을 처리한다.
+function grantPartyMemberExp(member, amount) {
+    if (!member) return 0;
+    const gain = Math.max(0, Math.floor(safeNum(amount, 0)));
+    if (gain <= 0) return 0;
+    member.level = Math.max(1, Math.floor(safeNum(member.level, 1)));
+    member.exp = Math.max(0, Math.floor(safeNum(member.exp, 0))) + gain;
+    member.statPoints = Math.max(0, Math.floor(safeNum(member.statPoints, 0)));
+    let levelsGained = 0;
+    let need = getExpToNextLevel(member.level);
+    while (member.exp >= need && member.level < 999) {
+        member.exp -= need;
+        member.level += 1;
+        member.statPoints += 2;
+        levelsGained += 1;
+        if (typeof pushNotificationLog === 'function') {
+            pushNotificationLog(`[레벨업] ${member.name} 캐릭터 Lv.${member.level} 달성! (보너스 스탯 +2pt)`, 'levelup');
+        }
+        if (typeof writeLog === 'function') {
+            writeLog(`[레벨업] ${member.name} 캐릭터 Lv.${member.level} 달성! (보너스 스탯 +2pt)`);
+        }
+        need = getExpToNextLevel(member.level);
+    }
+    return levelsGained;
+}
+
+// 처치한 적 1인당 EXP 가치 (층수 + 5대 스탯 총합 기반).
+function getEnemyMemberExpValue(enemyMember) {
+    const stats = enemyMember && enemyMember.stats ? enemyMember.stats : {};
+    const statSum = ['str', 'def', 'hp', 'int', 'wis', 'agi'].reduce((sum, key) => sum + Math.max(0, safeNum(stats[key], 0)), 0);
+    const floorRef = Math.max(1, Math.floor(safeNum(typeof floor !== 'undefined' ? floor : 1, 1)));
+    const base = 6 + floorRef * 1.5 + statSum / 12;
+    return Math.max(1, Math.round(enemyMember && enemyMember.isBoss ? base * 2.5 : base));
+}
+
+// 전투 승리 시 살아있는 파티원 전원에게 처치 EXP 총합을 지급한다. 반환값은 지급 EXP.
+function awardCombatExp(defeatedEnemyActor) {
+    if (!player || !Array.isArray(player.party)) return 0;
+    const enemyMembers = defeatedEnemyActor && Array.isArray(defeatedEnemyActor.party) && defeatedEnemyActor.party.length
+        ? defeatedEnemyActor.party
+        : (defeatedEnemyActor ? [defeatedEnemyActor] : []);
+    const totalExp = enemyMembers.reduce((sum, foe) => sum + getEnemyMemberExpValue(foe), 0);
+    if (totalExp <= 0) return 0;
+    const recipients = getLivingPartyMembers(player);
+    const targets = recipients.length ? recipients : getPartyMembers(player);
+    targets.forEach((member) => grantPartyMemberExp(member, totalExp));
+    if (typeof pushNotificationLog === 'function') {
+        pushNotificationLog(`[경험치] 파티원이 각각 ${totalExp} EXP를 획득했습니다.`, 'exp');
+    }
+    if (typeof syncPartyAggregateState === 'function') syncPartyAggregateState(player);
+    return totalExp;
+}
+
+// [마을 스탯 투자] 미사용 statPoints 1점을 지정 스탯에 투자. 단일 스탯 상한 30.
+function applyTownStatPoint(member, statKey, dir) {
+    if (!member || !member.stats) return false;
+    const STAT_CAP = 30;
+    const keys = ['str', 'def', 'hp', 'int', 'wis', 'agi'];
+    if (!keys.includes(statKey)) return false;
+    member.statPoints = Math.max(0, Math.floor(safeNum(member.statPoints, 0)));
+    const current = Math.max(1, Math.floor(safeNum(member.stats[statKey], 1)));
+    if (dir > 0) {
+        if (member.statPoints <= 0 || current >= STAT_CAP) return false;
+        member.stats[statKey] = current + 1;
+        member.statPoints -= 1;
+        return true;
+    }
+    // 되돌리기: 이번 세션에서 투자한 분만 회수 가능하도록 호출부에서 baseline 관리. 여기선 단순 -1/+포인트.
+    if (dir < 0) {
+        if (current <= 1) return false;
+        member.stats[statKey] = current - 1;
+        member.statPoints += 1;
+        return true;
+    }
+    return false;
 }
 
 function ensurePartyMemberRuntimeShape(member) {
@@ -12069,6 +12226,10 @@ function ensurePartyMemberRuntimeShape(member) {
     member.name = member.name || role.name;
     member.archetype = role.archetype;
     member.aggroWeight = safeNum(member.aggroWeight, role.aggroWeight);
+    // [레벨링] 캐릭터별 레벨/경험치/미사용 스탯 포인트.
+    member.level = Math.max(1, Math.floor(safeNum(member.level, 1)));
+    member.exp = Math.max(0, Math.floor(safeNum(member.exp, 0)));
+    member.statPoints = Math.max(0, Math.floor(safeNum(member.statPoints, 0)));
     member.stats = normalizeHumanStats(member.stats || {});
     member.maxHp = Math.max(1, safeNum(member.maxHp, getMaxHpFromStat(member.stats.hp)));
     member.curHp = Math.min(member.maxHp, Math.max(0, safeNum(member.curHp, member.hp == null ? member.maxHp : member.hp)));
@@ -12248,18 +12409,10 @@ function fullResyncPlayerCombatStatsFromMetaAndInventory() {
             member.potionHealBonus = 0;
             member.curHp = Math.min(member.maxHp, Math.max(0, previousHp));
         });
-        const characterLevel = typeof getCharacterLevel === 'function' ? getCharacterLevel() : 1;
         for (const item of player.items || []) {
             if (!item) continue;
-            // [장비 착용 레벨 제한] 캐릭터 레벨 < 요구 레벨이면 장착(스탯 반영)을 차단한다.
-            // 아이템은 player.items(가방)에 그대로 남는다. 인벤 슬롯 제한은 없다.
             const reqLevel = typeof getItemReqLevel === 'function' ? getItemReqLevel(item) : 1;
             item.reqLevel = reqLevel;
-            if (characterLevel < reqLevel) {
-                item._equipLocked = true;
-                continue;
-            }
-            item._equipLocked = false;
             const itemText = `${item.name || ''} ${(item.tags || []).join(' ')}`;
             // [구매 지급 대상 지정] 유저가 명시적으로 귀속시킨 캐릭터가 있으면 자동 분배 휴리스틱보다 우선한다.
             const assignedTarget = item._assignedRole && byRole[item._assignedRole] ? byRole[item._assignedRole] : null;
@@ -12269,6 +12422,13 @@ function fullResyncPlayerCombatStatsFromMetaAndInventory() {
                   ? byRole.mage
                   : byRole.knight);
             if (!target) continue;
+            // [장비 착용 레벨 제한] 실제 캐릭터(장착 대상 파티원) level >= item.reqLevel 이어야 장착된다.
+            // 레벨 미달이면 스탯 미반영, 아이템은 player.items(가방)에 그대로 남는다. 인벤 슬롯 제한 없음.
+            if (Math.floor(safeNum(target.level, 1)) < reqLevel) {
+                item._equipLocked = true;
+                continue;
+            }
+            item._equipLocked = false;
             target.items.push(item);
             if (item.type === 'atk' || item.type === 'ring' || item.type === 'rune') target.atk += safeNum(item.value, 0);
             if (item.type === 'hp') target.maxHp += safeNum(item.value, 0);
@@ -12364,6 +12524,10 @@ function getPlayerFleeBonus() { return 0; }
 Object.assign(window, {
     safeNum,
     getCharacterLevel,
+    grantPartyMemberExp,
+    getEnemyMemberExpValue,
+    awardCombatExp,
+    applyTownStatPoint,
     ensureHumanRuntimeShape,
     ensurePartyMemberRuntimeShape,
     getPartyMembers,
@@ -13560,15 +13724,91 @@ function updateUi() {
 }
 
 function writeLog(msg) {
+    const text = String(msg);
+    // [2채널 탭 로그] 턴제 전투 이벤트는 combatLogs(최대 100줄) 큐로 적재한다.
+    if (typeof pushCombatLog === 'function') pushCombatLog(text);
     if (!Array.isArray(window._combatLogHistory)) window._combatLogHistory = [];
-    window._combatLogHistory.unshift(String(msg));
+    window._combatLogHistory.unshift(text);
     if (window._combatLogHistory.length > 220) window._combatLogHistory.length = 220;
     renderSlimBattleLog();
-    const p=`<p style="margin:4px 0;border-bottom:1px solid #333;padding-bottom:4px;">${msg}</p>`;
-    const battle = document.getElementById('battle-area');
-    const isBattle = battle && battle.style.display === 'block';
-    if(!isBattle){const l=document.getElementById('log');if(l)l.innerHTML=p+l.innerHTML;}
+    renderLogPanel();
 }
+
+function logTabNotiAccent(type) {
+    switch (type) {
+        case 'levelup': return '#f1c40f';
+        case 'gold': return '#f5a623';
+        case 'exp': return '#2ecc71';
+        case 'floor': return '#4b9cff';
+        case 'item': return '#a55eea';
+        default: return '#666';
+    }
+}
+
+function formatLogTimestamp(ts) {
+    const d = new Date(safeNum(ts, Date.now()));
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+// [2채널 탭 로그 시스템] #log 패널에 [전투 로그] / [알림 로그] 탭 + 개별 삭제 + 현재 창 비우기 렌더.
+function renderLogPanel() {
+    const host = document.getElementById('log');
+    if (!host) return;
+    const tab = (typeof activeLogTab === 'string' && activeLogTab === 'notification') ? 'notification' : 'combat';
+    const cLogs = (typeof combatLogs !== 'undefined' && Array.isArray(combatLogs)) ? combatLogs : [];
+    const nLogs = (typeof notificationLogs !== 'undefined' && Array.isArray(notificationLogs)) ? notificationLogs : [];
+    const tabButton = (key, label) => {
+        const on = tab === key;
+        return `<button type="button" onclick="setLogTab('${key}')" style="border:none;border-radius:6px 6px 0 0;padding:6px 12px;font-size:0.8em;font-weight:700;cursor:pointer;background:${on ? '#1c1c28' : '#0d0d12'};color:${on ? '#f1c40f' : '#888'};border-bottom:2px solid ${on ? '#f1c40f' : 'transparent'};">${label}</button>`;
+    };
+    const combatBody = cLogs.length
+        ? cLogs.map((line) => `<div class="log-line" style="padding:3px 2px;border-bottom:1px solid #222;font-size:0.82em;line-height:1.4;">${line}</div>`).join('')
+        : `<div style="color:#555;padding:8px;">전투 로그가 없습니다.</div>`;
+    const notiBody = nLogs.length
+        ? nLogs.slice().reverse().map((entry) => `<div class="noti-card" style="display:flex;gap:8px;align-items:flex-start;justify-content:space-between;padding:7px 9px;margin:4px 0;background:#141414;border-left:3px solid ${logTabNotiAccent(entry.type)};border-radius:4px;">
+            <div style="flex:1;min-width:0;font-size:0.82em;line-height:1.4;word-break:break-word;">${entry.text}<div style="color:#666;font-size:0.72em;margin-top:2px;">${formatLogTimestamp(entry.timestamp)}</div></div>
+            <button type="button" onclick="removeNotificationLogEntry('${entry.id}')" title="이 알림 삭제" style="flex:0 0 auto;border:none;background:#2a2a2a;color:#e74c3c;border-radius:4px;width:22px;height:22px;cursor:pointer;font-weight:700;line-height:1;">✕</button>
+        </div>`).join('')
+        : `<div style="color:#555;padding:8px;">알림이 없습니다.</div>`;
+    host.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid #333;flex-wrap:wrap;">
+            <div style="display:flex;gap:2px;">
+                ${tabButton('combat', '⚔️ 전투 로그')}
+                ${tabButton('notification', '🔔 알림 로그 (' + nLogs.length + ')')}
+            </div>
+            <button type="button" onclick="clearActiveLogPanel()" style="border:none;border-radius:6px;padding:5px 10px;font-size:0.76em;cursor:pointer;background:#3a1f1f;color:#e88;">현재 창 비우기</button>
+        </div>
+        <div id="combat-log-scroll" ${tab === 'combat' ? '' : 'hidden'} style="height:180px;overflow-y:auto;padding:6px 4px;">${combatBody}</div>
+        <div id="notification-log-list" ${tab === 'notification' ? '' : 'hidden'} style="max-height:220px;overflow-y:auto;padding:4px;">${notiBody}</div>`;
+    if (tab === 'combat') {
+        const box = document.getElementById('combat-log-scroll');
+        if (box) box.scrollTop = box.scrollHeight;
+    }
+}
+window.renderLogPanel = renderLogPanel;
+
+window.setLogTab = function setLogTab(tab) {
+    if (typeof setActiveLogTab === 'function') setActiveLogTab(tab);
+    renderLogPanel();
+};
+
+window.clearActiveLogPanel = function clearActiveLogPanel() {
+    const tab = (typeof activeLogTab === 'string' && activeLogTab === 'notification') ? 'notification' : 'combat';
+    if (tab === 'combat') {
+        if (typeof clearCombatLogs === 'function') clearCombatLogs();
+        window._combatLogHistory = [];
+        renderSlimBattleLog();
+    } else if (typeof clearNotificationLogs === 'function') {
+        clearNotificationLogs();
+    }
+    renderLogPanel();
+};
+
+window.removeNotificationLogEntry = function removeNotificationLogEntry(id) {
+    if (typeof removeNotificationLog === 'function') removeNotificationLog(id);
+    renderLogPanel();
+};
 
 function renderSlimBattleLog() {
     const strip = document.getElementById('battle-log-strip');
@@ -14989,10 +15229,14 @@ function getPendingPartyRollMember(roleKey) {
 }
 
 function buildFinalPendingPartyRoll() {
-    // [파티 편성] 슬롯 순서를 그대로 유지하며 각 슬롯이 선택한 직업(roleKey)으로 확정한다.
+    // [파티 편성] 슬롯 순서를 유지하며 각 슬롯의 직업(roleKey) + 직업별 고정 기본 스탯으로 확정한다.
+    // 초기 스탯 분배는 폐지. 모든 캐릭터는 Lv.1 · EXP 0 · 미사용 스탯 포인트 0 으로 시작한다.
     return ensurePointBuyDraftParty(pendingPartyRoll).map((member) => ({
         roleKey: member.roleKey,
         name: (PARTY_ROLE_DEFINITIONS[member.roleKey] || PARTY_ROLE_DEFINITIONS.knight).name,
+        level: 1,
+        exp: 0,
+        statPoints: 0,
         stats: {
             str: member.stats.str,
             def: member.stats.def,
@@ -15009,46 +15253,24 @@ function buildFinalPendingPartyRoll() {
 const POINT_BUY_STAT_LABELS = Object.freeze({ str: '힘', def: '방어', hp: '체력', int: '지능', wis: '지혜', agi: '민첩' });
 const PARTY_JOB_ORDER = Object.freeze(['tank', 'knight', 'mage']);
 
-function buildPartyStatStepperHtml(slotIndex, member) {
-    const remaining = getPointBuyRemaining(member.roleKey, member.stats);
-    return POINT_BUY_STAT_KEYS.map((statKey) => {
-        const value = member.stats[statKey];
-        const floor = getPointBuyStatFloor(member.roleKey, statKey);
-        const isFloorStat = floor >= 15;
-        const minusDisabled = value <= floor;
-        const plusDisabled = value >= POINT_BUY_STAT_CAP || remaining <= 0;
-        const btnBase = 'width:28px;height:28px;flex:0 0 28px;border:none;border-radius:6px;font-weight:700;line-height:1;font-size:1em;color:#fff;display:inline-flex;align-items:center;justify-content:center;';
-        const minusStyle = `${btnBase}cursor:${minusDisabled ? 'not-allowed' : 'pointer'};background:${minusDisabled ? '#242424' : '#5a2d2d'};opacity:${minusDisabled ? '0.4' : '1'};`;
-        const plusStyle = `${btnBase}cursor:${plusDisabled ? 'not-allowed' : 'pointer'};background:${plusDisabled ? '#242424' : '#2d5a3d'};opacity:${plusDisabled ? '0.4' : '1'};`;
-        // [정렬] 좌: 스탯명(flex:1) — 우: [-] (값) [+] 블록(중앙 정렬 · 8px 간격)
-        return `<div style="display:flex;align-items:center;gap:12px;margin:5px 0;">
-            <span style="flex:1;min-width:0;color:${isFloorStat ? '#f1c40f' : '#cfcfcf'};font-size:0.82em;">${POINT_BUY_STAT_LABELS[statKey]}${isFloorStat ? ` <span style="color:#777;font-weight:400;">· 하한 ${floor}</span>` : ''}</span>
-            <span style="display:inline-flex;align-items:center;justify-content:center;gap:8px;flex:0 0 auto;">
-                <button type="button" onclick="adjustPartyStat(${slotIndex},'${statKey}',-1)" ${minusDisabled ? 'disabled' : ''} style="${minusStyle}">−</button>
-                <b style="color:#fff;min-width:30px;text-align:center;font-size:0.95em;">${value}</b>
-                <button type="button" onclick="adjustPartyStat(${slotIndex},'${statKey}',1)" ${plusDisabled ? 'disabled' : ''} style="${plusStyle}">+</button>
-            </span>
-        </div>`;
-    }).join('');
-}
-
 function buildPartyRollRowsHtml() {
     const party = ensurePointBuyDraftParty(pendingPartyRoll);
     return party.map((member, slotIndex) => {
-        const remaining = getPointBuyRemaining(member.roleKey, member.stats);
         const jobToggles = PARTY_JOB_ORDER.map((jobKey) => {
             const jobRole = PARTY_ROLE_DEFINITIONS[jobKey];
             const active = member.roleKey === jobKey;
             return `<button type="button" onclick="setPartySlotRole(${slotIndex},'${jobKey}')" style="flex:1;padding:6px 4px;border-radius:6px;font-size:0.78em;font-weight:700;cursor:pointer;border:1px solid ${active ? '#f1c40f' : '#444'};background:${active ? '#3a3320' : '#1a1a1a'};color:${active ? '#f1c40f' : '#999'};">${escapeHtml(jobRole.name)}</button>`;
         }).join('');
+        const s = member.stats;
+        const statLine = `힘 ${s.str} · 방어 ${s.def} · 체력 ${s.hp} · 지능 ${s.int} · 지혜 ${s.wis} · 민첩 ${s.agi}`;
         return `<div style="background:#111;border:1px solid #333;border-radius:8px;padding:11px;margin-bottom:8px;text-align:left;">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
                 <b style="color:#f1c40f;">슬롯 ${slotIndex + 1}</b>
-                <span style="color:${remaining === 0 ? '#2ecc71' : '#e67e22'};font-size:0.82em;font-weight:700;">남은 포인트: ${remaining} pt</span>
+                <span style="color:#888;font-size:0.78em;font-weight:700;">Lv.1 · EXP 0</span>
             </div>
             <div style="display:flex;gap:6px;margin-bottom:8px;">${jobToggles}</div>
-            ${buildPartyStatStepperHtml(slotIndex, member)}
-            <div style="color:#555;font-size:0.7em;margin-top:4px;">성혼 0 · 뒤틀림 0</div>
+            <div style="color:#cfcfcf;font-size:0.82em;line-height:1.5;">${statLine}</div>
+            <div style="color:#555;font-size:0.7em;margin-top:4px;">직업별 고정 기본 스탯 · 성혼 0 · 뒤틀림 0</div>
         </div>`;
     }).join('');
 }
@@ -15058,18 +15280,17 @@ function buildNewAdventureStartHtml(extraClass) {
     const party = ensurePointBuyDraftParty(pendingPartyRoll);
     const composition = party.map((member) => member.roleKey);
     const validComposition = isValidPartyComposition(composition);
-    const ready = isPointBuyPartyComplete(party);
     const warning = !validComposition
         ? `<p style="color:#e74c3c;font-size:0.78em;font-weight:700;margin:6px 0 0;">동일 직업 3명 편성은 불가능합니다.</p>`
         : '';
     return `
         <div id="new-adventure-entry" class="${className}">
             <div style="width:100%;max-width:560px;margin:0 auto 10px;">
-                <h4 style="color:#f1c40f;margin:0 0 4px;">🎯 3인 파티 편성 & 스탯 포인트 분배</h4>
-                <p style="color:#777;font-size:0.74em;margin:0 0 10px;">슬롯마다 직업을 고르고 자유 포인트 ${POINT_BUY_FREE_POINTS}pt를 분배하세요. 단일 스탯 상한 ${POINT_BUY_STAT_CAP}. 3명 전원 잔여 포인트가 0이고 동일 직업 3명이 아니어야 던전에 진입할 수 있습니다.</p>
+                <h4 style="color:#f1c40f;margin:0 0 4px;">🎯 3인 파티 직업 편성</h4>
+                <p style="color:#777;font-size:0.74em;margin:0 0 10px;">슬롯마다 직업을 선택하면 직업별 고정 기본 스탯으로 즉시 세팅됩니다. (초기 스탯 분배 없음 · 모두 Lv.1 시작) 동일 직업 3명은 편성할 수 없습니다. 스탯은 던전에서 레벨업 후 마을에서 강화합니다.</p>
                 ${buildPartyRollRowsHtml()}
                 ${warning}
-                <button id="new-adventure-start-btn" class="new-adventure-start-btn" type="button" onclick="confirmPartyAdventure()" ${ready ? '' : 'disabled'} style="margin-top:8px;">⚔️ 던전 진입</button>
+                <button id="new-adventure-start-btn" class="new-adventure-start-btn" type="button" onclick="confirmPartyAdventure()" ${validComposition ? '' : 'disabled'} style="margin-top:8px;">🎮 게임 시작</button>
             </div>
         </div>`;
 }
@@ -15084,19 +15305,10 @@ window.setPartySlotRole = function setPartySlotRole(slotIndex, roleKey) {
     showPreGameScreen();
 };
 
-window.adjustPartyStat = function adjustPartyStat(slotIndex, statKey, dir) {
-    pendingPartyRoll = adjustPointBuyStat(pendingPartyRoll, Number(slotIndex), statKey, Number(dir) || 0);
-    showPreGameScreen();
-};
-
 window.confirmPartyAdventure = function confirmPartyAdventure() {
     pendingPartyRoll = ensurePointBuyDraftParty(pendingPartyRoll);
     if (!isValidPartyComposition(pendingPartyRoll.map((member) => member.roleKey))) {
         writeLog('[파티 편성] 동일 직업 3명 편성은 불가능합니다. 최소 두 직업 이상으로 구성하세요.');
-        return;
-    }
-    if (!isPointBuyPartyComplete(pendingPartyRoll)) {
-        writeLog('[스탯 분배] 3인 파티 전원이 자유 포인트를 모두 소진해야 던전에 진입할 수 있습니다.');
         return;
     }
     const name = prompt('원정대 이름을 입력하세요:', '성혼 원정대');
@@ -15110,6 +15322,103 @@ window.confirmPartyAdventure = function confirmPartyAdventure() {
     pendingPartyRoll = null;
     initRunFromMetaSlot();
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// [마을 스탯 투자 모달] 레벨업으로 적립된 statPoints 를 마을에서 [-]/[+] 스테퍼로 수동 분배. 상한 30.
+// ─────────────────────────────────────────────────────────────────────────────
+const TOWN_STAT_KEYS = Object.freeze(['str', 'def', 'hp', 'int', 'wis', 'agi']);
+const TOWN_STAT_LABELS = Object.freeze({ str: '힘', def: '방어', hp: '체력', int: '지능', wis: '지혜', agi: '민첩' });
+const TOWN_STAT_CAP = 30;
+let _townStatModalMemberId = null;
+
+function getTownStatModalMember() {
+    if (!player || !Array.isArray(player.party)) return null;
+    return player.party.find((member) => member && member.id === _townStatModalMemberId) || null;
+}
+
+function renderTownStatModal() {
+    let overlay = document.getElementById('town-stat-modal');
+    const member = getTownStatModalMember();
+    if (!member) {
+        if (overlay) overlay.remove();
+        return;
+    }
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'town-stat-modal';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.72);display:flex;align-items:center;justify-content:center;padding:16px;';
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) window.closeTownStatModal(); });
+        document.body.appendChild(overlay);
+    }
+    const statPoints = Math.max(0, Math.floor(safeNum(member.statPoints, 0)));
+    const rows = TOWN_STAT_KEYS.map((statKey) => {
+        const value = Math.max(1, Math.floor(safeNum(member.stats[statKey], 1)));
+        const minusDisabled = value <= 1;
+        const plusDisabled = statPoints <= 0 || value >= TOWN_STAT_CAP;
+        const btnBase = 'width:30px;height:30px;flex:0 0 30px;border:none;border-radius:6px;font-weight:700;line-height:1;font-size:1.05em;color:#fff;display:inline-flex;align-items:center;justify-content:center;';
+        return `<div style="display:flex;align-items:center;gap:12px;margin:6px 0;">
+            <span style="flex:1;min-width:0;color:#cfcfcf;font-size:0.9em;">${TOWN_STAT_LABELS[statKey]}</span>
+            <span style="display:inline-flex;align-items:center;justify-content:center;gap:8px;flex:0 0 auto;">
+                <button type="button" onclick="adjustTownStat('${statKey}',-1)" ${minusDisabled ? 'disabled' : ''} style="${btnBase}cursor:${minusDisabled ? 'not-allowed' : 'pointer'};background:${minusDisabled ? '#242424' : '#5a2d2d'};opacity:${minusDisabled ? '0.4' : '1'};">−</button>
+                <b style="color:#fff;min-width:34px;text-align:center;font-size:1em;">${value}</b>
+                <button type="button" onclick="adjustTownStat('${statKey}',1)" ${plusDisabled ? 'disabled' : ''} style="${btnBase}cursor:${plusDisabled ? 'not-allowed' : 'pointer'};background:${plusDisabled ? '#242424' : '#2d5a3d'};opacity:${plusDisabled ? '0.4' : '1'};">+</button>
+            </span>
+        </div>`;
+    }).join('');
+    overlay.innerHTML = `<div style="background:#151515;border:1px solid #444;border-radius:12px;padding:18px;max-width:420px;width:100%;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;">
+            <h3 style="margin:0;color:#f1c40f;font-size:1.05em;">🔺 ${escapeHtml(member.name)} 스탯 강화</h3>
+            <button type="button" onclick="closeTownStatModal()" style="border:none;background:#2a2a2a;color:#ccc;border-radius:6px;width:28px;height:28px;cursor:pointer;font-weight:700;">✕</button>
+        </div>
+        <p style="color:#888;font-size:0.8em;margin:0 0 10px;">Lv.${Math.max(1, Math.floor(safeNum(member.level, 1)))} · 보유 포인트 <b style="color:${statPoints > 0 ? '#2ecc71' : '#888'};">${statPoints}pt</b> · 단일 스탯 상한 ${TOWN_STAT_CAP}</p>
+        ${rows}
+        <button type="button" onclick="confirmTownStats()" style="margin-top:12px;width:100%;padding:11px;border:none;border-radius:8px;background:#2d5a3d;color:#fff;font-weight:700;cursor:pointer;">확정 및 전투 스탯 동기화</button>
+    </div>`;
+}
+
+window.openTownStatModal = function openTownStatModal(memberId) {
+    _townStatModalMemberId = memberId;
+    renderTownStatModal();
+};
+
+window.adjustTownStat = function adjustTownStat(statKey, dir) {
+    const member = getTownStatModalMember();
+    if (!member) return;
+    if (typeof applyTownStatPoint === 'function') applyTownStatPoint(member, statKey, Number(dir) || 0);
+    renderTownStatModal();
+};
+
+window.confirmTownStats = function confirmTownStats() {
+    if (typeof fullResyncPlayerCombatStatsFromMetaAndInventory === 'function') fullResyncPlayerCombatStatsFromMetaAndInventory();
+    if (typeof syncPlayerCampaignState === 'function') syncPlayerCampaignState();
+    window.closeTownStatModal();
+    if (typeof renderShopItems === 'function') renderShopItems(true);
+    if (typeof updateUi === 'function') updateUi();
+    writeLog('[스탯 강화] 투자한 스탯으로 maxHp·공격력 등 전투 스탯을 동기화했습니다.');
+};
+
+window.closeTownStatModal = function closeTownStatModal() {
+    _townStatModalMemberId = null;
+    const overlay = document.getElementById('town-stat-modal');
+    if (overlay) overlay.remove();
+};
+
+// [마을] 상점 화면 상단 파티 스탯 강화 / Lv.UP 뱃지 행. statPoints 보유 캐릭터만 클릭 가능.
+function buildTownStatPointsRowHtml() {
+    if (!player || !Array.isArray(player.party) || !player.inTown) return '';
+    const rows = player.party.map((member) => {
+        if (!member) return '';
+        const sp = Math.max(0, Math.floor(safeNum(member.statPoints, 0)));
+        const lv = Math.max(1, Math.floor(safeNum(member.level, 1)));
+        const has = sp > 0;
+        return `<button type="button" ${has ? `onclick="openTownStatModal('${member.id}')"` : 'disabled'} style="flex:1;min-width:0;padding:8px 6px;border-radius:8px;border:1px solid ${has ? '#f1c40f' : '#333'};background:${has ? 'rgba(241,196,15,0.12)' : '#111'};color:${has ? '#f1c40f' : '#777'};font-size:0.74em;font-weight:700;cursor:${has ? 'pointer' : 'default'};line-height:1.4;">${escapeHtml(member.name)} · Lv.${lv}${has ? `<br>🔺 스탯 강화 +${sp}pt` : '<br>강화 포인트 없음'}</button>`;
+    }).join('');
+    return `<div style="margin-bottom:12px;background:#141414;border:1px solid #333;border-radius:8px;padding:10px;">
+        <div style="color:#9fb0ff;font-size:0.8em;font-weight:700;margin-bottom:8px;">📊 파티 스탯 강화 / Lv.UP</div>
+        <div style="display:flex;gap:6px;">${rows}</div>
+    </div>`;
+}
+window.buildTownStatPointsRowHtml = buildTownStatPointsRowHtml;
 
 function ensureHubCreateEntryRendered() {
     const startArea = document.getElementById('start-area');
@@ -15926,12 +16235,14 @@ function checkFloorUnlock(f) {
 
 function renderCombatLogsFromSnapshotRows(rows) {
     const arr = Array.isArray(rows) ? rows : [];
-    const html = arr
-        .map((msg) => `<p style="margin:4px 0;border-bottom:1px solid #333;padding-bottom:4px;">${msg}</p>`)
-        .join('');
-    const n = document.getElementById('log');
-    if (n) n.innerHTML = html;
     window._combatLogHistory = arr.slice(0, 220);
+    if (typeof combatLogs !== 'undefined' && Array.isArray(combatLogs)) {
+        combatLogs.length = 0;
+        // _combatLogHistory 는 최신→과거 순, combatLogs 는 과거→최신 순으로 유지한다.
+        const cap = (typeof COMBAT_LOG_MAX === 'number' && COMBAT_LOG_MAX) || 100;
+        arr.slice(0, cap).reverse().forEach((msg) => combatLogs.push(String(msg)));
+    }
+    if (typeof renderLogPanel === 'function') renderLogPanel();
     renderSlimBattleLog();
 }
 
@@ -16089,6 +16400,9 @@ function serializeRunState() {
         regenTurns,
         regenAmount,
         combatLogs: Array.isArray(window._combatLogHistory) ? window._combatLogHistory.slice(0, 220) : [],
+        notificationLogs: typeof notificationLogs !== 'undefined' && Array.isArray(notificationLogs)
+            ? notificationLogs.slice(-100)
+            : [],
         enemyBehaviorState: enemySnap
             ? {
                   bossCharge: !!enemySnap.bossCharge,
@@ -16135,6 +16449,10 @@ function loadRunFromMetaSnapshot(d) {
     regenTurns = d.regenTurns || 0;
     regenAmount = d.regenAmount || 0;
     window._combatLogHistory = Array.isArray(d.combatLogs) ? d.combatLogs.slice(0, 220) : [];
+    if (typeof notificationLogs !== 'undefined' && Array.isArray(notificationLogs)) {
+        notificationLogs.length = 0;
+        if (Array.isArray(d.notificationLogs)) d.notificationLogs.forEach((entry) => entry && notificationLogs.push(entry));
+    }
     player = d.player;
     if (player) {
         player.extraAtk = 0;
@@ -17488,6 +17806,15 @@ function renderShopItems(keepCurrentStock) {
         list.appendChild(b);
     }
     if (typeof MetaRPG !== 'undefined' && player && player.inTown) {
+        // [마을 스탯 투자] statPoints 보유 캐릭터에게 [스탯 강화 / Lv.UP] 버튼 노출.
+        if (typeof buildTownStatPointsRowHtml === 'function') {
+            const statRowHtml = buildTownStatPointsRowHtml();
+            if (statRowHtml) {
+                const statRow = document.createElement('div');
+                statRow.innerHTML = statRowHtml;
+                if (statRow.firstElementChild) list.appendChild(statRow.firstElementChild);
+            }
+        }
         const campRow = document.createElement('div');
         campRow.style.cssText = 'margin-bottom:12px;text-align:center;';
         campRow.innerHTML = `<button type="button" onclick="openBaseCampTech()" style="width:100%;padding:12px;background:#9b59b6;color:#fff;border:1px solid #8e44ad;border-radius:8px;font-weight:700;cursor:pointer;">🏕️ 베이스캠프 (연구·영구 강화)</button>`;
@@ -19428,6 +19755,9 @@ function enterNextDungeonStage() {
     if (hasCrossedPointOfNoReturn(player.progress)) MetaRPG.clearRunSnapshot(player.metaSlotId);
     syncPlayerCampaignState();
     writeLog(`[전진] ${formatDungeonPosition(player.progress)} 진입${hasCrossedPointOfNoReturn(player.progress) ? ' · 복귀 불가' : ''}`);
+    if (typeof pushNotificationLog === 'function') {
+        pushNotificationLog(`[층 이동] ${formatDungeonPosition(player.progress)} 진입${hasCrossedPointOfNoReturn(player.progress) ? ' · 복귀 불가' : ''}`, 'floor');
+    }
     // [MP 지속 시스템] 층 이동 시 파티 MP는 의도적으로 유지한다 (전투 종료·층간 100% 회복 없음).
     resetCombatVictorySettlementLock();
     const goldBeforeStageEntry = Math.max(0, safeNum(gold, 0));
@@ -19490,12 +19820,17 @@ function winBattle() {
     getLivingPartyMembers(player).forEach((member) => {
         setCurrentHp(member, member.curHp + Math.max(1, Math.floor(member.maxHp * 0.08)));
     });
+    // [레벨링] 처치한 적 파티 기준 EXP 지급 + 요구치 도달 시 즉시 레벨업(전투 화면을 멈추지 않음).
+    const expGain = typeof awardCombatExp === 'function' ? awardCombatExp(enemy) : 0;
+    if (typeof pushNotificationLog === 'function') {
+        pushNotificationLog(`[골드] ${formatDungeonPosition({ floor, stage: dungeonStage })} 전투 승리 · +${settlement.reward}G`, 'gold');
+    }
     syncPartyAggregateState(player);
     syncPlayerCampaignState();
     const continueForward = () => enterNextDungeonStage();
     if (typeof showVictoryRewardAndAwaitContinue === 'function') {
         showVictoryRewardAndAwaitContinue(
-            { clearedFloor: settlement.clearedFloor, goldGain: settlement.reward, expGain: 0, defeatedBoss: settlement.defeatedBoss },
+            { clearedFloor: settlement.clearedFloor, goldGain: settlement.reward, expGain, defeatedBoss: settlement.defeatedBoss },
             continueForward
         );
     } else {
@@ -20021,6 +20356,14 @@ window.addEventListener('load', () => {
         'adjustPartyStat',
         'setPartySlotRole',
         'confirmPartyAdventure',
+        'renderLogPanel',
+        'setLogTab',
+        'clearActiveLogPanel',
+        'removeNotificationLogEntry',
+        'openTownStatModal',
+        'adjustTownStat',
+        'confirmTownStats',
+        'closeTownStatModal',
         'returnPartyToTown',
         'enterDungeonFromTown',
         'leaveShopContinueAscent',

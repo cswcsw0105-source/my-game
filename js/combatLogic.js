@@ -1644,6 +1644,9 @@ function enterNextDungeonStage() {
     if (hasCrossedPointOfNoReturn(player.progress)) MetaRPG.clearRunSnapshot(player.metaSlotId);
     syncPlayerCampaignState();
     writeLog(`[전진] ${formatDungeonPosition(player.progress)} 진입${hasCrossedPointOfNoReturn(player.progress) ? ' · 복귀 불가' : ''}`);
+    if (typeof pushNotificationLog === 'function') {
+        pushNotificationLog(`[층 이동] ${formatDungeonPosition(player.progress)} 진입${hasCrossedPointOfNoReturn(player.progress) ? ' · 복귀 불가' : ''}`, 'floor');
+    }
     // [MP 지속 시스템] 층 이동 시 파티 MP는 의도적으로 유지한다 (전투 종료·층간 100% 회복 없음).
     resetCombatVictorySettlementLock();
     const goldBeforeStageEntry = Math.max(0, safeNum(gold, 0));
@@ -1706,12 +1709,17 @@ function winBattle() {
     getLivingPartyMembers(player).forEach((member) => {
         setCurrentHp(member, member.curHp + Math.max(1, Math.floor(member.maxHp * 0.08)));
     });
+    // [레벨링] 처치한 적 파티 기준 EXP 지급 + 요구치 도달 시 즉시 레벨업(전투 화면을 멈추지 않음).
+    const expGain = typeof awardCombatExp === 'function' ? awardCombatExp(enemy) : 0;
+    if (typeof pushNotificationLog === 'function') {
+        pushNotificationLog(`[골드] ${formatDungeonPosition({ floor, stage: dungeonStage })} 전투 승리 · +${settlement.reward}G`, 'gold');
+    }
     syncPartyAggregateState(player);
     syncPlayerCampaignState();
     const continueForward = () => enterNextDungeonStage();
     if (typeof showVictoryRewardAndAwaitContinue === 'function') {
         showVictoryRewardAndAwaitContinue(
-            { clearedFloor: settlement.clearedFloor, goldGain: settlement.reward, expGain: 0, defeatedBoss: settlement.defeatedBoss },
+            { clearedFloor: settlement.clearedFloor, goldGain: settlement.reward, expGain, defeatedBoss: settlement.defeatedBoss },
             continueForward
         );
     } else {
