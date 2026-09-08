@@ -1302,32 +1302,15 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     justify-content: space-around;
     gap: 18px;
 }
-.battle-log-strip {
-    min-height: 74px;
+/* [로그 패널 교체] 구형 3줄 HUD(.battle-log-strip / .battle-log-line) 제거.
+   전투 커맨드 바로 위 2채널 탭 로그 패널 컨테이너. */
+.battle-log-panel {
     margin: 12px 0 0;
-    padding: 9px 12px;
+    padding: 8px 10px;
     border: 1px solid #273142;
     border-radius: 8px;
     background: #0e1219;
     text-align: left;
-    overflow: hidden;
-}
-.battle-log-line {
-    color: #9aa7b8;
-    font-size: 0.8em;
-    line-height: 1.45;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.battle-log-line + .battle-log-line {
-    margin-top: 3px;
-}
-.battle-log-line:first-child {
-    color: #e5ebf3;
-}
-.battle-log-line-empty {
-    color: #586171;
 }
 .enemy-card-victory {
     display: flex;

@@ -860,8 +860,7 @@ function updateUi() {
     }
     document.getElementById('e-hp').style.width=`${Math.max(0,(eCur/eHp)*100)}%`;
     document.getElementById('e-hp-t').innerText=`${eCur} / ${eHp}`;
-    document.getElementById('e-atk-val').innerText=String(safeNum(enemy.atk, 0));
-    document.getElementById('e-def-val').innerText=String(safeNum(enemy.def, 0));
+    // [레거시 UI 제거] 적 파티 하단 "ATK: 0 / DEF: 0" 텍스트 엘리먼트 삭제됨.
     renderEnemyHpBars();
     renderTurnIndicator();
     const enemyStatus = document.querySelector('#enemy-card .status-badge');
@@ -880,7 +879,6 @@ function writeLog(msg) {
     if (!Array.isArray(window._combatLogHistory)) window._combatLogHistory = [];
     window._combatLogHistory.unshift(text);
     if (window._combatLogHistory.length > 220) window._combatLogHistory.length = 220;
-    renderSlimBattleLog();
     renderLogPanel();
 }
 
@@ -901,10 +899,9 @@ function formatLogTimestamp(ts) {
     return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
-// [2채널 탭 로그 시스템] #log 패널에 [전투 로그] / [알림 로그] 탭 + 개별 삭제 + 현재 창 비우기 렌더.
-function renderLogPanel() {
-    const host = document.getElementById('log');
-    if (!host) return;
+// [2채널 탭 로그 시스템] [전투 로그] / [알림 로그] 탭 + 개별 삭제 + 현재 창 비우기 마크업.
+// 전투 화면(#battle-log-strip)과 전투 외 하단(#log) 양쪽에 동일 패널을 삽입한다.
+function buildLogPanelHtml() {
     const tab = (typeof activeLogTab === 'string' && activeLogTab === 'notification') ? 'notification' : 'combat';
     const cLogs = (typeof combatLogs !== 'undefined' && Array.isArray(combatLogs)) ? combatLogs : [];
     const nLogs = (typeof notificationLogs !== 'undefined' && Array.isArray(notificationLogs)) ? notificationLogs : [];
@@ -913,7 +910,7 @@ function renderLogPanel() {
         return `<button type="button" onclick="setLogTab('${key}')" style="border:none;border-radius:6px 6px 0 0;padding:6px 12px;font-size:0.8em;font-weight:700;cursor:pointer;background:${on ? '#1c1c28' : '#0d0d12'};color:${on ? '#f1c40f' : '#888'};border-bottom:2px solid ${on ? '#f1c40f' : 'transparent'};">${label}</button>`;
     };
     const combatBody = cLogs.length
-        ? cLogs.map((line) => `<div class="log-line" style="padding:3px 2px;border-bottom:1px solid #222;font-size:0.82em;line-height:1.4;">${line}</div>`).join('')
+        ? cLogs.map((line) => `<div class="log-line" style="padding:3px 2px;border-bottom:1px solid #222;font-size:0.82em;line-height:1.4;color:#c8d0da;">${line}</div>`).join('')
         : `<div style="color:#555;padding:8px;">전투 로그가 없습니다.</div>`;
     const notiBody = nLogs.length
         ? nLogs.slice().reverse().map((entry) => `<div class="noti-card" style="display:flex;gap:8px;align-items:flex-start;justify-content:space-between;padding:7px 9px;margin:4px 0;background:#141414;border-left:3px solid ${logTabNotiAccent(entry.type)};border-radius:4px;">
@@ -921,19 +918,27 @@ function renderLogPanel() {
             <button type="button" onclick="removeNotificationLogEntry('${entry.id}')" title="이 알림 삭제" style="flex:0 0 auto;border:none;background:#2a2a2a;color:#e74c3c;border-radius:4px;width:22px;height:22px;cursor:pointer;font-weight:700;line-height:1;">✕</button>
         </div>`).join('')
         : `<div style="color:#555;padding:8px;">알림이 없습니다.</div>`;
-    host.innerHTML = `
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid #333;flex-wrap:wrap;">
+    return `
+        <div class="log-panel-tabbar" style="display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid #333;flex-wrap:wrap;">
             <div style="display:flex;gap:2px;">
                 ${tabButton('combat', '⚔️ 전투 로그')}
                 ${tabButton('notification', '🔔 알림 로그 (' + nLogs.length + ')')}
             </div>
             <button type="button" onclick="clearActiveLogPanel()" style="border:none;border-radius:6px;padding:5px 10px;font-size:0.76em;cursor:pointer;background:#3a1f1f;color:#e88;">현재 창 비우기</button>
         </div>
-        <div id="combat-log-scroll" ${tab === 'combat' ? '' : 'hidden'} style="height:180px;overflow-y:auto;padding:6px 4px;">${combatBody}</div>
-        <div id="notification-log-list" ${tab === 'notification' ? '' : 'hidden'} style="max-height:220px;overflow-y:auto;padding:4px;">${notiBody}</div>`;
+        <div class="combat-log-scroll" ${tab === 'combat' ? '' : 'hidden'} style="height:150px;overflow-y:auto;padding:6px 4px;">${combatBody}</div>
+        <div class="notification-log-list" ${tab === 'notification' ? '' : 'hidden'} style="height:150px;overflow-y:auto;padding:4px;">${notiBody}</div>`;
+}
+
+function renderLogPanel() {
+    const hosts = [document.getElementById('log'), document.getElementById('battle-log-strip')].filter(Boolean);
+    if (!hosts.length) return;
+    const html = buildLogPanelHtml();
+    hosts.forEach((host) => { host.innerHTML = html; });
+    const tab = (typeof activeLogTab === 'string' && activeLogTab === 'notification') ? 'notification' : 'combat';
     if (tab === 'combat') {
-        const box = document.getElementById('combat-log-scroll');
-        if (box) box.scrollTop = box.scrollHeight;
+        // 신규 전투 로그 추가 시 모든 전투 로그 스크롤 박스를 최하단으로.
+        document.querySelectorAll('.combat-log-scroll').forEach((box) => { box.scrollTop = box.scrollHeight; });
     }
 }
 window.renderLogPanel = renderLogPanel;
@@ -948,7 +953,6 @@ window.clearActiveLogPanel = function clearActiveLogPanel() {
     if (tab === 'combat') {
         if (typeof clearCombatLogs === 'function') clearCombatLogs();
         window._combatLogHistory = [];
-        renderSlimBattleLog();
     } else if (typeof clearNotificationLogs === 'function') {
         clearNotificationLogs();
     }
@@ -960,17 +964,10 @@ window.removeNotificationLogEntry = function removeNotificationLogEntry(id) {
     renderLogPanel();
 };
 
+// [로그 패널 교체] 구형 3줄 HUD(battle-log-strip)는 폐지되었다.
+// 호출부 호환을 위해 함수명은 유지하되, 2채널 탭 로그 패널 렌더로 위임한다.
 function renderSlimBattleLog() {
-    const strip = document.getElementById('battle-log-strip');
-    if (!strip) return;
-    strip.style.position = 'relative';
-    strip.style.zIndex = '1';
-    strip.style.overflow = 'hidden';
-    const rows = (Array.isArray(window._combatLogHistory) ? window._combatLogHistory : [])
-        .slice(0, 3)
-        .map((msg) => `<div class="battle-log-line">${msg}</div>`)
-        .join('');
-    strip.innerHTML = rows || '<div class="battle-log-line battle-log-line-empty">전투 기록 대기</div>';
+    renderLogPanel();
 }
 
 window.renderActions = renderActions;
@@ -3002,8 +2999,7 @@ function initRunFromMetaSlot(options) {
     shopVisitCount = 0;
     document.getElementById('start-area').style.display = 'none';
     document.getElementById('battle-area').style.display = 'block';
-    const battleLog = document.getElementById('battle-log-strip');
-    if (battleLog) battleLog.innerHTML = '';
+    if (typeof renderLogPanel === 'function') renderLogPanel();
     enterBattleLayout();
     loadCollection();
     emitRunStartStory(slot);
