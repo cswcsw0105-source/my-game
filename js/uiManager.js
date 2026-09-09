@@ -74,8 +74,9 @@ function updateGameSpeedButtonLabel() {
 window.toggleGameSpeed = function toggleGameSpeed() {
     window.gameSpeed = Number(window.gameSpeed) === 2 ? 1 : 2;
     updateGameSpeedButtonLabel();
-    if (typeof writeLog === 'function') {
-        writeLog(`[배속] 전투 진행 속도가 ${Number(window.gameSpeed)}배속으로 전환되었습니다.`);
+    // [로그 라우팅] 배속 토글은 알림 로그 전용 (전투 로그 오염 금지)
+    if (typeof pushNotificationLog === 'function') {
+        pushNotificationLog(`[배속] 전투 진행 속도가 ${Number(window.gameSpeed)}배속으로 전환되었습니다.`, 'speed');
     }
 };
 
@@ -195,6 +196,13 @@ function buildLargeHpBarRow({ name, current, max, color, subText, dead, mpCurren
     </div>`;
 }
 
+// [레벨 UI] "직업명" 뒤에 "Lv.X" 를 붙인다. 이미 붙어 있으면 중복 제거 후 재부착.
+function withLevelLabel(baseName, level) {
+    const clean = String(baseName || '').replace(/\s*Lv\.\s*\d+\s*$/i, '').trim();
+    const lv = Math.max(1, Math.floor(safeNum(level, 1)));
+    return `${clean} Lv.${lv}`;
+}
+
 function renderPartyHpBars() {
     const aggregateOuter = document.querySelector('#player-card > .hp-bar-outer');
     const aggregateText = document.getElementById('p-hp-t');
@@ -211,7 +219,7 @@ function renderPartyHpBars() {
         const stats = member.stats || {};
         const sub = `힘${stats.str} · 방${stats.def} · 체${stats.hp} · 지${stats.int} · 지혜${stats.wis} · 민${stats.agi}`;
         return buildLargeHpBarRow({
-            name: member.name,
+            name: withLevelLabel(member.name, member.level),
             current: member.curHp,
             max: member.maxHp,
             color: '#2ed573',
@@ -244,8 +252,11 @@ function renderEnemyHpBars() {
         const stats = member.stats || {};
         // [적 스탯 오버홀] 구형 ATK/DEF 표기 대신 아군과 동일 체계의 5대 스탯(지혜 제외)을 직관 표기
         const sub = `힘${safeNum(stats.str, safeNum(member.atk, 0))} · 방${safeNum(stats.def, safeNum(member.def, 0))} · 체${safeNum(stats.hp, 0)} · 지${safeNum(stats.int, 0)} · 민${safeNum(stats.agi, 0)}`;
+        const enemyLevel = safeNum(member.level, typeof getEnemyLevelForProgress === 'function'
+            ? getEnemyLevelForProgress({ floor, stage: dungeonStage })
+            : 1);
         return buildLargeHpBarRow({
-            name: member.name,
+            name: withLevelLabel(member.job || member.name, enemyLevel),
             current: member.curHp,
             max: member.maxHp,
             color: '#ff4757',
@@ -1788,7 +1799,10 @@ window.handleLogin = () => {
     const email = document.getElementById('email-input').value;
     const pw = document.getElementById('pw-input').value;
     if (!email || !pw) return showAuthError("❌ 이메일과 비밀번호를 모두 입력해 주세요!");
-    auth.signInWithEmailAndPassword(email, pw).then(() => writeLog("서버 로그인 완료!")).catch(() => showAuthError("❌ 로그인 실패"));
+    auth.signInWithEmailAndPassword(email, pw).then(() => {
+        // [로그 라우팅] 로그인/계정 동기화는 알림 로그 전용 (전투 로그 오염 금지)
+        if (typeof pushNotificationLog === 'function') pushNotificationLog('[계정] 서버 로그인 완료 · 데이터 동기화됨', 'account');
+    }).catch(() => showAuthError("❌ 로그인 실패"));
 };
 window.handleLogout = () => { auth.signOut().then(() => { alert("로그아웃 되었습니다."); location.reload(); }); };
 

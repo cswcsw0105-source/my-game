@@ -278,35 +278,50 @@ function getActorVfxSide(actor) {
     return playerSide ? 'player' : 'enemy';
 }
 
-// 대상 유닛 행의 화면 좌표를 계산해 combat-fx-layer 위에 오버레이를 띄운다.
-// 행(innerHTML)이 매 프레임 재렌더링되어도 오버레이가 살아남도록 fx 레이어에 부착한다.
+// [피격 좌표 앵커링 수정] 피격 VFX/대미지 숫자를 '맞은 유닛 카드(행)' 내부에 직접 append 한다.
+// 화면 전체 기준 절대 좌표 계산을 폐지 → 행이 흔들리거나 재배치돼도 이펙트가 그 카드 정중앙에 고정된다.
 const spawnUnitVfx = (actor, className, opts) => {
     const row = getCombatUnitRowElement(actor);
-    if (!row) return spawnCardVfx(getActorVfxSide(actor), className, opts);
-    const layer = ensureCombatFxLayer();
-    const battleArea = document.getElementById('battle-area');
     const options = opts || {};
+    if (!row) {
+        // 개별 행이 없을 때만(비파티/망령) 파티 카드 폴백 — 이 경우도 카드 기준 좌표이지 화면 절대 좌표가 아니다.
+        return spawnCardVfx(getActorVfxSide(actor), className, options);
+    }
     const element = document.createElement('div');
     element.className = `premium-combat-vfx unit-combat-vfx ${className}`;
     if (options.text != null) element.textContent = String(options.text);
     if (options.vars) {
         Object.keys(options.vars).forEach((key) => element.style.setProperty(key, options.vars[key]));
     }
-    if (layer && battleArea) {
-        const rowRect = row.getBoundingClientRect();
-        const battleRect = battleArea.getBoundingClientRect();
-        element.style.left = `${Math.round(rowRect.left - battleRect.left)}px`;
-        element.style.top = `${Math.round(rowRect.top - battleRect.top)}px`;
-        element.style.width = `${Math.round(rowRect.width)}px`;
-        element.style.height = `${Math.round(rowRect.height)}px`;
-        element.style.inset = 'auto';
-        layer.appendChild(element);
-    } else {
-        row.appendChild(element);
-    }
+    // 행 내부 절대배치(inset:0) → flex 중앙정렬로 유닛 몸통/체력바 정중앙에서 팝업.
+    element.style.position = 'absolute';
+    element.style.left = '0';
+    element.style.top = '0';
+    element.style.right = '0';
+    element.style.bottom = '0';
+    element.style.width = 'auto';
+    element.style.height = 'auto';
+    if (getComputedStyle(row).position === 'static') row.style.position = 'relative';
+    row.appendChild(element);
     scheduleVfxRemoval(element, options.durationMs || PREMIUM_VFX_DEFAULT_MS);
     return element;
 };
+
+// ===== [타겟팅 하이라이트] 피격 대상 유닛 카드에 .is-targeted (붉은/노란 글로우) 부여/해제 =====
+function clearCombatTargetMarks() {
+    document.querySelectorAll('.is-targeted').forEach((el) => el.classList.remove('is-targeted'));
+}
+
+function markCombatTargetUnit(target) {
+    clearCombatTargetMarks();
+    if (!target) return;
+    const el = getCombatUnitRowElement(target) || getCombatTargetCard(getActorVfxSide(target));
+    if (!el) return;
+    el.classList.add('is-targeted');
+    // 행동 종료(약 900ms 턴) 후 안전 제거 — emitCombatResultVfx 에서도 즉시 해제된다.
+    clearTimeout(window._isTargetedClearTimer);
+    window._isTargetedClearTimer = setTimeout(clearCombatTargetMarks, 900);
+}
 
 const pulseCombatUnitClass = (actor, className, durationMs) => {
     const row = getCombatUnitRowElement(actor);
@@ -378,6 +393,8 @@ function playFireballExplosionVfx(target) {
 
 function playV35AttackVfx(attackerSide, actor, attackKind, target) {
     const targetSide = target && (typeof isPartyMember === 'function' && isPartyMember(target)) ? 'player' : attackerSide === 'player' ? 'enemy' : 'player';
+    // [타겟 하이라이트] 타격 직전, 맞는 대상 카드에 .is-targeted 부여.
+    markCombatTargetUnit(target);
     // 대상 유닛 행이 있으면 파티 전체가 아닌 '정확한 피격 대상 카드'에만 타격 플래시를 띄운다.
     if (target && getCombatUnitRowElement(target)) {
         return playUnitHitFlashVfx(target, attackKind === 'magic_attack' ? 'magic' : 'physical');
@@ -427,3 +444,5 @@ window.playUnitHitFlashVfx = playUnitHitFlashVfx;
 window.showUnitDmgFloat = showUnitDmgFloat;
 window.showUnitMissFloat = showUnitMissFloat;
 window.playFireballExplosionVfx = playFireballExplosionVfx;
+window.clearCombatTargetMarks = clearCombatTargetMarks;
+window.markCombatTargetUnit = markCombatTargetUnit;

@@ -1,4 +1,10 @@
 // Shop module (stage 2 split)
+// [로그 라우팅] 상점 구매/판매·장비 착용/해제 메시지는 알림 로그 전용. 전투 로그(combatLogs) 오염 금지.
+function shopNotify(text, type) {
+    if (typeof pushNotificationLog === 'function') pushNotificationLog(text, type || 'shop');
+    else if (typeof writeLog === 'function') writeLog(text);
+}
+
 function openShop() {
     setCombatProcessing(false);
     shopVisitCount++;
@@ -420,7 +426,7 @@ window.sellItemByUid = function sellItemByUid(uid) {
     syncPlayerCampaignState();
     gold = safeNum(gold, 0) + refund;
     syncPlayerCampaignState();
-    writeLog(`[판매] ${it.name} 판매 (+${refund}G / 구매가 ${buyPrice}G)`);
+    shopNotify(`[판매] ${it.name} 판매 (+${refund}G / 구매가 ${buyPrice}G)`, 'shop');
     updateUi();
     renderActions();
     const sh = document.getElementById('shop-area');
@@ -435,7 +441,7 @@ window.buyItem = (event, idx) => {
     gold-=payPrice;
     if (couponActive) {
         player.freeShopCoupon = false;
-        writeLog(`[쿠폰] 🎫 황금 쿠폰 발동! <b>${it.name}</b>을(를) 0G로 구매했습니다.`);
+        shopNotify(`[쿠폰] 🎫 황금 쿠폰 발동! <b>${it.name}</b>을(를) 0G로 구매했습니다.`, 'shop');
     }
     if (it.type === 'merc_shop_direct' || it.type === 'merc_shop_fund') {
         const scamRate = it.type === 'merc_shop_direct' ? 0.3 : 0.5;
@@ -466,11 +472,11 @@ window.buyItem = (event, idx) => {
             return;
         }
         player.relics.push(it.effect); saveCollection(it.name);
-        writeLog(`[유물 획득] ✨ <b style='color:#f1c40f'>${it.name}</b> 장착!`);
+        shopNotify(`[유물 획득] ✨ <b style='color:#f1c40f'>${it.name}</b> 장착!`, 'equip');
         if (typeof emitRelicStory === 'function') emitRelicStory(it);
         showUnlockPopup(`✨ 유물 획득!`,`<b style="color:#f1c40f;">${it.name}</b><br>${it.desc}`,'#f1c40f');
     } else if(it.type==='potion'){
-        player.potions++; writeLog(`[상점] 포션 구매 완료.`);
+        player.potions++; shopNotify(`[상점] 포션 구매 완료.`, 'shop');
     } else {
         const slotKind = getEquipSlotKind(it);
         if (slotKind) {
@@ -489,7 +495,7 @@ window.buyItem = (event, idx) => {
             const assignMember = typeof getActiveInventoryPartyMember === 'function' ? getActiveInventoryPartyMember() : null;
             if (assignMember && assignMember.roleKey) {
                 it._assignedRole = assignMember.roleKey;
-                writeLog(`[지급] <b>${it.name}</b> → ${assignMember.name}에게 귀속`);
+                shopNotify(`[지급] <b>${it.name}</b> → ${assignMember.name}에게 귀속`, 'equip');
             }
             player.items.push(it); saveCollection(it.name);
             // [장비 착용 레벨 제한] 요구 레벨 미달 시 구매는 되지만 장착은 차단되고 가방에 보관된다.
@@ -531,9 +537,9 @@ window.buyItem = (event, idx) => {
             recalcPlayerDivineGainMult();
             fullResyncPlayerCombatStatsFromMetaAndInventory();
             syncPlayerCampaignState();
-            writeLog(`[상점] ${it.name} 장착 완료!`);
+            shopNotify(`[장착] ${it.name} 장착 완료!`, 'equip');
             renderShopItems(true);
-        } else { writeLog(`이미 보유한 장비입니다!`); gold+=it.price; }
+        } else { shopNotify(`이미 보유한 장비입니다!`, 'shop'); gold+=it.price; }
     }
     syncPlayerCampaignState();
     updateUi(); renderActions();

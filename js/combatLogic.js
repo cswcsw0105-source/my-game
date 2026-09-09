@@ -1059,16 +1059,19 @@ function emitCombatResultVfx(target, result) {
     if (!result) return;
     const isPlayerSide = target === player || isPartyMember(target);
     const targetSide = isPlayerSide ? 'player' : 'enemy';
-    // [유닛 타격 연동] 대상의 개별 카드(행)가 렌더링되어 있으면 파티 전체가 아닌
-    // '정확한 피격 대상 카드'에만 데미지 플로트/셰이크를 재생한다.
-    const hasUnitRow = typeof getCombatUnitRowElement === 'function' && !!getCombatUnitRowElement(target);
+    // [피격 좌표 앵커링] 데미지 플로트/피격 이펙트/셰이크는 항상 '맞은 유닛 카드' 기준으로 재생한다.
+    // (개별 행이 없을 때만 유닛 헬퍼 내부에서 파티 카드 폴백 — 화면 절대 좌표 사용 안 함)
+    const finishTargetMark = () => {
+        if (typeof clearCombatTargetMarks === 'function') clearCombatTargetMarks();
+    };
     if (result.reason === 'miss' || result.reason === 'dodged') {
-        if (hasUnitRow && typeof showUnitMissFloat === 'function') showUnitMissFloat(target);
+        if (typeof showUnitMissFloat === 'function') showUnitMissFloat(target);
         else showMissFloat(targetSide);
         if (result.reason === 'dodged') {
-            if (hasUnitRow && typeof pulseCombatUnitClass === 'function') pulseCombatUnitClass(target, 'premium-card-dodge', 240);
+            if (typeof pulseCombatUnitClass === 'function') pulseCombatUnitClass(target, 'premium-card-dodge', 240);
             else triggerDodgeMove(targetSide);
         }
+        finishTargetMark();
         return;
     }
     if (result.type === 'attack') {
@@ -1076,13 +1079,13 @@ function emitCombatResultVfx(target, result) {
             if (result.attackKind === 'magic' && typeof playMagicBarrierVfx === 'function') playMagicBarrierVfx(targetSide);
             else if (typeof playPhysicalShieldVfx === 'function') playPhysicalShieldVfx(targetSide);
         }
-        if (hasUnitRow && typeof showUnitDmgFloat === 'function') showUnitDmgFloat(target, Math.max(0, result.damage || 0), false);
+        if (typeof showUnitDmgFloat === 'function') showUnitDmgFloat(target, Math.max(0, result.damage || 0), false);
         else showDmgFloat(Math.max(0, result.damage || 0), false, isPlayerSide);
-        if ((result.damage || 0) > 0) {
-            if (hasUnitRow && typeof triggerUnitHitShake === 'function') triggerUnitHitShake(target, false);
-            else triggerShakeEffect(targetSide);
+        if ((result.damage || 0) > 0 && typeof triggerUnitHitShake === 'function') {
+            triggerUnitHitShake(target, false);
         }
     }
+    finishTargetMark();
 }
 
 async function previewEnemyTargetIntent(unit, target) {
@@ -1643,7 +1646,7 @@ function enterNextDungeonStage() {
     player.progress = { floor, stage: dungeonStage };
     if (hasCrossedPointOfNoReturn(player.progress)) MetaRPG.clearRunSnapshot(player.metaSlotId);
     syncPlayerCampaignState();
-    writeLog(`[전진] ${formatDungeonPosition(player.progress)} 진입${hasCrossedPointOfNoReturn(player.progress) ? ' · 복귀 불가' : ''}`);
+    // [로그 라우팅] 던전 층간 이동은 알림 로그 전용 (전투 로그 오염 금지)
     if (typeof pushNotificationLog === 'function') {
         pushNotificationLog(`[층 이동] ${formatDungeonPosition(player.progress)} 진입${hasCrossedPointOfNoReturn(player.progress) ? ' · 복귀 불가' : ''}`, 'floor');
     }
@@ -1676,7 +1679,11 @@ function onCombatVictory() {
     player.hasWonBattle = true;
     player.victoryCount = player.runWins;
     if (typeof totalGoldEarned !== 'undefined') totalGoldEarned = Math.max(0, safeNum(totalGoldEarned, 0)) + reward;
-    writeLog(`[승리] ${formatDungeonPosition({ floor, stage: dungeonStage })} 전투 종료 · ${reward}G 획득`);
+    // [로그 라우팅] 전투 종료 사실은 전투 로그, 골드 획득은 알림 로그로 분리한다.
+    writeLog(`[전투] ${formatDungeonPosition({ floor, stage: dungeonStage })} 전투 종료`);
+    if (typeof pushNotificationLog === 'function') {
+        pushNotificationLog(`[골드] ${formatDungeonPosition({ floor, stage: dungeonStage })} 전투 승리 · +${reward}G`, 'gold');
+    }
     syncPlayerCampaignState();
     return {
         reward,
@@ -1710,10 +1717,8 @@ function winBattle() {
         setCurrentHp(member, member.curHp + Math.max(1, Math.floor(member.maxHp * 0.08)));
     });
     // [레벨링] 처치한 적 파티 기준 EXP 지급 + 요구치 도달 시 즉시 레벨업(전투 화면을 멈추지 않음).
+    // (골드 획득 알림은 onCombatVictory 에서 이미 pushNotificationLog 로 발행됨)
     const expGain = typeof awardCombatExp === 'function' ? awardCombatExp(enemy) : 0;
-    if (typeof pushNotificationLog === 'function') {
-        pushNotificationLog(`[골드] ${formatDungeonPosition({ floor, stage: dungeonStage })} 전투 승리 · +${settlement.reward}G`, 'gold');
-    }
     syncPartyAggregateState(player);
     syncPlayerCampaignState();
     const continueForward = () => enterNextDungeonStage();

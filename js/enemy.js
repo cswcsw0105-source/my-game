@@ -49,19 +49,63 @@ const ENEMY_PARTY_ROLE_DEFS = Object.freeze({
     knight: Object.freeze({ key: 'knight', name: '기사', archetype: 'knight', hpMult: 1.04, atkMult: 1.04, defMult: 1.08, aggroWeight: 2 }),
 });
 const EARLY_NORMAL_ENEMY_STAT_MULT = 0.65;
+// [적 레벨 스케일링] 직업별 주스탯(특화) 정의 — 플레이어 포인트바이 하한선과 동일 체계
+const ENEMY_ROLE_MAIN_STATS = Object.freeze({
+    tank: ['def', 'hp'],
+    knight: ['str', 'agi'],
+    mage: ['int', 'wis'],
+});
+const ENEMY_STAT_KEYS = Object.freeze(['str', 'def', 'hp', 'int', 'wis', 'agi']);
+// 초반 압축 스케일링 적용 구간 (이 층 이하는 레벨 기반 저압축 공식 사용)
+const ENEMY_COMPRESSED_MAX_FLOOR = 5;
 
+// 층-스테이지를 절대 레벨로 환산. 1-1F = Lv.1, 1-2F = Lv.2, 2-1F = Lv.11 ...
+function getEnemyLevelForProgress(progress) {
+    const p = normalizeDungeonProgress(progress);
+    return Math.max(1, (Math.max(1, p.floor) - 1) * STAGES_PER_FLOOR + Math.max(1, p.stage));
+}
+
+function rollIntInclusive(min, max) {
+    const lo = Math.min(min, max);
+    const hi = Math.max(min, max);
+    return lo + Math.floor(Math.random() * (hi - lo + 1));
+}
+
+// [적 스케일링 압축 / 1층 통곡의 벽 방지]
+//  Lv.1  : 주스탯 10~13 · 부스탯 4~7 (단일 스탯 14 이상 스폰 원천 차단) · HP 45~65
+//  이후  : 레벨당 완만 증가 — 주스탯 +~0.45 / 부스탯 +~0.25 / HP +~3.2 (한 층=레벨 10 → 층당 주스탯 약 +4.5, HP 약 +32)
+function buildLeveledEnemyStatBlock(roleKey, level, isBoss) {
+    const lv = Math.max(1, Math.floor(safeNum(level, 1)));
+    const mains = ENEMY_ROLE_MAIN_STATS[roleKey] || ENEMY_ROLE_MAIN_STATS.knight;
+    const g = lv - 1;
+    const mainLo = Math.round(10 + g * 0.42);
+    const mainHi = Math.round(13 + g * 0.58);
+    const subLo = Math.round(4 + g * 0.22);
+    const subHi = Math.round(7 + g * 0.34);
+    const hpLo = Math.round(45 + g * 3.0);
+    const hpHi = Math.round(65 + g * 4.2);
+    const bossStatMul = isBoss ? 1.5 : 1;
+    const bossHpMul = isBoss ? 1.8 : 1;
+    const stats = { divinity: 0, distortion: Math.min(100, lv) };
+    ENEMY_STAT_KEYS.forEach((key) => {
+        const isMain = mains.includes(key);
+        let value = isMain ? rollIntInclusive(mainLo, mainHi) : rollIntInclusive(subLo, subHi);
+        if (lv === 1) value = Math.min(13, value); // 단일 스탯 14 이상 스폰 원천 차단
+        value = Math.max(1, Math.round(value * (isMain ? bossStatMul : 1)));
+        stats[key] = Math.min(100, value);
+    });
+    const maxHp = Math.max(1, Math.round(rollIntInclusive(hpLo, hpHi) * bossHpMul));
+    return { stats, maxHp, level: lv };
+}
+
+// [7대 유효 조합 풀] 고정 [탱·마·기] 편성 폐지. tank/mage/knight 무작위 추첨 후
+// 2인 이상 파티는 전원 동일 직업 편성을 금지한다 (플레이어와 동일한 7가지 유효 조합).
 function pickEnemyPartyRoles(count) {
     const keys = ['tank', 'mage', 'knight'];
-    const picked = [];
-    const counts = {};
-    while (picked.length < count) {
-        const available = keys.filter((key) => (counts[key] || 0) < 2);
-        const key = available[Math.floor(Math.random() * available.length)] || 'knight';
-        picked.push(key);
-        counts[key] = (counts[key] || 0) + 1;
-    }
-    if (count >= 3 && Object.keys(counts).length === 1) {
-        picked[2] = picked[0] === 'tank' ? 'mage' : 'tank';
+    const n = Math.max(1, Math.floor(safeNum(count, 3)));
+    const picked = Array.from({ length: n }, () => keys[Math.floor(Math.random() * keys.length)]);
+    if (n >= 2 && picked.every((key) => key === picked[0])) {
+        picked[n - 1] = picked[0] === 'tank' ? 'mage' : 'tank';
     }
     return picked;
 }
@@ -83,27 +127,48 @@ function rollEnemyStatJitter() {
 
 function createEnemyPartyMember(progress, roleKey, index, isBoss) {
     const current = normalizeDungeonProgress(progress);
-    const base = buildEnemyStatsForFloor(current.floor, isBoss, current.stage);
     const role = ENEMY_PARTY_ROLE_DEFS[roleKey] || ENEMY_PARTY_ROLE_DEFS.knight;
-    const earlyNormalNerf = !isBoss && current.floor >= 1 && current.floor <= 5 ? EARLY_NORMAL_ENEMY_STAT_MULT : 1;
-    // [적 스탯 오버홀] 아군과 동일 체계의 5대 스탯 [힘/방어/체력/지능/민첩]을
-    // 층수 스케일링 기반으로 랜덤 생성한다. (★마법 계열 '지혜' 스탯은 적 데이터에서 완전히 제외)
-    const strStat = Math.max(1, Math.round(base.atk * role.atkMult * earlyNormalNerf * rollEnemyStatJitter()));
-    const defStat = Math.max(1, Math.round(Math.max(1, base.def) * role.defMult * rollEnemyStatJitter()));
-    const hpStat = Math.max(1, Math.round(Math.max(1, base.hpStat) * role.hpMult * rollEnemyStatJitter()));
-    const intStat = Math.max(1, Math.round((role.key === 'mage' ? base.int + 8 : base.int) * rollEnemyStatJitter()));
-    const agiStat = Math.max(1, Math.round((role.key === 'tank' ? Math.max(1, base.agi - 4) : base.agi) * rollEnemyStatJitter()));
-    // 최대 HP는 생성된 [체력] 스탯과 정비례한다. (층수 스케일 HP 총량을 체력 1포인트당 가치로 환산)
-    const hpPerPoint = (base.hp * earlyNormalNerf) / Math.max(1, base.hpStat);
-    const maxHp = Math.max(1, Math.floor(hpStat * hpPerPoint));
+    // [적 레벨] 층수 기반 절대 레벨 (1-1F = Lv.1). UI 이름에 "직업 Lv.X" 로 표기된다.
+    const level = getEnemyLevelForProgress(current);
+
+    let stats;
+    let maxHp;
+    if (current.floor <= ENEMY_COMPRESSED_MAX_FLOOR) {
+        // [적 스케일링 압축] 초반 5개 층은 레벨 기반 저압축 스탯 공식을 사용한다.
+        const block = buildLeveledEnemyStatBlock(role.key, level, isBoss);
+        stats = block.stats;
+        maxHp = block.maxHp;
+    } else {
+        // 6층+ : 기존 층수 스케일 파이프라인 유지
+        const base = buildEnemyStatsForFloor(current.floor, isBoss, current.stage);
+        const strStat = Math.max(1, Math.round(base.atk * role.atkMult * rollEnemyStatJitter()));
+        const defStat = Math.max(1, Math.round(Math.max(1, base.def) * role.defMult * rollEnemyStatJitter()));
+        const hpStat = Math.max(1, Math.round(Math.max(1, base.hpStat) * role.hpMult * rollEnemyStatJitter()));
+        const intStat = Math.max(1, Math.round((role.key === 'mage' ? base.int + 8 : base.int) * rollEnemyStatJitter()));
+        const wisStat = Math.max(1, Math.round((role.key === 'mage' ? base.wis + 8 : base.wis) * rollEnemyStatJitter()));
+        const agiStat = Math.max(1, Math.round((role.key === 'tank' ? Math.max(1, base.agi - 4) : base.agi) * rollEnemyStatJitter()));
+        const hpPerPoint = base.hp / Math.max(1, base.hpStat);
+        maxHp = Math.max(1, Math.floor(hpStat * hpPerPoint));
+        stats = {
+            str: Math.min(100, strStat),
+            def: Math.min(100, defStat),
+            hp: Math.min(100, hpStat),
+            int: Math.min(100, intStat),
+            wis: Math.min(100, wisStat),
+            agi: Math.min(100, agiStat),
+            divinity: 0,
+            distortion: Math.min(100, current.floor),
+        };
+    }
     // 전투 수식 연동: 물리 대미지는 힘, 피격 방어는 방어, 명중/회피는 민첩 스탯이 런타임 값의 원천이다.
-    const atk = strStat;
-    const def = defStat;
+    const atk = Math.max(1, safeNum(stats.str, 1));
+    const def = Math.max(0, safeNum(stats.def, 0));
     return {
         id: `enemy-${current.floor}-${current.stage}-${index}-${Date.now().toString(36)}`,
-        name: `${role.name} ${index + 1}`,
+        name: `${role.name} Lv.${level}`,
         roleKey: role.key,
         job: role.name,
+        level,
         archetype: role.archetype,
         element: 'neutral',
         traitTags: [role.key, 'enemyParty'],
@@ -112,15 +177,7 @@ function createEnemyPartyMember(progress, roleKey, index, isBoss) {
         curHp: maxHp,
         atk,
         def,
-        stats: {
-            str: Math.min(100, strStat),
-            def: Math.min(100, defStat),
-            hp: Math.min(100, hpStat),
-            int: Math.min(100, intStat),
-            agi: Math.min(100, agiStat),
-            divinity: 0,
-            distortion: Math.min(100, current.floor),
-        },
+        stats,
         equipment: { weapon: null, armor: null, accessories: [] },
         magic: role.key === 'mage' ? ['fire', 'heal'] : [],
         skills: [],
@@ -193,11 +250,8 @@ function createDepthMonster(progress) {
     const current = normalizeDungeonProgress(progress);
     const isBoss = current.stage === STAGES_PER_FLOOR;
     const size = getEnemyPartySize(current, isBoss);
+    // [7대 조합 풀 추첨] 1-1F 포함 모든 층에서 고정 편성 없이 무작위 추첨한다.
     let roles = pickEnemyPartyRoles(size);
-    // [던전 생성기 수리] 1-1 스타터 몹은 기사 1 · 탱커 1을 반드시 포함하도록 하드코딩 편성한다.
-    if (current.floor === 1 && current.stage === 1) {
-        roles = ['knight', 'tank', 'knight'];
-    }
     // 방어적 하한선: 어떤 경로로도 적 파티가 비어 무전투 승리가 나지 않도록 최소 1명을 보장한다.
     if (!Array.isArray(roles) || roles.length === 0) roles = ['knight'];
     const party = roles.map((roleKey, index) => createEnemyPartyMember(current, roleKey, index, isBoss));
@@ -273,6 +327,9 @@ function spawnEnemy() {
 Object.assign(window, {
     getCurrentDungeonProgress,
     buildEnemyStatsForFloor,
+    getEnemyLevelForProgress,
+    buildLeveledEnemyStatBlock,
+    pickEnemyPartyRoles,
     getEnemyPartyMembers,
     getLivingEnemyPartyMembers,
     isEnemyPartyMember,

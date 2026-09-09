@@ -30,11 +30,9 @@ function grantPartyMemberExp(member, amount) {
         member.level += 1;
         member.statPoints += 2;
         levelsGained += 1;
+        // [로그 라우팅] 레벨업/보너스 스탯 획득은 알림 로그 전용 (전투 로그 오염 금지)
         if (typeof pushNotificationLog === 'function') {
             pushNotificationLog(`[레벨업] ${member.name} 캐릭터 Lv.${member.level} 달성! (보너스 스탯 +2pt)`, 'levelup');
-        }
-        if (typeof writeLog === 'function') {
-            writeLog(`[레벨업] ${member.name} 캐릭터 Lv.${member.level} 달성! (보너스 스탯 +2pt)`);
         }
         need = getExpToNextLevel(member.level);
     }

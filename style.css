@@ -1558,7 +1558,8 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     100% { transform: translate(0, 0); }
 }
 .unit-hit-shake {
-    animation: unitHitShake 0.34s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+    /* [피격 셰이크 제한] 맞은 유닛 카드만 0.3초간 흔들린다 (화면/파티 전체 흔들림 없음). */
+    animation: unitHitShake 0.3s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }
 @keyframes unitHitShakeHeavy {
     0% { transform: translate(0, 0) scale(1); }
@@ -1570,7 +1571,25 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     100% { transform: translate(0, 0) scale(1); }
 }
 .unit-hit-shake-heavy {
-    animation: unitHitShakeHeavy 0.42s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+    animation: unitHitShakeHeavy 0.3s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+/* ============ [타겟팅 하이라이트] 피격 대상 유닛 카드 붉은/노란 글로우 펄스 ============ */
+@keyframes isTargetedPulse {
+    0%, 100% {
+        box-shadow: 0 0 0 2px rgba(255, 71, 87, 0.6), 0 0 14px 3px rgba(255, 71, 87, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 0 3px rgba(255, 209, 102, 0.95), 0 0 24px 6px rgba(255, 176, 32, 0.6);
+    }
+}
+.combat-unit-row.is-targeted,
+#player-card.is-targeted,
+#enemy-card.is-targeted {
+    animation: isTargetedPulse 0.62s ease-in-out infinite;
+    outline: 2px solid rgba(255, 209, 102, 0.9);
+    outline-offset: 1px;
+    border-radius: 8px;
 }
 @keyframes unitHitFlashCore {
     0% { opacity: 0; transform: scale(0.55); }

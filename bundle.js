@@ -11976,35 +11976,50 @@ function getActorVfxSide(actor) {
     return playerSide ? 'player' : 'enemy';
 }
 
-// 대상 유닛 행의 화면 좌표를 계산해 combat-fx-layer 위에 오버레이를 띄운다.
-// 행(innerHTML)이 매 프레임 재렌더링되어도 오버레이가 살아남도록 fx 레이어에 부착한다.
+// [피격 좌표 앵커링 수정] 피격 VFX/대미지 숫자를 '맞은 유닛 카드(행)' 내부에 직접 append 한다.
+// 화면 전체 기준 절대 좌표 계산을 폐지 → 행이 흔들리거나 재배치돼도 이펙트가 그 카드 정중앙에 고정된다.
 const spawnUnitVfx = (actor, className, opts) => {
     const row = getCombatUnitRowElement(actor);
-    if (!row) return spawnCardVfx(getActorVfxSide(actor), className, opts);
-    const layer = ensureCombatFxLayer();
-    const battleArea = document.getElementById('battle-area');
     const options = opts || {};
+    if (!row) {
+        // 개별 행이 없을 때만(비파티/망령) 파티 카드 폴백 — 이 경우도 카드 기준 좌표이지 화면 절대 좌표가 아니다.
+        return spawnCardVfx(getActorVfxSide(actor), className, options);
+    }
     const element = document.createElement('div');
     element.className = `premium-combat-vfx unit-combat-vfx ${className}`;
     if (options.text != null) element.textContent = String(options.text);
     if (options.vars) {
         Object.keys(options.vars).forEach((key) => element.style.setProperty(key, options.vars[key]));
     }
-    if (layer && battleArea) {
-        const rowRect = row.getBoundingClientRect();
-        const battleRect = battleArea.getBoundingClientRect();
-        element.style.left = `${Math.round(rowRect.left - battleRect.left)}px`;
-        element.style.top = `${Math.round(rowRect.top - battleRect.top)}px`;
-        element.style.width = `${Math.round(rowRect.width)}px`;
-        element.style.height = `${Math.round(rowRect.height)}px`;
-        element.style.inset = 'auto';
-        layer.appendChild(element);
-    } else {
-        row.appendChild(element);
-    }
+    // 행 내부 절대배치(inset:0) → flex 중앙정렬로 유닛 몸통/체력바 정중앙에서 팝업.
+    element.style.position = 'absolute';
+    element.style.left = '0';
+    element.style.top = '0';
+    element.style.right = '0';
+    element.style.bottom = '0';
+    element.style.width = 'auto';
+    element.style.height = 'auto';
+    if (getComputedStyle(row).position === 'static') row.style.position = 'relative';
+    row.appendChild(element);
     scheduleVfxRemoval(element, options.durationMs || PREMIUM_VFX_DEFAULT_MS);
     return element;
 };
+
+// ===== [타겟팅 하이라이트] 피격 대상 유닛 카드에 .is-targeted (붉은/노란 글로우) 부여/해제 =====
+function clearCombatTargetMarks() {
+    document.querySelectorAll('.is-targeted').forEach((el) => el.classList.remove('is-targeted'));
+}
+
+function markCombatTargetUnit(target) {
+    clearCombatTargetMarks();
+    if (!target) return;
+    const el = getCombatUnitRowElement(target) || getCombatTargetCard(getActorVfxSide(target));
+    if (!el) return;
+    el.classList.add('is-targeted');
+    // 행동 종료(약 900ms 턴) 후 안전 제거 — emitCombatResultVfx 에서도 즉시 해제된다.
+    clearTimeout(window._isTargetedClearTimer);
+    window._isTargetedClearTimer = setTimeout(clearCombatTargetMarks, 900);
+}
 
 const pulseCombatUnitClass = (actor, className, durationMs) => {
     const row = getCombatUnitRowElement(actor);
@@ -12076,6 +12091,8 @@ function playFireballExplosionVfx(target) {
 
 function playV35AttackVfx(attackerSide, actor, attackKind, target) {
     const targetSide = target && (typeof isPartyMember === 'function' && isPartyMember(target)) ? 'player' : attackerSide === 'player' ? 'enemy' : 'player';
+    // [타겟 하이라이트] 타격 직전, 맞는 대상 카드에 .is-targeted 부여.
+    markCombatTargetUnit(target);
     // 대상 유닛 행이 있으면 파티 전체가 아닌 '정확한 피격 대상 카드'에만 타격 플래시를 띄운다.
     if (target && getCombatUnitRowElement(target)) {
         return playUnitHitFlashVfx(target, attackKind === 'magic_attack' ? 'magic' : 'physical');
@@ -12125,6 +12142,8 @@ window.playUnitHitFlashVfx = playUnitHitFlashVfx;
 window.showUnitDmgFloat = showUnitDmgFloat;
 window.showUnitMissFloat = showUnitMissFloat;
 window.playFireballExplosionVfx = playFireballExplosionVfx;
+window.clearCombatTargetMarks = clearCombatTargetMarks;
+window.markCombatTargetUnit = markCombatTargetUnit;
 'use strict';
 
 // 3인 파티 런타임 어댑터. 기존 단일 player DOM 계약은 파티 합산값으로 유지한다.
@@ -12157,11 +12176,9 @@ function grantPartyMemberExp(member, amount) {
         member.level += 1;
         member.statPoints += 2;
         levelsGained += 1;
+        // [로그 라우팅] 레벨업/보너스 스탯 획득은 알림 로그 전용 (전투 로그 오염 금지)
         if (typeof pushNotificationLog === 'function') {
             pushNotificationLog(`[레벨업] ${member.name} 캐릭터 Lv.${member.level} 달성! (보너스 스탯 +2pt)`, 'levelup');
-        }
-        if (typeof writeLog === 'function') {
-            writeLog(`[레벨업] ${member.name} 캐릭터 Lv.${member.level} 달성! (보너스 스탯 +2pt)`);
         }
         need = getExpToNextLevel(member.level);
     }
@@ -12616,19 +12633,63 @@ const ENEMY_PARTY_ROLE_DEFS = Object.freeze({
     knight: Object.freeze({ key: 'knight', name: '기사', archetype: 'knight', hpMult: 1.04, atkMult: 1.04, defMult: 1.08, aggroWeight: 2 }),
 });
 const EARLY_NORMAL_ENEMY_STAT_MULT = 0.65;
+// [적 레벨 스케일링] 직업별 주스탯(특화) 정의 — 플레이어 포인트바이 하한선과 동일 체계
+const ENEMY_ROLE_MAIN_STATS = Object.freeze({
+    tank: ['def', 'hp'],
+    knight: ['str', 'agi'],
+    mage: ['int', 'wis'],
+});
+const ENEMY_STAT_KEYS = Object.freeze(['str', 'def', 'hp', 'int', 'wis', 'agi']);
+// 초반 압축 스케일링 적용 구간 (이 층 이하는 레벨 기반 저압축 공식 사용)
+const ENEMY_COMPRESSED_MAX_FLOOR = 5;
 
+// 층-스테이지를 절대 레벨로 환산. 1-1F = Lv.1, 1-2F = Lv.2, 2-1F = Lv.11 ...
+function getEnemyLevelForProgress(progress) {
+    const p = normalizeDungeonProgress(progress);
+    return Math.max(1, (Math.max(1, p.floor) - 1) * STAGES_PER_FLOOR + Math.max(1, p.stage));
+}
+
+function rollIntInclusive(min, max) {
+    const lo = Math.min(min, max);
+    const hi = Math.max(min, max);
+    return lo + Math.floor(Math.random() * (hi - lo + 1));
+}
+
+// [적 스케일링 압축 / 1층 통곡의 벽 방지]
+//  Lv.1  : 주스탯 10~13 · 부스탯 4~7 (단일 스탯 14 이상 스폰 원천 차단) · HP 45~65
+//  이후  : 레벨당 완만 증가 — 주스탯 +~0.45 / 부스탯 +~0.25 / HP +~3.2 (한 층=레벨 10 → 층당 주스탯 약 +4.5, HP 약 +32)
+function buildLeveledEnemyStatBlock(roleKey, level, isBoss) {
+    const lv = Math.max(1, Math.floor(safeNum(level, 1)));
+    const mains = ENEMY_ROLE_MAIN_STATS[roleKey] || ENEMY_ROLE_MAIN_STATS.knight;
+    const g = lv - 1;
+    const mainLo = Math.round(10 + g * 0.42);
+    const mainHi = Math.round(13 + g * 0.58);
+    const subLo = Math.round(4 + g * 0.22);
+    const subHi = Math.round(7 + g * 0.34);
+    const hpLo = Math.round(45 + g * 3.0);
+    const hpHi = Math.round(65 + g * 4.2);
+    const bossStatMul = isBoss ? 1.5 : 1;
+    const bossHpMul = isBoss ? 1.8 : 1;
+    const stats = { divinity: 0, distortion: Math.min(100, lv) };
+    ENEMY_STAT_KEYS.forEach((key) => {
+        const isMain = mains.includes(key);
+        let value = isMain ? rollIntInclusive(mainLo, mainHi) : rollIntInclusive(subLo, subHi);
+        if (lv === 1) value = Math.min(13, value); // 단일 스탯 14 이상 스폰 원천 차단
+        value = Math.max(1, Math.round(value * (isMain ? bossStatMul : 1)));
+        stats[key] = Math.min(100, value);
+    });
+    const maxHp = Math.max(1, Math.round(rollIntInclusive(hpLo, hpHi) * bossHpMul));
+    return { stats, maxHp, level: lv };
+}
+
+// [7대 유효 조합 풀] 고정 [탱·마·기] 편성 폐지. tank/mage/knight 무작위 추첨 후
+// 2인 이상 파티는 전원 동일 직업 편성을 금지한다 (플레이어와 동일한 7가지 유효 조합).
 function pickEnemyPartyRoles(count) {
     const keys = ['tank', 'mage', 'knight'];
-    const picked = [];
-    const counts = {};
-    while (picked.length < count) {
-        const available = keys.filter((key) => (counts[key] || 0) < 2);
-        const key = available[Math.floor(Math.random() * available.length)] || 'knight';
-        picked.push(key);
-        counts[key] = (counts[key] || 0) + 1;
-    }
-    if (count >= 3 && Object.keys(counts).length === 1) {
-        picked[2] = picked[0] === 'tank' ? 'mage' : 'tank';
+    const n = Math.max(1, Math.floor(safeNum(count, 3)));
+    const picked = Array.from({ length: n }, () => keys[Math.floor(Math.random() * keys.length)]);
+    if (n >= 2 && picked.every((key) => key === picked[0])) {
+        picked[n - 1] = picked[0] === 'tank' ? 'mage' : 'tank';
     }
     return picked;
 }
@@ -12650,27 +12711,48 @@ function rollEnemyStatJitter() {
 
 function createEnemyPartyMember(progress, roleKey, index, isBoss) {
     const current = normalizeDungeonProgress(progress);
-    const base = buildEnemyStatsForFloor(current.floor, isBoss, current.stage);
     const role = ENEMY_PARTY_ROLE_DEFS[roleKey] || ENEMY_PARTY_ROLE_DEFS.knight;
-    const earlyNormalNerf = !isBoss && current.floor >= 1 && current.floor <= 5 ? EARLY_NORMAL_ENEMY_STAT_MULT : 1;
-    // [적 스탯 오버홀] 아군과 동일 체계의 5대 스탯 [힘/방어/체력/지능/민첩]을
-    // 층수 스케일링 기반으로 랜덤 생성한다. (★마법 계열 '지혜' 스탯은 적 데이터에서 완전히 제외)
-    const strStat = Math.max(1, Math.round(base.atk * role.atkMult * earlyNormalNerf * rollEnemyStatJitter()));
-    const defStat = Math.max(1, Math.round(Math.max(1, base.def) * role.defMult * rollEnemyStatJitter()));
-    const hpStat = Math.max(1, Math.round(Math.max(1, base.hpStat) * role.hpMult * rollEnemyStatJitter()));
-    const intStat = Math.max(1, Math.round((role.key === 'mage' ? base.int + 8 : base.int) * rollEnemyStatJitter()));
-    const agiStat = Math.max(1, Math.round((role.key === 'tank' ? Math.max(1, base.agi - 4) : base.agi) * rollEnemyStatJitter()));
-    // 최대 HP는 생성된 [체력] 스탯과 정비례한다. (층수 스케일 HP 총량을 체력 1포인트당 가치로 환산)
-    const hpPerPoint = (base.hp * earlyNormalNerf) / Math.max(1, base.hpStat);
-    const maxHp = Math.max(1, Math.floor(hpStat * hpPerPoint));
+    // [적 레벨] 층수 기반 절대 레벨 (1-1F = Lv.1). UI 이름에 "직업 Lv.X" 로 표기된다.
+    const level = getEnemyLevelForProgress(current);
+
+    let stats;
+    let maxHp;
+    if (current.floor <= ENEMY_COMPRESSED_MAX_FLOOR) {
+        // [적 스케일링 압축] 초반 5개 층은 레벨 기반 저압축 스탯 공식을 사용한다.
+        const block = buildLeveledEnemyStatBlock(role.key, level, isBoss);
+        stats = block.stats;
+        maxHp = block.maxHp;
+    } else {
+        // 6층+ : 기존 층수 스케일 파이프라인 유지
+        const base = buildEnemyStatsForFloor(current.floor, isBoss, current.stage);
+        const strStat = Math.max(1, Math.round(base.atk * role.atkMult * rollEnemyStatJitter()));
+        const defStat = Math.max(1, Math.round(Math.max(1, base.def) * role.defMult * rollEnemyStatJitter()));
+        const hpStat = Math.max(1, Math.round(Math.max(1, base.hpStat) * role.hpMult * rollEnemyStatJitter()));
+        const intStat = Math.max(1, Math.round((role.key === 'mage' ? base.int + 8 : base.int) * rollEnemyStatJitter()));
+        const wisStat = Math.max(1, Math.round((role.key === 'mage' ? base.wis + 8 : base.wis) * rollEnemyStatJitter()));
+        const agiStat = Math.max(1, Math.round((role.key === 'tank' ? Math.max(1, base.agi - 4) : base.agi) * rollEnemyStatJitter()));
+        const hpPerPoint = base.hp / Math.max(1, base.hpStat);
+        maxHp = Math.max(1, Math.floor(hpStat * hpPerPoint));
+        stats = {
+            str: Math.min(100, strStat),
+            def: Math.min(100, defStat),
+            hp: Math.min(100, hpStat),
+            int: Math.min(100, intStat),
+            wis: Math.min(100, wisStat),
+            agi: Math.min(100, agiStat),
+            divinity: 0,
+            distortion: Math.min(100, current.floor),
+        };
+    }
     // 전투 수식 연동: 물리 대미지는 힘, 피격 방어는 방어, 명중/회피는 민첩 스탯이 런타임 값의 원천이다.
-    const atk = strStat;
-    const def = defStat;
+    const atk = Math.max(1, safeNum(stats.str, 1));
+    const def = Math.max(0, safeNum(stats.def, 0));
     return {
         id: `enemy-${current.floor}-${current.stage}-${index}-${Date.now().toString(36)}`,
-        name: `${role.name} ${index + 1}`,
+        name: `${role.name} Lv.${level}`,
         roleKey: role.key,
         job: role.name,
+        level,
         archetype: role.archetype,
         element: 'neutral',
         traitTags: [role.key, 'enemyParty'],
@@ -12679,15 +12761,7 @@ function createEnemyPartyMember(progress, roleKey, index, isBoss) {
         curHp: maxHp,
         atk,
         def,
-        stats: {
-            str: Math.min(100, strStat),
-            def: Math.min(100, defStat),
-            hp: Math.min(100, hpStat),
-            int: Math.min(100, intStat),
-            agi: Math.min(100, agiStat),
-            divinity: 0,
-            distortion: Math.min(100, current.floor),
-        },
+        stats,
         equipment: { weapon: null, armor: null, accessories: [] },
         magic: role.key === 'mage' ? ['fire', 'heal'] : [],
         skills: [],
@@ -12760,11 +12834,8 @@ function createDepthMonster(progress) {
     const current = normalizeDungeonProgress(progress);
     const isBoss = current.stage === STAGES_PER_FLOOR;
     const size = getEnemyPartySize(current, isBoss);
+    // [7대 조합 풀 추첨] 1-1F 포함 모든 층에서 고정 편성 없이 무작위 추첨한다.
     let roles = pickEnemyPartyRoles(size);
-    // [던전 생성기 수리] 1-1 스타터 몹은 기사 1 · 탱커 1을 반드시 포함하도록 하드코딩 편성한다.
-    if (current.floor === 1 && current.stage === 1) {
-        roles = ['knight', 'tank', 'knight'];
-    }
     // 방어적 하한선: 어떤 경로로도 적 파티가 비어 무전투 승리가 나지 않도록 최소 1명을 보장한다.
     if (!Array.isArray(roles) || roles.length === 0) roles = ['knight'];
     const party = roles.map((roleKey, index) => createEnemyPartyMember(current, roleKey, index, isBoss));
@@ -12840,6 +12911,9 @@ function spawnEnemy() {
 Object.assign(window, {
     getCurrentDungeonProgress,
     buildEnemyStatsForFloor,
+    getEnemyLevelForProgress,
+    buildLeveledEnemyStatBlock,
+    pickEnemyPartyRoles,
     getEnemyPartyMembers,
     getLivingEnemyPartyMembers,
     isEnemyPartyMember,
@@ -12924,8 +12998,9 @@ function updateGameSpeedButtonLabel() {
 window.toggleGameSpeed = function toggleGameSpeed() {
     window.gameSpeed = Number(window.gameSpeed) === 2 ? 1 : 2;
     updateGameSpeedButtonLabel();
-    if (typeof writeLog === 'function') {
-        writeLog(`[배속] 전투 진행 속도가 ${Number(window.gameSpeed)}배속으로 전환되었습니다.`);
+    // [로그 라우팅] 배속 토글은 알림 로그 전용 (전투 로그 오염 금지)
+    if (typeof pushNotificationLog === 'function') {
+        pushNotificationLog(`[배속] 전투 진행 속도가 ${Number(window.gameSpeed)}배속으로 전환되었습니다.`, 'speed');
     }
 };
 
@@ -13045,6 +13120,13 @@ function buildLargeHpBarRow({ name, current, max, color, subText, dead, mpCurren
     </div>`;
 }
 
+// [레벨 UI] "직업명" 뒤에 "Lv.X" 를 붙인다. 이미 붙어 있으면 중복 제거 후 재부착.
+function withLevelLabel(baseName, level) {
+    const clean = String(baseName || '').replace(/\s*Lv\.\s*\d+\s*$/i, '').trim();
+    const lv = Math.max(1, Math.floor(safeNum(level, 1)));
+    return `${clean} Lv.${lv}`;
+}
+
 function renderPartyHpBars() {
     const aggregateOuter = document.querySelector('#player-card > .hp-bar-outer');
     const aggregateText = document.getElementById('p-hp-t');
@@ -13061,7 +13143,7 @@ function renderPartyHpBars() {
         const stats = member.stats || {};
         const sub = `힘${stats.str} · 방${stats.def} · 체${stats.hp} · 지${stats.int} · 지혜${stats.wis} · 민${stats.agi}`;
         return buildLargeHpBarRow({
-            name: member.name,
+            name: withLevelLabel(member.name, member.level),
             current: member.curHp,
             max: member.maxHp,
             color: '#2ed573',
@@ -13094,8 +13176,11 @@ function renderEnemyHpBars() {
         const stats = member.stats || {};
         // [적 스탯 오버홀] 구형 ATK/DEF 표기 대신 아군과 동일 체계의 5대 스탯(지혜 제외)을 직관 표기
         const sub = `힘${safeNum(stats.str, safeNum(member.atk, 0))} · 방${safeNum(stats.def, safeNum(member.def, 0))} · 체${safeNum(stats.hp, 0)} · 지${safeNum(stats.int, 0)} · 민${safeNum(stats.agi, 0)}`;
+        const enemyLevel = safeNum(member.level, typeof getEnemyLevelForProgress === 'function'
+            ? getEnemyLevelForProgress({ floor, stage: dungeonStage })
+            : 1);
         return buildLargeHpBarRow({
-            name: member.name,
+            name: withLevelLabel(member.job || member.name, enemyLevel),
             current: member.curHp,
             max: member.maxHp,
             color: '#ff4757',
@@ -14638,7 +14723,10 @@ window.handleLogin = () => {
     const email = document.getElementById('email-input').value;
     const pw = document.getElementById('pw-input').value;
     if (!email || !pw) return showAuthError("❌ 이메일과 비밀번호를 모두 입력해 주세요!");
-    auth.signInWithEmailAndPassword(email, pw).then(() => writeLog("서버 로그인 완료!")).catch(() => showAuthError("❌ 로그인 실패"));
+    auth.signInWithEmailAndPassword(email, pw).then(() => {
+        // [로그 라우팅] 로그인/계정 동기화는 알림 로그 전용 (전투 로그 오염 금지)
+        if (typeof pushNotificationLog === 'function') pushNotificationLog('[계정] 서버 로그인 완료 · 데이터 동기화됨', 'account');
+    }).catch(() => showAuthError("❌ 로그인 실패"));
 };
 window.handleLogout = () => { auth.signOut().then(() => { alert("로그아웃 되었습니다."); location.reload(); }); };
 
@@ -17552,6 +17640,12 @@ Object.assign(window, {
     resolveRestockCrossroad,
 });
 // Shop module (stage 2 split)
+// [로그 라우팅] 상점 구매/판매·장비 착용/해제 메시지는 알림 로그 전용. 전투 로그(combatLogs) 오염 금지.
+function shopNotify(text, type) {
+    if (typeof pushNotificationLog === 'function') pushNotificationLog(text, type || 'shop');
+    else if (typeof writeLog === 'function') writeLog(text);
+}
+
 function openShop() {
     setCombatProcessing(false);
     shopVisitCount++;
@@ -17973,7 +18067,7 @@ window.sellItemByUid = function sellItemByUid(uid) {
     syncPlayerCampaignState();
     gold = safeNum(gold, 0) + refund;
     syncPlayerCampaignState();
-    writeLog(`[판매] ${it.name} 판매 (+${refund}G / 구매가 ${buyPrice}G)`);
+    shopNotify(`[판매] ${it.name} 판매 (+${refund}G / 구매가 ${buyPrice}G)`, 'shop');
     updateUi();
     renderActions();
     const sh = document.getElementById('shop-area');
@@ -17988,7 +18082,7 @@ window.buyItem = (event, idx) => {
     gold-=payPrice;
     if (couponActive) {
         player.freeShopCoupon = false;
-        writeLog(`[쿠폰] 🎫 황금 쿠폰 발동! <b>${it.name}</b>을(를) 0G로 구매했습니다.`);
+        shopNotify(`[쿠폰] 🎫 황금 쿠폰 발동! <b>${it.name}</b>을(를) 0G로 구매했습니다.`, 'shop');
     }
     if (it.type === 'merc_shop_direct' || it.type === 'merc_shop_fund') {
         const scamRate = it.type === 'merc_shop_direct' ? 0.3 : 0.5;
@@ -18019,11 +18113,11 @@ window.buyItem = (event, idx) => {
             return;
         }
         player.relics.push(it.effect); saveCollection(it.name);
-        writeLog(`[유물 획득] ✨ <b style='color:#f1c40f'>${it.name}</b> 장착!`);
+        shopNotify(`[유물 획득] ✨ <b style='color:#f1c40f'>${it.name}</b> 장착!`, 'equip');
         if (typeof emitRelicStory === 'function') emitRelicStory(it);
         showUnlockPopup(`✨ 유물 획득!`,`<b style="color:#f1c40f;">${it.name}</b><br>${it.desc}`,'#f1c40f');
     } else if(it.type==='potion'){
-        player.potions++; writeLog(`[상점] 포션 구매 완료.`);
+        player.potions++; shopNotify(`[상점] 포션 구매 완료.`, 'shop');
     } else {
         const slotKind = getEquipSlotKind(it);
         if (slotKind) {
@@ -18042,7 +18136,7 @@ window.buyItem = (event, idx) => {
             const assignMember = typeof getActiveInventoryPartyMember === 'function' ? getActiveInventoryPartyMember() : null;
             if (assignMember && assignMember.roleKey) {
                 it._assignedRole = assignMember.roleKey;
-                writeLog(`[지급] <b>${it.name}</b> → ${assignMember.name}에게 귀속`);
+                shopNotify(`[지급] <b>${it.name}</b> → ${assignMember.name}에게 귀속`, 'equip');
             }
             player.items.push(it); saveCollection(it.name);
             // [장비 착용 레벨 제한] 요구 레벨 미달 시 구매는 되지만 장착은 차단되고 가방에 보관된다.
@@ -18084,9 +18178,9 @@ window.buyItem = (event, idx) => {
             recalcPlayerDivineGainMult();
             fullResyncPlayerCombatStatsFromMetaAndInventory();
             syncPlayerCampaignState();
-            writeLog(`[상점] ${it.name} 장착 완료!`);
+            shopNotify(`[장착] ${it.name} 장착 완료!`, 'equip');
             renderShopItems(true);
-        } else { writeLog(`이미 보유한 장비입니다!`); gold+=it.price; }
+        } else { shopNotify(`이미 보유한 장비입니다!`, 'shop'); gold+=it.price; }
     }
     syncPlayerCampaignState();
     updateUi(); renderActions();
@@ -19166,16 +19260,19 @@ function emitCombatResultVfx(target, result) {
     if (!result) return;
     const isPlayerSide = target === player || isPartyMember(target);
     const targetSide = isPlayerSide ? 'player' : 'enemy';
-    // [유닛 타격 연동] 대상의 개별 카드(행)가 렌더링되어 있으면 파티 전체가 아닌
-    // '정확한 피격 대상 카드'에만 데미지 플로트/셰이크를 재생한다.
-    const hasUnitRow = typeof getCombatUnitRowElement === 'function' && !!getCombatUnitRowElement(target);
+    // [피격 좌표 앵커링] 데미지 플로트/피격 이펙트/셰이크는 항상 '맞은 유닛 카드' 기준으로 재생한다.
+    // (개별 행이 없을 때만 유닛 헬퍼 내부에서 파티 카드 폴백 — 화면 절대 좌표 사용 안 함)
+    const finishTargetMark = () => {
+        if (typeof clearCombatTargetMarks === 'function') clearCombatTargetMarks();
+    };
     if (result.reason === 'miss' || result.reason === 'dodged') {
-        if (hasUnitRow && typeof showUnitMissFloat === 'function') showUnitMissFloat(target);
+        if (typeof showUnitMissFloat === 'function') showUnitMissFloat(target);
         else showMissFloat(targetSide);
         if (result.reason === 'dodged') {
-            if (hasUnitRow && typeof pulseCombatUnitClass === 'function') pulseCombatUnitClass(target, 'premium-card-dodge', 240);
+            if (typeof pulseCombatUnitClass === 'function') pulseCombatUnitClass(target, 'premium-card-dodge', 240);
             else triggerDodgeMove(targetSide);
         }
+        finishTargetMark();
         return;
     }
     if (result.type === 'attack') {
@@ -19183,13 +19280,13 @@ function emitCombatResultVfx(target, result) {
             if (result.attackKind === 'magic' && typeof playMagicBarrierVfx === 'function') playMagicBarrierVfx(targetSide);
             else if (typeof playPhysicalShieldVfx === 'function') playPhysicalShieldVfx(targetSide);
         }
-        if (hasUnitRow && typeof showUnitDmgFloat === 'function') showUnitDmgFloat(target, Math.max(0, result.damage || 0), false);
+        if (typeof showUnitDmgFloat === 'function') showUnitDmgFloat(target, Math.max(0, result.damage || 0), false);
         else showDmgFloat(Math.max(0, result.damage || 0), false, isPlayerSide);
-        if ((result.damage || 0) > 0) {
-            if (hasUnitRow && typeof triggerUnitHitShake === 'function') triggerUnitHitShake(target, false);
-            else triggerShakeEffect(targetSide);
+        if ((result.damage || 0) > 0 && typeof triggerUnitHitShake === 'function') {
+            triggerUnitHitShake(target, false);
         }
     }
+    finishTargetMark();
 }
 
 async function previewEnemyTargetIntent(unit, target) {
@@ -19750,7 +19847,7 @@ function enterNextDungeonStage() {
     player.progress = { floor, stage: dungeonStage };
     if (hasCrossedPointOfNoReturn(player.progress)) MetaRPG.clearRunSnapshot(player.metaSlotId);
     syncPlayerCampaignState();
-    writeLog(`[전진] ${formatDungeonPosition(player.progress)} 진입${hasCrossedPointOfNoReturn(player.progress) ? ' · 복귀 불가' : ''}`);
+    // [로그 라우팅] 던전 층간 이동은 알림 로그 전용 (전투 로그 오염 금지)
     if (typeof pushNotificationLog === 'function') {
         pushNotificationLog(`[층 이동] ${formatDungeonPosition(player.progress)} 진입${hasCrossedPointOfNoReturn(player.progress) ? ' · 복귀 불가' : ''}`, 'floor');
     }
@@ -19783,7 +19880,11 @@ function onCombatVictory() {
     player.hasWonBattle = true;
     player.victoryCount = player.runWins;
     if (typeof totalGoldEarned !== 'undefined') totalGoldEarned = Math.max(0, safeNum(totalGoldEarned, 0)) + reward;
-    writeLog(`[승리] ${formatDungeonPosition({ floor, stage: dungeonStage })} 전투 종료 · ${reward}G 획득`);
+    // [로그 라우팅] 전투 종료 사실은 전투 로그, 골드 획득은 알림 로그로 분리한다.
+    writeLog(`[전투] ${formatDungeonPosition({ floor, stage: dungeonStage })} 전투 종료`);
+    if (typeof pushNotificationLog === 'function') {
+        pushNotificationLog(`[골드] ${formatDungeonPosition({ floor, stage: dungeonStage })} 전투 승리 · +${reward}G`, 'gold');
+    }
     syncPlayerCampaignState();
     return {
         reward,
@@ -19817,10 +19918,8 @@ function winBattle() {
         setCurrentHp(member, member.curHp + Math.max(1, Math.floor(member.maxHp * 0.08)));
     });
     // [레벨링] 처치한 적 파티 기준 EXP 지급 + 요구치 도달 시 즉시 레벨업(전투 화면을 멈추지 않음).
+    // (골드 획득 알림은 onCombatVictory 에서 이미 pushNotificationLog 로 발행됨)
     const expGain = typeof awardCombatExp === 'function' ? awardCombatExp(enemy) : 0;
-    if (typeof pushNotificationLog === 'function') {
-        pushNotificationLog(`[골드] ${formatDungeonPosition({ floor, stage: dungeonStage })} 전투 승리 · +${settlement.reward}G`, 'gold');
-    }
     syncPartyAggregateState(player);
     syncPlayerCampaignState();
     const continueForward = () => enterNextDungeonStage();
