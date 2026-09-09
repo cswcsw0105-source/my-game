@@ -95,7 +95,6 @@
                 <hr style="border-top:1px solid #333; width: 100%;">
                 <h4 style="color: #fff;">📊 도감</h4>
                 <div style="display:flex;flex-direction:column;gap:8px;">
-                    <button type="button" class="sidebar-action-btn sidebar-btn-collection" onclick="toggleEvolutionMap(true)">🧭 전직도</button>
                     <button type="button" class="sidebar-action-btn sidebar-btn-collection" onclick="toggleCollection(true)">📖 장비 도감</button>
                     <button type="button" class="sidebar-action-btn sidebar-btn-rank" onclick="toggleRank(true)">🏆 명예의 전당 보기</button>
                     <button type="button" id="guide-btn" class="sidebar-action-btn sidebar-btn-collection" onclick="toggleGuide(true)">📚 가이드</button>
@@ -117,14 +116,7 @@
         </div>
     </div>
 
-    <!-- 전직도 모달 -->
-    <div id="evolution-modal" class="modal-overlay">
-        <div class="modal-content">
-            <button class="close-btn" onclick="toggleEvolutionMap(false)">✖</button>
-            <h2>🧭 전직도</h2>
-            <div id="evolution-list" style="font-size:0.9em; margin-top:15px;"></div>
-        </div>
-    </div>
+    <!-- [레거시 제거] 🧭 전직도 모달 삭제됨 -->
 
     <!-- 명예의 전당 모달 -->
     <div id="rank-modal" class="modal-overlay">

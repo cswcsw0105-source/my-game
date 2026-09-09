@@ -778,6 +778,28 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     overflow: visible;
     transition: filter 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
 }
+
+/* ============ [망령 UI 차별화] 몽환적 보라/암흑 오라 + 반투명 유령 배경 ============ */
+@keyframes ghostCardAura {
+    0%, 100% {
+        box-shadow: 0 0 12px rgba(168, 85, 247, 0.6), inset 0 0 24px rgba(120, 40, 200, 0.2);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(168, 85, 247, 0.9), inset 0 0 32px rgba(150, 60, 230, 0.34);
+    }
+}
+#enemy-card.enemy-ghost-card,
+.combat-unit-row.enemy-ghost-card {
+    box-shadow: 0 0 12px rgba(168, 85, 247, 0.6), inset 0 0 24px rgba(120, 40, 200, 0.2);
+    background: rgba(88, 28, 135, 0.16);
+    border: 1px solid rgba(168, 85, 247, 0.5);
+    border-radius: 10px;
+    animation: ghostCardAura 2.4s ease-in-out infinite;
+}
+#enemy-card.enemy-ghost-card #e-name {
+    color: #d8b4fe;
+    text-shadow: 0 0 8px rgba(168, 85, 247, 0.7);
+}
 .combat-fx-layer {
     position: absolute;
     inset: 0;

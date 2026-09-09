@@ -242,6 +242,8 @@ function ghostToEnemy(ghost) {
         behaviorMatrix: ghost.behaviorMatrix ? JSON.parse(JSON.stringify(ghost.behaviorMatrix)) : null,
         sourceSnapshot: JSON.parse(JSON.stringify(ghost)),
         isBoss: false,
+        // [망령 식별] 망령으로 생성된 적 개체 플래그 (UI 차별화 · 조우 연출에서 사용)
+        isGhost: true,
         turnCount: 0,
     };
 }
@@ -278,12 +280,33 @@ function createDepthMonster(progress) {
     return syncEnemyPartyAggregateState(container);
 }
 
+// [망령 출현 층수 제한] 1-1F~1-3F 는 망령 스폰을 완전히 차단하고 층수 스케일 일반 몬스터만 스폰한다.
+// 1-4F 이상(= floor 1 stage>=4, 또는 floor>=2)에서만 확률적으로 망령이 등장한다.
+const GHOST_SPAWN_MIN_FLOOR = 1;
+const GHOST_SPAWN_MIN_STAGE = 4;
+const GHOST_SPAWN_CHANCE = 0.55;
+
+function isGhostSpawnAllowed(progress) {
+    const p = normalizeDungeonProgress(progress);
+    if (p.floor < GHOST_SPAWN_MIN_FLOOR) return false;
+    if (p.floor === GHOST_SPAWN_MIN_FLOOR && p.stage < GHOST_SPAWN_MIN_STAGE) return false;
+    return true;
+}
+
 function spawnEnemy() {
     const progress = getCurrentDungeonProgress();
     floor = progress.floor;
     dungeonStage = progress.stage;
-    const ghost = typeof MetaRPG !== 'undefined' ? MetaRPG.getGhostEncounter(progress) : null;
+    // 층수 제한을 통과했을 때만 망령 조우를 시도하고, 그마저도 확률(GHOST_SPAWN_CHANCE)로만 실제 스폰한다.
+    const ghostCandidate = isGhostSpawnAllowed(progress) && typeof MetaRPG !== 'undefined'
+        ? MetaRPG.getGhostEncounter(progress)
+        : null;
+    const ghost = ghostCandidate && Math.random() < GHOST_SPAWN_CHANCE ? ghostCandidate : null;
     enemy = ghost ? ghostToEnemy(ghost) : createDepthMonster(progress);
+    if (ghost && typeof pushNotificationLog === 'function') {
+        // [조우 연출] 망령 조우 → 알림 로그 1회 (전투 로그는 오염하지 않는다)
+        pushNotificationLog('[⚠️ 경고] 이전 원정대의 망령이 길을 막아섭니다!', 'ghost');
+    }
     // [스폰 HP 강제 주입] 컨테이너/망령을 포함한 모든 적 개체가 maxHp 계산 직후 만피로 스폰되도록 강제한다.
     if (enemy) {
         if (Array.isArray(enemy.party) && enemy.party.length) {
@@ -327,6 +350,7 @@ function spawnEnemy() {
 Object.assign(window, {
     getCurrentDungeonProgress,
     buildEnemyStatsForFloor,
+    isGhostSpawnAllowed,
     getEnemyLevelForProgress,
     buildLeveledEnemyStatBlock,
     pickEnemyPartyRoles,

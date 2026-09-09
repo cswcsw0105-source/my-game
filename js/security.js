@@ -135,7 +135,6 @@
         'buyPermUpgrade',
         'selectJobAndStart',
         'pickMercCompanion',
-        'toggleEvolutionMap',
         'evolve',
         'resolveMercEvolution',
         'saveAndExitToMain',

@@ -12826,6 +12826,8 @@ function ghostToEnemy(ghost) {
         behaviorMatrix: ghost.behaviorMatrix ? JSON.parse(JSON.stringify(ghost.behaviorMatrix)) : null,
         sourceSnapshot: JSON.parse(JSON.stringify(ghost)),
         isBoss: false,
+        // [망령 식별] 망령으로 생성된 적 개체 플래그 (UI 차별화 · 조우 연출에서 사용)
+        isGhost: true,
         turnCount: 0,
     };
 }
@@ -12862,12 +12864,33 @@ function createDepthMonster(progress) {
     return syncEnemyPartyAggregateState(container);
 }
 
+// [망령 출현 층수 제한] 1-1F~1-3F 는 망령 스폰을 완전히 차단하고 층수 스케일 일반 몬스터만 스폰한다.
+// 1-4F 이상(= floor 1 stage>=4, 또는 floor>=2)에서만 확률적으로 망령이 등장한다.
+const GHOST_SPAWN_MIN_FLOOR = 1;
+const GHOST_SPAWN_MIN_STAGE = 4;
+const GHOST_SPAWN_CHANCE = 0.55;
+
+function isGhostSpawnAllowed(progress) {
+    const p = normalizeDungeonProgress(progress);
+    if (p.floor < GHOST_SPAWN_MIN_FLOOR) return false;
+    if (p.floor === GHOST_SPAWN_MIN_FLOOR && p.stage < GHOST_SPAWN_MIN_STAGE) return false;
+    return true;
+}
+
 function spawnEnemy() {
     const progress = getCurrentDungeonProgress();
     floor = progress.floor;
     dungeonStage = progress.stage;
-    const ghost = typeof MetaRPG !== 'undefined' ? MetaRPG.getGhostEncounter(progress) : null;
+    // 층수 제한을 통과했을 때만 망령 조우를 시도하고, 그마저도 확률(GHOST_SPAWN_CHANCE)로만 실제 스폰한다.
+    const ghostCandidate = isGhostSpawnAllowed(progress) && typeof MetaRPG !== 'undefined'
+        ? MetaRPG.getGhostEncounter(progress)
+        : null;
+    const ghost = ghostCandidate && Math.random() < GHOST_SPAWN_CHANCE ? ghostCandidate : null;
     enemy = ghost ? ghostToEnemy(ghost) : createDepthMonster(progress);
+    if (ghost && typeof pushNotificationLog === 'function') {
+        // [조우 연출] 망령 조우 → 알림 로그 1회 (전투 로그는 오염하지 않는다)
+        pushNotificationLog('[⚠️ 경고] 이전 원정대의 망령이 길을 막아섭니다!', 'ghost');
+    }
     // [스폰 HP 강제 주입] 컨테이너/망령을 포함한 모든 적 개체가 maxHp 계산 직후 만피로 스폰되도록 강제한다.
     if (enemy) {
         if (Array.isArray(enemy.party) && enemy.party.length) {
@@ -12911,6 +12934,7 @@ function spawnEnemy() {
 Object.assign(window, {
     getCurrentDungeonProgress,
     buildEnemyStatsForFloor,
+    isGhostSpawnAllowed,
     getEnemyLevelForProgress,
     buildLeveledEnemyStatBlock,
     pickEnemyPartyRoles,
@@ -13179,8 +13203,9 @@ function renderEnemyHpBars() {
         const enemyLevel = safeNum(member.level, typeof getEnemyLevelForProgress === 'function'
             ? getEnemyLevelForProgress({ floor, stage: dungeonStage })
             : 1);
+        const ghostBadge = (member.isGhost || member.isPlayerGhost) ? '👻 [망령] ' : '';
         return buildLargeHpBarRow({
-            name: withLevelLabel(member.job || member.name, enemyLevel),
+            name: `${ghostBadge}${withLevelLabel(member.job || member.name, enemyLevel)}`,
             current: member.curHp,
             max: member.maxHp,
             color: '#ff4757',
@@ -13787,11 +13812,16 @@ function updateUi() {
         return;
     }
     setEnemyVictoryMode(false);
+    // [망령 UI 차별화] 망령 적은 적 카드에 .enemy-ghost-card (보라 오라 글로우) + 이름 앞 👻 [망령] 뱃지.
+    const isGhostEnemy = !!(enemy && (enemy.isGhost || enemy.isPlayerGhost));
+    const enemyCardEl = document.getElementById('enemy-card');
+    if (enemyCardEl) enemyCardEl.classList.toggle('enemy-ghost-card', isGhostEnemy);
     const enemyNameEl = document.getElementById('e-name');
     if (enemyNameEl) {
         const hint = window._enemyThinkingHint ? `<div style="color:#ffb3b3;font-size:0.72em;font-weight:600;margin-top:3px;">${escapeHtml(window._enemyThinkingHint)}</div>` : '';
         const livingCount = Array.isArray(enemy.party) ? getLivingEnemyPartyMembers(enemy).length : 1;
-        enemyNameEl.innerHTML = `${escapeHtml(enemy.name)}${Array.isArray(enemy.party) ? ` · ${livingCount}명 생존` : ''}${hint}`;
+        const ghostBadge = isGhostEnemy ? '👻 [망령] ' : '';
+        enemyNameEl.innerHTML = `${ghostBadge}${escapeHtml(enemy.name)}${Array.isArray(enemy.party) ? ` · ${livingCount}명 생존` : ''}${hint}`;
     }
     document.getElementById('e-hp').style.width=`${Math.max(0,(eCur/eHp)*100)}%`;
     document.getElementById('e-hp-t').innerText=`${eCur} / ${eHp}`;
@@ -16088,44 +16118,8 @@ function markEvolutionSeen(name) {
         saveSeenEvolutions(cur);
     }
 }
-function evoLabelOrUnknown(name) {
-    const n = String(name || '');
-    if (!n) return '???';
-    return loadSeenEvolutions().includes(n) ? n : '???';
-}
-function buildEvolutionMindmapHtml() {
-    const rows = [
-        { base: '워리어', color: '#ff4757', list: ['나이트', '버서커'] },
-        { base: '헌터', color: '#2ed573', list: ['궁수', '암살자'] },
-        { base: '마법사', color: '#1e90ff', list: ['위저드', '소환사', '성직자'] },
-    ];
-    const chips = (names) =>
-        names
-            .map((n) => {
-                const v = evoLabelOrUnknown(n);
-                const on = v !== '???';
-                return `<span style="display:inline-block;padding:4px 8px;border-radius:999px;border:1px solid ${
-                    on ? '#f1c40f' : '#333'
-                };background:${on ? '#2a2a1a' : '#0a0a0a'};color:${on ? '#f1c40f' : '#444'};font-weight:800;font-size:0.78em;margin:2px;">${v}</span>`;
-            })
-            .join('');
-    return `<div style="margin:0 0 12px 0;padding:12px;background:#0d0d12;border:1px solid #333;border-radius:10px;">
-  <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
-    <div style="color:#f1c40f;font-weight:900;">🧭 전직도</div>
-    <div style="color:#666;font-size:0.75em;">전직 후 해당 이름이 해금됩니다. (해금 전: ???)</div>
-  </div>
-  <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;">
-    ${rows
-        .map(
-            (r) =>
-                `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;"><span style="min-width:66px;color:${r.color};font-weight:900;">${r.base}</span><span style="color:#555;">→</span><div>${chips(
-                    r.list
-                )}</div></div>`
-        )
-        .join('')}
-  </div>
-</div>`;
-}
+// [레거시 제거] 전직도(마인드맵) UI — evoLabelOrUnknown / buildEvolutionMindmapHtml 삭제됨.
+// 전직 해금 데이터(loadSeenEvolutions / markEvolutionSeen 등)는 window.evolve 전직 로직에서 계속 사용한다.
 
 function loadPlayedJobs() {
     try {
@@ -16153,97 +16147,8 @@ function markPlayedJob(name) {
         savePlayedJobs(cur);
     }
 }
-function collectPlayedBaseJobsFromMeta() {
-    const out = [];
-    try {
-        if (typeof MetaRPG === 'undefined') return out;
-        const m = MetaRPG.loadMeta();
-        const slots = m && Array.isArray(m.slots) ? m.slots : [];
-        slots.forEach((s) => {
-            const jb = jobBase[s && s.jobKey];
-            if (jb && jb.name) out.push(jb.name);
-        });
-    } catch (e) {
-        /* ignore */
-    }
-    return out;
-}
-function getPlayedJobsForEvolutionMap() {
-    return new Set([...loadPlayedJobs(), ...collectPlayedBaseJobsFromMeta(), ...loadSeenEvolutions()]);
-}
-function getJobSpecForTooltip(jobName) {
-    const n = String(jobName || '');
-    for (const k of Object.keys(jobBase || {})) {
-        const j = jobBase[k];
-        if (j && j.name === n) {
-            return { atk: safeNum(j.atk, 0), def: safeNum(j.def, 0), crit: 1, critMult: 1.8, lifesteal: 0 };
-        }
-    }
-    for (const baseName of Object.keys(jobEvolutions || {})) {
-        const list = jobEvolutions[baseName] || [];
-        const hit = list.find((x) => x && x.name === n);
-        if (hit) {
-            return {
-                atk: safeNum(hit.bonusAtk, 0),
-                def: safeNum(hit.bonusDef, 0),
-                crit: 1,
-                critMult: 1.8,
-                lifesteal: 0,
-            };
-        }
-    }
-    return { atk: 0, def: 0, crit: 1, critMult: 1.8, lifesteal: 0 };
-}
-function getJobPassiveText(jobName) {
-    const map = {
-        워리어: '강인함: 기본 생존력이 높음',
-        헌터: '정밀 사격: 명중/딜 균형',
-        마법사: '주문 증폭: 높은 기본 공격력',
-        나이트: '철벽 수호: 방어/체력 특화',
-        버서커: '광전: 공격 특화',
-        궁수: '저격 자세: 명중 강화',
-        암살자: '암습: 고화력 일격',
-        위저드: '마도 폭주: 마법 화력 특화',
-        소환사: '소환 지휘: 소환수 중심 운영',
-        성직자: `신성력: 최대 ${DIVINE_POWER_MAX}스택, 가호 방어+${DIVINE_BLESSING_DEF_BONUS}`,
-    };
-    return map[jobName] || '고유 패시브';
-}
-function buildPlayedEvolutionMapHtml() {
-    const played = getPlayedJobsForEvolutionMap();
-    const rows = [
-        { base: '워리어', color: '#ff4757', list: ['나이트', '버서커'] },
-        { base: '헌터', color: '#2ed573', list: ['궁수', '암살자'] },
-        { base: '마법사', color: '#1e90ff', list: ['위저드', '소환사', '성직자'] },
-    ];
-    const makeCard = (name, color) => {
-        const spec = getJobSpecForTooltip(name);
-        const tip = `${name}\n패시브: ${getJobPassiveText(name)}\n공격력: ${spec.atk}\n방어력: ${spec.def}\n치명타 확률: ${spec.crit}%\n치명타 배율: ${spec.critMult.toFixed(2)}x\n흡혈: ${Math.round(spec.lifesteal * 100)}%`;
-        return `<span title="${tip}" style="display:inline-block;padding:6px 10px;border-radius:999px;border:1px solid ${color};background:#10141a;color:${color};font-weight:800;font-size:0.8em;margin:3px;cursor:help;">${name}</span>`;
-    };
-    const body = rows
-        .map((r) => {
-            const names = [r.base, ...r.list].filter((n) => played.has(n));
-            if (!names.length) return '';
-            const baseShown = names.includes(r.base) ? makeCard(r.base, r.color) : '';
-            const evols = r.list.filter((n) => names.includes(n)).map((n) => makeCard(n, '#f1c40f')).join('');
-            return `<div style="padding:10px;border:1px solid #2a2a2a;border-radius:10px;background:#0f0f14;"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">${baseShown || '<span style="color:#555;font-size:0.8em;">(기본 직업 미플레이)</span>'}${evols ? '<span style="color:#666;">→</span>' + evols : ''}</div></div>`;
-        })
-        .filter(Boolean)
-        .join('');
-    if (!body) {
-        return `<div style="padding:14px;border:1px solid #333;border-radius:10px;background:#0d0d12;color:#888;line-height:1.6;">아직 플레이한 직업 기록이 없습니다.<br>캐릭터를 시작하거나 전직하면 이 전직도에 자동으로 표시됩니다.</div>`;
-    }
-    return `<div style="margin-bottom:10px;color:#888;font-size:0.82em;line-height:1.55;">직업 칩에 마우스를 올리면 패시브와 기본 스탯 정보를 볼 수 있습니다.</div><div style="display:flex;flex-direction:column;gap:8px;">${body}</div>`;
-}
-window.toggleEvolutionMap = (show) => {
-    if (show) {
-        const el = document.getElementById('evolution-list');
-        if (el) el.innerHTML = buildPlayedEvolutionMapHtml();
-    }
-    const modal = document.getElementById('evolution-modal');
-    if (modal) modal.style.display = show ? 'flex' : 'none';
-};
+// [레거시 제거] 사이드바 '🧭 전직도' 모달 일체 삭제 (map/tooltip 빌더 + 토글 핸들러).
+// index.html 사이드바 버튼 / #evolution-modal 도 함께 제거됨. 전직(evolve) 로직은 유지.
 
 window.evolve = (idx) => {
     const evol = window._evolOptions[idx];
@@ -17579,7 +17484,6 @@ window.onclick=function(event){
     if(event.target===document.getElementById('patch-modal'))togglePatchNotes(false);
     if(event.target===document.getElementById('rank-modal'))toggleRank(false);
     if(event.target===document.getElementById('collection-modal'))toggleCollection(false);
-    if(event.target===document.getElementById('evolution-modal'))toggleEvolutionMap(false);
     if(event.target===document.getElementById('guide-modal'))toggleGuide(false);
 };
 
@@ -20424,7 +20328,6 @@ window.addEventListener('load', () => {
         'buyPermUpgrade',
         'selectJobAndStart',
         'pickMercCompanion',
-        'toggleEvolutionMap',
         'evolve',
         'resolveMercEvolution',
         'saveAndExitToMain',
