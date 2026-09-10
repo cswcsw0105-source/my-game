@@ -358,8 +358,80 @@ body { background-color: #121212; color: #e0e0e0; text-align: center; font-famil
 }
 
 #inv-list.inv-list-scroll {
-    max-height: min(72vh, 560px);
+    max-height: min(58vh, 480px);
 }
+
+/* ============ [행동 불가/쿨다운 자물쇠] 커맨드 버튼 잠금 ============ */
+button.btn-locked,
+button.btn-locked:hover,
+button.btn-locked:active {
+    opacity: 0.4 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+    background: #2c2c2c !important;
+    color: #9aa4b2 !important;
+    box-shadow: none !important;
+    filter: grayscale(0.6);
+}
+
+/* ============ [스킬 가이드 패널] 좌측 인벤 하단 상설 카드 ============ */
+.skill-guide-panel {
+    margin-top: 10px;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 11px;
+    border-radius: 10px;
+    background: #101018;
+    border: 1px solid #2b2b3a;
+    text-align: left;
+    font-size: 0.82em;
+    line-height: 1.45;
+    color: #cfd6e0;
+}
+.skill-guide-panel .skill-guide-empty {
+    color: #7a828f;
+    font-size: 0.95em;
+}
+.skill-guide-panel .skill-guide-head {
+    color: #9fb0ff;
+    font-weight: 800;
+    font-size: 0.9em;
+    margin-bottom: 4px;
+}
+.skill-guide-panel .skill-guide-name {
+    color: #f1c40f;
+    font-weight: 900;
+    font-size: 1.02em;
+    margin: 2px 0 6px;
+}
+.skill-guide-panel .skill-guide-btype {
+    display: inline-block;
+    background: #5f27cd;
+    color: #fff;
+    font-size: 0.66em;
+    font-weight: 900;
+    border-radius: 4px;
+    padding: 0 4px;
+    margin-left: 4px;
+    vertical-align: middle;
+}
+.skill-guide-panel .skill-guide-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 1px 0;
+}
+.skill-guide-panel .skill-guide-row span { color: #8b93a1; }
+.skill-guide-panel .skill-guide-row b { color: #e6ebf2; }
+.skill-guide-panel .skill-guide-desc {
+    margin: 6px 0 5px;
+    padding-top: 5px;
+    border-top: 1px solid #262633;
+    color: #aab2be;
+}
+.skill-guide-panel .skill-guide-status { font-weight: 800; }
+.skill-guide-panel .skill-guide-ok { color: #2ecc71; }
+.skill-guide-panel .skill-guide-no { color: #ff7675; }
 
 .hp-bar-outer { width: 100%; background: #2a2a2a; height: 16px; border-radius: 8px; margin: 8px 0; border: 1px solid #111; overflow: hidden; }
 .hp-bar-inner { height: 100%; background: #2ed573; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); }

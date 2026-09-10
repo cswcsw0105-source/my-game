@@ -586,6 +586,7 @@ function renderActions() {
             <button id="skill-btn" type="button" data-v35-action="스킬" disabled style="background:#444;opacity:0.45;cursor:not-allowed;">✴️ 특수 스킬</button>
             <button id="potion-btn" type="button" disabled style="background:#444;opacity:0.45;cursor:not-allowed;">🧪 포션 사용 (${Math.max(0, safeNum(player && player.potions, 0))}개)</button>`;
         if (typeof updateCombatButtonsLockState === 'function') updateCombatButtonsLockState();
+        if (typeof renderSkillGuidePanel === 'function') renderSkillGuidePanel();
         return;
     }
     div.innerHTML = '';
@@ -602,19 +603,28 @@ function renderActions() {
         (actor.roleKey === 'mage' || actor.archetype === 'mage' || (Array.isArray(actor.magic) && actor.magic.includes('heal'))) &&
         woundedAllies
     );
-    const makeBtn = (id, text, actionType, bg, disabled, title) => {
+    // lockInfo: { label, suffix } → 버튼을 "🔒 [label] 불가 [suffix]" 로 갱신하고 .btn-locked 로 클릭 원천 차단.
+    const makeBtn = (id, text, actionType, bg, disabled, title, lockInfo) => {
         const btn = document.createElement('button');
         btn.id = id;
         btn.type = 'button';
         btn.dataset.v35Action = actionType;
         if (id === 'heal-btn' || id === 'btn-heal') btn.dataset.v35Heal = '1';
-        btn.innerText = text;
         btn.style.background = bg;
         btn.style.position = 'relative';
         btn.style.zIndex = '1000';
         btn.style.pointerEvents = 'auto';
         btn.title = title || '';
-        if (disabled) {
+        if (lockInfo) {
+            // [행동 불가/쿨다운 자물쇠] 렌더링 단계에서 잠금 — 클릭 이벤트 원천 차단.
+            btn.innerText = `🔒 ${lockInfo.label} 불가${lockInfo.suffix ? ' ' + lockInfo.suffix : ''}`;
+            btn.classList.add('btn-locked');
+            btn.dataset.v35Disabled = '1';
+            btn.disabled = true;
+        } else {
+            btn.innerText = text;
+        }
+        if (disabled && !lockInfo) {
             btn.dataset.v35Disabled = '1';
             btn.disabled = true;
             btn.style.opacity = '0.45';
@@ -624,13 +634,15 @@ function renderActions() {
         div.appendChild(btn);
         return btn;
     };
+    const attackLockTurns = Math.max(1, Math.floor(safeNum(actor.attackLockTurns, 0)) || 1);
     makeBtn(
         'attack-btn',
         `⚔️ 공격`,
         '공격',
         player.color || '#d8d8d8',
         false,
-        canAttack ? `${actorName}의 힘·민첩·공속 기반 공격` : `${actorName}는 공속 패널티 상태지만 상태 머신이 턴을 진행합니다.`
+        canAttack ? `${actorName}의 힘·민첩·공속 기반 공격` : `${actorName}는 후딜레이/공속 패널티로 이번 턴 공격할 수 없습니다.`,
+        canAttack ? null : { label: '공격', suffix: `(${attackLockTurns}턴)` }
     );
     makeBtn(
         'defense-btn',
@@ -655,20 +667,30 @@ function renderActions() {
             canHeal ? `${actorName}의 지혜 기반 단일 대상 치유 (파티원/자신 선택 가능)` : '마법사의 턴에 회복할 아군이 있을 때만 사용할 수 있습니다.'
         );
     }
-    // [직업별 특수 스킬] 마나가 충분할 때만 활성화되는 액티브 스킬 버튼
+    // [직업별 특수 스킬] 마나 부족 / 스킬 쿨타임 시 자물쇠 잠금
     const activeSkill = typeof getPartyActiveSkillFor === 'function' ? getPartyActiveSkillFor(actor) : null;
     if (activeSkill) {
         const actorMp = typeof getActorMp === 'function' ? getActorMp(actor) : Math.max(0, safeNum(actor.mp, 0));
+        const skillCd = typeof getActorSkillCooldown === 'function'
+            ? getActorSkillCooldown(actor)
+            : Math.max(0, Math.floor(safeNum(actor._skillCooldownTurns, 0)));
         const hasEnoughMp = actorMp >= activeSkill.mpCost;
+        const skillLocked = skillCd > 0 || !hasEnoughMp;
+        const lockInfo = skillCd > 0
+            ? { label: activeSkill.name, suffix: `(${skillCd}턴)` }
+            : (!hasEnoughMp ? { label: activeSkill.name, suffix: '(MP 부족)' } : null);
         makeBtn(
             'skill-btn',
             `${activeSkill.name} (MP ${activeSkill.mpCost})`,
             '스킬',
-            hasEnoughMp ? '#5f27cd' : '#333',
-            !hasEnoughMp,
-            hasEnoughMp
-                ? `${activeSkill.description} — 현재 ${actorMp} MP`
-                : `마나가 부족합니다. (현재 ${actorMp} / 필요 ${activeSkill.mpCost} MP)`
+            skillLocked ? '#333' : '#5f27cd',
+            skillLocked,
+            skillCd > 0
+                ? `${activeSkill.name}은 쿨타임 ${skillCd}턴이 남았습니다.`
+                : (hasEnoughMp
+                    ? `${activeSkill.description} — 현재 ${actorMp} MP`
+                    : `마나가 부족합니다. (현재 ${actorMp} / 필요 ${activeSkill.mpCost} MP)`),
+            lockInfo
         );
     }
     // [포션 사용] 잔여 개수를 실시간 표기하고, 0개이거나 액션 락 중에는 비활성화되는 긴급 회복 커맨드
@@ -701,6 +723,7 @@ function renderActions() {
     clearCombatTargetSelection();
     rebindV35PrimaryActionButtons();
     if (typeof updateCombatButtonsLockState === 'function') updateCombatButtonsLockState();
+    if (typeof renderSkillGuidePanel === 'function') renderSkillGuidePanel();
     return;
 }
 
@@ -4506,7 +4529,48 @@ function renderInventoryPanel() {
         html = '<div style="color:#555;text-align:center;padding:12px;">장비가 없습니다.</div>';
     }
     invList.innerHTML = html;
+    renderSkillGuidePanel();
 }
+
+// [스킬 가이드 패널] 좌측 인벤 하단 #skill-guide-panel — 현재 턴 아군 유닛의 스킬 상설 카드.
+function renderSkillGuidePanel() {
+    const host = document.getElementById('skill-guide-panel');
+    if (!host) return;
+    const defaultText = '<div class="skill-guide-empty">현재 턴 유닛의 스킬 정보가 표기됩니다.</div>';
+    const turn = typeof getCurrentTurnEntry === 'function' ? getCurrentTurnEntry() : null;
+    const actor = turn && turn.side === 'player' ? turn.actor : null;
+    if (!enemy || !actor || !turn || turn.side !== 'player') {
+        host.innerHTML = defaultText;
+        return;
+    }
+    const skill = typeof getPartyActiveSkillFor === 'function' ? getPartyActiveSkillFor(actor) : null;
+    if (!skill) {
+        host.innerHTML = `<div class="skill-guide-head">${escapeHtml(actor.name || '파티원')}</div><div class="skill-guide-empty">이 유닛은 전용 액티브 스킬이 없습니다.</div>`;
+        return;
+    }
+    const mp = typeof getActorMp === 'function' ? getActorMp(actor) : Math.max(0, safeNum(actor.mp, 0));
+    const cd = typeof getActorSkillCooldown === 'function'
+        ? getActorSkillCooldown(actor)
+        : Math.max(0, Math.floor(safeNum(actor._skillCooldownTurns, 0)));
+    const targetLabel = skill.targeting === 'self' ? '자신'
+        : skill.targeting === 'ally' ? '아군 1명'
+        : skill.targeting === 'enemy' ? '적 1명' : '—';
+    const usable = typeof canActorUseActiveSkill === 'function' ? canActorUseActiveSkill(actor) : (mp >= skill.mpCost && cd <= 0);
+    const statusHtml = usable
+        ? '<span class="skill-guide-ok">✅ 사용 가능</span>'
+        : cd > 0
+            ? `<span class="skill-guide-no">🔒 쿨타임 ${cd}턴</span>`
+            : `<span class="skill-guide-no">🔒 MP 부족 (${mp}/${skill.mpCost})</span>`;
+    host.innerHTML = `
+        <div class="skill-guide-head">🎯 ${escapeHtml(actor.name || '파티원')} 턴 · 스킬</div>
+        <div class="skill-guide-name">${escapeHtml(skill.name)}${skill.bType ? ' <span class="skill-guide-btype">B</span>' : ''}</div>
+        <div class="skill-guide-row"><span>소모 MP</span><b>${skill.mpCost}</b></div>
+        <div class="skill-guide-row"><span>대상</span><b>${targetLabel}</b></div>
+        ${skill.cooldownTurns ? `<div class="skill-guide-row"><span>쿨타임</span><b>${skill.cooldownTurns}턴</b></div>` : ''}
+        <div class="skill-guide-desc">${escapeHtml(skill.description || '')}</div>
+        <div class="skill-guide-status">${statusHtml} · 현재 ${mp} MP</div>`;
+}
+window.renderSkillGuidePanel = renderSkillGuidePanel;
 
 window.onclick=function(event){
     if(event.target===document.getElementById('patch-modal'))togglePatchNotes(false);
