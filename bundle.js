@@ -11699,6 +11699,15 @@ const DIVINE_BLESSING_LIFESTEAL_BONUS =
 // VFX/animation module (stage 1 split)
 const PREMIUM_VFX_DEFAULT_MS = 980;
 
+// [배속 동기화] 2배속 모드면 모든 연출 타이머/CSS 지속시간을 0.5배로 압축한다.
+// (전투 엔진의 waitMs 는 combatLogic 이 별도로 gameSpeed 처리 — 여기서는 순수 연출만 스케일)
+function getVfxRate() {
+    return Number(typeof window !== 'undefined' && window.gameSpeed) === 2 ? 0.5 : 1;
+}
+function vfxMs(ms) {
+    return Math.max(1, Math.round((Number(ms) || 0) * getVfxRate()));
+}
+
 function getCombatTargetCard(side) {
     return document.getElementById(side === 'player' ? 'player-card' : 'enemy-card');
 }
@@ -11771,6 +11780,7 @@ const spawnCardVfx = (side, className, opts) => {
     const options = opts || {};
     const element = document.createElement('div');
     element.className = `premium-combat-vfx ${className}`;
+    element.style.setProperty('--vfx-rate', String(getVfxRate()));
     if (options.text != null) element.textContent = String(options.text);
     if (options.attrs) {
         Object.keys(options.attrs).forEach((key) => element.setAttribute(key, options.attrs[key]));
@@ -11987,6 +11997,8 @@ const spawnUnitVfx = (actor, className, opts) => {
     }
     const element = document.createElement('div');
     element.className = `premium-combat-vfx unit-combat-vfx ${className}`;
+    // [배속 동기화] 모든 유닛 VFX 는 --vfx-rate(2배속=0.5)를 상속해 CSS 지속시간을 자동 압축한다.
+    element.style.setProperty('--vfx-rate', String(getVfxRate()));
     if (options.text != null) element.textContent = String(options.text);
     if (options.vars) {
         Object.keys(options.vars).forEach((key) => element.style.setProperty(key, options.vars[key]));
@@ -12043,12 +12055,14 @@ function triggerUnitHitShake(actor, heavy) {
             return;
         }
         const className = heavy ? 'unit-hit-shake-heavy' : 'unit-hit-shake';
+        row.style.setProperty('--vfx-rate', String(getVfxRate()));
         row.classList.remove('unit-hit-shake');
         row.classList.remove('unit-hit-shake-heavy');
         void row.offsetWidth;
         row.classList.add(className);
-        setTimeout(() => row.classList.remove(className), heavy ? 460 : 380);
-    }, 40);
+        // CSS: heavy 0.2s / light 0.3s (2배속 시 --vfx-rate 로 절반). JS 제거는 살짝 여유를 둔다.
+        setTimeout(() => row.classList.remove(className), heavy ? vfxMs(260) : vfxMs(360));
+    }, 20);
 }
 
 // 피격 대상 카드 전면 중앙에 번쩍이는 물리/마법 피격 플래시 오버레이
@@ -12065,8 +12079,115 @@ function showUnitDmgFloat(target, dmg, isCrit) {
     });
 }
 
+// [빗나감 전용 플로팅] 타겟 유닛 머리 위에 볼드 하늘색/회색 "MISS!" — 350ms 상승 페이드 후 즉시 DOM 제거.
 function showUnitMissFloat(target) {
-    spawnUnitVfx(target, 'unit-miss-number', { text: 'MISS', durationMs: 760 });
+    const el = spawnUnitVfx(target, 'unit-miss-float', { text: 'MISS!', durationMs: vfxMs(350) });
+    if (el) el.style.setProperty('--vfx-rate', String(getVfxRate()));
+    return el;
+}
+
+// 유닛 카드 정중앙에 이모지 팝업 (⚔️ 회전 슬래시 등). durationMs 후 자동 제거.
+function popUnitEmoji(target, emoji, extraClass, durationMs) {
+    const el = spawnUnitVfx(target, `unit-emoji-pop ${extraClass || ''}`, { text: emoji, durationMs: durationMs || vfxMs(350) });
+    if (el) el.style.setProperty('--vfx-rate', String(getVfxRate()));
+    return el;
+}
+
+// 임의의 행(공격자) 머리 위에 잠깐 뜨는 아이콘 (🪄 지팡이 등).
+function popEmojiAboveRow(rowEl, emoji, durationMs) {
+    if (!rowEl) return null;
+    const el = document.createElement('div');
+    el.className = 'unit-head-emoji';
+    el.textContent = emoji;
+    el.style.setProperty('--vfx-rate', String(getVfxRate()));
+    if (getComputedStyle(rowEl).position === 'static') rowEl.style.position = 'relative';
+    rowEl.appendChild(el);
+    scheduleVfxRemoval(el, durationMs || vfxMs(180));
+    return el;
+}
+
+// 공격자 행을 타겟 방향으로 살짝 대시(≈10px, 100ms) 후 원위치. 논블로킹.
+function dashRowToward(attackerActor, targetActor, durationMs) {
+    const row = getCombatUnitRowElement(attackerActor);
+    if (!row) return;
+    const from = getUnitCenterInBattleArea(attackerActor);
+    const to = getUnitCenterInBattleArea(targetActor);
+    let dx = 10;
+    let dy = 0;
+    if (from && to) {
+        const vx = to.x - from.x;
+        const vy = to.y - from.y;
+        const len = Math.hypot(vx, vy) || 1;
+        dx = Math.round((vx / len) * 10);
+        dy = Math.round((vy / len) * 10);
+    }
+    const ms = durationMs || vfxMs(100);
+    const prevTransition = row.style.transition;
+    row.style.transition = `transform ${ms}ms ease-out`;
+    row.style.transform = `translate(${dx}px, ${dy}px)`;
+    setTimeout(() => {
+        row.style.transform = 'translate(0, 0)';
+        setTimeout(() => { row.style.transition = prevTransition || ''; }, ms + 20);
+    }, ms);
+}
+
+// #combat-fx-layer 기준 유닛 카드(행) 중심 좌표.
+function getUnitCenterInBattleArea(actor) {
+    const el = getCombatUnitRowElement(actor) || getCombatTargetCard(getActorVfxSide(actor));
+    const battleArea = document.getElementById('battle-area');
+    if (!el || !battleArea) return null;
+    const r = el.getBoundingClientRect();
+    const b = battleArea.getBoundingClientRect();
+    return { x: r.left + r.width / 2 - b.left, y: r.top + r.height / 2 - b.top };
+}
+
+// 공격자 → 타겟으로 이모지 투사체(🔮 등)가 날아가 타겟 중심에서 폭발. 논블로킹.
+function flyProjectileBetween(fromActor, toActor, emoji, onArrive) {
+    const layer = ensureCombatFxLayer();
+    const from = getUnitCenterInBattleArea(fromActor);
+    const to = getUnitCenterInBattleArea(toActor);
+    if (!layer || !from || !to) {
+        if (typeof onArrive === 'function') onArrive();
+        return;
+    }
+    const flyMs = vfxMs(200);
+    const el = document.createElement('div');
+    el.className = 'unit-projectile';
+    el.textContent = emoji;
+    el.style.left = `${Math.round(from.x)}px`;
+    el.style.top = `${Math.round(from.y)}px`;
+    el.style.transform = 'translate(-50%, -50%)';
+    el.style.transition = `transform ${flyMs}ms cubic-bezier(0.3, 0.7, 0.4, 1)`;
+    layer.appendChild(el);
+    requestAnimationFrame(() => {
+        el.style.transform = `translate(-50%, -50%) translate(${Math.round(to.x - from.x)}px, ${Math.round(to.y - from.y)}px)`;
+    });
+    setTimeout(() => {
+        removeVfxElement(el);
+        spawnUnitVfx(toActor, 'unit-projectile-burst', { durationMs: vfxMs(200) });
+        if (typeof onArrive === 'function') onArrive();
+    }, flyMs + 10);
+}
+
+// [스킬 피격 플래시] 단순 슬래시 대신 금빛/주황빛 마법진 플래시 + 0.2s 묵직한 셰이크.
+function playUnitSkillFlashVfx(target) {
+    const el = spawnUnitVfx(target, 'unit-skill-flash', { durationMs: vfxMs(360) });
+    if (el) el.style.setProperty('--vfx-rate', String(getVfxRate()));
+    if (typeof triggerUnitHitShake === 'function') triggerUnitHitShake(target, true);
+    return Promise.resolve(el);
+}
+
+// [스킬 시전 뱃지] 공격자 유닛 상단에 시전 스킬명 뱃지([🛡️ 철벽 도발] 등)를 300ms 팝업.
+function playSkillCastBadge(actor, label) {
+    const row = getCombatUnitRowElement(actor) || getCombatTargetCard(getActorVfxSide(actor));
+    if (!row || !label) return;
+    const el = document.createElement('div');
+    el.className = 'skill-cast-badge';
+    el.textContent = label;
+    el.style.setProperty('--vfx-rate', String(getVfxRate()));
+    if (getComputedStyle(row).position === 'static') row.style.position = 'relative';
+    row.appendChild(el);
+    scheduleVfxRemoval(el, vfxMs(300));
 }
 
 // [파이어 볼] 타겟 카드 전면의 보라/붉은색 대형 폭발 파티클
@@ -12089,15 +12210,38 @@ function playFireballExplosionVfx(target) {
     return Promise.resolve(burst);
 }
 
+// [공격 타입별 개체 간 연출] 박스↔박스 적색 점선 폐지 → 대시 / ⚔️ 슬래시 / 🪄+🔮 투사체.
+// 모든 연출은 논블로킹(즉시 return)이며 총 350~400ms(2배속 시 절반) 내에 종료된다.
 function playV35AttackVfx(attackerSide, actor, attackKind, target) {
     const targetSide = target && (typeof isPartyMember === 'function' && isPartyMember(target)) ? 'player' : attackerSide === 'player' ? 'enemy' : 'player';
     // [타겟 하이라이트] 타격 직전, 맞는 대상 카드에 .is-targeted 부여.
     markCombatTargetUnit(target);
-    // 대상 유닛 행이 있으면 파티 전체가 아닌 '정확한 피격 대상 카드'에만 타격 플래시를 띄운다.
-    if (target && getCombatUnitRowElement(target)) {
-        return playUnitHitFlashVfx(target, attackKind === 'magic_attack' ? 'magic' : 'physical');
+    const isMagic = attackKind === 'magic_attack' || attackKind === 'magic';
+    // chainSlash 등 물리 스킬은 actor._attackMultiplier(1.8) 로 식별 → 금빛 스킬 플래시로 차별화.
+    const isSkillHit = !!(actor && Number(actor._attackMultiplier) > 1.35);
+    const hasTargetRow = !!(target && getCombatUnitRowElement(target));
+
+    if (isMagic) {
+        // 시전자 머리 위 🪄 팝업(0.15s) → 타겟으로 🔮 투사체 비행 → 타겟 중심 폭발 플래시
+        const casterRow = getCombatUnitRowElement(actor) || getCombatTargetCard(getActorVfxSide(actor));
+        if (casterRow) popEmojiAboveRow(casterRow, '🪄', vfxMs(150));
+        flyProjectileBetween(actor, target, '🔮', () => {
+            if (hasTargetRow) {
+                if (isSkillHit) playUnitSkillFlashVfx(target);
+                else playUnitHitFlashVfx(target, 'magic');
+            } else {
+                playMagicBlastVfx(targetSide);
+            }
+        });
+        return Promise.resolve();
     }
-    if (attackKind === 'magic_attack') return playMagicBlastVfx(targetSide);
+
+    // 물리: 공격자 카드가 타겟 방향으로 살짝 대시(10px, 100ms) 후 원위치 + 타겟 중심 ⚔️ 회전 슬래시.
+    dashRowToward(actor, target, vfxMs(100));
+    if (hasTargetRow) {
+        popUnitEmoji(target, '⚔️', 'slash-emoji', vfxMs(350));
+        return Promise.resolve(isSkillHit ? playUnitSkillFlashVfx(target) : playUnitHitFlashVfx(target, 'physical'));
+    }
     const weaponKind = inferV35WeaponKind(actor);
     return playPhysicalSlashVfx(targetSide, weaponKind === 'hammer' || weaponKind === 'greatScythe' ? 'heavy' : 'light');
 }
@@ -12144,6 +12288,15 @@ window.showUnitMissFloat = showUnitMissFloat;
 window.playFireballExplosionVfx = playFireballExplosionVfx;
 window.clearCombatTargetMarks = clearCombatTargetMarks;
 window.markCombatTargetUnit = markCombatTargetUnit;
+window.getVfxRate = getVfxRate;
+window.vfxMs = vfxMs;
+window.popUnitEmoji = popUnitEmoji;
+window.popEmojiAboveRow = popEmojiAboveRow;
+window.dashRowToward = dashRowToward;
+window.getUnitCenterInBattleArea = getUnitCenterInBattleArea;
+window.flyProjectileBetween = flyProjectileBetween;
+window.playUnitSkillFlashVfx = playUnitSkillFlashVfx;
+window.playSkillCastBadge = playSkillCastBadge;
 'use strict';
 
 // 3인 파티 런타임 어댑터. 기존 단일 player DOM 계약은 파티 합산값으로 유지한다.
@@ -13080,35 +13233,11 @@ const removeEnemyIntentLaser = () => {
     if (existing) existing.remove();
 };
 
-const renderEnemyIntentLaser = (sourceSide, targetSide, durationMs) => {
-    const layer = typeof ensureCombatFxLayer === 'function' ? ensureCombatFxLayer() : null;
-    const from = typeof getCardCenter === 'function' ? getCardCenter(sourceSide || 'enemy') : null;
-    const to = typeof getCardCenter === 'function' ? getCardCenter(targetSide || 'player') : null;
-    if (!layer || !from || !to) return null;
+// [연출 교체] 박스↔박스 적색 점선 인텐트 레이저는 폐지됨(개체 간 대시/투사체 연출로 대체).
+// combatLogic 의 기존 호출부 호환을 위해 시그니처만 유지하는 no-op.
+const renderEnemyIntentLaser = () => {
     removeEnemyIntentLaser();
-    const svgNs = 'http://www.w3.org/2000/svg';
-    const svg = document.createElementNS(svgNs, 'svg');
-    svg.id = 'enemy-intent-laser';
-    svg.classList.add('enemy-intent-laser-svg');
-    svg.setAttribute('aria-hidden', 'true');
-    svg.setAttribute('focusable', 'false');
-    const glow = document.createElementNS(svgNs, 'line');
-    const core = document.createElementNS(svgNs, 'line');
-    [glow, core].forEach((line) => {
-        line.setAttribute('x1', String(from.x));
-        line.setAttribute('y1', String(from.y));
-        line.setAttribute('x2', String(to.x));
-        line.setAttribute('y2', String(to.y));
-    });
-    glow.classList.add('enemy-intent-laser-glow');
-    core.classList.add('enemy-intent-laser-core');
-    svg.appendChild(glow);
-    svg.appendChild(core);
-    layer.appendChild(svg);
-    setTimeout(() => {
-        if (svg.parentNode) svg.remove();
-    }, Math.max(180, Number(durationMs) || 560));
-    return svg;
+    return null;
 };
 
 function buildLargeHpBarRow({ name, current, max, color, subText, dead, mpCurrent, mpMax, unitId, unitSide }) {
@@ -19559,6 +19688,7 @@ window.useAction = async function useAction(type, options) {
                 recordPlayerBehavior('defend');
                 tankTauntState = { tankId: actor.id, roundsLeft: 2 };
                 writeLog(`[전투] 탱커가 철벽 도발을 시전하여 적들의 시선을 끌어 모읍니다! (MP -${skill.mpCost})`);
+                if (typeof playSkillCastBadge === 'function') playSkillCastBadge(actor, '🛡️ 철벽 도발');
                 if (typeof playPhysicalShieldVfx === 'function') playPhysicalShieldVfx('player');
                 if (typeof triggerUnitHitShake === 'function') triggerUnitHitShake(actor, false);
             } else if (skill.key === 'chainSlash') {
@@ -19566,6 +19696,7 @@ window.useAction = async function useAction(type, options) {
                 recordPlayerBehavior('physical_attack');
                 const target = (requestedTargetId && livingEnemies.find(matchesTargetId)) || livingEnemies[0];
                 writeLog(`[스킬] ${withIGa(actor.name)} ${withEulReul(target.name || '적')} 향해 연속 베기를 발동합니다! (MP -${skill.mpCost})`);
+                if (typeof playSkillCastBadge === 'function') playSkillCastBadge(actor, '⚔️ 연속 베기');
                 actor._attackMultiplier = 1.8;
                 if (typeof playV35AttackVfx === 'function') await playV35AttackVfx('player', actor, 'physical_attack', target);
                 const result = resolveAttackAction(actor, target, getEnemyGuardStateFor(target));
@@ -19583,6 +19714,7 @@ window.useAction = async function useAction(type, options) {
                 recordPlayerBehavior('magic_attack');
                 const target = (requestedTargetId && livingEnemies.find(matchesTargetId)) || livingEnemies[0];
                 writeLog(`[스킬] ${withIGa(actor.name)} ${withEulReul(target.name || '적')} 향해 파이어 볼을 시전합니다! (MP -${skill.mpCost})`);
+                if (typeof playSkillCastBadge === 'function') playSkillCastBadge(actor, '🔥 파이어볼');
                 const result = resolveFireballSkillAction(actor, target, getEnemyGuardStateFor(target));
                 if (typeof playFireballExplosionVfx === 'function') await playFireballExplosionVfx(target);
                 describeCombatResult(actor, target, result);

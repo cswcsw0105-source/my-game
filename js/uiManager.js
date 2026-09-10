@@ -132,35 +132,11 @@ const removeEnemyIntentLaser = () => {
     if (existing) existing.remove();
 };
 
-const renderEnemyIntentLaser = (sourceSide, targetSide, durationMs) => {
-    const layer = typeof ensureCombatFxLayer === 'function' ? ensureCombatFxLayer() : null;
-    const from = typeof getCardCenter === 'function' ? getCardCenter(sourceSide || 'enemy') : null;
-    const to = typeof getCardCenter === 'function' ? getCardCenter(targetSide || 'player') : null;
-    if (!layer || !from || !to) return null;
+// [연출 교체] 박스↔박스 적색 점선 인텐트 레이저는 폐지됨(개체 간 대시/투사체 연출로 대체).
+// combatLogic 의 기존 호출부 호환을 위해 시그니처만 유지하는 no-op.
+const renderEnemyIntentLaser = () => {
     removeEnemyIntentLaser();
-    const svgNs = 'http://www.w3.org/2000/svg';
-    const svg = document.createElementNS(svgNs, 'svg');
-    svg.id = 'enemy-intent-laser';
-    svg.classList.add('enemy-intent-laser-svg');
-    svg.setAttribute('aria-hidden', 'true');
-    svg.setAttribute('focusable', 'false');
-    const glow = document.createElementNS(svgNs, 'line');
-    const core = document.createElementNS(svgNs, 'line');
-    [glow, core].forEach((line) => {
-        line.setAttribute('x1', String(from.x));
-        line.setAttribute('y1', String(from.y));
-        line.setAttribute('x2', String(to.x));
-        line.setAttribute('y2', String(to.y));
-    });
-    glow.classList.add('enemy-intent-laser-glow');
-    core.classList.add('enemy-intent-laser-core');
-    svg.appendChild(glow);
-    svg.appendChild(core);
-    layer.appendChild(svg);
-    setTimeout(() => {
-        if (svg.parentNode) svg.remove();
-    }, Math.max(180, Number(durationMs) || 560));
-    return svg;
+    return null;
 };
 
 function buildLargeHpBarRow({ name, current, max, color, subText, dead, mpCurrent, mpMax, unitId, unitSide }) {

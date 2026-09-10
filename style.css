@@ -1076,30 +1076,7 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 .premium-boss-pressure {
     background: radial-gradient(circle, rgba(255, 45, 68, 0.2), rgba(255, 0, 36, 0.12) 42%, rgba(0,0,0,0) 74%);
 }
-.enemy-intent-laser-svg {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    overflow: visible;
-    z-index: 1290;
-}
-.enemy-intent-laser-core {
-    stroke-width: 2;
-    stroke: rgba(255, 0, 85, 0.6);
-    filter: drop-shadow(0 0 6px #ff0055);
-    stroke-linecap: round;
-    stroke-dasharray: 10 13;
-    animation: premiumIntentLaserFlow 0.72s linear infinite, premiumIntentLaserPulse 0.54s ease-in-out infinite alternate;
-}
-.enemy-intent-laser-glow {
-    stroke-width: 7;
-    stroke: rgba(255, 0, 85, 0.16);
-    filter: blur(2px) drop-shadow(0 0 12px #ff0055);
-    stroke-linecap: round;
-    animation: premiumIntentLaserPulse 0.54s ease-in-out infinite alternate;
-}
+/* [연출 교체] 박스↔박스 적색 점선(.enemy-intent-laser-*) 폐지 — 개체 간 대시/⚔️ 슬래시/🔮 투사체로 대체. */
 @keyframes prologueBridgeBlackIn {
     from { opacity: 0; filter: brightness(1.25); }
     to { opacity: 1; filter: brightness(1); }
@@ -1257,13 +1234,7 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     24% { opacity: 1; }
     100% { opacity: 0; transform: scale(1.12); filter: blur(8px); }
 }
-@keyframes premiumIntentLaserFlow {
-    to { stroke-dashoffset: -46; }
-}
-@keyframes premiumIntentLaserPulse {
-    from { opacity: 0.52; }
-    to { opacity: 1; }
-}
+/* [연출 교체] premiumIntentLaserFlow / premiumIntentLaserPulse 키프레임 제거됨(적색 점선 폐지). */
 
 /* Minimal battle layout refresh */
 @media (min-width: 769px) {
@@ -1580,8 +1551,8 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     100% { transform: translate(0, 0); }
 }
 .unit-hit-shake {
-    /* [피격 셰이크 제한] 맞은 유닛 카드만 0.3초간 흔들린다 (화면/파티 전체 흔들림 없음). */
-    animation: unitHitShake 0.3s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+    /* [피격 셰이크 제한] 맞은 유닛 카드만 흔들린다 (화면/파티 전체 흔들림 없음). 2배속 시 --vfx-rate=0.5. */
+    animation: unitHitShake calc(0.3s * var(--vfx-rate, 1)) cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }
 @keyframes unitHitShakeHeavy {
     0% { transform: translate(0, 0) scale(1); }
@@ -1593,7 +1564,8 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     100% { transform: translate(0, 0) scale(1); }
 }
 .unit-hit-shake-heavy {
-    animation: unitHitShakeHeavy 0.3s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+    /* [스킬 피격] 0.2초간 묵직한 셰이크. */
+    animation: unitHitShakeHeavy calc(0.2s * var(--vfx-rate, 1)) cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }
 
 /* ============ [타겟팅 하이라이트] 피격 대상 유닛 카드 붉은/노란 글로우 펄스 ============ */
@@ -1739,6 +1711,143 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     0% { opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
     15% { opacity: 1; }
     100% { opacity: 0; transform: translate(calc(-50% + var(--fx, 0px)), calc(-50% + var(--fy, 0px))) scale(var(--fscale, 1)); }
+}
+
+/* ============ [빗나감 전용 플로팅] 머리 위 볼드 하늘색/회색 "MISS!" · 350ms 상승 페이드 ============ */
+@keyframes unitMissFloatUp {
+    0%   { opacity: 0; transform: translateY(2px) scale(0.82); }
+    22%  { opacity: 1; transform: translateY(-8px) scale(1.08); }
+    100% { opacity: 0; transform: translateY(-34px) scale(0.98); }
+}
+.unit-combat-vfx.unit-miss-float {
+    align-items: flex-start;
+    padding-top: 2px;
+    font-family: Inter, Pretendard, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 1.16rem;
+    font-weight: 950;
+    letter-spacing: 0.5px;
+    color: #9fd8ff;
+    text-shadow: 0 0 10px rgba(140, 200, 255, 0.75), 0 0 18px rgba(150, 165, 190, 0.5), 0 2px 0 rgba(0, 0, 0, 0.72);
+    animation: unitMissFloatUp calc(350ms * var(--vfx-rate, 1)) ease-out both;
+}
+
+/* ============ [공격 타입별 이모지/투사체] ⚔️ 슬래시 · 🪄 지팡이 · 🔮 마법탄 ============ */
+@keyframes unitSlashEmojiSpin {
+    0%   { opacity: 0; transform: rotate(-120deg) scale(0.3); }
+    30%  { opacity: 1; transform: rotate(-8deg) scale(1.25); }
+    62%  { opacity: 1; transform: rotate(14deg) scale(1); }
+    100% { opacity: 0; transform: rotate(40deg) scale(0.9); }
+}
+.unit-combat-vfx.unit-emoji-pop {
+    font-size: 1.9rem;
+    line-height: 1;
+    filter: drop-shadow(0 0 8px rgba(255, 230, 170, 0.85));
+    z-index: 1330;
+}
+.unit-combat-vfx.unit-emoji-pop.slash-emoji {
+    animation: unitSlashEmojiSpin calc(350ms * var(--vfx-rate, 1)) cubic-bezier(0.22, 0.9, 0.32, 1) both;
+}
+@keyframes unitHeadEmojiPop {
+    0%   { opacity: 0; transform: translate(-50%, -4px) scale(0.4); }
+    35%  { opacity: 1; transform: translate(-50%, -16px) scale(1.15); }
+    100% { opacity: 0; transform: translate(-50%, -24px) scale(0.9); }
+}
+.unit-head-emoji {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    transform: translate(-50%, -14px);
+    font-size: 1.35rem;
+    line-height: 1;
+    pointer-events: none;
+    z-index: 1332;
+    filter: drop-shadow(0 0 8px rgba(190, 150, 255, 0.85));
+    animation: unitHeadEmojiPop calc(180ms * var(--vfx-rate, 1)) ease-out both;
+}
+.unit-projectile {
+    position: absolute;
+    font-size: 1.4rem;
+    line-height: 1;
+    pointer-events: none;
+    z-index: 1338;
+    filter: drop-shadow(0 0 10px rgba(120, 200, 255, 0.9)) drop-shadow(0 0 18px rgba(150, 110, 255, 0.6));
+    will-change: transform;
+}
+@keyframes unitProjectileBurst {
+    0%   { opacity: 0; transform: scale(0.3); }
+    28%  { opacity: 1; transform: scale(1.15); }
+    100% { opacity: 0; transform: scale(1.7); }
+}
+.unit-combat-vfx.unit-projectile-burst::before {
+    content: "";
+    position: absolute;
+    width: 66%;
+    height: 78%;
+    left: 17%;
+    top: 11%;
+    background: radial-gradient(circle at center, rgba(224, 236, 255, 0.95) 0%, rgba(120, 170, 255, 0.7) 34%, rgba(150, 110, 255, 0.4) 60%, rgba(120, 40, 200, 0) 80%);
+    animation: unitProjectileBurst calc(200ms * var(--vfx-rate, 1)) ease-out both;
+}
+
+/* ============ [스킬 피격 플래시] 금빛/주황빛 마법진 ============ */
+@keyframes unitSkillRing {
+    0%   { opacity: 0; transform: scale(0.35) rotate(0deg); }
+    26%  { opacity: 1; transform: scale(1) rotate(60deg); }
+    100% { opacity: 0; transform: scale(1.55) rotate(160deg); }
+}
+@keyframes unitSkillCore {
+    0%   { opacity: 0; transform: scale(0.5); }
+    24%  { opacity: 1; transform: scale(1.05); }
+    100% { opacity: 0; transform: scale(1.4); }
+}
+.unit-combat-vfx.unit-skill-flash::before {
+    content: "";
+    position: absolute;
+    width: 74%;
+    height: 86%;
+    left: 13%;
+    top: 7%;
+    background: radial-gradient(ellipse at center, rgba(255, 246, 210, 0.95) 0%, rgba(255, 190, 80, 0.65) 40%, rgba(255, 140, 30, 0) 74%);
+    animation: unitSkillCore calc(360ms * var(--vfx-rate, 1)) ease-out both;
+}
+.unit-combat-vfx.unit-skill-flash::after {
+    content: "";
+    position: absolute;
+    width: 60%;
+    height: 76%;
+    left: 20%;
+    top: 12%;
+    border: 3px double rgba(255, 205, 110, 0.9);
+    border-radius: 50%;
+    box-shadow: 0 0 22px rgba(255, 180, 70, 0.85), inset 0 0 16px rgba(255, 200, 90, 0.6);
+    animation: unitSkillRing calc(360ms * var(--vfx-rate, 1)) ease-out both;
+}
+
+/* ============ [스킬 시전 뱃지] 공격자 상단 스킬명 · 300ms ============ */
+@keyframes skillCastBadgePop {
+    0%   { opacity: 0; transform: translate(-50%, 4px) scale(0.7); }
+    30%  { opacity: 1; transform: translate(-50%, -6px) scale(1.06); }
+    82%  { opacity: 1; transform: translate(-50%, -8px) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -12px) scale(0.96); }
+}
+.skill-cast-badge {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    transform: translate(-50%, -8px);
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(30, 22, 8, 0.96), rgba(48, 34, 10, 0.96));
+    border: 1px solid rgba(255, 205, 110, 0.9);
+    color: #ffe6a3;
+    font-size: 0.72rem;
+    font-weight: 900;
+    white-space: nowrap;
+    letter-spacing: 0.3px;
+    pointer-events: none;
+    z-index: 1336;
+    box-shadow: 0 0 12px rgba(255, 190, 80, 0.55);
+    animation: skillCastBadgePop calc(300ms * var(--vfx-rate, 1)) cubic-bezier(0.2, 0.9, 0.3, 1) both;
 }
 
 /* ===== [클릭 타겟팅] 적 유닛 행 직접 클릭 어포던스 ===== */

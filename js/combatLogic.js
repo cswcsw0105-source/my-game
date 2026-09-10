@@ -1454,6 +1454,7 @@ window.useAction = async function useAction(type, options) {
                 recordPlayerBehavior('defend');
                 tankTauntState = { tankId: actor.id, roundsLeft: 2 };
                 writeLog(`[전투] 탱커가 철벽 도발을 시전하여 적들의 시선을 끌어 모읍니다! (MP -${skill.mpCost})`);
+                if (typeof playSkillCastBadge === 'function') playSkillCastBadge(actor, '🛡️ 철벽 도발');
                 if (typeof playPhysicalShieldVfx === 'function') playPhysicalShieldVfx('player');
                 if (typeof triggerUnitHitShake === 'function') triggerUnitHitShake(actor, false);
             } else if (skill.key === 'chainSlash') {
@@ -1461,6 +1462,7 @@ window.useAction = async function useAction(type, options) {
                 recordPlayerBehavior('physical_attack');
                 const target = (requestedTargetId && livingEnemies.find(matchesTargetId)) || livingEnemies[0];
                 writeLog(`[스킬] ${withIGa(actor.name)} ${withEulReul(target.name || '적')} 향해 연속 베기를 발동합니다! (MP -${skill.mpCost})`);
+                if (typeof playSkillCastBadge === 'function') playSkillCastBadge(actor, '⚔️ 연속 베기');
                 actor._attackMultiplier = 1.8;
                 if (typeof playV35AttackVfx === 'function') await playV35AttackVfx('player', actor, 'physical_attack', target);
                 const result = resolveAttackAction(actor, target, getEnemyGuardStateFor(target));
@@ -1478,6 +1480,7 @@ window.useAction = async function useAction(type, options) {
                 recordPlayerBehavior('magic_attack');
                 const target = (requestedTargetId && livingEnemies.find(matchesTargetId)) || livingEnemies[0];
                 writeLog(`[스킬] ${withIGa(actor.name)} ${withEulReul(target.name || '적')} 향해 파이어 볼을 시전합니다! (MP -${skill.mpCost})`);
+                if (typeof playSkillCastBadge === 'function') playSkillCastBadge(actor, '🔥 파이어볼');
                 const result = resolveFireballSkillAction(actor, target, getEnemyGuardStateFor(target));
                 if (typeof playFireballExplosionVfx === 'function') await playFireballExplosionVfx(target);
                 describeCombatResult(actor, target, result);
