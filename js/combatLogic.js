@@ -1517,7 +1517,8 @@ window.useAction = async function useAction(type, options) {
 
             for (let i = 0; i < strikes; i++) {
                 if (getCurrentHp(target) <= 0) break;
-                if (typeof playV35AttackVfx === 'function') await playV35AttackVfx('player', actor, learnedAction, target);
+                // [비동기 턴 동기화] 연출이 실제로 재생될 시간(~300ms, 2배속 ~180ms)만큼 대기한 뒤 피격 판정.
+                if (typeof playV35AttackVfx === 'function') await playV35AttackVfx('player', actor, learnedAction, target, i);
                 const result = learnedAction === 'magic_attack'
                     ? resolveMagicAttackAction(actor, target, getEnemyGuardStateFor(target))
                     : resolveAttackAction(actor, target, getEnemyGuardStateFor(target));
@@ -1588,8 +1589,17 @@ window.useAction = async function useAction(type, options) {
                 const target = (requestedTargetId && livingEnemies.find(matchesTargetId)) || livingEnemies[0];
                 writeLog(`[스킬] ${withIGa(actor.name)} ${withEulReul(target.name || '적')} 향해 파이어 볼을 시전합니다! (MP -${skill.mpCost})`);
                 if (typeof playSkillCastBadge === 'function') playSkillCastBadge(actor, '🔥 파이어볼');
+                // [마법사 스킬 이펙트 복구] 메테오 폭발 연출을 먼저 강제 재생하고, 그 Promise 가
+                // resolve(~300~350ms, 2배속 ~180ms) 된 뒤에 피격 판정을 확정한다. (즉발 대미지·모션 스킵 방지)
+                // _attackMultiplier 는 VFX 스킬 판정 힌트로만 사용 — 화염구 대미지는 resolveFireballSkillAction 자체 수식(2.2배).
+                actor._attackMultiplier = 2.2;
+                if (typeof playV35AttackVfx === 'function') {
+                    await playV35AttackVfx('player', actor, 'magic_attack', target);
+                } else if (typeof playFireballExplosionVfx === 'function') {
+                    await playFireballExplosionVfx(target);
+                }
+                actor._attackMultiplier = 1;
                 const result = resolveFireballSkillAction(actor, target, getEnemyGuardStateFor(target));
-                if (typeof playFireballExplosionVfx === 'function') await playFireballExplosionVfx(target);
                 describeCombatResult(actor, target, result);
                 emitCombatResultVfx(target, result);
                 gainActorMagicMastery(actor, 2);

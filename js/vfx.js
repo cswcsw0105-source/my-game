@@ -9,6 +9,14 @@ function getVfxRate() {
 function vfxMs(ms) {
     return Math.max(1, Math.round((Number(ms) || 0) * getVfxRate()));
 }
+// [배속에서도 스킵 금지] DOM 생명주기 타이머는 절대 이 하한 아래로 내려가지 않는다(2배속 ≈ 180~200ms).
+function vfxDur(baseMs, floorMs) {
+    return Math.max(Math.max(1, Number(floorMs) || 0), vfxMs(baseMs));
+}
+// [비동기 턴 동기화] 연출 재생 시간만큼 실제로 대기하는 Promise. 2배속이면 절반이지만 최소 160ms는 보장.
+function awaitVfx(baseMs) {
+    return new Promise((resolve) => setTimeout(resolve, vfxDur(baseMs, 160)));
+}
 
 function getCombatTargetCard(side) {
     return document.getElementById(side === 'player' ? 'player-card' : 'enemy-card');
@@ -370,7 +378,8 @@ function triggerUnitHitShake(actor, heavy) {
 // 피격 대상 카드 전면 중앙에 번쩍이는 물리/마법 피격 플래시 오버레이
 function playUnitHitFlashVfx(target, attackKind) {
     const className = attackKind === 'magic' ? 'unit-hit-flash-magic' : 'unit-hit-flash-physical';
-    return Promise.resolve(spawnUnitVfx(target, className, { durationMs: 620 }));
+    spawnUnitVfx(target, className, { durationMs: vfxDur(620, 260) });
+    return awaitVfx(300);
 }
 
 function showUnitDmgFloat(target, dmg, isCrit) {
@@ -389,8 +398,12 @@ function showUnitMissFloat(target) {
 }
 
 // 유닛 카드 정중앙에 이모지 팝업 (⚔️ 회전 슬래시 등). durationMs 후 자동 제거.
+// 물리 타격 임팩트는 2배속에서도 최소 200ms 는 화면에 노출된 뒤 사라진다.
 function popUnitEmoji(target, emoji, extraClass, durationMs) {
-    const el = spawnUnitVfx(target, `unit-emoji-pop ${extraClass || ''}`, { text: emoji, durationMs: durationMs || vfxMs(350) });
+    const el = spawnUnitVfx(target, `unit-emoji-pop ${extraClass || ''}`, {
+        text: emoji,
+        durationMs: durationMs || vfxDur(340, 200),
+    });
     if (el) el.style.setProperty('--vfx-rate', String(getVfxRate()));
     return el;
 }
@@ -408,29 +421,38 @@ function popEmojiAboveRow(rowEl, emoji, durationMs) {
     return el;
 }
 
-// 공격자 행을 타겟 방향으로 살짝 대시(≈10px, 100ms) 후 원위치. 논블로킹.
+// [물리 공격 대시] 공격자 카드가 타겟 진형 방향으로 15px 전진(transition 0.15s ease-out) 후 복귀.
+// 논블로킹. 2배속에서도 스킵되지 않도록 전진 유지 시간을 최소 120ms 확보한다.
 function dashRowToward(attackerActor, targetActor, durationMs) {
     const row = getCombatUnitRowElement(attackerActor);
     if (!row) return;
     const from = getUnitCenterInBattleArea(attackerActor);
     const to = getUnitCenterInBattleArea(targetActor);
-    let dx = 10;
+    let dx = 15;
     let dy = 0;
     if (from && to) {
         const vx = to.x - from.x;
         const vy = to.y - from.y;
         const len = Math.hypot(vx, vy) || 1;
-        dx = Math.round((vx / len) * 10);
-        dy = Math.round((vy / len) * 10);
+        dx = Math.round((vx / len) * 15);
+        dy = Math.round((vy / len) * 15);
     }
-    const ms = durationMs || vfxMs(100);
+    // CSS transition 은 0.15초 ease-out 로 고정(브라우저에서 확실히 보이도록). 유지 시간만 배속 반영.
+    const holdMs = durationMs || Math.max(120, vfxMs(140));
     const prevTransition = row.style.transition;
-    row.style.transition = `transform ${ms}ms ease-out`;
+    const prevWillChange = row.style.willChange;
+    row.style.willChange = 'transform';
+    row.style.transition = 'transform 0.15s ease-out';
+    // reflow 강제 후 트랜지션 시작 (첫 프레임 스킵 방지)
+    void row.offsetWidth;
     row.style.transform = `translate(${dx}px, ${dy}px)`;
     setTimeout(() => {
         row.style.transform = 'translate(0, 0)';
-        setTimeout(() => { row.style.transition = prevTransition || ''; }, ms + 20);
-    }, ms);
+        setTimeout(() => {
+            row.style.transition = prevTransition || '';
+            row.style.willChange = prevWillChange || '';
+        }, 200);
+    }, holdMs);
 }
 
 // #combat-fx-layer 기준 유닛 카드(행) 중심 좌표.
@@ -473,10 +495,40 @@ function flyProjectileBetween(fromActor, toActor, emoji, onArrive) {
 
 // [스킬 피격 플래시] 단순 슬래시 대신 금빛/주황빛 마법진 플래시 + 0.2s 묵직한 셰이크.
 function playUnitSkillFlashVfx(target) {
-    const el = spawnUnitVfx(target, 'unit-skill-flash', { durationMs: vfxMs(360) });
+    const el = spawnUnitVfx(target, 'unit-skill-flash', { durationMs: vfxDur(360, 220) });
     if (el) el.style.setProperty('--vfx-rate', String(getVfxRate()));
     if (typeof triggerUnitHitShake === 'function') triggerUnitHitShake(target, true);
-    return Promise.resolve(el);
+    return awaitVfx(300);
+}
+
+// [마법사 스킬 메테오/폭발] 타겟 중앙에 거대한 🔥/🔮 가 떨어지며 400ms 폭발 팽창(scale 1.5x + 붉은/금빛 섬광).
+// 팽창 피크(≈45%)에 맞춰 묵직한 셰이크가 걸리고, Promise 는 ~300~350ms 뒤(2배속 ~180ms) resolve → 피격 판정 동기화.
+function playMageSkillExplosionVfx(target, opts) {
+    const o = opts || {};
+    const emoji = o.emoji || '🔥';
+    const blast = spawnUnitVfx(target, 'unit-meteor-blast', { text: emoji, durationMs: vfxDur(460, 260) });
+    if (blast) blast.style.setProperty('--vfx-rate', String(getVfxRate()));
+    // 붉은/보라 파티클 폭발도 함께
+    const burst = spawnUnitVfx(target, 'unit-fireball-burst', { durationMs: vfxDur(640, 320) });
+    if (burst) {
+        for (let i = 0; i < 20; i += 1) {
+            const particle = document.createElement('i');
+            const angle = Math.random() * Math.PI * 2;
+            const distance = 30 + Math.random() * 74;
+            particle.style.setProperty('--fx', `${Math.round(Math.cos(angle) * distance)}px`);
+            particle.style.setProperty('--fy', `${Math.round(Math.sin(angle) * distance)}px`);
+            particle.style.setProperty('--fscale', `${(0.6 + Math.random() * 1.1).toFixed(2)}`);
+            particle.style.setProperty('--fdelay', `${(Math.random() * 0.12).toFixed(3)}s`);
+            particle.dataset.tone = emoji === '🔥' ? (Math.random() < 0.5 ? 'crimson' : 'gold') : (Math.random() < 0.5 ? 'violet' : 'crimson');
+            burst.appendChild(particle);
+        }
+    }
+    // 폭발 팽창 피크에 셰이크 + 금빛 마법진 섬광
+    setTimeout(() => {
+        spawnUnitVfx(target, 'unit-skill-flash', { durationMs: vfxDur(300, 200) });
+        if (typeof triggerUnitHitShake === 'function') triggerUnitHitShake(target, true);
+    }, vfxDur(160, 90));
+    return awaitVfx(340);
 }
 
 // [스킬 시전 뱃지] 공격자 유닛 상단에 시전 스킬명 뱃지([🛡️ 철벽 도발] 등)를 300ms 팝업.
@@ -492,60 +544,53 @@ function playSkillCastBadge(actor, label) {
     scheduleVfxRemoval(el, vfxMs(300));
 }
 
-// [파이어 볼] 타겟 카드 전면의 보라/붉은색 대형 폭발 파티클
+// [파이어 볼] 타겟 카드 중앙에 🔥 메테오 폭발. Promise 로 ~340ms(2배속 ~180ms) 대기 후 resolve.
 function playFireballExplosionVfx(target) {
-    const burst = spawnUnitVfx(target, 'unit-fireball-burst', { durationMs: 1040 });
-    if (burst) {
-        for (let i = 0; i < 22; i += 1) {
-            const particle = document.createElement('i');
-            const angle = Math.random() * Math.PI * 2;
-            const distance = 34 + Math.random() * 78;
-            particle.style.setProperty('--fx', `${Math.round(Math.cos(angle) * distance)}px`);
-            particle.style.setProperty('--fy', `${Math.round(Math.sin(angle) * distance)}px`);
-            particle.style.setProperty('--fscale', `${(0.6 + Math.random() * 1.15).toFixed(2)}`);
-            particle.style.setProperty('--fdelay', `${(Math.random() * 0.15).toFixed(3)}s`);
-            particle.dataset.tone = Math.random() < 0.5 ? 'violet' : 'crimson';
-            burst.appendChild(particle);
-        }
-    }
-    triggerUnitHitShake(target, true);
-    return Promise.resolve(burst);
+    return playMageSkillExplosionVfx(target, { emoji: '🔥' });
 }
 
-// [공격 타입별 개체 간 연출] 박스↔박스 적색 점선 폐지 → 대시 / ⚔️ 슬래시 / 🪄+🔮 투사체.
-// 모든 연출은 논블로킹(즉시 return)이며 총 350~400ms(2배속 시 절반) 내에 종료된다.
-function playV35AttackVfx(attackerSide, actor, attackKind, target) {
+// [공격 타입별 개체 간 연출] 대시 / ⚔️ 슬래시 / 🪄+🔮 투사체+폭발.
+// [비동기 턴 동기화] 반드시 Promise 로 실제 대기한다 — 연출이 보이기 전에 피격 판정/다음 턴이 넘어가지 않도록.
+//   · 마법/스킬 첫 타 : ~320ms (2배속 ~180ms)
+//   · 물리 첫 타       : ~260ms
+//   · 물리 연타(2타~)  : ~120ms (콤보 템포 유지)
+function playV35AttackVfx(attackerSide, actor, attackKind, target, strikeIndex) {
     const targetSide = target && (typeof isPartyMember === 'function' && isPartyMember(target)) ? 'player' : attackerSide === 'player' ? 'enemy' : 'player';
     // [타겟 하이라이트] 타격 직전, 맞는 대상 카드에 .is-targeted 부여.
     markCombatTargetUnit(target);
     const isMagic = attackKind === 'magic_attack' || attackKind === 'magic';
-    // chainSlash 등 물리 스킬은 actor._attackMultiplier(1.8) 로 식별 → 금빛 스킬 플래시로 차별화.
-    const isSkillHit = !!(actor && Number(actor._attackMultiplier) > 1.35);
+    // 스킬 타격(연속 베기 1.8 / 방패 가격 1.3 / 갑옷 파쇄 1.2 / 화염구 힌트 2.2 / 보스 강공 2.5)은
+    // _attackMultiplier(>1.15) 로 식별 → 금빛/주황빛 마법진 스킬 플래시로 차별화.
+    const isSkillHit = !!(actor && Number(actor._attackMultiplier) > 1.15);
     const hasTargetRow = !!(target && getCombatUnitRowElement(target));
+    const isComboHit = Number(strikeIndex) > 0;
 
     if (isMagic) {
-        // 시전자 머리 위 🪄 팝업(0.15s) → 타겟으로 🔮 투사체 비행 → 타겟 중심 폭발 플래시
+        // 시전자 머리 위 🪄 팝업 → 타겟으로 🔮 투사체 비행 → 타겟 중심 메테오 폭발.
         const casterRow = getCombatUnitRowElement(actor) || getCombatTargetCard(getActorVfxSide(actor));
-        if (casterRow) popEmojiAboveRow(casterRow, '🪄', vfxMs(150));
-        flyProjectileBetween(actor, target, '🔮', () => {
+        if (casterRow) popEmojiAboveRow(casterRow, '🪄', vfxDur(150, 110));
+        flyProjectileBetween(actor, target, isSkillHit ? '🔥' : '🔮', () => {
             if (hasTargetRow) {
-                if (isSkillHit) playUnitSkillFlashVfx(target);
-                else playUnitHitFlashVfx(target, 'magic');
+                playMageSkillExplosionVfx(target, { emoji: isSkillHit ? '🔥' : '🔮' });
             } else {
                 playMagicBlastVfx(targetSide);
+                if (typeof triggerUnitHitShake === 'function') triggerUnitHitShake(target, true);
             }
         });
-        return Promise.resolve();
+        // 투사체 비행(~200) + 폭발 팽창 피크 확보. 이 대기 후 combatLogic 이 피격 판정을 확정한다.
+        return awaitVfx(isComboHit ? 150 : 340);
     }
 
-    // 물리: 공격자 카드가 타겟 방향으로 살짝 대시(10px, 100ms) 후 원위치 + 타겟 중심 ⚔️ 회전 슬래시.
-    dashRowToward(actor, target, vfxMs(100));
+    // 물리: 공격자 카드가 타겟 방향으로 15px 대시(0.15s) 후 복귀 + 타겟 중심 ⚔️ 회전 슬래시.
+    if (!isComboHit) dashRowToward(actor, target);
     if (hasTargetRow) {
-        popUnitEmoji(target, '⚔️', 'slash-emoji', vfxMs(350));
-        return Promise.resolve(isSkillHit ? playUnitSkillFlashVfx(target) : playUnitHitFlashVfx(target, 'physical'));
+        popUnitEmoji(target, '⚔️', 'slash-emoji', vfxDur(isComboHit ? 220 : 340, isComboHit ? 150 : 200));
+        if (isSkillHit) playUnitSkillFlashVfx(target);
+        else playUnitHitFlashVfx(target, 'physical');
+        return awaitVfx(isComboHit ? 120 : 260);
     }
-    const weaponKind = inferV35WeaponKind(actor);
-    return playPhysicalSlashVfx(targetSide, weaponKind === 'hammer' || weaponKind === 'greatScythe' ? 'heavy' : 'light');
+    playPhysicalSlashVfx(targetSide, inferV35WeaponKind(actor) === 'hammer' || inferV35WeaponKind(actor) === 'greatScythe' ? 'heavy' : 'light');
+    return awaitVfx(isComboHit ? 120 : 240);
 }
 
 function consumeHunterEvasionMissPenalty() {
@@ -588,10 +633,13 @@ window.playUnitHitFlashVfx = playUnitHitFlashVfx;
 window.showUnitDmgFloat = showUnitDmgFloat;
 window.showUnitMissFloat = showUnitMissFloat;
 window.playFireballExplosionVfx = playFireballExplosionVfx;
+window.playMageSkillExplosionVfx = playMageSkillExplosionVfx;
 window.clearCombatTargetMarks = clearCombatTargetMarks;
 window.markCombatTargetUnit = markCombatTargetUnit;
 window.getVfxRate = getVfxRate;
 window.vfxMs = vfxMs;
+window.vfxDur = vfxDur;
+window.awaitVfx = awaitVfx;
 window.popUnitEmoji = popUnitEmoji;
 window.popEmojiAboveRow = popEmojiAboveRow;
 window.dashRowToward = dashRowToward;
