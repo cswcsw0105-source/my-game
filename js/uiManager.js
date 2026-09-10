@@ -139,7 +139,7 @@ const renderEnemyIntentLaser = () => {
     return null;
 };
 
-function buildLargeHpBarRow({ name, current, max, color, subText, dead, mpCurrent, mpMax, unitId, unitSide }) {
+function buildLargeHpBarRow({ name, current, max, color, subText, dead, mpCurrent, mpMax, unitId, unitSide, statuses }) {
     const safeMax = Math.max(1, Math.floor(safeNum(max, 1)));
     const safeCur = Math.max(0, Math.floor(safeNum(current, 0)));
     const pct = Math.max(0, Math.min(100, (safeCur / safeMax) * 100));
@@ -159,9 +159,10 @@ function buildLargeHpBarRow({ name, current, max, color, subText, dead, mpCurren
             <span style="font-size:0.7em;font-weight:900;color:#7fb3ff;white-space:nowrap;">MP ${safeMpCur} / ${safeMpMax}</span>
         </div>`
         : '';
+    const statusBadges = buildStatusBadgesHtml(statuses);
     return `<div class="combat-unit-row"${unitAttrs} style="margin:8px 0 10px;position:relative;${dead ? 'opacity:0.5;' : ''}">
         <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-end;margin:0 2px 4px;line-height:1.25;">
-            <span style="font-size:0.86em;font-weight:900;color:${color};white-space:nowrap;">${escapeHtml(name)}</span>
+            <span style="font-size:0.86em;font-weight:900;color:${color};white-space:nowrap;">${escapeHtml(name)}${statusBadges}</span>
             <span style="font-size:0.82em;font-weight:900;color:#fff;white-space:nowrap;">${safeCur} / ${safeMax}</span>
         </div>
         <div class="hp-bar-outer" style="margin:0;">
@@ -170,6 +171,30 @@ function buildLargeHpBarRow({ name, current, max, color, subText, dead, mpCurren
         ${mpHtml}
         ${subText ? `<div style="font-size:0.68em;color:#9aa4b2;line-height:1.35;margin:4px 2px 0;text-align:left;white-space:normal;">${subText}</div>` : ''}
     </div>`;
+}
+
+// [상태이상 상시 뱃지] 유닛 카드 이름 옆에 지속 상태이상 아이콘 + 잔여 턴을 표기한다.
+// statuses 배열이 비면 컨테이너 자체를 렌더하지 않음 → 효과 종료/턴 만료 시 즉시 DOM 에서 사라진다.
+const STATUS_BADGE_DISPLAY = {
+    poison: { icon: '🧪', label: '중독' },
+    burn: { icon: '🔥', label: '화상' },
+    bleed: { icon: '🩸', label: '출혈' },
+    silence: { icon: '🔒', label: '침묵' },
+    ankleSprain: { icon: '🦶', label: '발목' },
+};
+function buildStatusBadgesHtml(statuses) {
+    if (!Array.isArray(statuses) || statuses.length === 0) return '';
+    const defs = (typeof COMBAT_STATUS_DEFS !== 'undefined' && COMBAT_STATUS_DEFS) ? COMBAT_STATUS_DEFS : null;
+    const chips = statuses.map((status) => {
+        if (!status || !status.key) return '';
+        const turns = Math.max(0, Math.floor(safeNum(status.turns, 0)));
+        if (turns <= 0) return '';
+        const meta = (defs && defs[status.key]) || STATUS_BADGE_DISPLAY[status.key];
+        if (!meta) return '';
+        return `<span class="status-badge-chip status-badge-${status.key}">${meta.icon} ${escapeHtml(meta.label)}(${turns}턴)</span>`;
+    }).filter(Boolean).join('');
+    if (!chips) return '';
+    return `<span class="status-badge-container">${chips}</span>`;
 }
 
 // [레벨 UI] "직업명" 뒤에 "Lv.X" 를 붙인다. 이미 붙어 있으면 중복 제거 후 재부착.
@@ -203,6 +228,7 @@ function renderPartyHpBars() {
             dead: safeNum(member.curHp, 0) <= 0,
             mpCurrent: member.mp,
             mpMax: member.maxMp,
+            statuses: member.statuses,
             unitId: member.id || member.roleKey,
             unitSide: 'player',
         });
@@ -239,6 +265,7 @@ function renderEnemyHpBars() {
             color: '#ff4757',
             subText: sub,
             dead: safeNum(member.curHp, 0) <= 0,
+            statuses: member.statuses,
             unitId: member.id || member.roleKey,
             unitSide: 'enemy',
         });

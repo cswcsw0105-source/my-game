@@ -279,6 +279,78 @@ function applyEnemyStatDebuff(target, kind, pct, turns) {
     }
 }
 
+// ===== [상태이상 · 도트(DOT) 시스템] =====
+// 지속 상태이상 정의. dotPct = 대상 최대 HP 대비 턴당 피해 비율(도트류만).
+const COMBAT_STATUS_DEFS = Object.freeze({
+    poison: Object.freeze({ key: 'poison', icon: '🧪', label: '중독', dot: true, dotPct: 0.05, tone: 'poison' }),
+    burn: Object.freeze({ key: 'burn', icon: '🔥', label: '화상', dot: true, dotPct: 0.06, tone: 'burn' }),
+    bleed: Object.freeze({ key: 'bleed', icon: '🩸', label: '출혈', dot: true, dotPct: 0.045, tone: 'bleed' }),
+    silence: Object.freeze({ key: 'silence', icon: '🔒', label: '침묵', dot: false }),
+    ankleSprain: Object.freeze({ key: 'ankleSprain', icon: '🦶', label: '발목', dot: false }),
+});
+
+function getCombatStatusDef(key) {
+    return COMBAT_STATUS_DEFS[key] || null;
+}
+
+// 유닛에 상태이상 부여(같은 키는 잔여 턴 갱신, 최댓값 유지).
+function addUnitStatus(unit, key, turns) {
+    if (!unit || !COMBAT_STATUS_DEFS[key]) return;
+    unit.statuses = Array.isArray(unit.statuses) ? unit.statuses : [];
+    const t = Math.max(1, Math.floor(safeNum(turns, 1)));
+    const existing = unit.statuses.find((s) => s && s.key === key);
+    if (existing) {
+        existing.turns = Math.max(safeNum(existing.turns, 0), t);
+        return;
+    }
+    unit.statuses.push({ key, turns: t });
+}
+
+// [도트 턴 시작 처리] 지속 대미지를 적용하고 로그를 출력한 뒤 잔여 턴을 차감·만료 제거한다.
+// 플로팅 연출은 호출부에서 updateUi 이후에 재생하도록 이벤트만 dotEvents 로 반환한다.
+function tickUnitStatuses(unit, dotEvents) {
+    if (!unit || !Array.isArray(unit.statuses) || unit.statuses.length === 0) return;
+    const isPlayerSideUnit = unit === player || (typeof isPartyMember === 'function' && isPartyMember(unit));
+    const kept = [];
+    unit.statuses.forEach((status) => {
+        if (!status || !status.key) return;
+        const def = COMBAT_STATUS_DEFS[status.key];
+        if (!def) return;
+        if (def.dot && getCurrentHp(unit) > 0) {
+            const maxHp = Math.max(1, actorMaxHp(unit));
+            const dmg = Math.max(1, Math.round(maxHp * safeNum(def.dotPct, 0.05)));
+            setCurrentHp(unit, getCurrentHp(unit) - dmg);
+            writeLog(`[상태이상] ${unit.name || '유닛'}이(가) ${def.label}으로 ${dmg}의 피해를 입었습니다.`);
+            if (Array.isArray(dotEvents)) dotEvents.push({ unit, dmg, tone: def.tone || 'poison', label: def.label });
+        }
+        status.turns = safeNum(status.turns, 0) - 1;
+        if (status.turns > 0) kept.push(status);
+    });
+    unit.statuses = kept;
+    if (isPlayerSideUnit && typeof syncPartyAggregateState === 'function') syncPartyAggregateState(player);
+    else if (!isPlayerSideUnit && typeof syncEnemyPartyAggregateState === 'function' && enemy && Array.isArray(enemy.party)) {
+        syncEnemyPartyAggregateState(enemy);
+    }
+}
+
+// 살아있는 아군·적군 파티원 전원의 상태이상 도트를 라운드 시작 시 처리한다.
+function tickAllUnitStatusesAtRoundStart() {
+    const allies = typeof getLivingPartyMembers === 'function' ? getLivingPartyMembers(player) : [];
+    const foes = typeof getLivingEnemyPartyMembers === 'function'
+        ? getLivingEnemyPartyMembers(enemy)
+        : (enemy && getCurrentHp(enemy) > 0 ? [enemy] : []);
+    const anyStatus = allies.concat(foes).some((u) => u && Array.isArray(u.statuses) && u.statuses.length);
+    if (!anyStatus) return;
+    const dotEvents = [];
+    allies.forEach((member) => tickUnitStatuses(member, dotEvents));
+    foes.forEach((foe) => tickUnitStatuses(foe, dotEvents));
+    // 도트 피해/뱃지 만료를 카드에 먼저 반영한 뒤, 새 카드 위에 도트 플로팅을 재생한다.
+    if (typeof updateUi === 'function') updateUi();
+    if (typeof showUnitDotFloat === 'function') {
+        dotEvents.forEach((ev) => showUnitDotFloat(ev.unit, ev.dmg, ev.tone, ev.label));
+    }
+}
+
 function regenPartyMpAtRoundStart() {
     if (!player || !Array.isArray(player.party)) return;
     const rows = [];
@@ -944,16 +1016,24 @@ function resolveFireballSkillAction(attacker, defender, guardState) {
     return { type: 'attack', attackKind: 'magic', success: true, damage, hit: cast, skillKey: 'fireball' };
 }
 
+// [아군 대상 100% 보장] 치유·가드·버프 등 아군 대상 행동은 회피/명중/시전실패(MISS) 판정을
+// 완전히 우회하고 항상 SUCCESS(확정 적중)로 처리한다. 빗나감/MISS 플로팅이 절대 발생하지 않는다.
 function resolveHealAction(actor, healTarget) {
     const stats = getActorStats(actor);
-    const cast = probabilityRoll(0.4 + stats.wis * 0.004, actor);
-    if (!cast.success) return { type: 'heal', success: false, reason: 'castFailed', cast };
     const divineHealBonus = safeNum(stats.divinity, safeNum(actor && actor.divinity, 0)) >= 5 ? 1.05 : 1;
     const amount = Math.max(1, Math.floor((8 + stats.wis * 1.6) * divineHealBonus));
     const target = healTarget || actor;
     const before = getCurrentHp(target);
     setCurrentHp(target, before + amount);
-    return { type: 'heal', success: true, healed: getCurrentHp(target) - before, cast };
+    return { type: 'heal', success: true, guaranteed: true, healed: getCurrentHp(target) - before };
+}
+
+// 아군 대상 여부 판정 — 힐/가드/버프 계열에서 명중 판정 우회에 사용.
+function isFriendlyTargetedAction(actor, target) {
+    if (!actor || !target) return false;
+    const bothAlly = (target === player || isPartyMember(target)) && (actor === player || isPartyMember(actor));
+    const bothEnemyParty = (typeof isEnemyPartyMember === 'function' && isEnemyPartyMember(target) && isEnemyPartyMember(actor));
+    return bothAlly || bothEnemyParty;
 }
 
 function maybeTriggerCorruptedHeal(actor, target) {
@@ -1263,9 +1343,10 @@ function refreshCombatTurnQueue() {
     window.combatState.turnQueue = buildInitiativeQueue();
     initiativeQueue = window.combatState.turnQueue.slice();
     if (!window.combatState.turnQueue.length) return;
-    // [라운드 시작 훅] 도발 지속시간 차감 + 파티 전원 MP 자연 회복 + B-Type 디버프/스킬 쿨타임 차감
+    // [라운드 시작 훅] 도발 차감 + MP 회복 + B-Type 디버프/쿨타임 차감 + 상태이상 도트(DOT) 처리
     tickTauntStateAtRoundStart();
     tickCombatEffectsAtRoundStart();
+    tickAllUnitStatusesAtRoundStart();
     regenPartyMpAtRoundStart();
     writeLog(`[라운드] ${initiativeRound}라운드 시작 — 민첩 순서: ${getTurnOrderPreviewText()}`);
     initiativeRound += 1;
@@ -1602,6 +1683,10 @@ window.useAction = async function useAction(type, options) {
                 const result = resolveFireballSkillAction(actor, target, getEnemyGuardStateFor(target));
                 describeCombatResult(actor, target, result);
                 emitCombatResultVfx(target, result);
+                // [상태이상] 파이어 볼 명중 시 화상(🔥) 2턴 부여 → 라운드 시작마다 도트 피해.
+                if (result && result.success && (result.damage || 0) > 0 && typeof addUnitStatus === 'function') {
+                    addUnitStatus(target, 'burn', 2);
+                }
                 gainActorMagicMastery(actor, 2);
                 enemyGuardState = null;
                 if (enemy && Array.isArray(enemy.party)) syncEnemyPartyAggregateState(enemy);
@@ -1634,6 +1719,10 @@ window.useAction = async function useAction(type, options) {
                 describeCombatResult(actor, target, result);
                 emitCombatResultVfx(target, result);
                 applyEnemyStatDebuff(target, 'def', 0.3, 2);
+                // [상태이상] 갑옷 파쇄 명중 시 출혈(🩸) 2턴 부여.
+                if (result && result.success && (result.damage || 0) > 0 && typeof addUnitStatus === 'function') {
+                    addUnitStatus(target, 'bleed', 2);
+                }
                 gainActorWeaponMastery(actor, 1);
                 enemyGuardState = null;
                 if (enemy && Array.isArray(enemy.party)) syncEnemyPartyAggregateState(enemy);
@@ -2219,6 +2308,12 @@ Object.assign(window, {
     getActorMpRegenAmount,
     tickCombatEffectsAtRoundStart,
     applyEnemyStatDebuff,
+    COMBAT_STATUS_DEFS,
+    getCombatStatusDef,
+    addUnitStatus,
+    tickUnitStatuses,
+    tickAllUnitStatusesAtRoundStart,
+    isFriendlyTargetedAction,
     getActiveTauntTank,
     enemyTurn,
     winBattle,

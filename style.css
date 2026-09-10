@@ -1659,18 +1659,21 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
 @keyframes unitHitFlashCore {
     0% { opacity: 0; transform: scale(0.55); }
-    22% { opacity: 1; transform: scale(1); }
-    100% { opacity: 0; transform: scale(1.3); }
+    22% { opacity: 0.8; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.26); }
 }
 .unit-hit-flash-physical::before {
     content: "";
     position: absolute;
-    width: 72%;
-    height: 84%;
-    left: 14%;
-    top: 8%;
-    background: radial-gradient(ellipse at center, rgba(255, 242, 205, 0.95) 0%, rgba(255, 172, 62, 0.6) 38%, rgba(255, 122, 42, 0) 72%);
-    animation: unitHitFlashCore calc(500ms * var(--vfx-rate, 1)) ease-out both;
+    width: 70%;
+    height: 80%;
+    left: 15%;
+    top: 10%;
+    /* 흰색 하이라이트 제거 → 절제된 주황 반투명 */
+    background: radial-gradient(ellipse at center, rgba(255, 206, 140, 0.5) 0%, rgba(255, 160, 70, 0.3) 40%, rgba(230, 120, 40, 0) 74%);
+    opacity: 0.8;
+    filter: blur(0.5px);
+    animation: unitHitFlashCore calc(460ms * var(--vfx-rate, 1)) ease-out both;
 }
 @keyframes unitHitSlashSweep {
     0% { opacity: 0; transform: rotate(-24deg) scaleX(0.2); }
@@ -1691,29 +1694,32 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 .unit-hit-flash-magic::before {
     content: "";
     position: absolute;
-    width: 76%;
-    height: 88%;
-    left: 12%;
-    top: 6%;
-    background: radial-gradient(ellipse at center, rgba(238, 224, 255, 0.95) 0%, rgba(168, 110, 255, 0.62) 40%, rgba(120, 70, 220, 0) 74%);
-    animation: unitHitFlashCore calc(560ms * var(--vfx-rate, 1)) ease-out both;
+    width: 72%;
+    height: 82%;
+    left: 14%;
+    top: 9%;
+    /* 흰색 하이라이트 제거 → 부드러운 보라 반투명 */
+    background: radial-gradient(ellipse at center, rgba(206, 176, 255, 0.55) 0%, rgba(150, 110, 220, 0.32) 44%, rgba(110, 70, 190, 0) 76%);
+    opacity: 0.8;
+    filter: blur(0.5px);
+    animation: unitHitFlashCore calc(520ms * var(--vfx-rate, 1)) ease-out both;
 }
 @keyframes unitMagicRing {
     0% { opacity: 0; transform: scale(0.4); }
-    30% { opacity: 1; }
-    100% { opacity: 0; transform: scale(1.5); }
+    30% { opacity: 0.8; }
+    100% { opacity: 0; transform: scale(1.42); }
 }
 .unit-hit-flash-magic::after {
     content: "";
     position: absolute;
-    width: 58%;
-    height: 74%;
-    left: 21%;
-    top: 13%;
-    border: 2px solid rgba(190, 140, 255, 0.85);
+    width: 56%;
+    height: 70%;
+    left: 22%;
+    top: 15%;
+    border: 1.5px solid rgba(190, 150, 255, 0.55);
     border-radius: 50%;
-    box-shadow: 0 0 18px rgba(168, 110, 255, 0.8), inset 0 0 12px rgba(168, 110, 255, 0.5);
-    animation: unitMagicRing calc(560ms * var(--vfx-rate, 1)) ease-out both;
+    box-shadow: 0 0 10px rgba(168, 120, 240, 0.4);
+    animation: unitMagicRing calc(520ms * var(--vfx-rate, 1)) ease-out both;
 }
 @keyframes unitDmgFloat {
     0% { opacity: 0; transform: translateY(7px) scale(0.8); }
@@ -1765,34 +1771,35 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     box-shadow: 0 0 10px #ffd76a, 0 0 22px rgba(255, 200, 80, 0.7);
 }
 
-/* ============ [마법사 스킬 메테오/폭발] 타겟 중앙에 거대한 🔥/🔮 낙하 + 400ms 폭발 팽창(scale 1.5x) ============ */
+/* ============ [마법사 스킬 메테오/폭발] 단일 엘리먼트 · 은은한 보라/주황 글로우(눈부심 톤다운) ============ */
 @keyframes unitMeteorBlast {
-    0%   { opacity: 0; transform: translateY(-24px) scale(0.32) rotate(-14deg); }
-    38%  { opacity: 1; transform: translateY(0) scale(1.15) rotate(4deg); }
-    62%  { opacity: 1; transform: translateY(0) scale(1.5) rotate(0deg); }
-    100% { opacity: 0; transform: translateY(0) scale(1.72) rotate(6deg); }
+    0%   { opacity: 0; transform: translateY(-18px) scale(0.36); }
+    40%  { opacity: 0.85; transform: translateY(0) scale(1.12); }
+    68%  { opacity: 0.8; transform: translateY(0) scale(1.32); }
+    100% { opacity: 0; transform: translateY(0) scale(1.42); }
 }
 .unit-combat-vfx.unit-meteor-blast {
-    font-size: 2.6rem;
+    font-size: 2.2rem;
     line-height: 1;
     z-index: 1342;
-    filter:
-        drop-shadow(0 0 14px rgba(255, 210, 90, 0.95))
-        drop-shadow(0 0 30px rgba(255, 92, 60, 0.85))
-        drop-shadow(0 0 48px rgba(255, 60, 40, 0.55));
-    animation: unitMeteorBlast calc(400ms * var(--vfx-rate, 1)) cubic-bezier(0.2, 0.85, 0.3, 1) both;
+    opacity: 0.85;
+    /* 다중 형광 섀도우 → 은은한 단일 글로우 + 약한 블러 */
+    filter: drop-shadow(0 0 12px rgba(255, 168, 92, 0.55)) blur(0.3px);
+    animation: unitMeteorBlast calc(360ms * var(--vfx-rate, 1)) cubic-bezier(0.2, 0.85, 0.3, 1) both;
 }
 .unit-combat-vfx.unit-meteor-blast::after {
     content: "";
     position: absolute;
     left: 50%;
     top: 50%;
-    width: 120%;
-    height: 120%;
+    width: 108%;
+    height: 108%;
     transform: translate(-50%, -50%);
     border-radius: 50%;
-    background: radial-gradient(circle at center, rgba(255, 244, 214, 0.92) 0%, rgba(255, 176, 60, 0.7) 32%, rgba(255, 70, 45, 0.42) 58%, rgba(180, 40, 20, 0) 78%);
-    animation: unitMeteorBlast calc(400ms * var(--vfx-rate, 1)) cubic-bezier(0.2, 0.85, 0.3, 1) both;
+    /* 흰색 하이라이트 코어 제거 → 절제된 보라/주황 반투명 그라디언트 */
+    background: radial-gradient(circle at center, rgba(255, 190, 120, 0.42) 0%, rgba(190, 120, 220, 0.3) 46%, rgba(120, 60, 160, 0) 76%);
+    filter: blur(1px);
+    animation: unitMeteorBlast calc(360ms * var(--vfx-rate, 1)) cubic-bezier(0.2, 0.85, 0.3, 1) both;
 }
 .unit-fireball-burst i {
     position: absolute;
@@ -1848,7 +1855,8 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 .unit-combat-vfx.unit-emoji-pop {
     font-size: 2rem;
     line-height: 1;
-    filter: drop-shadow(0 0 9px rgba(255, 232, 175, 0.9)) drop-shadow(0 0 18px rgba(255, 200, 110, 0.6));
+    opacity: 0.9;
+    filter: drop-shadow(0 0 7px rgba(255, 216, 150, 0.5));
     z-index: 1330;
 }
 /* [물리 타격 임팩트] ⚔️ 회전 슬래시가 ~380ms(2배속 ~190ms) 동안 확실히 노출된 뒤 사라진다. */
@@ -1874,11 +1882,12 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
 .unit-projectile {
     position: absolute;
-    font-size: 1.4rem;
+    font-size: 1.35rem;
     line-height: 1;
     pointer-events: none;
     z-index: 1338;
-    filter: drop-shadow(0 0 10px rgba(120, 200, 255, 0.9)) drop-shadow(0 0 18px rgba(150, 110, 255, 0.6));
+    opacity: 0.9;
+    filter: drop-shadow(0 0 8px rgba(150, 170, 255, 0.5));
     will-change: transform;
 }
 @keyframes unitProjectileBurst {
@@ -1911,24 +1920,27 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 .unit-combat-vfx.unit-skill-flash::before {
     content: "";
     position: absolute;
-    width: 74%;
-    height: 86%;
-    left: 13%;
-    top: 7%;
-    background: radial-gradient(ellipse at center, rgba(255, 246, 210, 0.95) 0%, rgba(255, 190, 80, 0.65) 40%, rgba(255, 140, 30, 0) 74%);
-    animation: unitSkillCore calc(360ms * var(--vfx-rate, 1)) ease-out both;
+    width: 70%;
+    height: 80%;
+    left: 15%;
+    top: 10%;
+    /* 흰색 코어 제거 → 절제된 주황 반투명 */
+    background: radial-gradient(ellipse at center, rgba(255, 206, 132, 0.5) 0%, rgba(240, 168, 74, 0.3) 42%, rgba(220, 130, 30, 0) 74%);
+    opacity: 0.8;
+    filter: blur(0.5px);
+    animation: unitSkillCore calc(340ms * var(--vfx-rate, 1)) ease-out both;
 }
 .unit-combat-vfx.unit-skill-flash::after {
     content: "";
     position: absolute;
-    width: 60%;
-    height: 76%;
-    left: 20%;
-    top: 12%;
-    border: 3px double rgba(255, 205, 110, 0.9);
+    width: 58%;
+    height: 72%;
+    left: 21%;
+    top: 14%;
+    border: 1.5px solid rgba(255, 200, 120, 0.5);
     border-radius: 50%;
-    box-shadow: 0 0 22px rgba(255, 180, 70, 0.85), inset 0 0 16px rgba(255, 200, 90, 0.6);
-    animation: unitSkillRing calc(360ms * var(--vfx-rate, 1)) ease-out both;
+    box-shadow: 0 0 12px rgba(255, 180, 90, 0.4);
+    animation: unitSkillRing calc(340ms * var(--vfx-rate, 1)) ease-out both;
 }
 
 /* ============ [스킬 시전 뱃지] 공격자 상단 스킬명 · 300ms ============ */
@@ -1958,11 +1970,57 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     animation: skillCastBadgePop calc(300ms * var(--vfx-rate, 1)) cubic-bezier(0.2, 0.9, 0.3, 1) both;
 }
 
+/* ============ [상태이상 상시 뱃지] 유닛 카드 이름 옆 도트/디버프 표시 ============ */
+.status-badge-container {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+.status-badge-chip {
+    display: inline-block;
+    padding: 0 5px;
+    border-radius: 999px;
+    font-size: 0.66em;
+    font-weight: 800;
+    line-height: 1.5;
+    letter-spacing: 0;
+    background: rgba(40, 40, 52, 0.9);
+    border: 1px solid rgba(120, 120, 150, 0.5);
+    color: #d6dae4;
+    white-space: nowrap;
+}
+.status-badge-chip.status-badge-poison { border-color: rgba(150, 90, 200, 0.7); color: #d6b8ff; }
+.status-badge-chip.status-badge-burn   { border-color: rgba(230, 130, 70, 0.7); color: #ffc3a0; }
+.status-badge-chip.status-badge-bleed  { border-color: rgba(220, 80, 90, 0.7);  color: #ffb3ba; }
+.status-badge-chip.status-badge-silence{ border-color: rgba(120, 140, 170, 0.7); color: #c2ccdb; }
+
+/* ============ [도트(DOT) 전용 플로팅] 턴 시작 지속피해 · 보라/녹색 · 350ms ============ */
+@keyframes unitDotFloatUp {
+    0%   { opacity: 0; transform: translateY(4px) scale(0.82); }
+    22%  { opacity: 0.95; transform: translateY(-8px) scale(1.05); }
+    100% { opacity: 0; transform: translateY(-32px) scale(0.96); }
+}
+.unit-combat-vfx.unit-dot-float {
+    align-items: flex-start;
+    padding-top: 2px;
+    font-family: Inter, Pretendard, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 1.02rem;
+    font-weight: 950;
+    letter-spacing: 0.3px;
+    text-shadow: 0 0 8px rgba(0, 0, 0, 0.6), 0 2px 0 rgba(0, 0, 0, 0.7);
+    animation: unitDotFloatUp calc(350ms * var(--vfx-rate, 1)) ease-out both;
+}
+.unit-combat-vfx.unit-dot-float.unit-dot-poison { color: #7be89a; }   /* 중독 — 녹색 */
+.unit-combat-vfx.unit-dot-float.unit-dot-burn   { color: #ff9d6b; }   /* 화상 — 주황 */
+.unit-combat-vfx.unit-dot-float.unit-dot-bleed  { color: #c98bff; }   /* 출혈 — 보라 */
+
 /* ===== [클릭 타겟팅] 적 유닛 행 직접 클릭 어포던스 ===== */
 [data-combat-unit-side="enemy"] {
     cursor: pointer;
     transition: filter 0.12s ease;
 }
 [data-combat-unit-side="enemy"]:hover {
-    filter: brightness(1.18);
+    filter: brightness(1.1);
 }
