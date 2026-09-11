@@ -1929,9 +1929,15 @@ function onCombatVictory() {
         return null;
     }
     combatVictorySettlementLocked = true;
-    const reward = computeFloorGoldReward(floor + (dungeonStage - 1) / STAGES_PER_FLOOR, {
-        isBoss: dungeonStage === STAGES_PER_FLOOR,
-    });
+    // [전투 골드 보상 개편] 층수 비례 공식: 30 + (currentFloor * 3) + rand(0..7). 보스전은 ×2.5.
+    const currentFloor = Math.max(1, Math.floor(safeNum(floor, 1)));
+    const isBossFight = dungeonStage === STAGES_PER_FLOOR;
+    let baseReward = 30 + currentFloor * 3 + Math.floor(Math.random() * 8);
+    if (isBossFight) baseReward = Math.round(baseReward * 2.5);
+    // [망령 처치 현상금(잭팟)] 적 파티가 망령이면 기본 보상에 +80~110G 추가.
+    const isGhostKill = !!(enemy && (enemy.isGhost || enemy.isPlayerGhost));
+    const ghostBounty = isGhostKill ? 80 + Math.floor(Math.random() * 31) : 0;
+    const reward = baseReward + ghostBounty;
     gold = Math.max(0, safeNum(gold, 0)) + reward;
     player.runWins = Math.max(0, safeNum(player.runWins, 0)) + 1;
     player.hasWonBattle = true;
@@ -1941,12 +1947,17 @@ function onCombatVictory() {
     writeLog(`[전투] ${formatDungeonPosition({ floor, stage: dungeonStage })} 전투 종료`);
     if (typeof pushNotificationLog === 'function') {
         pushNotificationLog(`[골드] ${formatDungeonPosition({ floor, stage: dungeonStage })} 전투 승리 · +${reward}G`, 'gold');
+        if (ghostBounty > 0) {
+            pushNotificationLog(`[💰 전리품] 쓰러진 선대 원정대의 유품에서 ${ghostBounty}G를 추가로 회수했습니다!`, 'gold');
+        }
     }
     syncPlayerCampaignState();
     return {
         reward,
+        baseReward,
+        ghostBounty,
         clearedFloor: floor,
-        defeatedBoss: dungeonStage === STAGES_PER_FLOOR,
+        defeatedBoss: isBossFight,
     };
 }
 

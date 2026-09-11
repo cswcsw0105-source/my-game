@@ -97,20 +97,37 @@ function getNonMercEquipmentPool() {
     return equipmentPool.filter((item) => item && item.type !== 'merc');
 }
 
+// 던전 진행 지수: 1층 1스테이지=1 ... 1층 10스테이지=10, 2층 1스테이지=11 ...
+function getShopTierProgressIndex() {
+    const spf = (typeof STAGES_PER_FLOOR === 'number' && STAGES_PER_FLOOR) || 10;
+    const f = Math.max(1, Math.floor(safeNum(typeof floor !== 'undefined' ? floor : 1, 1)));
+    const s = Math.max(1, Math.floor(safeNum(typeof dungeonStage !== 'undefined' ? dungeonStage : 1, 1)));
+    return (f - 1) * spf + s;
+}
+
+// [상점 티어 확률 층수 연동] 1티어=일반(common) · 2티어=희귀(rare) · 3티어=영웅(epic).
+// 초반(1-1F~1-4F)에는 300G+ 고티어 장비가 무분별하게 깔리지 않도록 확률을 강하게 억제한다.
 function getShopRarityChances() {
-    const baseLegendary = Math.min(15, 2 + Math.floor(shopVisitCount / 5));
-    const baseEpic = Math.min(35, 10 + Math.floor(shopVisitCount / 3));
-    const baseRare = Math.min(50, 30 + Math.floor(shopVisitCount / 4));
-    const boostLv = Math.max(0, Math.min(8, safeNum(player && player.shopRarityBoost, 0)));
-    let legendary = baseLegendary + boostLv * 2;
-    let epic = baseEpic + boostLv * 3;
-    let rare = baseRare + boostLv * 3;
-    let common = Math.max(0, 100 - legendary - epic - rare);
-    if (common === 0 && legendary + epic + rare > 100) {
-        const overflow = legendary + epic + rare - 100;
-        rare = Math.max(5, rare - overflow);
+    const prog = getShopTierProgressIndex();
+    if (prog <= 2) {
+        // [1-1F ~ 1-2F] 1티어 85 / 2티어 15 / 3티어 0
+        return { legendary: 0, epic: 0, rare: 15, common: 85 };
     }
-    common = Math.max(0, 100 - legendary - epic - rare);
+    if (prog <= 4) {
+        // [1-3F ~ 1-4F] 1티어 50 / 2티어 40 / 3티어 10
+        return { legendary: 0, epic: 10, rare: 40, common: 50 };
+    }
+    // [1-5F 이상] 기본 1티어 20 / 2티어 50 / 3티어 30 — 상점 방문 횟수·확률강화로 소폭 상향(전설 최대 12%).
+    const boostLv = Math.max(0, Math.min(8, safeNum(player && player.shopRarityBoost, 0)));
+    const extra = Math.floor(Math.max(0, shopVisitCount - 2) / 5);
+    let legendary = Math.min(12, extra + boostLv);
+    let epic = Math.min(42, 30 + extra + boostLv);
+    let rare = Math.min(55, 50 + Math.floor(boostLv / 2));
+    let common = Math.max(0, 100 - legendary - epic - rare);
+    if (common < 8) {
+        rare = Math.max(20, rare - (8 - common));
+        common = Math.max(0, 100 - legendary - epic - rare);
+    }
     return { legendary, epic, rare, common };
 }
 
@@ -270,7 +287,8 @@ function renderShopItems(keepCurrentStock) {
         list.appendChild(campRow);
     }
     if (!keepCurrentStock) {
-        currentPotionOffer = { name: "치유 포션", type: "potion", value: 120, price: 20, rarity: "common", desc: "최대 체력의 35%를 즉시 회복합니다." };
+        // [소모품 가격 유지] 초반 1~2회 전투로 구매 가능한 25~30G 선.
+        currentPotionOffer = { name: "치유 포션", type: "potion", value: 120, price: 25 + Math.floor(Math.random() * 6), rarity: "common", desc: "최대 체력의 35%를 즉시 회복합니다." };
         currentShopItems = [];
     }
     const unlockedItems=getUnlockedPoolItems(), picked=[];
@@ -550,6 +568,7 @@ window.renderShopLeaveButtons = renderShopLeaveButtons;
 window.getUnlockedPoolItems = getUnlockedPoolItems;
 window.getItemsByRarity = getItemsByRarity;
 window.getShopRarityChances = getShopRarityChances;
+window.getShopTierProgressIndex = getShopTierProgressIndex;
 window.applyGoldenBalanceShopPrice = applyGoldenBalanceShopPrice;
 window.applyShopRarityTuning = applyShopRarityTuning;
 window.getShopRarityBoostPrice = getShopRarityBoostPrice;
