@@ -4394,6 +4394,8 @@ window.toggleCollection = (show) => {
         const groups = { relic: [], legendary: [], epic: [], rare: [], common: [] };
         equipItems.sort((a, b) => (rarityOrder[a.rarity] ?? 9) - (rarityOrder[b.rarity] ?? 9));
         equipItems.forEach((it) => {
+            // [📖 도감 기준가] 상점 가격 산정과 동일한 함수로 표준 기준가를 1회 산출·캐싱한다(상점 노출가와 일치).
+            if (typeof computeEquipmentGoldPrice === 'function') computeEquipmentGoldPrice(it);
             const owned = collection.includes(it.name);
             const rk = it.rarity === 'relic' ? 'relic' : it.rarity || 'common';
             (groups[rk] || groups.common).push({ ...it, owned });
@@ -4405,7 +4407,7 @@ window.toggleCollection = (show) => {
             items.forEach((it) => {
                 if (it.owned) {
                     const pref = isPreferredItem(it.name);
-                    html += `<div style="padding:8px 10px;background:#111;border-radius:6px;margin-bottom:4px;border-left:3px solid ${color};display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div><div style="color:${color};font-weight:700;font-size:0.9em;">✅ ${formatCodexItemName(it.name)}${pref ? ' <span style="color:#f1c40f;">★</span>' : ''}</div>${getEquipSlotLineHtml(it)}${getCodexCurrentJobLineHtml(it)}<div style="color:#666;font-size:0.78em;margin-top:3px;">${formatCodexItemDesc(it.desc)}</div></div><button type="button" onclick="togglePreferredItem('${escapeJsSingleQuoteString(it.name)}')" style="background:${pref ? '#f1c40f' : '#111'};color:${pref ? '#111' : '#f1c40f'};border:1px solid #f1c40f;border-radius:8px;padding:6px 10px;font-weight:900;cursor:pointer;font-size:0.78em;">★</button></div>`;
+                    html += `<div style="padding:8px 10px;background:#111;border-radius:6px;margin-bottom:4px;border-left:3px solid ${color};display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div><div style="color:${color};font-weight:700;font-size:0.9em;">✅ ${formatCodexItemName(it.name)}${pref ? ' <span style="color:#f1c40f;">★</span>' : ''}</div>${getEquipSlotLineHtml(it)}${getCodexCurrentJobLineHtml(it)}<div style="color:#666;font-size:0.78em;margin-top:3px;">${formatCodexItemDesc(it.desc)}</div><div class="codex-item-price">💰 기준가: ${safeNum(it.price, 0)}G</div></div><button type="button" onclick="togglePreferredItem('${escapeJsSingleQuoteString(it.name)}')" style="background:${pref ? '#f1c40f' : '#111'};color:${pref ? '#111' : '#f1c40f'};border:1px solid #f1c40f;border-radius:8px;padding:6px 10px;font-weight:900;cursor:pointer;font-size:0.78em;">★</button></div>`;
                 }
                 else html += `<div style="padding:8px 10px;background:#0a0a0a;border-radius:6px;margin-bottom:4px;border-left:3px solid #333;"><div style="color:#444;font-weight:700;font-size:0.9em;">🔒 ???</div></div>`;
             });

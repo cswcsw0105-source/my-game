@@ -683,20 +683,40 @@ function isStarterGearItem() {
 }
 function normalizeRarityKey(value) {
     const key = String(value || 'common').toLowerCase();
-    return key === 'legend' ? 'legendary' : ['common', 'rare', 'epic', 'legendary'].includes(key) ? key : 'common';
+    if (key === 'legend') return 'legendary';
+    return ['common', 'rare', 'epic', 'legendary', 'relic'].includes(key) ? key : 'common';
+}
+// [경제 개편 v2] 등급(tier) 기준 표준 가격 베이스 + 오차 범위. 개별 하드코딩 가격을 대체한다.
+const ECONOMY_TIER_PRICE_RANGE = Object.freeze({
+    common: [80, 110],
+    rare: [200, 260],
+    epic: [450, 550],
+    legendary: [950, 1200],
+    relic: [2000, 2500],
+});
+function rollEconomyTierPrice(tier) {
+    const range = ECONOMY_TIER_PRICE_RANGE[tier] || ECONOMY_TIER_PRICE_RANGE.common;
+    return Math.floor(range[0] + Math.random() * (range[1] - range[0] + 1));
+}
+// item.price가 없거나(0/NaN) 등급 오차 범위를 크게 벗어난 구형 수치일 경우 구형으로 간주해 재매핑한다.
+function isStaleEconomyTierPrice(price, tier) {
+    const range = ECONOMY_TIER_PRICE_RANGE[tier] || ECONOMY_TIER_PRICE_RANGE.common;
+    const n = Number(price);
+    if (!Number.isFinite(n) || n <= 0) return true;
+    return n < range[0] * 0.85 || n > range[1] * 1.35;
 }
 function computeEquipmentGoldPrice(item, floorRef) {
-    if (item && Number.isFinite(Number(item.price)) && Number(item.price) > 0) {
-        if (item._v35PriceDiscountApplied) return Math.max(1, Math.floor(Number(item.price)));
-        item._v35PriceDiscountApplied = true;
-        return Math.max(1, Math.floor(Number(item.price) * 0.5));
+    const tier = normalizeRarityKey(item && item.rarity);
+    if (item && item._v35EconomyTierApplied && !isStaleEconomyTierPrice(item.price, tier)) {
+        return Math.max(1, Math.floor(Number(item.price)));
     }
-    const floorValue = floorRef && typeof floorRef === 'object'
-        ? Number(floorRef.shopFloor || floorRef.priceFloor || floorRef.floor || 1)
-        : Number(floorRef || 1);
-    const base = { common: 40, rare: 110, epic: 360, legendary: 1200 }[normalizeRarityKey(item && item.rarity)] || 40;
-    if (item) item._v35PriceDiscountApplied = true;
-    return Math.max(1, Math.floor((base + Math.max(1, floorValue) * 2) * 0.5));
+    const price = rollEconomyTierPrice(tier);
+    if (item) {
+        item.price = price;
+        item._v35EconomyTierApplied = true;
+        item._v35PriceDiscountApplied = true;
+    }
+    return price;
 }
 function computeFloorGoldReward(floorRef, options) {
     const depth = Math.max(1, Number(floorRef) || 1);

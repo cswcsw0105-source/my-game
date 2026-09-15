@@ -173,6 +173,13 @@ body { background-color: #121212; color: #e0e0e0; text-align: center; font-famil
     font-weight: 700;
     font-size: 1em;
 }
+/* [📖 장비 도감 기준가] 상점 기준가 표기 — 골드 옐로우 강조 폰트 */
+.codex-item-price {
+    color: #f1c40f;
+    font-weight: 700;
+    font-size: 0.78em;
+    margin-top: 3px;
+}
 #shop-list .shop-item-card .shop-card-btn {
     padding: 6px 12px;
     font-size: 0.85em;

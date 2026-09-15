@@ -10943,20 +10943,40 @@ function isStarterGearItem() {
 }
 function normalizeRarityKey(value) {
     const key = String(value || 'common').toLowerCase();
-    return key === 'legend' ? 'legendary' : ['common', 'rare', 'epic', 'legendary'].includes(key) ? key : 'common';
+    if (key === 'legend') return 'legendary';
+    return ['common', 'rare', 'epic', 'legendary', 'relic'].includes(key) ? key : 'common';
+}
+// [경제 개편 v2] 등급(tier) 기준 표준 가격 베이스 + 오차 범위. 개별 하드코딩 가격을 대체한다.
+const ECONOMY_TIER_PRICE_RANGE = Object.freeze({
+    common: [80, 110],
+    rare: [200, 260],
+    epic: [450, 550],
+    legendary: [950, 1200],
+    relic: [2000, 2500],
+});
+function rollEconomyTierPrice(tier) {
+    const range = ECONOMY_TIER_PRICE_RANGE[tier] || ECONOMY_TIER_PRICE_RANGE.common;
+    return Math.floor(range[0] + Math.random() * (range[1] - range[0] + 1));
+}
+// item.price가 없거나(0/NaN) 등급 오차 범위를 크게 벗어난 구형 수치일 경우 구형으로 간주해 재매핑한다.
+function isStaleEconomyTierPrice(price, tier) {
+    const range = ECONOMY_TIER_PRICE_RANGE[tier] || ECONOMY_TIER_PRICE_RANGE.common;
+    const n = Number(price);
+    if (!Number.isFinite(n) || n <= 0) return true;
+    return n < range[0] * 0.85 || n > range[1] * 1.35;
 }
 function computeEquipmentGoldPrice(item, floorRef) {
-    if (item && Number.isFinite(Number(item.price)) && Number(item.price) > 0) {
-        if (item._v35PriceDiscountApplied) return Math.max(1, Math.floor(Number(item.price)));
-        item._v35PriceDiscountApplied = true;
-        return Math.max(1, Math.floor(Number(item.price) * 0.5));
+    const tier = normalizeRarityKey(item && item.rarity);
+    if (item && item._v35EconomyTierApplied && !isStaleEconomyTierPrice(item.price, tier)) {
+        return Math.max(1, Math.floor(Number(item.price)));
     }
-    const floorValue = floorRef && typeof floorRef === 'object'
-        ? Number(floorRef.shopFloor || floorRef.priceFloor || floorRef.floor || 1)
-        : Number(floorRef || 1);
-    const base = { common: 40, rare: 110, epic: 360, legendary: 1200 }[normalizeRarityKey(item && item.rarity)] || 40;
-    if (item) item._v35PriceDiscountApplied = true;
-    return Math.max(1, Math.floor((base + Math.max(1, floorValue) * 2) * 0.5));
+    const price = rollEconomyTierPrice(tier);
+    if (item) {
+        item.price = price;
+        item._v35EconomyTierApplied = true;
+        item._v35PriceDiscountApplied = true;
+    }
+    return price;
 }
 function computeFloorGoldReward(floorRef, options) {
     const depth = Math.max(1, Number(floorRef) || 1);
@@ -17555,6 +17575,8 @@ window.toggleCollection = (show) => {
         const groups = { relic: [], legendary: [], epic: [], rare: [], common: [] };
         equipItems.sort((a, b) => (rarityOrder[a.rarity] ?? 9) - (rarityOrder[b.rarity] ?? 9));
         equipItems.forEach((it) => {
+            // [📖 도감 기준가] 상점 가격 산정과 동일한 함수로 표준 기준가를 1회 산출·캐싱한다(상점 노출가와 일치).
+            if (typeof computeEquipmentGoldPrice === 'function') computeEquipmentGoldPrice(it);
             const owned = collection.includes(it.name);
             const rk = it.rarity === 'relic' ? 'relic' : it.rarity || 'common';
             (groups[rk] || groups.common).push({ ...it, owned });
@@ -17566,7 +17588,7 @@ window.toggleCollection = (show) => {
             items.forEach((it) => {
                 if (it.owned) {
                     const pref = isPreferredItem(it.name);
-                    html += `<div style="padding:8px 10px;background:#111;border-radius:6px;margin-bottom:4px;border-left:3px solid ${color};display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div><div style="color:${color};font-weight:700;font-size:0.9em;">✅ ${formatCodexItemName(it.name)}${pref ? ' <span style="color:#f1c40f;">★</span>' : ''}</div>${getEquipSlotLineHtml(it)}${getCodexCurrentJobLineHtml(it)}<div style="color:#666;font-size:0.78em;margin-top:3px;">${formatCodexItemDesc(it.desc)}</div></div><button type="button" onclick="togglePreferredItem('${escapeJsSingleQuoteString(it.name)}')" style="background:${pref ? '#f1c40f' : '#111'};color:${pref ? '#111' : '#f1c40f'};border:1px solid #f1c40f;border-radius:8px;padding:6px 10px;font-weight:900;cursor:pointer;font-size:0.78em;">★</button></div>`;
+                    html += `<div style="padding:8px 10px;background:#111;border-radius:6px;margin-bottom:4px;border-left:3px solid ${color};display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div><div style="color:${color};font-weight:700;font-size:0.9em;">✅ ${formatCodexItemName(it.name)}${pref ? ' <span style="color:#f1c40f;">★</span>' : ''}</div>${getEquipSlotLineHtml(it)}${getCodexCurrentJobLineHtml(it)}<div style="color:#666;font-size:0.78em;margin-top:3px;">${formatCodexItemDesc(it.desc)}</div><div class="codex-item-price">💰 기준가: ${safeNum(it.price, 0)}G</div></div><button type="button" onclick="togglePreferredItem('${escapeJsSingleQuoteString(it.name)}')" style="background:${pref ? '#f1c40f' : '#111'};color:${pref ? '#111' : '#f1c40f'};border:1px solid #f1c40f;border-radius:8px;padding:6px 10px;font-weight:900;cursor:pointer;font-size:0.78em;">★</button></div>`;
                 }
                 else html += `<div style="padding:8px 10px;background:#0a0a0a;border-radius:6px;margin-bottom:4px;border-left:3px solid #333;"><div style="color:#444;font-weight:700;font-size:0.9em;">🔒 ???</div></div>`;
             });
@@ -17885,9 +17907,10 @@ function getItemsByRarity() {
     const c = getShopRarityChances();
     const rand=Math.random()*100;
     const pool = getNonMercEquipmentPool();
-    if(rand<c.legendary) return pool.filter(i=>i.rarity==='legendary');
-    if(rand<c.legendary+c.epic) return pool.filter(i=>i.rarity==='epic');
-    if(rand<c.legendary+c.epic+c.rare) return pool.filter(i=>i.rarity==='rare');
+    if(rand<c.relic) return pool.filter(i=>i.rarity==='relic');
+    if(rand<c.relic+c.legendary) return pool.filter(i=>i.rarity==='legendary');
+    if(rand<c.relic+c.legendary+c.epic) return pool.filter(i=>i.rarity==='epic');
+    if(rand<c.relic+c.legendary+c.epic+c.rare) return pool.filter(i=>i.rarity==='rare');
     return pool.filter(i=>i.rarity==='common');
 }
 
@@ -17922,7 +17945,7 @@ function getNonMercEquipmentPool() {
     return equipmentPool.filter((item) => item && item.type !== 'merc');
 }
 
-// 던전 진행 지수: 1층 1스테이지=1 ... 1층 10스테이지=10, 2층 1스테이지=11 ...
+// 던전 진행 지수: 1층 1스테이지=1 ... 1층 10스테이지=10, 2층 1스테이지=11 ... (구 버전 호환용 · 현재 미사용)
 function getShopTierProgressIndex() {
     const spf = (typeof STAGES_PER_FLOOR === 'number' && STAGES_PER_FLOOR) || 10;
     const f = Math.max(1, Math.floor(safeNum(typeof floor !== 'undefined' ? floor : 1, 1)));
@@ -17930,30 +17953,22 @@ function getShopTierProgressIndex() {
     return (f - 1) * spf + s;
 }
 
-// [상점 티어 확률 층수 연동] 1티어=일반(common) · 2티어=희귀(rare) · 3티어=영웅(epic).
-// 초반(1-1F~1-4F)에는 300G+ 고티어 장비가 무분별하게 깔리지 않도록 확률을 강하게 억제한다.
+// [가상 층수] 현재 층수 + 상점 레벨(고등급 확률 강화 Lv.)×2. 층수·상점레벨업을 단일 지표로 합산해
+// 상점 레벨업 시 하위 등급이 역주행으로 다시 뜨는 현상을 차단한다.
+function getShopVirtualFloor() {
+    const currentFloor = Math.max(1, Math.floor(safeNum(typeof floor !== 'undefined' ? floor : 1, 1)));
+    const shopLevel = Math.max(0, Math.min(8, safeNum(player && player.shopRarityBoost, 0)));
+    return currentFloor + shopLevel * 2;
+}
+
+// [상점 티어 확률 가상 층수 매트릭스] Common/Rare/Epic/Legendary/Relic 5등급 단일 확률 테이블.
 function getShopRarityChances() {
-    const prog = getShopTierProgressIndex();
-    if (prog <= 2) {
-        // [1-1F ~ 1-2F] 1티어 85 / 2티어 15 / 3티어 0
-        return { legendary: 0, epic: 0, rare: 15, common: 85 };
-    }
-    if (prog <= 4) {
-        // [1-3F ~ 1-4F] 1티어 50 / 2티어 40 / 3티어 10
-        return { legendary: 0, epic: 10, rare: 40, common: 50 };
-    }
-    // [1-5F 이상] 기본 1티어 20 / 2티어 50 / 3티어 30 — 상점 방문 횟수·확률강화로 소폭 상향(전설 최대 12%).
-    const boostLv = Math.max(0, Math.min(8, safeNum(player && player.shopRarityBoost, 0)));
-    const extra = Math.floor(Math.max(0, shopVisitCount - 2) / 5);
-    let legendary = Math.min(12, extra + boostLv);
-    let epic = Math.min(42, 30 + extra + boostLv);
-    let rare = Math.min(55, 50 + Math.floor(boostLv / 2));
-    let common = Math.max(0, 100 - legendary - epic - rare);
-    if (common < 8) {
-        rare = Math.max(20, rare - (8 - common));
-        common = Math.max(0, 100 - legendary - epic - rare);
-    }
-    return { legendary, epic, rare, common };
+    const vf = getShopVirtualFloor();
+    if (vf <= 2) return { common: 85, rare: 15, epic: 0, legendary: 0, relic: 0 };
+    if (vf <= 5) return { common: 45, rare: 45, epic: 10, legendary: 0, relic: 0 };
+    if (vf <= 15) return { common: 20, rare: 45, epic: 30, legendary: 5, relic: 0 };
+    if (vf <= 25) return { common: 5, rare: 25, epic: 45, legendary: 22, relic: 3 };
+    return { common: 0, rare: 10, epic: 35, legendary: 40, relic: 15 };
 }
 
 function applyGoldenBalanceShopPrice(item) {
@@ -18082,7 +18097,7 @@ function renderShopItems(keepCurrentStock) {
     const c = getShopRarityChances();
     const cb=document.createElement('div');
     cb.style.cssText='font-size:0.78em;margin-bottom:10px;display:flex;gap:10px;flex-wrap:wrap;padding:8px;background:#111;border-radius:6px;';
-    cb.innerHTML=`<span style="color:#888;">📊 등급 확률 (${shopVisitCount}회)</span><span style="color:#e74c3c;">전설 ${c.legendary}%</span><span style="color:#a55eea;">고급 ${c.epic}%</span><span style="color:#1e90ff;">희귀 ${c.rare}%</span><span style="color:#888;">일반 ${c.common}%</span>`;
+    cb.innerHTML=`<span style="color:#888;">📊 등급 확률 (${shopVisitCount}회)</span><span style="color:#f39c12;">유물 ${c.relic}%</span><span style="color:#e74c3c;">전설 ${c.legendary}%</span><span style="color:#a55eea;">고급 ${c.epic}%</span><span style="color:#1e90ff;">희귀 ${c.rare}%</span><span style="color:#888;">일반 ${c.common}%</span>`;
     list.appendChild(cb);
     if (player) {
         const lv = Math.max(0, Math.min(8, safeNum(player.shopRarityBoost, 0)));
@@ -18198,11 +18213,11 @@ function renderShopItems(keepCurrentStock) {
         const synHtml = '';
         let bc='#444',bac='#888',bb='#2a2a2a',bt='COMMON';
         if(isRelic){bc='#f1c40f';bac='#f1c40f';bb='#2a2a0a';bt='RELIC';}
-        else if(it.rarity==='relic'){bc='#d35400';bac='#f39c12';bb='#2a1a0a';bt='RELIC(용병)';}
+        else if(it.rarity==='relic'){bc='#d35400';bac='#f39c12';bb='#2a1a0a';bt='RELIC';}
         else if(it.rarity==='legendary'){bc='#e74c3c';bac='#e74c3c';bb='#2d1a1a';bt='LEGENDARY';}
         else if(it.rarity==='epic'){bc='#a55eea';bac='#a55eea';bb='#1e1a2d';bt='EPIC';}
         else if(it.rarity==='rare'){bc='#1e90ff';bac='#1e90ff';bb='#1a1e2d';bt='RARE';}
-        let nc=isRelic?'#f1c40f':it.rarity==='legendary'?'#e74c3c':it.rarity==='epic'?'#a55eea':it.rarity==='rare'?'#1e90ff':'#e0e0e0';
+        let nc=isRelic?'#f1c40f':it.rarity==='relic'?'#f39c12':it.rarity==='legendary'?'#e74c3c':it.rarity==='epic'?'#a55eea':it.rarity==='rare'?'#1e90ff':'#e0e0e0';
         let ti=isRelic?'✨':'🎒';
         if(!isRelic){if(it.type==='atk')ti='⚔️';else if(it.type==='hp')ti='🛡️';else if(it.type==='ring')ti='💍';else if(it.type==='rune')ti='🔮';else if(it.type==='potion')ti='🧪';else if(it.type==='merc')ti='⚔️';else if(it.type==='merc_shop_direct')ti='💼';else if(it.type==='merc_shop_fund')ti='🤝';if(it.lifesteal)ti='🩸';if(it.regenPotion)ti='💚';}
         const iu=getUnlockedPoolItems().some(u=>u.name===it.name);
@@ -18394,6 +18409,7 @@ window.getUnlockedPoolItems = getUnlockedPoolItems;
 window.getItemsByRarity = getItemsByRarity;
 window.getShopRarityChances = getShopRarityChances;
 window.getShopTierProgressIndex = getShopTierProgressIndex;
+window.getShopVirtualFloor = getShopVirtualFloor;
 window.applyGoldenBalanceShopPrice = applyGoldenBalanceShopPrice;
 window.applyShopRarityTuning = applyShopRarityTuning;
 window.getShopRarityBoostPrice = getShopRarityBoostPrice;
