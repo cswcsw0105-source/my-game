@@ -1234,7 +1234,9 @@ function applyDefectiveEquipmentTurnEndEffects() {
     return changed;
 }
 
-function emitCombatResultVfx(target, result) {
+// [비동기 턴 동기화] 검기 궤적/마법 착탄(150ms, playV35AttackVfx 대기) 이후 이 함수가 대미지/힐 숫자
+// 팝업 + 타겟 카드 셰이크를 띄우고, 총 약 300ms(2배속 시 절반 압축)를 채운 뒤 resolve 한다.
+async function emitCombatResultVfx(target, result) {
     if (!result) return;
     const isPlayerSide = target === player || isPartyMember(target);
     const targetSide = isPlayerSide ? 'player' : 'enemy';
@@ -1251,6 +1253,7 @@ function emitCombatResultVfx(target, result) {
             else triggerDodgeMove(targetSide);
         }
         finishTargetMark();
+        await waitMs(150);
         return;
     }
     if (result.type === 'attack') {
@@ -1265,6 +1268,7 @@ function emitCombatResultVfx(target, result) {
         }
     }
     finishTargetMark();
+    await waitMs(150);
 }
 
 async function previewEnemyTargetIntent(unit, target) {
@@ -1310,7 +1314,12 @@ async function executeEnemyUnitTurn(unit, forcedTarget) {
         const targetAlly = allies.slice().sort((a, b) => a.curHp / a.maxHp - b.curHp / b.maxHp)[0] || unit;
         const result = resolveHealAction(unit, targetAlly);
         describeCombatResult(unit, targetAlly, result);
-        if (result && result.success && typeof playHealAuraVfx === 'function') playHealAuraVfx('enemy', result.healed);
+        if (result && result.success) {
+            if (typeof playHealAuraVfx === 'function') playHealAuraVfx('enemy', result.healed);
+            if (typeof showUnitHealFloat === 'function') showUnitHealFloat(targetAlly, result.healed);
+            // [비동기 턴 동기화] 힐 숫자 팝업이 보일 시간을 확보한 뒤 턴 정리로 넘어간다(2배속 시 절반 압축).
+            await waitMs(150);
+        }
     } else if (action === 'defend' || action === 'dodge') {
         enemyGuardState = enemyGuardState && enemyGuardState.members ? enemyGuardState : { members: {} };
         enemyGuardState.members[unit.id] = { mode: action === 'defend' ? 'shield' : 'dodge', turn: combatTurnNumber };
@@ -1330,7 +1339,7 @@ async function executeEnemyUnitTurn(unit, forcedTarget) {
         unit._attackMultiplier = 1;
         unit._bossChargeReady = false;
         describeCombatResult(unit, target, result);
-        emitCombatResultVfx(target, result);
+        await emitCombatResultVfx(target, result);
     }
     if (enemy && Array.isArray(enemy.party)) syncEnemyPartyAggregateState(enemy);
 }
@@ -1604,7 +1613,7 @@ window.useAction = async function useAction(type, options) {
                     ? resolveMagicAttackAction(actor, target, getEnemyGuardStateFor(target))
                     : resolveAttackAction(actor, target, getEnemyGuardStateFor(target));
                 describeCombatResult(actor, target, result);
-                emitCombatResultVfx(target, result);
+                await emitCombatResultVfx(target, result);
                 if (learnedAction === 'magic_attack') gainActorMagicMastery(actor, 1);
                 else gainActorWeaponMastery(actor, 1);
                 if (enemy && Array.isArray(enemy.party)) syncEnemyPartyAggregateState(enemy);
@@ -1631,6 +1640,8 @@ window.useAction = async function useAction(type, options) {
             describeCombatResult(actor, target, result);
             if (result && result.success) {
                 if (typeof playHealAuraVfx === 'function') await playHealAuraVfx('player', result.healed);
+                if (typeof showUnitHealFloat === 'function') showUnitHealFloat(target, result.healed);
+                await waitMs(150);
                 gainActorMagicMastery(actor, 1);
                 maybeTriggerCorruptedHeal(actor, target);
             }
@@ -1657,7 +1668,7 @@ window.useAction = async function useAction(type, options) {
                 const result = resolveAttackAction(actor, target, getEnemyGuardStateFor(target));
                 actor._attackMultiplier = 1;
                 describeCombatResult(actor, target, result);
-                emitCombatResultVfx(target, result);
+                await emitCombatResultVfx(target, result);
                 if (result && result.success && (result.damage || 0) > 0 && typeof triggerUnitHitShake === 'function') {
                     setTimeout(() => triggerUnitHitShake(target, true), 220);
                 }
@@ -1682,7 +1693,7 @@ window.useAction = async function useAction(type, options) {
                 actor._attackMultiplier = 1;
                 const result = resolveFireballSkillAction(actor, target, getEnemyGuardStateFor(target));
                 describeCombatResult(actor, target, result);
-                emitCombatResultVfx(target, result);
+                await emitCombatResultVfx(target, result);
                 // [상태이상] 파이어 볼 명중 시 화상(🔥) 2턴 부여 → 라운드 시작마다 도트 피해.
                 if (result && result.success && (result.damage || 0) > 0 && typeof addUnitStatus === 'function') {
                     addUnitStatus(target, 'burn', 2);
@@ -1701,7 +1712,7 @@ window.useAction = async function useAction(type, options) {
                 const result = resolveAttackAction(actor, target, getEnemyGuardStateFor(target));
                 actor._attackMultiplier = 1;
                 describeCombatResult(actor, target, result);
-                emitCombatResultVfx(target, result);
+                await emitCombatResultVfx(target, result);
                 applyEnemyStatDebuff(target, 'atk', 0.2, 1);
                 gainActorWeaponMastery(actor, 1);
                 enemyGuardState = null;
@@ -1717,7 +1728,7 @@ window.useAction = async function useAction(type, options) {
                 const result = resolveAttackAction(actor, target, getEnemyGuardStateFor(target));
                 actor._attackMultiplier = 1;
                 describeCombatResult(actor, target, result);
-                emitCombatResultVfx(target, result);
+                await emitCombatResultVfx(target, result);
                 applyEnemyStatDebuff(target, 'def', 0.3, 2);
                 // [상태이상] 갑옷 파쇄 명중 시 출혈(🩸) 2턴 부여.
                 if (result && result.success && (result.damage || 0) > 0 && typeof addUnitStatus === 'function') {
@@ -1739,7 +1750,11 @@ window.useAction = async function useAction(type, options) {
                 if (typeof playSkillCastBadge === 'function') playSkillCastBadge(actor, '✨ 치유');
                 const result = resolveHealAction(actor, healTarget);
                 describeCombatResult(actor, healTarget, result);
-                if (result && result.success && typeof playHealAuraVfx === 'function') await playHealAuraVfx('player', result.healed);
+                if (result && result.success) {
+                    if (typeof playHealAuraVfx === 'function') await playHealAuraVfx('player', result.healed);
+                    if (typeof showUnitHealFloat === 'function') showUnitHealFloat(healTarget, result.healed);
+                    await waitMs(150);
+                }
                 actor._skillCooldownTurns = Math.max(1, Math.floor(safeNum(skill.cooldownTurns, 2)));
                 gainActorMagicMastery(actor, 1);
                 syncPartyAggregateState(player);
@@ -1837,6 +1852,8 @@ window.useCombatPotion = async function useCombatPotion() {
         player.potions = potionCount - 1;
         writeLog(`[전투] ${withIGa(getActorFullLabel(actor))} 포션을 사용하여 체력이 가장 낮은 ${withEulReul(getActorFullLabel(target))} 치유하고 ${healed}의 체력을 회복시켰습니다. (남은 포션 ${player.potions}개)`);
         if (typeof playHealAuraVfx === 'function') await playHealAuraVfx('player', healed);
+        if (typeof showUnitHealFloat === 'function') showUnitHealFloat(target, healed);
+        await waitMs(150);
         syncPartyAggregateState(player);
         updateUi();
         // 기존에 구축된 900ms 잠금 턴 전환 파이프라인으로 다음 캐릭터 턴으로 자연스럽게 넘어간다.
@@ -1861,6 +1878,7 @@ window.usePotion = function usePotion() {
     const target = getLivingPartyMembers(player).slice().sort((a, b) => a.curHp / a.maxHp - b.curHp / b.maxHp)[0];
     const result = resolveHealAction(turn.actor, target);
     describeCombatResult(turn.actor, target, result);
+    if (result && result.success && typeof showUnitHealFloat === 'function') showUnitHealFloat(target, result.healed);
     syncPartyAggregateState(player);
     updateUi();
     finishActiveInitiativeTurn();

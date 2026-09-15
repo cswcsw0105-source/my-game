@@ -1728,24 +1728,68 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     box-shadow: 0 0 10px rgba(168, 120, 240, 0.4);
     animation: unitMagicRing calc(520ms * var(--vfx-rate, 1)) ease-out both;
 }
+/* ============ [검기 궤적] 오직 피격 대상 카드 중앙에만 반달형 은빛/하늘색 발광 궤적 ============
+   0.15초(150ms, 2배속 80ms) 동안 대각선으로 회전하며 스쳐 지나간 뒤 즉시 제거된다. */
+@keyframes slashArcSweep {
+    0%   { opacity: 0; transform: rotate(-65deg) scale(0.55); }
+    35%  { opacity: 1; transform: rotate(-15deg) scale(1.05); }
+    100% { opacity: 0; transform: rotate(40deg) scale(1.18); }
+}
+.unit-combat-vfx.slash-arc {
+    width: 74%;
+    height: 74%;
+    z-index: 1325;
+}
+.unit-combat-vfx.slash-arc::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    border-top-color: #eaf6ff;
+    border-right-color: #8fd8ff;
+    box-shadow: 0 0 10px rgba(160, 220, 255, 0.85), 0 0 24px rgba(200, 240, 255, 0.55);
+    animation: slashArcSweep calc(150ms * var(--vfx-rate, 1)) cubic-bezier(0.16, 0.9, 0.3, 1) both;
+}
 @keyframes unitDmgFloat {
     0% { opacity: 0; transform: translateY(7px) scale(0.8); }
     20% { opacity: 1; transform: translateY(-2px) scale(1.1); }
     100% { opacity: 0; transform: translateY(-28px) scale(1); }
 }
-.unit-damage-number {
+/* [플로팅 수치] 피해/회복 숫자 공통 상승 궤적 — 350ms(2배속 175ms) 동안 위로 20px 떠오르며 페이드아웃.
+   MISS(.unit-miss-float)와 동일한 상단 앵커(align-items:flex-start)를 써서 좌표/z-index를 통일한다. */
+@keyframes unitFloatNumberUp {
+    0% { opacity: 0; transform: translateY(4px) scale(0.82); }
+    22% { opacity: 1; transform: translateY(-4px) scale(1.1); }
+    100% { opacity: 0; transform: translateY(-20px) scale(1); }
+}
+.unit-combat-vfx.unit-damage-number {
+    align-items: flex-start;
+    padding-top: 2px;
     font-family: Inter, Pretendard, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     font-size: 1.24rem;
     font-weight: 950;
     line-height: 1;
-    color: #fff2cf;
-    text-shadow: 0 0 9px rgba(255, 232, 168, 0.9), 0 0 22px rgba(255, 150, 44, 0.7), 0 2px 0 rgba(0, 0, 0, 0.66);
-    animation: unitDmgFloat 0.82s cubic-bezier(0.15, 0.86, 0.28, 1) both;
+    color: #ff4d4d;
+    text-shadow: 0 0 10px rgba(255, 90, 90, 0.85), 0 0 20px rgba(255, 40, 40, 0.55), 0 2px 0 rgba(0, 0, 0, 0.7);
+    animation: unitFloatNumberUp calc(350ms * var(--vfx-rate, 1)) cubic-bezier(0.15, 0.86, 0.28, 1) both;
 }
-.unit-damage-number-crit {
+.unit-combat-vfx.unit-damage-number-crit {
     font-size: 1.62rem;
-    color: #fff8dc;
-    text-shadow: 0 0 11px rgba(255, 255, 255, 0.95), 0 0 26px rgba(255, 196, 66, 0.94), 0 0 46px rgba(255, 0, 85, 0.7);
+    color: #ff2d55;
+    text-shadow: 0 0 12px rgba(255, 255, 255, 0.9), 0 0 26px rgba(255, 60, 90, 0.94), 0 0 46px rgba(255, 0, 60, 0.7);
+}
+/* [회복 플로팅] 치유 받은 아군 머리 위 "+N" — 에메랄드/연두색, 위로 20px 350ms 상승 페이드. */
+.unit-combat-vfx.unit-heal-number {
+    align-items: flex-start;
+    padding-top: 2px;
+    font-family: Inter, Pretendard, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 1.2rem;
+    font-weight: 900;
+    line-height: 1;
+    color: #4ee8a0;
+    text-shadow: 0 0 10px rgba(90, 255, 170, 0.8), 0 0 20px rgba(50, 220, 140, 0.5), 0 2px 0 rgba(0, 0, 0, 0.66);
+    animation: unitFloatNumberUp calc(350ms * var(--vfx-rate, 1)) cubic-bezier(0.15, 0.86, 0.28, 1) both;
 }
 .unit-miss-number {
     font-family: Inter, Pretendard, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
