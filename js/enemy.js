@@ -48,6 +48,22 @@ const ENEMY_PARTY_ROLE_DEFS = Object.freeze({
     mage: Object.freeze({ key: 'mage', name: '마법사', archetype: 'mage', hpMult: 0.86, atkMult: 1.22, defMult: 0.82, aggroWeight: 1 }),
     knight: Object.freeze({ key: 'knight', name: '기사', archetype: 'knight', hpMult: 1.04, atkMult: 1.04, defMult: 1.08, aggroWeight: 2 }),
 });
+// [적 AI 직업별 스킬 격리] 직업별 고유 스킬 ID 목록. 탱커/기사 풀에는 절대 힐/치유 계열(heal, cure)이
+// 등록되지 않는다 — 오직 마법사만 힐(heal)을 보유할 수 있다. (실제 힐 트리거 가능 여부는
+// combatLogic.js의 actorCanHeal()이 magic 배열의 'heal' 보유를 기준으로 별도 검증한다.)
+const ENEMY_ROLE_SKILLS = Object.freeze({
+    tank: Object.freeze(['ironTaunt', 'shieldBash', 'partyGuard']),
+    knight: Object.freeze(['slash', 'armorBreak', 'charge']),
+    mage: Object.freeze(['fireball', 'heal']),
+});
+const HEAL_LIKE_SKILL_PATTERN = /heal|cure/i;
+
+// [방어 코드] 어떤 경로로도 탱커/기사 스킬 풀에 힐/치유 계열 ID가 섞여 들어가지 않도록 최종 차단한다.
+function sanitizeEnemyRoleSkills(roleKey, list) {
+    const skills = Array.isArray(list) ? list.slice() : [];
+    if (roleKey === 'mage') return skills;
+    return skills.filter((id) => !HEAL_LIKE_SKILL_PATTERN.test(String(id || '')));
+}
 const EARLY_NORMAL_ENEMY_STAT_MULT = 0.65;
 // [적 레벨 스케일링] 직업별 주스탯(특화) 정의 — 플레이어 포인트바이 하한선과 동일 체계
 const ENEMY_ROLE_MAIN_STATS = Object.freeze({
@@ -180,7 +196,7 @@ function createEnemyPartyMember(progress, roleKey, index, isBoss) {
         stats,
         equipment: { weapon: null, armor: null, accessories: [] },
         magic: role.key === 'mage' ? ['fire', 'heal'] : [],
-        skills: [],
+        skills: sanitizeEnemyRoleSkills(role.key, ENEMY_ROLE_SKILLS[role.key]),
         mastery: {},
         statuses: [],
         body: Object.fromEntries(bodyParts.map((part) => [part, { destroyed: false, twisted: false, indestructible: false }])),

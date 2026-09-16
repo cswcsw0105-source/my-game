@@ -896,7 +896,12 @@ function actorMaxHp(actor) {
         : Math.max(1, safeNum(actor.maxHp, safeNum(actor.hp, 1)));
 }
 
+// [적 AI 직업별 힐 격리] 힐은 오직 magic 배열에 'heal'을 보유한 유닛(마법사)만 트리거할 수 있다.
+// 탱커/기사는 wis(지혜, 적 데이터에서는 int로 대체)가 0보다 커도 힐 스킬 자체가 없으므로 절대 힐을
+// 시전하지 못한다 — 체력이 1이 남아도 마찬가지다. (마법사가 쓰러지면 living 목록에서 즉시 제외되므로
+// 적 파티의 힐 능력은 그 즉시 영구 소멸된다.)
 function actorCanHeal(actor) {
+    if (!actor || !Array.isArray(actor.magic) || !actor.magic.includes('heal')) return false;
     const stats = getActorStats(actor);
     return stats.wis > 0 && getCurrentHp(actor) < actorMaxHp(actor);
 }
@@ -1293,6 +1298,8 @@ function chooseEnemyAction(actor) {
     }
     if (unit.archetype === 'knight' && getCurrentHp(player) / actorMaxHp(player) <= 0.4) return 'physical_attack';
     if (unit.archetype === 'mage' && hpRatio <= 0.38 && probabilityRoll(0.65).success) return 'defend';
+    // [적 AI 스킬 검증] "HP가 낮으면 무조건 힐"이 아니라 actorCanHeal()로 실제 보유 스킬(magic 배열의
+    // 'heal')을 먼저 검증한다 — 탱커/기사는 이 시점에서 항상 false를 반환해 힐 분기에 진입조차 못 한다.
     if (hpRatio <= 0.3 && actorCanHeal(unit)) return 'heal';
     if (hpRatio <= 0.55 && probabilityRoll(0.25).success) return getActorStats(unit).agi >= 45 ? 'dodge' : 'defend';
     return hasMagicAttackCapability(unit) && probabilityRoll(0.25).success ? 'magic_attack' : 'physical_attack';
@@ -2270,6 +2277,52 @@ function installHumanActionButtons() {
 
 installHumanActionButtons();
 
+// ===== [팀 전투력(Combat Power) 정수 계산 엔진] =====
+// 개별 유닛 전투력: HP*0.3 + ATK*2.5 + DEF*3.0 + INT*2.5 + WIS*1.5 + AGI*2.0 + 장비 장착 보너스.
+// atk/def/maxHp는 이미 장비 스탯(무기 공격력·방어구 방어력·HP 아이템)이 합산된 런타임 값을 사용하므로,
+// "장비 장착 보너스"는 그 위에 중복 없이 크리티컬/생명흡수/피해감소 등 2차 스탯만 별도 가산한다.
+function calculateUnitCP(unit) {
+    if (!unit) return 0;
+    const stats = typeof getActorStats === 'function' ? getActorStats(unit) : (unit.stats || {});
+    const maxHp = Math.max(0, safeNum(unit === player ? (typeof getEffectiveMaxHp === 'function' ? getEffectiveMaxHp() : unit.maxHp) : unit.maxHp, safeNum(stats.hp, 1)));
+    const atk = safeNum(unit.atk, safeNum(stats.str, 0));
+    const def = safeNum(unit.def, safeNum(stats.def, 0)) + safeNum(unit.extraDef, 0);
+    const intStat = safeNum(unit.int, safeNum(stats.int, 0));
+    const wisStat = safeNum(unit.wis, safeNum(stats.wis, 0));
+    const agiStat = safeNum(unit.agi, safeNum(stats.agi, 0));
+    const equipmentBonus =
+        safeNum(unit.crit, 0) * 3 +
+        Math.max(0, safeNum(unit.critMult, 1) - 1) * 40 +
+        safeNum(unit.lifesteal, 0) * 100 +
+        safeNum(unit.damageReduction, 0) * 100;
+    const cp = maxHp * 0.3 + atk * 2.5 + def * 3.0 + intStat * 2.5 + wisStat * 1.5 + agiStat * 2.0 + equipmentBonus;
+    return Math.max(0, Math.round(cp));
+}
+
+// 팀 총 전투력: 생존/편성 유닛의 CP 합산. 죽거나 존재하지 않는 유닛은 목록에 없으므로 null 참조가 없다.
+function calculateTeamCP(units) {
+    const list = Array.isArray(units) ? units : units ? [units] : [];
+    return list.reduce((sum, unit) => sum + calculateUnitCP(unit), 0);
+}
+
+// 아군 팀 전투력 — 3인 파티면 생존 파티원 합산, 아니면 player 단일 유닛(생존 시에만).
+function getAllyTeamCP() {
+    if (!player) return 0;
+    if (Array.isArray(player.party)) {
+        return calculateTeamCP(typeof getLivingPartyMembers === 'function' ? getLivingPartyMembers(player) : []);
+    }
+    return safeNum(player.curHp, 0) > 0 ? calculateUnitCP(player) : 0;
+}
+
+// 적군 팀 전투력 — 적 파티면 생존 파티원 합산, 아니면 enemy 단일 유닛(망령 포함, 생존 시에만).
+function getEnemyTeamCP() {
+    if (!enemy) return 0;
+    if (Array.isArray(enemy.party)) {
+        return calculateTeamCP(typeof getLivingEnemyPartyMembers === 'function' ? getLivingEnemyPartyMembers(enemy) : []);
+    }
+    return safeNum(enemy.curHp, 0) > 0 ? calculateUnitCP(enemy) : 0;
+}
+
 function installDungeonProgressUiAdapter() {
     const originalUpdateUi = typeof updateUi === 'function' ? updateUi : null;
     if (!originalUpdateUi || originalUpdateUi.__v35ProgressWrapped) return;
@@ -2308,6 +2361,10 @@ function installDungeonProgressUiAdapter() {
 installDungeonProgressUiAdapter();
 
 Object.assign(window, {
+    calculateUnitCP,
+    calculateTeamCP,
+    getAllyTeamCP,
+    getEnemyTeamCP,
     setCombatProcessing,
     updateCombatButtonsLockState,
     probabilityRoll,

@@ -777,6 +777,19 @@ function renderPassiveContractHistoryPanels() {
     }
 }
 
+// [팀 전투력(CP) 배너] 아군/적군 팀 총 전투력을 계산해 상단 .combat-power-header DOM에 주입한다.
+// 전투 중 유닛이 죽어도 calculateTeamCP는 생존 목록만 순회하므로 null 참조가 발생하지 않는다.
+function updateCombatPowerHeader() {
+    const allyEl = document.getElementById('ally-team-cp');
+    const enemyEl = document.getElementById('enemy-team-cp');
+    if (!allyEl && !enemyEl) return;
+    const allyCp = typeof getAllyTeamCP === 'function' ? getAllyTeamCP() : 0;
+    const enemyCp = typeof getEnemyTeamCP === 'function' ? getEnemyTeamCP() : 0;
+    if (allyEl) allyEl.textContent = String(Math.max(0, Math.round(safeNum(allyCp, 0))));
+    if (enemyEl) enemyEl.textContent = String(Math.max(0, Math.round(safeNum(enemyCp, 0))));
+}
+window.updateCombatPowerHeader = updateCombatPowerHeader;
+
 function updateUi() {
     if (typeof updateGameSpeedButtonLabel === 'function') updateGameSpeedButtonLabel();
     if (!player) return;
@@ -823,6 +836,8 @@ function updateUi() {
     if (enemy && Array.isArray(enemy.party) && typeof syncEnemyPartyAggregateState === 'function') {
         syncEnemyPartyAggregateState(enemy);
     }
+    // [전투력 배너] 전투 화면이 활성화된 매 updateUi 호출마다 아군/적군 CP를 다시 계산해 동기화한다.
+    updateCombatPowerHeader();
     const eHp = Math.max(1, safeNum(enemy.hp, safeNum(enemy.maxHp, 1)));
     const eCur = Math.max(0, safeNum(enemy.curHp, 0));
     const g = safeNum(gold, 0);

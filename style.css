@@ -1350,6 +1350,44 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     flex-wrap: wrap;
     justify-content: flex-end;
 }
+
+/* ============ [팀 전투력(CP) 비교 배너] 배속 토글/층수 표기(.battle-run-controls)와 겹치지
+   않도록 그 아래에 독립된 행으로 배치한다. ============ */
+.combat-power-header {
+    position: relative;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 0 0 12px;
+    padding: 8px 12px;
+    border: 1px solid #2b3444;
+    border-radius: 8px;
+    background: #121722;
+}
+.combat-power-header .cp-ally,
+.combat-power-header .cp-enemy {
+    font-weight: 800;
+    font-size: 0.86em;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+}
+.combat-power-header .cp-ally {
+    color: #39e6c8;
+    text-shadow: 0 0 8px rgba(57, 230, 200, 0.5);
+}
+.combat-power-header .cp-enemy {
+    color: #ff5e57;
+    text-shadow: 0 0 8px rgba(255, 94, 87, 0.5);
+}
+.combat-power-header .cp-vs {
+    color: #f1c40f;
+    font-weight: 800;
+    font-size: 0.78em;
+    opacity: 0.85;
+}
 .battle-mini-btn {
     margin: 0;
     padding: 7px 10px;
@@ -1578,6 +1616,14 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     }
     .battle-mini-btn {
         flex: 1 1 0;
+    }
+    .combat-power-header {
+        gap: 6px 10px;
+        padding: 7px 8px;
+    }
+    .combat-power-header .cp-ally,
+    .combat-power-header .cp-enemy {
+        font-size: 0.78em;
     }
     .battle-card-row {
         flex-direction: column;
