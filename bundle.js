@@ -13424,7 +13424,8 @@ function renderPartyHpBars() {
             unitSide: 'player',
         });
     }).join('');
-    host.style.display = 'block';
+    // [3열 상하 대치 전장] 파티원 3인을 세로 스택 대신 가로 1행(3열 그리드)으로 배치한다.
+    host.style.display = 'grid';
     if (aggregateOuter) aggregateOuter.style.display = 'none';
     if (aggregateText) aggregateText.style.display = 'none';
 }
@@ -13461,7 +13462,8 @@ function renderEnemyHpBars() {
             unitSide: 'enemy',
         });
     }).join('');
-    host.style.display = 'block';
+    // [3열 상하 대치 전장] 파티원 3인을 세로 스택 대신 가로 1행(3열 그리드)으로 배치한다.
+    host.style.display = 'grid';
     if (aggregateOuter) aggregateOuter.style.display = 'none';
     if (aggregateText) aggregateText.style.display = 'none';
 }

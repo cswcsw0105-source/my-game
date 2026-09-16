@@ -1,7 +1,7 @@
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
 
 body { background-color: #121212; color: #e0e0e0; text-align: center; font-family: 'Pretendard', 'Apple SD Gothic Neo', sans-serif; padding: 20px; line-height: 1.6; }
-.container { max-width: 1280px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; box-sizing: border-box; }
+.container { max-width: 1500px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; box-sizing: border-box; }
 /* 3단: 데스크톱은 고정 폭(1100px+) — 좁은 창은 가로 스크롤 (769px 초과만) */
 .game-layout {
     display: flex;
@@ -80,7 +80,7 @@ body { background-color: #121212; color: #e0e0e0; text-align: center; font-famil
         -webkit-overflow-scrolling: touch;
     }
     .game-layout {
-        min-width: 860px;
+        min-width: 1240px;
     }
     .game-layout > .sidebar,
     .game-layout > #sidebar-inventory {
@@ -94,7 +94,7 @@ body { background-color: #121212; color: #e0e0e0; text-align: center; font-famil
     .game-layout > .screen#main-screen {
         flex: 1 1 auto;
         flex-shrink: 0;
-        min-width: 508px;
+        min-width: 900px;
     }
 }
 
@@ -855,6 +855,8 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     position: relative;
     border-radius: 10px;
     overflow: visible;
+    width: 100%;
+    box-sizing: border-box;
     transition: filter 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
 }
 
@@ -1407,10 +1409,73 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     border-color: #7f1d1d;
     color: #fecaca;
 }
+/* ============ [3열 전투 레이아웃] 좌: 인벤토리(사이드바) · 중: 상하 대치 전장 · 우: 커맨드 덱 ============ */
+.combat-container {
+    display: flex;
+    align-items: stretch;
+    gap: 20px;
+    width: 100%;
+}
+#battle-hud {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+/* [적군 상단 - 아군 하단] battle-card-row는 DOM 순서(enemy-card → player-card)를 그대로 세로로 쌓는다.
+   검기/마법 연출과 플로팅 수치가 두 진형 사이에서 자연스럽게 돋보이도록 30~40px 수직 gap을 확보한다. */
 .battle-card-row {
     display: flex;
-    justify-content: space-around;
-    gap: 18px;
+    flex-direction: column;
+    gap: 34px;
+}
+/* [적/아군 3인 가로 배치] 개별 유닛 카드(.combat-unit-row)를 3열 그리드로 나란히 배치한다.
+   display:grid는 uiManager.js의 renderPartyHpBars/renderEnemyHpBars가 인라인으로 설정한다. */
+#p-party-hp-bars,
+#e-party-hp-bars {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px 14px;
+}
+/* [우측 컨트롤 덱] 턴 안내 · 액션 커맨드 · 로그를 세로로 배치하고, 전장(#battle-hud) 높이에 맞춰 늘어난다. */
+.combat-control-deck {
+    flex: 0 0 375px;
+    min-width: 360px;
+    max-width: 390px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+}
+/* [턴 안내 문구] 16px 가독성 강화 폰트. */
+.turn-announcement {
+    margin: 0;
+    padding: 10px 14px;
+    border: 1px solid #2b3444;
+    border-radius: 8px;
+    background: #121722;
+    color: #f1c40f;
+    font-weight: 800;
+    font-size: 16px;
+    line-height: 1.4;
+    text-align: center;
+}
+/* [대형(Jumbo) 액션 버튼] 2열 그리드 + 최소 높이 58px 확대. 메시지용 plain div는 전체 폭으로 펼친다. */
+.action-btn-group {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin: 0;
+}
+.action-btn-group > div,
+.action-btn-group .next-floor-btn {
+    grid-column: 1 / -1;
+}
+.action-btn-group button {
+    min-height: 58px;
+    font-size: 15.5px;
+    font-weight: 800;
+    padding: 10px 14px;
+    border-radius: 10px;
+    line-height: 1.3;
+    white-space: normal;
 }
 /* [로그 패널 교체] 구형 3줄 HUD(.battle-log-strip / .battle-log-line) 제거.
    전투 커맨드 바로 위 2채널 탭 로그 패널 컨테이너. */
@@ -1421,6 +1486,21 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     border-radius: 8px;
     background: #0e1219;
     text-align: left;
+}
+/* [로그 확장] 커맨드 덱 안에서는 로그 패널이 잔여 세로 공간을 모두 채우도록 flex-grow 시킨다.
+   내부 스크롤 박스의 인라인 height:150px(uiManager.js가 생성)는 이 컨텍스트에서만 무시한다. */
+#combat-control-deck .battle-log-panel {
+    margin-top: 0;
+    flex: 1 1 auto;
+    min-height: 160px;
+    display: flex;
+    flex-direction: column;
+}
+#combat-control-deck .battle-log-panel .combat-log-scroll,
+#combat-control-deck .battle-log-panel .notification-log-list {
+    height: auto !important;
+    flex: 1 1 auto;
+    min-height: 0;
 }
 .enemy-card-victory {
     display: flex;
@@ -1627,10 +1707,27 @@ button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     }
     .battle-card-row {
         flex-direction: column;
+        gap: 20px;
     }
     #player-card,
     #enemy-card {
         width: 100% !important;
+    }
+    /* [모바일] 3열 그리드는 폭이 좁으면 1열로 접어 가독성을 유지한다. */
+    #p-party-hp-bars,
+    #e-party-hp-bars {
+        grid-template-columns: 1fr;
+    }
+    /* [모바일] 좌(인벤)/중(전장)/우(커맨드 덱) 3열을 세로로 접는다. */
+    .combat-container {
+        flex-direction: column;
+        gap: 14px;
+    }
+    .combat-control-deck {
+        flex: 1 1 auto;
+        width: 100%;
+        min-width: 0;
+        max-width: none;
     }
 }
 
