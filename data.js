@@ -24,6 +24,12 @@ if (typeof window !== 'undefined' && !Number.isFinite(Number(window.gameSpeed)))
 function getRoleBaseMaxMp(roleKey) {
     return PARTY_ROLE_BASE_MAX_MP[roleKey] || 50;
 }
+// [지혜 → 최대 MP] 최대 마나 = 직업 기본 MP + 지혜 1당 +1 MP. (마법사 기본 지혜 15 → 115)
+const WIS_MAX_MP_PER_POINT = 1;
+function getMemberMaxMp(roleKey, stats) {
+    const wis = Math.max(0, Math.floor(Number(stats && stats.wis) || 0));
+    return getRoleBaseMaxMp(roleKey) + wis * WIS_MAX_MP_PER_POINT;
+}
 const MAX_DUNGEON_FLOOR = 100;
 const STAGES_PER_FLOOR = 10;
 const LAST_SAFE_RETURN_FLOOR = 5;
@@ -454,7 +460,7 @@ function normalizePartyMember(raw, roleKey) {
     const source = raw || {};
     const stats = normalizeHumanStats(source.stats || source);
     const maxHp = Math.max(1, safeNumber(source.maxHp, getMaxHpFromStat(stats.hp)));
-    const maxMp = Math.max(0, safeNumber(source.maxMp, getRoleBaseMaxMp(role.key)));
+    const maxMp = getMemberMaxMp(role.key, stats);
     return {
         id: source.id || `${role.key}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
         roleKey: role.key,
@@ -941,6 +947,7 @@ if (typeof module !== 'undefined' && module.exports) {
         getMaxHpFromStat,
         PARTY_ROLE_BASE_MAX_MP,
         getRoleBaseMaxMp,
+        getMemberMaxMp,
         createHumanAdventurer,
         createDungeonProgress,
         normalizeDungeonProgress,

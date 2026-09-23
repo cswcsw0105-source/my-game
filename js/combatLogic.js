@@ -153,7 +153,7 @@ const PARTY_ACTIVE_SKILLS = Object.freeze({
         name: '🔥 파이어 볼',
         mpCost: 30,
         targeting: 'enemy',
-        description: '적 1명에게 지능 비례 2.2배의 극딜 마법 폭발',
+        description: '적 1명에게 지혜 비례 3.0배의 극딜 마법 폭발',
     }),
 });
 
@@ -799,7 +799,8 @@ function calculateAttackChance(attacker, defender) {
     const attackStats = getActorStats(attacker);
     const defendStats = getActorStats(defender);
     const mastery = safeNum(attacker && attacker.mastery && attacker.mastery.weapon, 0);
-    const chance = 0.68 + attackStats.agi * 0.004 + attackStats.int * 0.001 + mastery * 0.002 - defendStats.agi * 0.0006;
+    // [지능 역할 고정] 지능은 명중에 관여하지 않는다(숙련도 획득·적 정보 가시화 전용).
+    const chance = 0.68 + attackStats.agi * 0.004 + mastery * 0.002 - defendStats.agi * 0.0006;
     return Math.max(0.5, chance);
 }
 
@@ -820,8 +821,9 @@ function getWeaponEfficiencyPowerBonus(actor, weapon, stats) {
             ? 'hammer'
             : 'sword';
     if (key === 'hammer') return Math.floor(stats.str * 0.22 + stats.def * 0.18);
-    if (key === 'ranged') return Math.floor(stats.agi * 0.3 + stats.int * 0.08);
-    if (key === 'staff') return Math.floor(stats.wis * 0.34 + stats.int * 0.22);
+    if (key === 'ranged') return Math.floor(stats.agi * 0.3);
+    // [지혜 이관] 지팡이(마법 무기) 효율 보너스는 지혜만 비례한다(구 지능 계수 0.22 → 지혜로 합산).
+    if (key === 'staff') return Math.floor(stats.wis * 0.56);
     if (key === 'greatScythe') return Math.floor(stats.str * 0.2 + safeNum(stats.distortion, 0) * 0.12);
     return Math.floor(stats.str * 0.18 + stats.agi * 0.08);
 }
@@ -868,7 +870,8 @@ function calculateMagicDamage(attacker, defender) {
     const attackStats = getActorStats(attacker);
     const defendStats = getActorStats(defender);
     const mastery = safeNum(attacker && attacker.mastery && (attacker.mastery.magic || attacker.mastery.holyMagic), 0);
-    const rawPower = attackStats.wis * 1.45 + attackStats.int * 0.45 + mastery * 0.25;
+    // [지혜 이관] 마법 공격력은 지혜만 비례한다(구 지능 계수 0.45를 지혜로 합산 → 총 계수 1.9 유지).
+    const rawPower = attackStats.wis * 1.9 + mastery * 0.25;
     let magicDef = Math.max(0, defendStats.def);
     // [B-Type 갑옷 파쇄] 피격자 DEF 감소 디버프는 마법 피해에도 반영
     if (defender && safeNum(defender._defDebuffTurns, 0) > 0) {
@@ -919,29 +922,129 @@ function getActorAttackStrikeCount(actor) {
     return 1;
 }
 
-function getActorPostAttackCooldownTurns(actor) {
-    const weapon = getEquippedWeapon(actor);
-    if (weapon && safeNum(weapon.cooldownTurns, 0) > 0) return Math.max(1, Math.floor(safeNum(weapon.cooldownTurns, 0)));
-    return getActorAttackSpeed(actor) < 55 ? 1 : 0;
+// [공속 패널티 보류] 공격속도(민첩+무기 속도)가 낮다고 다음 턴 공격을 강제로 잠그던 패널티를 폐지한다.
+// 민첩은 회피·턴 순서·연타(getActorAttackStrikeCount) 보너스로만 작동하고, 공격 불가/턴 스킵은 일으키지 않는다.
+function getActorPostAttackCooldownTurns() {
+    return 0;
 }
 
 function canActorAttackThisTurn(actor) {
     return !!actor && safeNum(actor.attackLockTurns, 0) <= 0 && !actor._attackLockedForThisTurn && !actor.weaponDisabledThisTurn;
 }
 
+// ===== [지능(INT) 역할 고정] =====
+// 지능은 전투 대미지/명중에 관여하지 않고 오직 두 가지로만 작동한다.
+//  ① 무기·장비(마법 포함) 숙련도 경험치 획득량 보너스
+//  ② 적 이해도(Insight) — 파티 최고 지능(maxPartyInt)에 따라 적 정보 표시를 4단계로 분기
+const INT_MASTERY_GAIN_PER_POINT = 0.01; // 지능 1당 숙련도 획득량 +1%
+
+// [지능 4단계 적 이해도] minInt 이상이면 해당 티어. (높은 티어가 아래 티어 정보를 모두 포함)
+//  T1 <10  : HP/MP '??? / ???' (정보 미파악)
+//  T2 10~14: HP 퍼센티지(≈60%)
+//  T3 15~19: 정확한 HP/MP 정수
+//  T4 20+  : 정확한 HP/MP + 다음 공격 대상 + 약점
+const ENEMY_INSIGHT_TIERS = Object.freeze([
+    Object.freeze({ tier: 1, minInt: 0, label: '정보 미파악' }),
+    Object.freeze({ tier: 2, minInt: 10, label: '체력 비율 파악' }),
+    Object.freeze({ tier: 3, minInt: 15, label: '정확한 수치 파악' }),
+    Object.freeze({ tier: 4, minInt: 20, label: '공격 의도·약점 간파' }),
+]);
+
+function getIntMasteryGainMultiplier(actor) {
+    const stats = getActorStats(actor);
+    return 1 + Math.max(0, safeNum(stats.int, 0)) * INT_MASTERY_GAIN_PER_POINT;
+}
+
+// 적 정보 가시화에 쓰이는 파티 지능 = 생존 파티원 중 최고 지능(솔로면 player 지능).
+function getPartyInsightInt() {
+    if (!player) return 0;
+    const members = Array.isArray(player.party) && typeof getLivingPartyMembers === 'function'
+        ? getLivingPartyMembers(player)
+        : [player];
+    return members.reduce((best, member) => {
+        if (!member) return best;
+        const stats = member.stats ? normalizeHumanStats(member.stats) : { int: safeNum(member.int, 0) };
+        return Math.max(best, safeNum(stats.int, 0));
+    }, 0);
+}
+
+// 지능 값(생략 시 현재 파티 최고 지능)에 해당하는 적 이해도 티어 정의를 반환한다.
+function getEnemyInsightTierInfo(intValue) {
+    const value = intValue == null ? getPartyInsightInt() : Math.max(0, safeNum(intValue, 0));
+    let found = ENEMY_INSIGHT_TIERS[0];
+    ENEMY_INSIGHT_TIERS.forEach((def) => { if (value >= def.minInt) found = def; });
+    return found;
+}
+
+function getEnemyInsightTier(intValue) {
+    return getEnemyInsightTierInfo(intValue).tier;
+}
+
+// 하위 호환: 정확한 정수 수치 공개 여부 = 티어 3 이상.
+function canRevealEnemyExactStats() {
+    return getEnemyInsightTier() >= 3;
+}
+
+// ===== [적 다음 공격 대상 예약] =====
+// 적 유닛의 다음 공격 대상을 미리 굴려 unit._plannedTargetId 에 예약한다. 실제 적 턴도 이 예약값을 그대로
+// 사용하므로(티어 4 UI 표기 = 실제 행동), 표기가 거짓말이 되지 않는다. 굴림 분포는 기존 chooseEnemyPartyTarget 과 동일.
+//  · 철벽 도발이 활성화돼 있으면 예약과 무관하게 항상 탱커(도발 효과가 우선).
+//  · 예약 대상이 사망했으면 즉시 다시 굴린다.
+function getEnemyPlannedTarget(unit) {
+    if (!unit || !player) return null;
+    const tauntTank = getActiveTauntTank();
+    if (tauntTank) return tauntTank;
+    const living = getLivingPartyMembers(player);
+    if (!living.length) return null;
+    const planned = unit._plannedTargetId
+        ? living.find((member) => getCombatTargetId(member) === unit._plannedTargetId)
+        : null;
+    if (planned) return planned;
+    const rolled = chooseEnemyPartyTarget();
+    unit._plannedTargetId = rolled ? getCombatTargetId(rolled) : null;
+    return rolled;
+}
+
+function clearEnemyPlannedTarget(unit) {
+    if (unit) unit._plannedTargetId = null;
+}
+
+// ===== [적 약점 분석] 실제 대미지 공식에서 도출한 물리/마법 피격 배율 =====
+// 이 게임에는 원소 속성 상성이 없다(모든 적 element = 'neutral'). 대신 실제 수식 차이 —
+// 마법은 방어력의 30%를 무시하고 방어구/피해감소를 받지 않는다 — 를 그대로 계산해 약점으로 표기한다.
+function getEnemyWeaknessInfo(unit) {
+    if (!unit) return null;
+    const stats = getActorStats(unit);
+    const armor = getEquippedArmor(unit);
+    const defDebuff = safeNum(unit._defDebuffTurns, 0) > 0 ? Math.min(0.9, Math.max(0, safeNum(unit._defDebuffPct, 0))) : 0;
+    // calculatePhysicalDamage 와 동일: (def + extraDef) × (1 - 파쇄) + 방어구 def, 방어구/피해감소 mitigation(상한 0.6)
+    const physDef = Math.max(0, (safeNum(unit.def, stats.def) + safeNum(unit.extraDef, 0)) * (1 - defDebuff) + (armor ? safeNum(armor.def, 0) : 0));
+    const mitigation = Math.min(0.6, Math.max(0, safeNum(armor && armor.mitigation, 0) + safeNum(unit.damageReduction, 0)));
+    const physFactor = (100 / (100 + physDef)) * (1 - mitigation);
+    // calculateMagicDamage 와 동일: 스탯 def × (1 - 파쇄) × 0.7
+    const magicFactor = 100 / (100 + Math.max(0, stats.def) * (1 - defDebuff) * 0.7);
+    const guard = getEnemyGuardStateFor(unit);
+    return {
+        element: String(unit.element || 'neutral'),
+        physFactor,
+        magicFactor,
+        magicVsPhysical: physFactor > 0 ? magicFactor / physFactor : 1,
+        guardMode: guard && guard.mode ? guard.mode : null,
+        defBroken: defDebuff > 0,
+    };
+}
+
 function gainActorWeaponMastery(actor, amount) {
     if (!actor) return;
     actor.mastery = actor.mastery && typeof actor.mastery === 'object' ? actor.mastery : {};
-    const stats = getActorStats(actor);
-    const gain = safeNum(amount, 1) * (1 + Math.max(0, stats.int) / 100);
+    const gain = safeNum(amount, 1) * getIntMasteryGainMultiplier(actor);
     actor.mastery.weapon = Math.max(0, safeNum(actor.mastery.weapon, 0) + gain);
 }
 
 function gainActorMagicMastery(actor, amount) {
     if (!actor) return;
     actor.mastery = actor.mastery && typeof actor.mastery === 'object' ? actor.mastery : {};
-    const stats = getActorStats(actor);
-    const gain = safeNum(amount, 1) * (1 + Math.max(0, stats.int) / 120);
+    const gain = safeNum(amount, 1) * getIntMasteryGainMultiplier(actor);
     actor.mastery.magic = Math.max(0, safeNum(actor.mastery.magic, 0) + gain);
 }
 
@@ -1002,7 +1105,9 @@ function resolveMagicAttackAction(attacker, defender, guardState) {
     return { type: 'attack', attackKind: 'magic', success: true, damage, hit: cast };
 }
 
-// [파이어 볼] 지능 스탯 비례 2.2배 극딜 마법. 일반 마법 공격(지혜 주 계수)과 달리 지능이 주 계수다.
+// [파이어 볼] 지혜 스탯 비례 3.0배 극딜 마법.
+// [지혜 이관] 구 수식(지능×2.2 + 지혜×0.8)의 총 계수 3.0을 지혜 단일 계수로 합산해 기존 화력을 유지한다.
+const FIREBALL_WIS_COEF = 3.0;
 function resolveFireballSkillAction(attacker, defender, guardState) {
     const stats = getActorStats(attacker);
     const cast = probabilityRoll(0.55 + stats.wis * 0.004, attacker);
@@ -1013,7 +1118,7 @@ function resolveFireballSkillAction(attacker, defender, guardState) {
         if (dodge.success) return { type: 'attack', attackKind: 'magic', success: false, reason: 'dodged', hit: cast, dodge, skillKey: 'fireball' };
     }
     const mastery = safeNum(attacker && attacker.mastery && attacker.mastery.magic, 0);
-    const rawPower = stats.int * 2.2 + stats.wis * 0.8 + mastery * 0.25;
+    const rawPower = stats.wis * FIREBALL_WIS_COEF + mastery * 0.25;
     let damage = Math.floor(rawPower * (100 / (100 + Math.max(0, defendStats.def * 0.7))) * getEarlyFloorDamageMultiplier());
     if (guardState && guardState.mode === 'shield') damage = Math.floor(damage * 0.7);
     damage = Math.max(getMinimumDamageFor(attacker, defender), damage);
@@ -1453,7 +1558,8 @@ async function executeActiveTurn() {
     state.isResolvingTurn = true;
     state.awaitingPlayerInput = false;
     setCombatProcessing(true);
-    const target = chooseEnemyPartyTarget();
+    // [다음 공격 대상 예약] 지능 티어 4에서 미리 표기한 대상 = 실제 공격 대상이 되도록 예약값을 사용한다.
+    const target = getEnemyPlannedTarget(activeEntry.actor);
     window._enemyThinkingHint = target ? `🎯 타겟: ${target.name}` : '';
     updateUi();
     renderActions();
@@ -1461,6 +1567,8 @@ async function executeActiveTurn() {
     if (target && typeof renderEnemyIntentLaser === 'function') renderEnemyIntentLaser('enemy', 'player', 900);
     await waitMs(650);
     await executeEnemyUnitTurn(activeEntry.actor, target);
+    // 행동을 마쳤으므로 예약을 비운다 → 다음 턴 대상은 새로 굴린다.
+    clearEnemyPlannedTarget(activeEntry.actor);
     window._enemyThinkingHint = '';
     state.isResolvingTurn = false;
     await lockedAdvanceToNextTurn();
@@ -1683,14 +1791,14 @@ window.useAction = async function useAction(type, options) {
                 enemyGuardState = null;
                 if (enemy && Array.isArray(enemy.party)) syncEnemyPartyAggregateState(enemy);
             } else if (skill.key === 'fireball') {
-                // [마법사 - 파이어 볼] 지능 비례 2.2배 마법 폭발 + 보라/붉은색 폭발 파티클
+                // [마법사 - 파이어 볼] 지혜 비례 3.0배 마법 폭발 + 보라/붉은색 폭발 파티클
                 recordPlayerBehavior('magic_attack');
                 const target = (requestedTargetId && livingEnemies.find(matchesTargetId)) || livingEnemies[0];
                 writeLog(`[스킬] ${withIGa(actor.name)} ${withEulReul(target.name || '적')} 향해 파이어 볼을 시전합니다! (MP -${skill.mpCost})`);
                 if (typeof playSkillCastBadge === 'function') playSkillCastBadge(actor, '🔥 파이어볼');
                 // [마법사 스킬 이펙트 복구] 메테오 폭발 연출을 먼저 강제 재생하고, 그 Promise 가
                 // resolve(~300~350ms, 2배속 ~180ms) 된 뒤에 피격 판정을 확정한다. (즉발 대미지·모션 스킵 방지)
-                // _attackMultiplier 는 VFX 스킬 판정 힌트로만 사용 — 화염구 대미지는 resolveFireballSkillAction 자체 수식(2.2배).
+                // _attackMultiplier 는 VFX 스킬 판정 힌트로만 사용 — 화염구 대미지는 resolveFireballSkillAction 자체 수식(지혜×3.0).
                 actor._attackMultiplier = 2.2;
                 if (typeof playV35AttackVfx === 'function') {
                     await playV35AttackVfx('player', actor, 'magic_attack', target);
@@ -2361,6 +2469,15 @@ function installDungeonProgressUiAdapter() {
 installDungeonProgressUiAdapter();
 
 Object.assign(window, {
+    ENEMY_INSIGHT_TIERS,
+    getIntMasteryGainMultiplier,
+    getPartyInsightInt,
+    getEnemyInsightTierInfo,
+    getEnemyInsightTier,
+    canRevealEnemyExactStats,
+    getEnemyPlannedTarget,
+    clearEnemyPlannedTarget,
+    getEnemyWeaknessInfo,
     calculateUnitCP,
     calculateTeamCP,
     getAllyTeamCP,

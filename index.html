@@ -48,6 +48,7 @@
                             <span>포션 <b id="potion-t-battle">0</b></span>
                         </div>
                         <div class="battle-run-actions">
+                            <button type="button" id="battle-settings-btn" class="battle-mini-btn" onclick="toggleSettingsModal(true)" title="설정 · 스탯 안내서 (ESC)">⚙️ 설정</button>
                             <button type="button" id="battle-speed-btn" class="battle-mini-btn" onclick="toggleGameSpeed()" title="전투 턴 전환/AI 행동 템포 배속 전환" style="border-color:#f1c40f;color:#f1c40f;">⚡ 1배속</button>
                             <button type="button" id="battle-save-main-btn" class="battle-mini-btn battle-mini-btn-save" onclick="saveAndExitToMain()">저장 후 메인</button>
                             <button type="button" id="battle-exit-main-btn" class="battle-mini-btn battle-mini-btn-exit" onclick="exitToMainWithoutSave()">저장 없이 메인</button>
@@ -109,6 +110,7 @@
                     <button type="button" class="sidebar-action-btn sidebar-btn-collection" onclick="toggleCollection(true)">📖 장비 도감</button>
                     <button type="button" class="sidebar-action-btn sidebar-btn-rank" onclick="toggleRank(true)">🏆 명예의 전당 보기</button>
                     <button type="button" id="guide-btn" class="sidebar-action-btn sidebar-btn-collection" onclick="toggleGuide(true)">📚 가이드</button>
+                    <button type="button" id="settings-btn" class="sidebar-action-btn sidebar-btn-collection" onclick="toggleSettingsModal(true)">⚙️ 설정 (ESC)</button>
                 </div>
             </div>
 
@@ -135,6 +137,19 @@
             <button class="close-btn" onclick="toggleRank(false)">✖</button>
             <h2>🏆 글로벌 명예의 전당</h2>
             <div id="rank-list" style="font-size:0.9em; color:#888; margin-top:15px;">데이터 불러오는 중...</div>
+        </div>
+    </div>
+
+    <!-- [ESC 설정 모달] 전역 ESC 키로 열고 닫는다. 탭 본문은 uiManager.js 의 renderSettingsModal 이 렌더한다. -->
+    <div id="settings-modal" class="modal-overlay settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
+        <div class="modal-content settings-modal-content">
+            <button class="close-btn" type="button" onclick="toggleSettingsModal(false)" aria-label="닫기">✖</button>
+            <h2 id="settings-modal-title">⚙️ 설정 <span class="settings-esc-hint">ESC</span></h2>
+            <div class="settings-tabbar" role="tablist">
+                <button type="button" class="settings-tab" role="tab" data-settings-tab="game" onclick="setSettingsTab('game')">⚙️ 게임 설정</button>
+                <button type="button" class="settings-tab" role="tab" data-settings-tab="stats" onclick="setSettingsTab('stats')">📖 스탯 안내서</button>
+            </div>
+            <div id="settings-tab-body" class="settings-tab-body"></div>
         </div>
     </div>
 

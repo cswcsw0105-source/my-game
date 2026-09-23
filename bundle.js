@@ -10284,6 +10284,12 @@ if (typeof window !== 'undefined' && !Number.isFinite(Number(window.gameSpeed)))
 function getRoleBaseMaxMp(roleKey) {
     return PARTY_ROLE_BASE_MAX_MP[roleKey] || 50;
 }
+// [지혜 → 최대 MP] 최대 마나 = 직업 기본 MP + 지혜 1당 +1 MP. (마법사 기본 지혜 15 → 115)
+const WIS_MAX_MP_PER_POINT = 1;
+function getMemberMaxMp(roleKey, stats) {
+    const wis = Math.max(0, Math.floor(Number(stats && stats.wis) || 0));
+    return getRoleBaseMaxMp(roleKey) + wis * WIS_MAX_MP_PER_POINT;
+}
 const MAX_DUNGEON_FLOOR = 100;
 const STAGES_PER_FLOOR = 10;
 const LAST_SAFE_RETURN_FLOOR = 5;
@@ -10714,7 +10720,7 @@ function normalizePartyMember(raw, roleKey) {
     const source = raw || {};
     const stats = normalizeHumanStats(source.stats || source);
     const maxHp = Math.max(1, safeNumber(source.maxHp, getMaxHpFromStat(stats.hp)));
-    const maxMp = Math.max(0, safeNumber(source.maxMp, getRoleBaseMaxMp(role.key)));
+    const maxMp = getMemberMaxMp(role.key, stats);
     return {
         id: source.id || `${role.key}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
         roleKey: role.key,
@@ -11201,6 +11207,7 @@ if (typeof module !== 'undefined' && module.exports) {
         getMaxHpFromStat,
         PARTY_ROLE_BASE_MAX_MP,
         getRoleBaseMaxMp,
+        getMemberMaxMp,
         createHumanAdventurer,
         createDungeonProgress,
         normalizeDungeonProgress,
@@ -12479,7 +12486,10 @@ function ensurePartyMemberRuntimeShape(member) {
     member.curHp = Math.min(member.maxHp, Math.max(0, safeNum(member.curHp, member.hp == null ? member.maxHp : member.hp)));
     member.hp = member.maxHp;
     // [MP 시스템] 직업별 최대 마나(탱커 40 / 기사 50 / 마법사 100)와 현재 마나를 보정한다.
-    member.maxMp = Math.max(0, safeNum(member.maxMp, typeof getRoleBaseMaxMp === 'function' ? getRoleBaseMaxMp(role.key) : 50));
+    // [지혜 → 최대 MP] 최대 마나는 저장값이 아니라 매번 (직업 기본 MP + 지혜 보너스)로 재계산한다.
+    member.maxMp = typeof getMemberMaxMp === 'function'
+        ? getMemberMaxMp(role.key, member.stats)
+        : Math.max(0, safeNum(member.maxMp, typeof getRoleBaseMaxMp === 'function' ? getRoleBaseMaxMp(role.key) : 50));
     member.mp = Math.min(member.maxMp, Math.max(0, safeNum(member.mp, member.maxMp)));
     member.atk = Math.max(1, safeNum(member.atk, member.stats.str));
     member.def = Math.max(0, safeNum(member.def, member.stats.def));
@@ -13330,7 +13340,95 @@ const renderEnemyIntentLaser = () => {
     return null;
 };
 
-function buildLargeHpBarRow({ name, current, max, color, subText, dead, mpCurrent, mpMax, unitId, unitSide, statuses }) {
+// ===== [스탯 안내 단일 출처] 스탯 툴팁 · ESC 설정 모달(📖 스탯 안내서) · 📚 가이드 모달이 모두 이 정의를 참조한다. =====
+const STAT_GUIDE_DEFS = Object.freeze([
+    Object.freeze({ key: 'str', label: '힘', short: '힘', abbr: 'STR', desc: '물리 공격력 증가' }),
+    Object.freeze({ key: 'def', label: '방어력', short: '방', abbr: 'DEF', desc: '받는 피해 % 감쇄 (비율 감소)' }),
+    Object.freeze({ key: 'hp', label: '체력', short: '체', abbr: 'VIT', desc: '최대 HP 증가' }),
+    Object.freeze({ key: 'int', label: '지능', short: '지', abbr: 'INT', desc: '무기 숙련도 획득 속도 상승 & 적 정보 가시화' }),
+    Object.freeze({ key: 'wis', label: '지혜', short: '지혜', abbr: 'WIS', desc: '마법 공격력 및 최대 MP 증가' }),
+    Object.freeze({ key: 'agi', label: '민첩', short: '민', abbr: 'AGI', desc: '회피 확률 및 턴 순서 관여' }),
+]);
+
+function getStatGuideDef(statKey) {
+    return STAT_GUIDE_DEFS.find((def) => def.key === statKey) || null;
+}
+
+// 스탯 안내서에만 노출하는 세부 수치 설명(실제 코드 상수와 연동).
+// [지능 4단계 적 이해도] combatLogic.js 의 ENEMY_INSIGHT_TIERS 를 그대로 읽어 안내 문구를 만든다(수치 불일치 방지).
+function getInsightTierDefs() {
+    const tiers = Array.isArray(window.ENEMY_INSIGHT_TIERS) && window.ENEMY_INSIGHT_TIERS.length
+        ? window.ENEMY_INSIGHT_TIERS
+        : [{ tier: 1, minInt: 0 }, { tier: 2, minInt: 10 }, { tier: 3, minInt: 15 }, { tier: 4, minInt: 20 }];
+    return tiers.slice().sort((a, b) => a.minInt - b.minInt);
+}
+
+function getInsightTierMinInt(tier) {
+    const def = getInsightTierDefs().find((t) => t.tier === tier);
+    return def ? def.minInt : 0;
+}
+
+function getStatGuideDetail(statKey) {
+    switch (statKey) {
+        case 'def': return '받는 피해 × 100 / (100 + 방어력). 방어력 100이면 피해가 절반이 되며, 최소 대미지는 항상 보장됩니다.';
+        case 'int': return `지능 1당 숙련도 획득량 +1%. 파티 최고 지능에 따라 적 정보가 4단계로 공개됩니다 — `
+            + `${getInsightTierMinInt(2)} 미만: ??? / ${getInsightTierMinInt(2)}+: 체력 % / ${getInsightTierMinInt(3)}+: 정확한 HP·MP / ${getInsightTierMinInt(4)}+: 다음 공격 대상·약점.`;
+        case 'wis': return '마법 공격·파이어 볼·치유량이 지혜에 비례합니다. 지혜 1당 최대 MP +1.';
+        case 'agi': return '민첩이 높을수록 먼저 행동하고, 회피·명중이 오르며 연타가 발생할 수 있습니다.';
+        default: return '';
+    }
+}
+
+function getStatTooltipText(statKey) {
+    const def = getStatGuideDef(statKey);
+    return def ? `${def.label}(${def.abbr}): ${def.desc}` : '';
+}
+
+// [스탯 툴팁] 스탯 표기를 .stat-tooltip 으로 감싸 마우스를 올리면 설명(title)이 뜨게 한다.
+function statTipSpan(statKey, innerHtml) {
+    const tip = getStatTooltipText(statKey);
+    if (!tip) return innerHtml;
+    return `<span class="stat-tooltip" title="${escapeHtml(tip)}">${innerHtml}</span>`;
+}
+
+// stats 객체를 "힘12 · 방8 …" 형태의 툴팁 스탯 라인으로 만든다.
+//  keys: 표기할 스탯 키 / full: 전체 라벨(방어력·체력…) 사용 / spaced: 라벨과 값 사이 공백 / joiner: 구분자
+function buildStatTipLine(stats, options) {
+    const opts = options || {};
+    const keys = Array.isArray(opts.keys) ? opts.keys : STAT_GUIDE_DEFS.map((def) => def.key);
+    const joiner = opts.joiner != null ? opts.joiner : ' · ';
+    const source = stats || {};
+    return keys.map((key) => {
+        const def = getStatGuideDef(key);
+        if (!def) return '';
+        const label = opts.full ? def.label : def.short;
+        const value = Math.floor(safeNum(source[key], 0));
+        return statTipSpan(key, `${escapeHtml(label)}${opts.spaced ? ' ' : ''}${value}`);
+    }).filter(Boolean).join(joiner);
+}
+
+// [지능 4단계 적 이해도] 티어별 수치 표기. insightTier 미지정(아군 카드 등) = 정확한 수치.
+//  T1: '??? / ???' · T2: '≈N%' · T3/T4: 'cur / max'
+function formatInsightNumbers(tier, cur, max, pct) {
+    if (tier != null && tier <= 1) return '??? / ???';
+    if (tier === 2) return `≈${Math.round(pct)}%`;
+    return `${cur} / ${max}`;
+}
+
+// 수치가 가려진 경우(T1/T2) 다음 단계에 필요한 지능을 안내하는 툴팁 문구. (T3 이상/미지정이면 빈 문자열)
+function getInsightObscureTip(tier) {
+    if (tier == null || tier >= 3) return '';
+    const nextMin = getInsightTierMinInt(tier + 1);
+    const nextGain = tier <= 1 ? '체력 %가 보입니다' : '정확한 HP·MP가 보입니다';
+    return `${getStatTooltipText('int')} — 현재 적 이해도 ${tier}단계. 파티 최고 지능 ${nextMin} 이상이면 ${nextGain}.`;
+}
+
+function getInsightObscureAttr(tier) {
+    const tip = getInsightObscureTip(tier);
+    return tip ? ` class="stat-tooltip" title="${escapeHtml(tip)}"` : '';
+}
+
+function buildLargeHpBarRow({ name, current, max, color, subText, dead, mpCurrent, mpMax, unitId, unitSide, statuses, insightTier, insightHtml }) {
     const safeMax = Math.max(1, Math.floor(safeNum(max, 1)));
     const safeCur = Math.max(0, Math.floor(safeNum(current, 0)));
     const pct = Math.max(0, Math.min(100, (safeCur / safeMax) * 100));
@@ -13338,6 +13436,10 @@ function buildLargeHpBarRow({ name, current, max, color, subText, dead, mpCurren
     const unitAttrs = unitId
         ? ` data-combat-unit-id="${escapeHtml(String(unitId))}" data-combat-unit-side="${escapeHtml(String(unitSide || ''))}"`
         : '';
+    // [적 이해도(지능)] T1은 게이지 잔량까지 숨긴다(정보 미파악). 쓰러진 적은 어느 티어든 '쓰러짐'으로 표기.
+    const hideGauge = insightTier != null && insightTier <= 1 && !dead;
+    const obscureAttr = dead ? '' : getInsightObscureAttr(insightTier);
+    const hpText = dead && insightTier != null && insightTier < 3 ? '쓰러짐' : formatInsightNumbers(insightTier, safeCur, safeMax, pct);
     // [MP 시스템] mpMax가 있으면 HP바 바로 밑에 파란 마나 게이지 + 수치를 렌더링한다.
     const safeMpMax = Math.max(0, Math.floor(safeNum(mpMax, 0)));
     const safeMpCur = Math.max(0, Math.min(safeMpMax, Math.floor(safeNum(mpCurrent, 0))));
@@ -13345,21 +13447,22 @@ function buildLargeHpBarRow({ name, current, max, color, subText, dead, mpCurren
     const mpHtml = safeMpMax > 0
         ? `<div style="display:flex;align-items:center;gap:6px;margin:3px 0 0;">
             <div class="mp-bar-outer" style="flex:1;">
-                <div class="mp-bar-inner" style="width:${mpPct}%;"></div>
+                <div class="mp-bar-inner${hideGauge ? ' insight-gauge-unknown' : ''}" style="width:${hideGauge ? 100 : mpPct}%;"></div>
             </div>
-            <span style="font-size:0.7em;font-weight:900;color:#7fb3ff;white-space:nowrap;">MP ${safeMpCur} / ${safeMpMax}</span>
+            <span style="font-size:0.7em;font-weight:900;color:#7fb3ff;white-space:nowrap;"${obscureAttr}>MP ${formatInsightNumbers(insightTier, safeMpCur, safeMpMax, mpPct)}</span>
         </div>`
         : '';
     const statusBadges = buildStatusBadgesHtml(statuses);
     return `<div class="combat-unit-row"${unitAttrs} style="margin:8px 0 10px;position:relative;${dead ? 'opacity:0.5;' : ''}">
         <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-end;margin:0 2px 4px;line-height:1.25;">
             <span style="font-size:0.86em;font-weight:900;color:${color};white-space:nowrap;">${escapeHtml(name)}${statusBadges}</span>
-            <span style="font-size:0.82em;font-weight:900;color:#fff;white-space:nowrap;">${safeCur} / ${safeMax}</span>
+            <span style="font-size:0.82em;font-weight:900;color:#fff;white-space:nowrap;"${obscureAttr}>${hpText}</span>
         </div>
         <div class="hp-bar-outer" style="margin:0;">
-            <div class="hp-bar-inner" style="width:${pct}%;background:${color};"></div>
+            <div class="hp-bar-inner${hideGauge ? ' insight-gauge-unknown' : ''}" style="width:${hideGauge ? 100 : pct}%;${hideGauge ? '' : `background:${color};`}"></div>
         </div>
         ${mpHtml}
+        ${insightHtml || ''}
         ${subText ? `<div style="font-size:0.68em;color:#9aa4b2;line-height:1.35;margin:4px 2px 0;text-align:left;white-space:normal;">${subText}</div>` : ''}
     </div>`;
 }
@@ -13409,7 +13512,7 @@ function renderPartyHpBars() {
     const members = getPartyMembers(player);
     host.innerHTML = members.map((member) => {
         const stats = member.stats || {};
-        const sub = `힘${stats.str} · 방${stats.def} · 체${stats.hp} · 지${stats.int} · 지혜${stats.wis} · 민${stats.agi}`;
+        const sub = buildStatTipLine(stats);
         return buildLargeHpBarRow({
             name: withLevelLabel(member.name, member.level),
             current: member.curHp,
@@ -13430,6 +13533,31 @@ function renderPartyHpBars() {
     if (aggregateText) aggregateText.style.display = 'none';
 }
 
+// [지능 T4 — 공격 의도·약점 간파] 적의 다음 공격 대상(실제 행동과 동일한 예약값)과 실제 대미지 공식 기반 약점을 표기한다.
+const ENEMY_ELEMENT_LABELS = Object.freeze({ neutral: '무속성' });
+function buildEnemyInsightIntelHtml(unit) {
+    if (!unit || safeNum(unit.curHp, 0) <= 0) return '';
+    const target = typeof getEnemyPlannedTarget === 'function' ? getEnemyPlannedTarget(unit) : null;
+    const taunted = !!(target && typeof getActiveTauntTank === 'function' && getActiveTauntTank() === target);
+    const targetText = target ? `🎯 다음 공격: ${escapeHtml(target.name || '아군')}${taunted ? ' (도발 고정)' : ''}` : '🎯 다음 공격: -';
+    const weak = typeof getEnemyWeaknessInfo === 'function' ? getEnemyWeaknessInfo(unit) : null;
+    if (!weak) return `<div class="enemy-insight-intel">${targetText}</div>`;
+    const ratio = safeNum(weak.magicVsPhysical, 1);
+    const magicEdge = Math.round((ratio - 1) * 100);
+    const physEdge = ratio > 0 ? Math.round((1 / ratio - 1) * 100) : 0;
+    const weaknessText = magicEdge >= 3 ? `약점: 마법 +${magicEdge}%` : physEdge >= 3 ? `약점: 물리 +${physEdge}%` : '약점: 없음';
+    const elementText = `속성: ${escapeHtml(ENEMY_ELEMENT_LABELS[weak.element] || weak.element)}`;
+    const extras = [
+        weak.guardMode === 'shield' ? '🛡️ 방어 태세' : weak.guardMode === 'dodge' ? '💨 회피 태세' : '',
+        weak.defBroken ? '🗡️ 방어 파쇄' : '',
+    ].filter(Boolean).join(' · ');
+    const tip = `물리 피격 배율 ×${weak.physFactor.toFixed(2)} · 마법 피격 배율 ×${weak.magicFactor.toFixed(2)} (마법은 방어력의 30%를 무시하고 방어구 감쇄를 받지 않습니다)`;
+    return `<div class="enemy-insight-intel">
+        <div>${targetText}</div>
+        <div class="stat-tooltip" title="${escapeHtml(tip)}">${elementText} · ${weaknessText}${extras ? ` · ${extras}` : ''}</div>
+    </div>`;
+}
+
 function renderEnemyHpBars() {
     const aggregateOuter = document.querySelector('#enemy-card > .hp-bar-outer');
     const aggregateText = document.getElementById('e-hp-t');
@@ -13442,10 +13570,18 @@ function renderEnemyHpBars() {
         return;
     }
     const members = getEnemyPartyMembers(enemy);
+    // [지능 4단계 적 이해도] 파티 최고 지능으로 티어(1~4)를 한 번 계산해 모든 적 카드에 동일 적용한다.
+    const insightTier = typeof getEnemyInsightTier === 'function' ? getEnemyInsightTier() : 3;
     host.innerHTML = members.map((member) => {
         const stats = member.stats || {};
         // [적 스탯 오버홀] 구형 ATK/DEF 표기 대신 아군과 동일 체계의 5대 스탯(지혜 제외)을 직관 표기
-        const sub = `힘${safeNum(stats.str, safeNum(member.atk, 0))} · 방${safeNum(stats.def, safeNum(member.def, 0))} · 체${safeNum(stats.hp, 0)} · 지${safeNum(stats.int, 0)} · 민${safeNum(stats.agi, 0)}`;
+        const sub = buildStatTipLine({
+            str: safeNum(stats.str, safeNum(member.atk, 0)),
+            def: safeNum(stats.def, safeNum(member.def, 0)),
+            hp: safeNum(stats.hp, 0),
+            int: safeNum(stats.int, 0),
+            agi: safeNum(stats.agi, 0),
+        }, { keys: ['str', 'def', 'hp', 'int', 'agi'] });
         const enemyLevel = safeNum(member.level, typeof getEnemyLevelForProgress === 'function'
             ? getEnemyLevelForProgress({ floor, stage: dungeonStage })
             : 1);
@@ -13460,6 +13596,8 @@ function renderEnemyHpBars() {
             statuses: member.statuses,
             unitId: member.id || member.roleKey,
             unitSide: 'enemy',
+            insightTier,
+            insightHtml: insightTier >= 4 ? buildEnemyInsightIntelHtml(member) : '',
         });
     }).join('');
     // [3열 상하 대치 전장] 파티원 3인을 세로 스택 대신 가로 1행(3열 그리드)으로 배치한다.
@@ -14110,7 +14248,30 @@ function updateUi() {
         enemyNameEl.innerHTML = `${ghostBadge}${escapeHtml(enemy.name)}${Array.isArray(enemy.party) ? ` · ${livingCount}명 생존` : ''}${hint}`;
     }
     document.getElementById('e-hp').style.width=`${Math.max(0,(eCur/eHp)*100)}%`;
-    document.getElementById('e-hp-t').innerText=`${eCur} / ${eHp}`;
+    // [적 이해도(지능)] 단일 적(망령 등) 합산 체력 표기도 파티 지능 임계치 미만이면 대략 비율만 노출한다.
+    const eHpTextEl = document.getElementById('e-hp-t');
+    const enemyInsightTier = typeof getEnemyInsightTier === 'function' ? getEnemyInsightTier() : 3;
+    const eDead = eCur <= 0;
+    const eHideGauge = enemyInsightTier <= 1 && !eDead;
+    eHpTextEl.innerText = eDead && enemyInsightTier < 3 ? '쓰러짐' : formatInsightNumbers(enemyInsightTier, eCur, eHp, Math.max(0, Math.min(100, (eCur / eHp) * 100)));
+    eHpTextEl.title = eDead ? '' : getInsightObscureTip(enemyInsightTier);
+    const eHpBarEl = document.getElementById('e-hp');
+    if (eHpBarEl) {
+        eHpBarEl.classList.toggle('insight-gauge-unknown', eHideGauge);
+        if (eHideGauge) eHpBarEl.style.width = '100%';
+    }
+    // 단일 적(망령 등)의 T4 공격 의도·약점 줄 — 파티형 적은 개별 카드에 표기되므로 여기선 숨긴다.
+    let eIntelEl = document.getElementById('e-insight-intel');
+    if (!eIntelEl && eHpTextEl.parentNode) {
+        eIntelEl = document.createElement('div');
+        eIntelEl.id = 'e-insight-intel';
+        eHpTextEl.insertAdjacentElement('afterend', eIntelEl);
+    }
+    if (eIntelEl) {
+        const showSingleIntel = !Array.isArray(enemy.party) && enemyInsightTier >= 4;
+        eIntelEl.innerHTML = showSingleIntel ? buildEnemyInsightIntelHtml(enemy) : '';
+        eIntelEl.style.display = showSingleIntel ? '' : 'none';
+    }
     // [레거시 UI 제거] 적 파티 하단 "ATK: 0 / DEF: 0" 텍스트 엘리먼트 삭제됨.
     renderEnemyHpBars();
     renderTurnIndicator();
@@ -15663,7 +15824,7 @@ function buildPartyRollRowsHtml() {
             return `<button type="button" onclick="setPartySlotRole(${slotIndex},'${jobKey}')" style="flex:1;padding:6px 4px;border-radius:6px;font-size:0.78em;font-weight:700;cursor:pointer;border:1px solid ${active ? '#f1c40f' : '#444'};background:${active ? '#3a3320' : '#1a1a1a'};color:${active ? '#f1c40f' : '#999'};">${escapeHtml(jobRole.name)}</button>`;
         }).join('');
         const s = member.stats;
-        const statLine = `힘 ${s.str} · 방어 ${s.def} · 체력 ${s.hp} · 지능 ${s.int} · 지혜 ${s.wis} · 민첩 ${s.agi}`;
+        const statLine = buildStatTipLine(s, { full: true, spaced: true });
         return `<div style="background:#111;border:1px solid #333;border-radius:8px;padding:11px;margin-bottom:8px;text-align:left;">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
                 <b style="color:#f1c40f;">슬롯 ${slotIndex + 1}</b>
@@ -15758,7 +15919,7 @@ function renderTownStatModal() {
         const plusDisabled = statPoints <= 0 || value >= TOWN_STAT_CAP;
         const btnBase = 'width:30px;height:30px;flex:0 0 30px;border:none;border-radius:6px;font-weight:700;line-height:1;font-size:1.05em;color:#fff;display:inline-flex;align-items:center;justify-content:center;';
         return `<div style="display:flex;align-items:center;gap:12px;margin:6px 0;">
-            <span style="flex:1;min-width:0;color:#cfcfcf;font-size:0.9em;">${TOWN_STAT_LABELS[statKey]}</span>
+            <span style="flex:1;min-width:0;color:#cfcfcf;font-size:0.9em;">${statTipSpan(statKey, TOWN_STAT_LABELS[statKey])}</span>
             <span style="display:inline-flex;align-items:center;justify-content:center;gap:8px;flex:0 0 auto;">
                 <button type="button" onclick="adjustTownStat('${statKey}',-1)" ${minusDisabled ? 'disabled' : ''} style="${btnBase}cursor:${minusDisabled ? 'not-allowed' : 'pointer'};background:${minusDisabled ? '#242424' : '#5a2d2d'};opacity:${minusDisabled ? '0.4' : '1'};">−</button>
                 <b style="color:#fff;min-width:34px;text-align:center;font-size:1em;">${value}</b>
@@ -17386,24 +17547,135 @@ window.toggleRank=(show)=>{
         loadRank();
     }
 };
-function buildGuideHtml() {
-    const rows = [
-        ['힘', '물리 공격 피해와 무기 공격 효율을 높입니다.'],
-        ['방어력', '받는 물리 피해를 줄이고 방어 행동의 효율을 높입니다.'],
-        ['체력', '최대 HP를 높여 전투 지속력을 강화합니다.'],
-        ['지능', '마법 공격 피해와 마법 계열 행동 효율을 높입니다.'],
-        ['지혜', '힐 회복량과 마법 안정성을 높입니다.'],
-        ['민첩', '턴 순서와 행동 우선권에 영향을 주며 빠른 행동을 돕습니다.'],
-    ];
-    return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;text-align:left;">${rows
-        .map(
-            ([name, desc]) => `<div style="background:#111;border:1px solid #333;border-left:3px solid #9b59b6;border-radius:8px;padding:10px 12px;">
-                <div style="color:#f1c40f;font-weight:800;margin-bottom:5px;">${escapeHtml(name)}</div>
-                <div style="color:#aaa;font-size:0.84em;line-height:1.5;">${escapeHtml(desc)}</div>
-            </div>`
-        )
+// [📖 스탯 안내서] STAT_GUIDE_DEFS 단일 출처로 렌더 — 📚 가이드 모달과 ESC 설정 모달이 공유한다.
+function buildStatGuideHtml() {
+    return `<div class="stat-guide-grid">${STAT_GUIDE_DEFS
+        .map((def) => {
+            const detail = getStatGuideDetail(def.key);
+            return `<div class="stat-guide-card">
+                <div class="stat-guide-name">${escapeHtml(def.label)} <span class="stat-guide-abbr">${escapeHtml(def.abbr)}</span></div>
+                <div class="stat-guide-desc">${escapeHtml(def.desc)}</div>
+                ${detail ? `<div class="stat-guide-detail">${escapeHtml(detail)}</div>` : ''}
+            </div>`;
+        })
         .join('')}</div>`;
 }
+function buildGuideHtml() {
+    return buildStatGuideHtml();
+}
+
+// ===== [ESC 설정 모달] 전역 ESC 키로 #settings-modal 을 열고 닫는다. =====
+let activeSettingsTab = 'game';
+
+function isSettingsModalOpen() {
+    const modal = document.getElementById('settings-modal');
+    return !!(modal && modal.style.display === 'flex');
+}
+
+// 마을 복귀 가능 여부 + 불가 사유. (전투 상단 🏠 버튼과 동일 조건 + 행동 처리 중 차단)
+function getSettingsTownReturnState() {
+    if (!player || !player.metaSlotId) return { ok: false, reason: '진행 중인 원정이 없습니다.' };
+    if (player.inTown) return { ok: false, reason: '이미 마을에 있습니다.' };
+    if ((window.combatState && window.combatState.isActionLocked) || (typeof isProcessing !== 'undefined' && isProcessing)) {
+        return { ok: false, reason: '행동 처리 중에는 복귀할 수 없습니다.' };
+    }
+    const progress = normalizeDungeonProgress({ floor, stage: dungeonStage });
+    if (typeof canReturnToBaseCamp === 'function' && !canReturnToBaseCamp(progress)) {
+        return { ok: false, reason: `${formatDungeonPosition(progress)}부터는 마을로 돌아갈 수 없습니다.` };
+    }
+    if (safeNum(player.runWins, 0) < 1) return { ok: false, reason: '이번 회차에서 전투를 1회 이상 승리해야 합니다.' };
+    return { ok: true, reason: '' };
+}
+
+function buildSettingsGameTabHtml() {
+    const speed = Number(window.gameSpeed) === 2 ? 2 : 1;
+    const town = getSettingsTownReturnState();
+    return `<div class="settings-rows">
+        <div class="settings-row">
+            <div class="settings-row-text"><b>⚡ 전투 배속</b><span>현재 ${speed}배속 · 턴 전환 ${speed === 2 ? 450 : 900}ms</span></div>
+            <button type="button" class="settings-row-btn" onclick="settingsToggleGameSpeed()">${speed === 2 ? '1배속으로' : '2배속으로'}</button>
+        </div>
+        <div class="settings-row">
+            <div class="settings-row-text"><b>🧹 전투 로그 비우기</b><span>전투 로그 탭의 기록을 모두 지웁니다. (알림 로그는 유지)</span></div>
+            <button type="button" class="settings-row-btn settings-row-btn--warn" onclick="settingsClearCombatLog()">비우기</button>
+        </div>
+        <div class="settings-row">
+            <div class="settings-row-text"><b>🏠 마을 복귀</b><span>${town.ok ? '파티 HP·MP를 전부 회복하고 마을로 귀환합니다.' : escapeHtml(town.reason)}</span></div>
+            <button type="button" class="settings-row-btn" onclick="settingsReturnToTown()" ${town.ok ? '' : 'disabled'}>복귀</button>
+        </div>
+    </div>`;
+}
+
+function renderSettingsModal() {
+    const body = document.getElementById('settings-tab-body');
+    if (!body) return;
+    const tab = activeSettingsTab === 'stats' ? 'stats' : 'game';
+    document.querySelectorAll('#settings-modal [data-settings-tab]').forEach((btn) => {
+        const on = btn.getAttribute('data-settings-tab') === tab;
+        btn.classList.toggle('is-active', on);
+        btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    body.innerHTML = tab === 'stats' ? buildStatGuideHtml() : buildSettingsGameTabHtml();
+}
+
+window.setSettingsTab = function setSettingsTab(tab) {
+    activeSettingsTab = tab === 'stats' ? 'stats' : 'game';
+    renderSettingsModal();
+};
+
+window.toggleSettingsModal = function toggleSettingsModal(show) {
+    const modal = document.getElementById('settings-modal');
+    if (!modal) return;
+    const open = typeof show === 'boolean' ? show : !isSettingsModalOpen();
+    if (open) renderSettingsModal();
+    modal.style.display = open ? 'flex' : 'none';
+};
+
+window.settingsToggleGameSpeed = function settingsToggleGameSpeed() {
+    if (typeof window.toggleGameSpeed === 'function') window.toggleGameSpeed();
+    renderSettingsModal();
+};
+
+window.settingsClearCombatLog = function settingsClearCombatLog() {
+    if (typeof clearCombatLogs === 'function') clearCombatLogs();
+    window._combatLogHistory = [];
+    renderLogPanel();
+    renderSettingsModal();
+};
+
+window.settingsReturnToTown = function settingsReturnToTown() {
+    if (!getSettingsTownReturnState().ok) return renderSettingsModal();
+    window.toggleSettingsModal(false);
+    if (typeof window.returnPartyToTown === 'function') window.returnPartyToTown();
+};
+
+// ESC: 설정 모달이 열려 있으면 닫고, 다른 모달이 열려 있으면 그 모달을 먼저 닫고, 아무것도 없으면 설정 모달을 연다.
+function installSettingsEscapeKey() {
+    if (window.__settingsEscInstalled) return;
+    window.__settingsEscInstalled = true;
+    document.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape' || event.repeat || event.isComposing) return;
+        if (isSettingsModalOpen()) {
+            window.toggleSettingsModal(false);
+            return;
+        }
+        const openOverlay = Array.from(document.querySelectorAll('.modal-overlay'))
+            .find((el) => el.id !== 'settings-modal' && el.style.display === 'flex');
+        if (openOverlay) {
+            openOverlay.style.display = 'none';
+            return;
+        }
+        if (document.getElementById('town-stat-modal') && typeof window.closeTownStatModal === 'function') {
+            window.closeTownStatModal();
+            return;
+        }
+        window.toggleSettingsModal(true);
+    });
+    // 모달 바깥(어두운 배경) 클릭 시 닫기
+    const modal = document.getElementById('settings-modal');
+    if (modal) modal.addEventListener('click', (event) => { if (event.target === modal) window.toggleSettingsModal(false); });
+}
+installSettingsEscapeKey();
 window.toggleGuide=(show)=>{
     const modal = document.getElementById('guide-modal');
     if (!modal) return;
@@ -17656,7 +17928,7 @@ function renderInventoryPanel() {
         if (activeMember) {
             html += `<div style="margin-bottom:10px;padding:8px 10px;background:#10141d;border:1px solid #293142;border-radius:9px;line-height:1.35;">
                 <div style="color:#f1c40f;font-size:0.88em;font-weight:900;">${escapeHtml(activeMember.name)} 장비</div>
-                <div style="color:#94a3b8;font-size:0.72em;margin-top:3px;">HP ${Math.max(0, Math.floor(activeMember.curHp))}/${Math.max(1, Math.floor(activeMember.maxHp))} · 힘${st.str} 방${st.def} 체${st.hp} 지${st.int} 지혜${st.wis} 민${st.agi}</div>
+                <div style="color:#94a3b8;font-size:0.72em;margin-top:3px;">HP ${Math.max(0, Math.floor(activeMember.curHp))}/${Math.max(1, Math.floor(activeMember.maxHp))} · ${buildStatTipLine(st, { joiner: ' ' })}</div>
             </div>`;
         }
     }
@@ -18600,7 +18872,7 @@ const PARTY_ACTIVE_SKILLS = Object.freeze({
         name: '🔥 파이어 볼',
         mpCost: 30,
         targeting: 'enemy',
-        description: '적 1명에게 지능 비례 2.2배의 극딜 마법 폭발',
+        description: '적 1명에게 지혜 비례 3.0배의 극딜 마법 폭발',
     }),
 });
 
@@ -19246,7 +19518,8 @@ function calculateAttackChance(attacker, defender) {
     const attackStats = getActorStats(attacker);
     const defendStats = getActorStats(defender);
     const mastery = safeNum(attacker && attacker.mastery && attacker.mastery.weapon, 0);
-    const chance = 0.68 + attackStats.agi * 0.004 + attackStats.int * 0.001 + mastery * 0.002 - defendStats.agi * 0.0006;
+    // [지능 역할 고정] 지능은 명중에 관여하지 않는다(숙련도 획득·적 정보 가시화 전용).
+    const chance = 0.68 + attackStats.agi * 0.004 + mastery * 0.002 - defendStats.agi * 0.0006;
     return Math.max(0.5, chance);
 }
 
@@ -19267,8 +19540,9 @@ function getWeaponEfficiencyPowerBonus(actor, weapon, stats) {
             ? 'hammer'
             : 'sword';
     if (key === 'hammer') return Math.floor(stats.str * 0.22 + stats.def * 0.18);
-    if (key === 'ranged') return Math.floor(stats.agi * 0.3 + stats.int * 0.08);
-    if (key === 'staff') return Math.floor(stats.wis * 0.34 + stats.int * 0.22);
+    if (key === 'ranged') return Math.floor(stats.agi * 0.3);
+    // [지혜 이관] 지팡이(마법 무기) 효율 보너스는 지혜만 비례한다(구 지능 계수 0.22 → 지혜로 합산).
+    if (key === 'staff') return Math.floor(stats.wis * 0.56);
     if (key === 'greatScythe') return Math.floor(stats.str * 0.2 + safeNum(stats.distortion, 0) * 0.12);
     return Math.floor(stats.str * 0.18 + stats.agi * 0.08);
 }
@@ -19315,7 +19589,8 @@ function calculateMagicDamage(attacker, defender) {
     const attackStats = getActorStats(attacker);
     const defendStats = getActorStats(defender);
     const mastery = safeNum(attacker && attacker.mastery && (attacker.mastery.magic || attacker.mastery.holyMagic), 0);
-    const rawPower = attackStats.wis * 1.45 + attackStats.int * 0.45 + mastery * 0.25;
+    // [지혜 이관] 마법 공격력은 지혜만 비례한다(구 지능 계수 0.45를 지혜로 합산 → 총 계수 1.9 유지).
+    const rawPower = attackStats.wis * 1.9 + mastery * 0.25;
     let magicDef = Math.max(0, defendStats.def);
     // [B-Type 갑옷 파쇄] 피격자 DEF 감소 디버프는 마법 피해에도 반영
     if (defender && safeNum(defender._defDebuffTurns, 0) > 0) {
@@ -19366,29 +19641,129 @@ function getActorAttackStrikeCount(actor) {
     return 1;
 }
 
-function getActorPostAttackCooldownTurns(actor) {
-    const weapon = getEquippedWeapon(actor);
-    if (weapon && safeNum(weapon.cooldownTurns, 0) > 0) return Math.max(1, Math.floor(safeNum(weapon.cooldownTurns, 0)));
-    return getActorAttackSpeed(actor) < 55 ? 1 : 0;
+// [공속 패널티 보류] 공격속도(민첩+무기 속도)가 낮다고 다음 턴 공격을 강제로 잠그던 패널티를 폐지한다.
+// 민첩은 회피·턴 순서·연타(getActorAttackStrikeCount) 보너스로만 작동하고, 공격 불가/턴 스킵은 일으키지 않는다.
+function getActorPostAttackCooldownTurns() {
+    return 0;
 }
 
 function canActorAttackThisTurn(actor) {
     return !!actor && safeNum(actor.attackLockTurns, 0) <= 0 && !actor._attackLockedForThisTurn && !actor.weaponDisabledThisTurn;
 }
 
+// ===== [지능(INT) 역할 고정] =====
+// 지능은 전투 대미지/명중에 관여하지 않고 오직 두 가지로만 작동한다.
+//  ① 무기·장비(마법 포함) 숙련도 경험치 획득량 보너스
+//  ② 적 이해도(Insight) — 파티 최고 지능(maxPartyInt)에 따라 적 정보 표시를 4단계로 분기
+const INT_MASTERY_GAIN_PER_POINT = 0.01; // 지능 1당 숙련도 획득량 +1%
+
+// [지능 4단계 적 이해도] minInt 이상이면 해당 티어. (높은 티어가 아래 티어 정보를 모두 포함)
+//  T1 <10  : HP/MP '??? / ???' (정보 미파악)
+//  T2 10~14: HP 퍼센티지(≈60%)
+//  T3 15~19: 정확한 HP/MP 정수
+//  T4 20+  : 정확한 HP/MP + 다음 공격 대상 + 약점
+const ENEMY_INSIGHT_TIERS = Object.freeze([
+    Object.freeze({ tier: 1, minInt: 0, label: '정보 미파악' }),
+    Object.freeze({ tier: 2, minInt: 10, label: '체력 비율 파악' }),
+    Object.freeze({ tier: 3, minInt: 15, label: '정확한 수치 파악' }),
+    Object.freeze({ tier: 4, minInt: 20, label: '공격 의도·약점 간파' }),
+]);
+
+function getIntMasteryGainMultiplier(actor) {
+    const stats = getActorStats(actor);
+    return 1 + Math.max(0, safeNum(stats.int, 0)) * INT_MASTERY_GAIN_PER_POINT;
+}
+
+// 적 정보 가시화에 쓰이는 파티 지능 = 생존 파티원 중 최고 지능(솔로면 player 지능).
+function getPartyInsightInt() {
+    if (!player) return 0;
+    const members = Array.isArray(player.party) && typeof getLivingPartyMembers === 'function'
+        ? getLivingPartyMembers(player)
+        : [player];
+    return members.reduce((best, member) => {
+        if (!member) return best;
+        const stats = member.stats ? normalizeHumanStats(member.stats) : { int: safeNum(member.int, 0) };
+        return Math.max(best, safeNum(stats.int, 0));
+    }, 0);
+}
+
+// 지능 값(생략 시 현재 파티 최고 지능)에 해당하는 적 이해도 티어 정의를 반환한다.
+function getEnemyInsightTierInfo(intValue) {
+    const value = intValue == null ? getPartyInsightInt() : Math.max(0, safeNum(intValue, 0));
+    let found = ENEMY_INSIGHT_TIERS[0];
+    ENEMY_INSIGHT_TIERS.forEach((def) => { if (value >= def.minInt) found = def; });
+    return found;
+}
+
+function getEnemyInsightTier(intValue) {
+    return getEnemyInsightTierInfo(intValue).tier;
+}
+
+// 하위 호환: 정확한 정수 수치 공개 여부 = 티어 3 이상.
+function canRevealEnemyExactStats() {
+    return getEnemyInsightTier() >= 3;
+}
+
+// ===== [적 다음 공격 대상 예약] =====
+// 적 유닛의 다음 공격 대상을 미리 굴려 unit._plannedTargetId 에 예약한다. 실제 적 턴도 이 예약값을 그대로
+// 사용하므로(티어 4 UI 표기 = 실제 행동), 표기가 거짓말이 되지 않는다. 굴림 분포는 기존 chooseEnemyPartyTarget 과 동일.
+//  · 철벽 도발이 활성화돼 있으면 예약과 무관하게 항상 탱커(도발 효과가 우선).
+//  · 예약 대상이 사망했으면 즉시 다시 굴린다.
+function getEnemyPlannedTarget(unit) {
+    if (!unit || !player) return null;
+    const tauntTank = getActiveTauntTank();
+    if (tauntTank) return tauntTank;
+    const living = getLivingPartyMembers(player);
+    if (!living.length) return null;
+    const planned = unit._plannedTargetId
+        ? living.find((member) => getCombatTargetId(member) === unit._plannedTargetId)
+        : null;
+    if (planned) return planned;
+    const rolled = chooseEnemyPartyTarget();
+    unit._plannedTargetId = rolled ? getCombatTargetId(rolled) : null;
+    return rolled;
+}
+
+function clearEnemyPlannedTarget(unit) {
+    if (unit) unit._plannedTargetId = null;
+}
+
+// ===== [적 약점 분석] 실제 대미지 공식에서 도출한 물리/마법 피격 배율 =====
+// 이 게임에는 원소 속성 상성이 없다(모든 적 element = 'neutral'). 대신 실제 수식 차이 —
+// 마법은 방어력의 30%를 무시하고 방어구/피해감소를 받지 않는다 — 를 그대로 계산해 약점으로 표기한다.
+function getEnemyWeaknessInfo(unit) {
+    if (!unit) return null;
+    const stats = getActorStats(unit);
+    const armor = getEquippedArmor(unit);
+    const defDebuff = safeNum(unit._defDebuffTurns, 0) > 0 ? Math.min(0.9, Math.max(0, safeNum(unit._defDebuffPct, 0))) : 0;
+    // calculatePhysicalDamage 와 동일: (def + extraDef) × (1 - 파쇄) + 방어구 def, 방어구/피해감소 mitigation(상한 0.6)
+    const physDef = Math.max(0, (safeNum(unit.def, stats.def) + safeNum(unit.extraDef, 0)) * (1 - defDebuff) + (armor ? safeNum(armor.def, 0) : 0));
+    const mitigation = Math.min(0.6, Math.max(0, safeNum(armor && armor.mitigation, 0) + safeNum(unit.damageReduction, 0)));
+    const physFactor = (100 / (100 + physDef)) * (1 - mitigation);
+    // calculateMagicDamage 와 동일: 스탯 def × (1 - 파쇄) × 0.7
+    const magicFactor = 100 / (100 + Math.max(0, stats.def) * (1 - defDebuff) * 0.7);
+    const guard = getEnemyGuardStateFor(unit);
+    return {
+        element: String(unit.element || 'neutral'),
+        physFactor,
+        magicFactor,
+        magicVsPhysical: physFactor > 0 ? magicFactor / physFactor : 1,
+        guardMode: guard && guard.mode ? guard.mode : null,
+        defBroken: defDebuff > 0,
+    };
+}
+
 function gainActorWeaponMastery(actor, amount) {
     if (!actor) return;
     actor.mastery = actor.mastery && typeof actor.mastery === 'object' ? actor.mastery : {};
-    const stats = getActorStats(actor);
-    const gain = safeNum(amount, 1) * (1 + Math.max(0, stats.int) / 100);
+    const gain = safeNum(amount, 1) * getIntMasteryGainMultiplier(actor);
     actor.mastery.weapon = Math.max(0, safeNum(actor.mastery.weapon, 0) + gain);
 }
 
 function gainActorMagicMastery(actor, amount) {
     if (!actor) return;
     actor.mastery = actor.mastery && typeof actor.mastery === 'object' ? actor.mastery : {};
-    const stats = getActorStats(actor);
-    const gain = safeNum(amount, 1) * (1 + Math.max(0, stats.int) / 120);
+    const gain = safeNum(amount, 1) * getIntMasteryGainMultiplier(actor);
     actor.mastery.magic = Math.max(0, safeNum(actor.mastery.magic, 0) + gain);
 }
 
@@ -19449,7 +19824,9 @@ function resolveMagicAttackAction(attacker, defender, guardState) {
     return { type: 'attack', attackKind: 'magic', success: true, damage, hit: cast };
 }
 
-// [파이어 볼] 지능 스탯 비례 2.2배 극딜 마법. 일반 마법 공격(지혜 주 계수)과 달리 지능이 주 계수다.
+// [파이어 볼] 지혜 스탯 비례 3.0배 극딜 마법.
+// [지혜 이관] 구 수식(지능×2.2 + 지혜×0.8)의 총 계수 3.0을 지혜 단일 계수로 합산해 기존 화력을 유지한다.
+const FIREBALL_WIS_COEF = 3.0;
 function resolveFireballSkillAction(attacker, defender, guardState) {
     const stats = getActorStats(attacker);
     const cast = probabilityRoll(0.55 + stats.wis * 0.004, attacker);
@@ -19460,7 +19837,7 @@ function resolveFireballSkillAction(attacker, defender, guardState) {
         if (dodge.success) return { type: 'attack', attackKind: 'magic', success: false, reason: 'dodged', hit: cast, dodge, skillKey: 'fireball' };
     }
     const mastery = safeNum(attacker && attacker.mastery && attacker.mastery.magic, 0);
-    const rawPower = stats.int * 2.2 + stats.wis * 0.8 + mastery * 0.25;
+    const rawPower = stats.wis * FIREBALL_WIS_COEF + mastery * 0.25;
     let damage = Math.floor(rawPower * (100 / (100 + Math.max(0, defendStats.def * 0.7))) * getEarlyFloorDamageMultiplier());
     if (guardState && guardState.mode === 'shield') damage = Math.floor(damage * 0.7);
     damage = Math.max(getMinimumDamageFor(attacker, defender), damage);
@@ -19900,7 +20277,8 @@ async function executeActiveTurn() {
     state.isResolvingTurn = true;
     state.awaitingPlayerInput = false;
     setCombatProcessing(true);
-    const target = chooseEnemyPartyTarget();
+    // [다음 공격 대상 예약] 지능 티어 4에서 미리 표기한 대상 = 실제 공격 대상이 되도록 예약값을 사용한다.
+    const target = getEnemyPlannedTarget(activeEntry.actor);
     window._enemyThinkingHint = target ? `🎯 타겟: ${target.name}` : '';
     updateUi();
     renderActions();
@@ -19908,6 +20286,8 @@ async function executeActiveTurn() {
     if (target && typeof renderEnemyIntentLaser === 'function') renderEnemyIntentLaser('enemy', 'player', 900);
     await waitMs(650);
     await executeEnemyUnitTurn(activeEntry.actor, target);
+    // 행동을 마쳤으므로 예약을 비운다 → 다음 턴 대상은 새로 굴린다.
+    clearEnemyPlannedTarget(activeEntry.actor);
     window._enemyThinkingHint = '';
     state.isResolvingTurn = false;
     await lockedAdvanceToNextTurn();
@@ -20130,14 +20510,14 @@ window.useAction = async function useAction(type, options) {
                 enemyGuardState = null;
                 if (enemy && Array.isArray(enemy.party)) syncEnemyPartyAggregateState(enemy);
             } else if (skill.key === 'fireball') {
-                // [마법사 - 파이어 볼] 지능 비례 2.2배 마법 폭발 + 보라/붉은색 폭발 파티클
+                // [마법사 - 파이어 볼] 지혜 비례 3.0배 마법 폭발 + 보라/붉은색 폭발 파티클
                 recordPlayerBehavior('magic_attack');
                 const target = (requestedTargetId && livingEnemies.find(matchesTargetId)) || livingEnemies[0];
                 writeLog(`[스킬] ${withIGa(actor.name)} ${withEulReul(target.name || '적')} 향해 파이어 볼을 시전합니다! (MP -${skill.mpCost})`);
                 if (typeof playSkillCastBadge === 'function') playSkillCastBadge(actor, '🔥 파이어볼');
                 // [마법사 스킬 이펙트 복구] 메테오 폭발 연출을 먼저 강제 재생하고, 그 Promise 가
                 // resolve(~300~350ms, 2배속 ~180ms) 된 뒤에 피격 판정을 확정한다. (즉발 대미지·모션 스킵 방지)
-                // _attackMultiplier 는 VFX 스킬 판정 힌트로만 사용 — 화염구 대미지는 resolveFireballSkillAction 자체 수식(2.2배).
+                // _attackMultiplier 는 VFX 스킬 판정 힌트로만 사용 — 화염구 대미지는 resolveFireballSkillAction 자체 수식(지혜×3.0).
                 actor._attackMultiplier = 2.2;
                 if (typeof playV35AttackVfx === 'function') {
                     await playV35AttackVfx('player', actor, 'magic_attack', target);
@@ -20808,6 +21188,15 @@ function installDungeonProgressUiAdapter() {
 installDungeonProgressUiAdapter();
 
 Object.assign(window, {
+    ENEMY_INSIGHT_TIERS,
+    getIntMasteryGainMultiplier,
+    getPartyInsightInt,
+    getEnemyInsightTierInfo,
+    getEnemyInsightTier,
+    canRevealEnemyExactStats,
+    getEnemyPlannedTarget,
+    clearEnemyPlannedTarget,
+    getEnemyWeaknessInfo,
     calculateUnitCP,
     calculateTeamCP,
     getAllyTeamCP,
