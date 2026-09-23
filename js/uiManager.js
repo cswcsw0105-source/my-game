@@ -88,17 +88,20 @@ function getPartyRoleTabs() {
     ];
 }
 
+// [인벤토리 탭 = 파티원 단위] 탭 키는 파티원 id (구버전 roleKey 도 허용). 동일 직업 2명도 각자 탭을 가진다.
 function getActiveInventoryPartyMember() {
     const members = getPartyMembers(player);
     if (!members.length) return null;
-    const roleKeys = getPartyRoleTabs().map((role) => role.key);
-    if (!roleKeys.includes(activeInventoryPartyRole)) activeInventoryPartyRole = 'tank';
-    return members.find((member) => member.roleKey === activeInventoryPartyRole) || members[0];
+    return members.find((member) => member.id === activeInventoryPartyRole)
+        || members.find((member) => member.roleKey === activeInventoryPartyRole)
+        || members[0];
 }
 
-window.setInventoryPartyTab = function setInventoryPartyTab(roleKey) {
-    if (!getPartyRoleTabs().some((role) => role.key === roleKey)) return;
-    activeInventoryPartyRole = roleKey;
+window.setInventoryPartyTab = function setInventoryPartyTab(memberKey) {
+    const members = getPartyMembers(player);
+    const member = members.find((m) => m.id === memberKey) || members.find((m) => m.roleKey === memberKey);
+    if (!member) return;
+    activeInventoryPartyRole = member.id;
     renderInventoryPanel();
 };
 
@@ -107,10 +110,12 @@ const getCombatTargetActorKey = (actor) => {
     return String(actor.id || actor.roleKey || actor.name || '');
 };
 
-const setCombatTargetSelection = (actionType, actor) => {
+const setCombatTargetSelection = (actionType, actor, skillKey) => {
     combatTargetSelectionState = {
         actionType,
         actorKey: getCombatTargetActorKey(actor),
+        // [스킬 확장] 어떤 스킬의 대상 선택인지 기억 → 적 카드 직접 클릭 시에도 같은 스킬로 시전된다.
+        skillKey: skillKey || null,
     };
 };
 
@@ -338,7 +343,10 @@ function buildEnemyInsightIntelHtml(unit) {
     if (!unit || safeNum(unit.curHp, 0) <= 0) return '';
     const target = typeof getEnemyPlannedTarget === 'function' ? getEnemyPlannedTarget(unit) : null;
     const taunted = !!(target && typeof getActiveTauntTank === 'function' && getActiveTauntTank() === target);
-    const targetText = target ? `🎯 다음 공격: ${escapeHtml(target.name || '아군')}${taunted ? ' (도발 고정)' : ''}` : '🎯 다음 공격: -';
+    const stunned = typeof hasUnitStatus === 'function' && hasUnitStatus(unit, 'stun');
+    const targetText = stunned
+        ? '💫 기절 — 다음 턴 행동 불가'
+        : target ? `🎯 다음 공격: ${escapeHtml(target.name || '아군')}${taunted ? ' (도발 고정)' : ''}` : '🎯 다음 공격: -';
     const weak = typeof getEnemyWeaknessInfo === 'function' ? getEnemyWeaknessInfo(unit) : null;
     if (!weak) return `<div class="enemy-insight-intel">${targetText}</div>`;
     const ratio = safeNum(weak.magicVsPhysical, 1);
@@ -566,6 +574,7 @@ function getV35ActionOptionsFromButtonElement(element) {
     const options = {};
     if (element.dataset.v35TargetId) options.targetId = element.dataset.v35TargetId;
     if (element.dataset.v35TargetSide) options.targetSide = element.dataset.v35TargetSide;
+    if (element.dataset.v35SkillKey) options.skillKey = element.dataset.v35SkillKey;
     return Object.keys(options).length ? options : null;
 }
 
@@ -575,7 +584,7 @@ function getV35ActionFromButtonElement(element) {
     if (element.id === 'attack-btn' || element.id === 'btn-attack') return '공격';
     if (element.id === 'defense-btn' || element.id === 'btn-party-defend') return '방패방어';
     if (element.id === 'heal-btn' || element.id === 'btn-heal') return '힐';
-    if (element.id === 'skill-btn') return '스킬';
+    if (element.id === 'skill-btn' || /^skill-btn-\d+$/.test(element.id)) return '스킬';
     return null;
 }
 
@@ -622,7 +631,8 @@ function installEnemyRowClickTargetingDelegation() {
         if (!isAlive) return;
         event.preventDefault();
         event.stopPropagation();
-        if (typeof window.useAction === 'function') window.useAction(selection.actionType, { targetId });
+        const rowOptions = selection.skillKey ? { targetId, skillKey: selection.skillKey } : { targetId };
+        if (typeof window.useAction === 'function') window.useAction(selection.actionType, rowOptions);
     }, true);
 }
 
@@ -637,6 +647,7 @@ function rebindV35PrimaryActionButtons() {
         'heal-btn',
         'btn-heal',
         'skill-btn',
+        'skill-btn-2',
     ].forEach((id) => {
         const button = document.getElementById(id);
         const actionType = getV35ActionFromButtonElement(button);
@@ -644,7 +655,7 @@ function rebindV35PrimaryActionButtons() {
     });
 }
 
-function renderCombatTargetSelectionPanel(host, actionType, actor) {
+function renderCombatTargetSelectionPanel(host, actionType, actor, skillKey) {
     if (!host || !actor) return;
     // [액티브 스킬] 공격형 스킬(연속 베기/파이어 볼)도 적 대상 선택 패널을 공유한다.
     const isAttack = actionType === '공격' || actionType === '스킬';
@@ -653,13 +664,15 @@ function renderCombatTargetSelectionPanel(host, actionType, actor) {
         : (typeof getLivingPartyMembers === 'function' ? getLivingPartyMembers(player) : []);
     if (!candidates.length) return;
     // [클릭 타겟팅] 대상 선택 상태를 기록해, 적 체력바/카드 직접 클릭으로도 타겟 지정이 가능하게 한다.
-    setCombatTargetSelection(actionType, actor);
+    setCombatTargetSelection(actionType, actor, skillKey);
     const panel = document.createElement('div');
     panel.dataset.v35TargetPanel = '1';
     panel.style.cssText = 'width:100%;margin-top:8px;padding:9px;background:#10141d;border:1px solid #293142;border-radius:8px;display:flex;flex-direction:column;gap:7px;text-align:left;';
     const title = document.createElement('div');
     title.style.cssText = 'color:#d8dee9;font-size:0.76em;font-weight:900;line-height:1.35;';
-    const skillDef = actionType === '스킬' && typeof getPartyActiveSkillFor === 'function' ? getPartyActiveSkillFor(actor) : null;
+    const skillDef = actionType === '스킬'
+        ? (typeof getPartySkillByKey === 'function' ? getPartySkillByKey(actor, skillKey) : (typeof getPartyActiveSkillFor === 'function' ? getPartyActiveSkillFor(actor) : null))
+        : null;
     title.textContent = actionType === '스킬'
         ? `${actor.name || '파티원'}의 ${skillDef ? skillDef.name : '스킬'} 대상 선택 — 적 카드를 직접 클릭해도 됩니다`
         : isAttack
@@ -677,6 +690,7 @@ function renderCombatTargetSelectionPanel(host, actionType, actor) {
         targetButton.dataset.v35Action = actionType;
         targetButton.dataset.v35TargetId = String(target.id || target.roleKey || target.name || '');
         targetButton.dataset.v35TargetSide = isAttack ? 'enemy' : 'player';
+        if (skillKey) targetButton.dataset.v35SkillKey = skillKey;
         targetButton.innerText = `${target.name || '대상'} 선택 (${cur}/${max})`;
         targetButton.title = isAttack ? `${target.name || '대상'}만 공격` : `${target.name || '대상'}만 회복`;
         targetButton.style.cssText = `flex:1 1 118px;min-width:0;padding:7px 8px;border-radius:7px;border:1px solid ${isAttack ? '#ff6b81' : '#2ed573'};background:${isAttack ? '#2b1218' : '#102419'};color:${isAttack ? '#ffb3bf' : '#b8f7cc'};font-size:0.72em;font-weight:900;cursor:pointer;white-space:normal;line-height:1.25;`;
@@ -815,29 +829,38 @@ function renderActions() {
         (actor.roleKey === 'mage' || actor.archetype === 'mage' || (Array.isArray(actor.magic) && actor.magic.includes('heal')))
     );
     if (isHealerRoleActor) {
+        // [힐 자원화] MP 부족/쿨타임이면 자물쇠 잠금 (턴 소모 없이 다른 행동·포션을 고르게 한다)
+        const healBlock = typeof getHealActionBlockReason === 'function' ? getHealActionBlockReason(actor) : null;
+        const healMpCost = safeNum(window.HEAL_ACTION_MP_COST, 15);
+        const healCdTurns = safeNum(window.HEAL_ACTION_COOLDOWN_TURNS, 2);
         makeBtn(
             'heal-btn',
-            '✨ 힐',
+            `✨ 힐 (MP ${healMpCost})`,
             '힐',
-            '#4b6b50',
-            !canHeal,
-            canHeal ? `${actorName}의 지혜 기반 단일 대상 치유 (파티원/자신 선택 가능)` : '마법사의 턴에 회복할 아군이 있을 때만 사용할 수 있습니다.'
+            healBlock ? '#333' : '#4b6b50',
+            !canHeal || !!healBlock,
+            healBlock
+                ? healBlock.message
+                : canHeal
+                  ? `${actorName}의 지혜 기반 단일 대상 치유 (MP ${healMpCost} · 쿨타임 ${healCdTurns}턴)`
+                  : '마법사의 턴에 회복할 아군이 있을 때만 사용할 수 있습니다.',
+            healBlock ? { label: healBlock.label, suffix: healBlock.suffix } : null
         );
     }
-    // [직업별 특수 스킬] 마나 부족 / 스킬 쿨타임 시 자물쇠 잠금
-    const activeSkill = typeof getPartyActiveSkillFor === 'function' ? getPartyActiveSkillFor(actor) : null;
-    if (activeSkill) {
+    // [직업별 특수 스킬] 스킬마다 버튼 1개 (1호기 탱커·마법사는 2개). 마나 부족 / 스킬별 쿨타임 시 자물쇠 잠금
+    const activeSkills = typeof getPartyActiveSkillsFor === 'function'
+        ? getPartyActiveSkillsFor(actor)
+        : (typeof getPartyActiveSkillFor === 'function' && getPartyActiveSkillFor(actor) ? [getPartyActiveSkillFor(actor)] : []);
+    activeSkills.forEach((activeSkill, skillIndex) => {
         const actorMp = typeof getActorMp === 'function' ? getActorMp(actor) : Math.max(0, safeNum(actor.mp, 0));
-        const skillCd = typeof getActorSkillCooldown === 'function'
-            ? getActorSkillCooldown(actor)
-            : Math.max(0, Math.floor(safeNum(actor._skillCooldownTurns, 0)));
+        const skillCd = typeof getActorSkillCooldown === 'function' ? getActorSkillCooldown(actor, activeSkill.key) : 0;
         const hasEnoughMp = actorMp >= activeSkill.mpCost;
         const skillLocked = skillCd > 0 || !hasEnoughMp;
         const lockInfo = skillCd > 0
             ? { label: activeSkill.name, suffix: `(${skillCd}턴)` }
             : (!hasEnoughMp ? { label: activeSkill.name, suffix: '(MP 부족)' } : null);
-        makeBtn(
-            'skill-btn',
+        const btn = makeBtn(
+            skillIndex === 0 ? 'skill-btn' : `skill-btn-${skillIndex + 1}`,
             `${activeSkill.name} (MP ${activeSkill.mpCost})`,
             '스킬',
             skillLocked ? '#333' : '#5f27cd',
@@ -849,7 +872,9 @@ function renderActions() {
                     : `마나가 부족합니다. (현재 ${actorMp} / 필요 ${activeSkill.mpCost} MP)`),
             lockInfo
         );
-    }
+        // 어떤 스킬 버튼인지 useAction 에 전달 (getV35ActionOptionsFromButtonElement → options.skillKey)
+        btn.dataset.v35SkillKey = activeSkill.key;
+    });
     // [포션 사용] 잔여 개수를 실시간 표기하고, 0개이거나 액션 락 중에는 비활성화되는 긴급 회복 커맨드
     const potionCount = Math.max(0, safeNum(player.potions, 0));
     const potionBtn = document.createElement('button');
@@ -4139,13 +4164,32 @@ function getEquipSlotLabel(kind) {
     if (kind === 'rune') return '룬';
     return '장비';
 }
+// [캐릭터별 장착 칸] 3인 파티는 캐릭터마다 독립된 장착 칸을 가진다. (인벤토리 패널 표기와 동일한 단일 출처)
+const MEMBER_EQUIP_SLOT_LIMITS = Object.freeze({ weapon: 1, rune: 1, armor: 2, ring: 3 });
+
+function getMemberEquipSlotLimit(kind) {
+    return MEMBER_EQUIP_SLOT_LIMITS[kind] || Infinity;
+}
+
+function getMemberEquippedCountByKind(member, kind) {
+    if (!member || typeof getMemberOwnedItems !== 'function') return 0;
+    return getMemberOwnedItems(member).filter((x) => getEquipSlotKind(x) === kind).length;
+}
+
+function canMemberEquipMoreOfItem(member, it) {
+    const k = getEquipSlotKind(it);
+    if (!k) return true;
+    return getMemberEquippedCountByKind(member, k) < getMemberEquipSlotLimit(k);
+}
+
 function getEquipSlotLineHtml(it) {
     const k = getEquipSlotKind(it);
     if (!k) return '';
-    const lim = getEquipSlotLimit(k);
+    const partyMode = !!(player && Array.isArray(player.party));
+    const lim = partyMode ? getMemberEquipSlotLimit(k) : getEquipSlotLimit(k);
     const label = getEquipSlotLabel(k);
     const icon = k === 'weapon' ? '⚔️' : k === 'armor' ? '🛡️' : k === 'rune' ? '🔮' : '💍';
-    return `<div style="color:#9fb0ff;font-size:0.76em;margin-top:4px;line-height:1.35;">${icon} <b>장착 칸</b>: ${label} (동시 최대 ${lim}개)</div>`;
+    return `<div style="color:#9fb0ff;font-size:0.76em;margin-top:4px;line-height:1.35;">${icon} <b>장착 칸</b>: ${label} (${partyMode ? '캐릭터당' : '동시'} 최대 ${lim}개)</div>`;
 }
 /** 상점 카드 — 장비만 HP/공격/방어/치명·배율 등 수치 블록(명중·체감 표시 없음) */
 function buildShopItemCombatStatsHtml(it) {
@@ -4162,15 +4206,22 @@ function buildSynergyStatusHtml() {
 function getEquippedCountByKind(kind) {
     return (player.items || []).filter((x) => getEquipSlotKind(x) === kind).length;
 }
+// 파티 모드: 한 명이라도 해당 칸에 여유가 있으면 구매 가능(누구에게 줄지는 구매 시 선택).
 function canEquipMoreOfItem(it) {
     const k = getEquipSlotKind(it);
     if (!k) return true;
+    if (player && Array.isArray(player.party)) {
+        return getPartyMembers(player).some((member) => canMemberEquipMoreOfItem(member, it));
+    }
     return getEquippedCountByKind(k) < getEquipSlotLimit(k);
 }
 window.getEquipSlotKind = getEquipSlotKind;
 window.getEquipSlotLimit = getEquipSlotLimit;
 window.getEquippedCountByKind = getEquippedCountByKind;
 window.canEquipMoreOfItem = canEquipMoreOfItem;
+window.getMemberEquipSlotLimit = getMemberEquipSlotLimit;
+window.getMemberEquippedCountByKind = getMemberEquippedCountByKind;
+window.canMemberEquipMoreOfItem = canMemberEquipMoreOfItem;
 
 function getItemSynergyHints(it) {
     return [];
@@ -4359,8 +4410,25 @@ function buildStatGuideHtml() {
         })
         .join('')}</div>`;
 }
+// [전투 팁] 포션의 가치(마법사 힐이 막히는 상황) · 힐 자원 · 탱커→마법사 연계를 스탯 안내서 하단에 명시한다.
+function buildCombatTipsHtml() {
+    const healMp = safeNum(window.HEAL_ACTION_MP_COST, 15);
+    const healCd = safeNum(window.HEAL_ACTION_COOLDOWN_TURNS, 2);
+    const tips = [
+        ['🧪 포션', `HP 비율이 가장 낮은 아군의 최대 HP 40%를 즉시 회복합니다. MP·쿨타임과 무관해서, 마법사의 힐이 막힌 순간 — MP 부족, 힐 쿨타임, 마법사 전투 불능 — 에 파티를 살리는 유일한 즉시 회복 수단입니다. MP는 마을로 돌아가야만 회복되니 포션을 넉넉히 챙기세요.`],
+        ['✨ 마법사 힐', `기본 힐은 MP ${healMp}를 소모하고 ${healCd}턴 쿨타임이 있습니다. 힐은 항상 100% 적중하며 회복량은 지혜에 비례합니다.`],
+        ['🛡️→🔮 연계', '탱커의 [방패 밀치기]로 적을 기절시키고 마법 저항을 낮춘 뒤, 마법사의 [응축된 마탄]을 맞히면 ×1.5 연계 폭발이 터집니다.'],
+    ];
+    return `<div class="combat-tips-title">⚔️ 전투 팁</div><div class="stat-guide-grid">${tips
+        .map(([name, desc]) => `<div class="stat-guide-card combat-tip-card">
+            <div class="stat-guide-name">${escapeHtml(name)}</div>
+            <div class="stat-guide-desc">${escapeHtml(desc)}</div>
+        </div>`)
+        .join('')}</div>`;
+}
+
 function buildGuideHtml() {
-    return buildStatGuideHtml();
+    return buildStatGuideHtml() + buildCombatTipsHtml();
 }
 
 // ===== [ESC 설정 모달] 전역 ESC 키로 #settings-modal 을 열고 닫는다. =====
@@ -4414,7 +4482,7 @@ function renderSettingsModal() {
         btn.classList.toggle('is-active', on);
         btn.setAttribute('aria-selected', on ? 'true' : 'false');
     });
-    body.innerHTML = tab === 'stats' ? buildStatGuideHtml() : buildSettingsGameTabHtml();
+    body.innerHTML = tab === 'stats' ? buildStatGuideHtml() + buildCombatTipsHtml() : buildSettingsGameTabHtml();
 }
 
 window.setSettingsTab = function setSettingsTab(tab) {
@@ -4714,12 +4782,17 @@ function renderInventoryPanel() {
     let html = '';
     const partyMode = Array.isArray(player.party);
     const activeMember = partyMode ? getActiveInventoryPartyMember() : null;
-    const sourceItems = activeMember ? (activeMember.items || []) : (player.items || []);
+    // [장비 귀속] 선택한 파티원이 소유한 장비 전부 — 요구 레벨 미달로 미장착(🔒)인 것도 이 캐릭터 칸에 보인다.
+    const sourceItems = activeMember
+        ? (typeof getMemberOwnedItems === 'function' ? getMemberOwnedItems(activeMember) : (activeMember.items || []))
+        : (player.items || []);
     if (partyMode) {
-        const tabs = getPartyRoleTabs()
-            .map((role) => {
-                const selected = activeMember && activeMember.roleKey === role.key;
-                return `<button type="button" onclick="setInventoryPartyTab('${role.key}')" style="flex:1;min-width:0;padding:7px 6px;border-radius:8px;border:1px solid ${selected ? role.color : '#333'};background:${selected ? 'rgba(241,196,15,0.12)' : '#111'};color:${selected ? role.color : '#888'};font-size:0.78em;font-weight:900;cursor:pointer;">${role.label}</button>`;
+        const roleColors = Object.fromEntries(getPartyRoleTabs().map((role) => [role.key, role.color]));
+        const tabs = getPartyMembers(player)
+            .map((member) => {
+                const selected = activeMember && activeMember.id === member.id;
+                const color = roleColors[member.roleKey] || '#f1c40f';
+                return `<button type="button" onclick="setInventoryPartyTab('${escapeJsSingleQuoteString(member.id)}')" style="flex:1;min-width:0;padding:7px 6px;border-radius:8px;border:1px solid ${selected ? color : '#333'};background:${selected ? 'rgba(241,196,15,0.12)' : '#111'};color:${selected ? color : '#888'};font-size:0.78em;font-weight:900;cursor:pointer;">${escapeHtml(member.name)}</button>`;
             })
             .join('');
         const st = activeMember && activeMember.stats ? activeMember.stats : {};
@@ -4765,10 +4838,10 @@ function renderInventoryPanel() {
     const ro = { legendary: 0, epic: 1, rare: 2, common: 3 };
     const slotDefs = partyMode
         ? [
-            { kind: 'weapon', icon: '⚔️', label: '무기 슬롯', color: '#ffb347', hint: '캐릭터별 최대 1개', limit: 1 },
-            { kind: 'rune', icon: '🔮', label: '각인 룬 슬롯', color: '#00cec9', hint: '캐릭터별 최대 1개', limit: 1 },
-            { kind: 'armor', icon: '🛡️', label: '갑옷 슬롯', color: '#74b9ff', hint: '캐릭터별 최대 2개', limit: 2 },
-            { kind: 'ring', icon: '💍', label: '반지 슬롯', color: '#9b59b6', hint: '캐릭터별 최대 3개', limit: 3 },
+            { kind: 'weapon', icon: '⚔️', label: '무기 슬롯', color: '#ffb347', hint: `캐릭터별 최대 ${MEMBER_EQUIP_SLOT_LIMITS.weapon}개`, limit: MEMBER_EQUIP_SLOT_LIMITS.weapon },
+            { kind: 'rune', icon: '🔮', label: '각인 룬 슬롯', color: '#00cec9', hint: `캐릭터별 최대 ${MEMBER_EQUIP_SLOT_LIMITS.rune}개`, limit: MEMBER_EQUIP_SLOT_LIMITS.rune },
+            { kind: 'armor', icon: '🛡️', label: '갑옷 슬롯', color: '#74b9ff', hint: `캐릭터별 최대 ${MEMBER_EQUIP_SLOT_LIMITS.armor}개`, limit: MEMBER_EQUIP_SLOT_LIMITS.armor },
+            { kind: 'ring', icon: '💍', label: '반지 슬롯', color: '#9b59b6', hint: `캐릭터별 최대 ${MEMBER_EQUIP_SLOT_LIMITS.ring}개`, limit: MEMBER_EQUIP_SLOT_LIMITS.ring },
         ]
         : [
             { kind: 'rune', icon: '🔮', label: '각인 룬 슬롯', color: '#00cec9', hint: '최대 1개' },
@@ -4782,7 +4855,8 @@ function renderInventoryPanel() {
         const slotItems = sourceItems
             .filter((it) => getEquipSlotKind(it) === sdef.kind)
             .sort((a, b) => (ro[a.rarity] || 3) - (ro[b.rarity] || 3));
-        const cellCount = Math.max(limit, Math.min(slotItems.length, limit));
+        // 구버전 저장에서 한 캐릭터가 칸 제한보다 많이 가진 장비도 숨기지 않고 모두 보여 판매할 수 있게 한다.
+        const cellCount = Math.max(limit, slotItems.length);
         html += `<section class="inventory-slot-section" style="--slot-accent:${sdef.color};">
             <div class="inventory-slot-header">
                 <span class="inventory-slot-title">${sdef.icon} ${sdef.label}</span>
@@ -4851,32 +4925,38 @@ function renderSkillGuidePanel() {
         host.innerHTML = defaultText;
         return;
     }
-    const skill = typeof getPartyActiveSkillFor === 'function' ? getPartyActiveSkillFor(actor) : null;
-    if (!skill) {
+    const skills = typeof getPartyActiveSkillsFor === 'function'
+        ? getPartyActiveSkillsFor(actor)
+        : (typeof getPartyActiveSkillFor === 'function' && getPartyActiveSkillFor(actor) ? [getPartyActiveSkillFor(actor)] : []);
+    if (!skills.length) {
         host.innerHTML = `<div class="skill-guide-head">${escapeHtml(actor.name || '파티원')}</div><div class="skill-guide-empty">이 유닛은 전용 액티브 스킬이 없습니다.</div>`;
         return;
     }
     const mp = typeof getActorMp === 'function' ? getActorMp(actor) : Math.max(0, safeNum(actor.mp, 0));
-    const cd = typeof getActorSkillCooldown === 'function'
-        ? getActorSkillCooldown(actor)
-        : Math.max(0, Math.floor(safeNum(actor._skillCooldownTurns, 0)));
-    const targetLabel = skill.targeting === 'self' ? '자신'
-        : skill.targeting === 'ally' ? '아군 1명'
-        : skill.targeting === 'enemy' ? '적 1명' : '—';
-    const usable = typeof canActorUseActiveSkill === 'function' ? canActorUseActiveSkill(actor) : (mp >= skill.mpCost && cd <= 0);
-    const statusHtml = usable
-        ? '<span class="skill-guide-ok">✅ 사용 가능</span>'
-        : cd > 0
-            ? `<span class="skill-guide-no">🔒 쿨타임 ${cd}턴</span>`
-            : `<span class="skill-guide-no">🔒 MP 부족 (${mp}/${skill.mpCost})</span>`;
+    // [스킬 확장] 보유 스킬 전부를 카드로 나열 (스킬별 MP·쿨타임·사용 가능 여부)
+    const skillCards = skills.map((skill) => {
+        const cd = typeof getActorSkillCooldown === 'function' ? getActorSkillCooldown(actor, skill.key) : 0;
+        const targetLabel = skill.targeting === 'self' ? '자신'
+            : skill.targeting === 'ally' ? '아군 1명'
+            : skill.targeting === 'enemy' ? '적 1명' : '—';
+        const usable = typeof canActorUseActiveSkill === 'function' ? canActorUseActiveSkill(actor, skill.key) : (mp >= skill.mpCost && cd <= 0);
+        const statusHtml = usable
+            ? '<span class="skill-guide-ok">✅ 사용 가능</span>'
+            : cd > 0
+                ? `<span class="skill-guide-no">🔒 쿨타임 ${cd}턴</span>`
+                : `<span class="skill-guide-no">🔒 MP 부족 (${mp}/${skill.mpCost})</span>`;
+        return `<div class="skill-guide-card">
+            <div class="skill-guide-name">${escapeHtml(skill.name)}${skill.bType ? ' <span class="skill-guide-btype">B</span>' : ''}</div>
+            <div class="skill-guide-row"><span>소모 MP</span><b>${skill.mpCost}</b></div>
+            <div class="skill-guide-row"><span>대상</span><b>${targetLabel}</b></div>
+            ${skill.cooldownTurns ? `<div class="skill-guide-row"><span>쿨타임</span><b>${skill.cooldownTurns}턴</b></div>` : ''}
+            <div class="skill-guide-desc">${escapeHtml(skill.description || '')}</div>
+            <div class="skill-guide-status">${statusHtml}</div>
+        </div>`;
+    }).join('');
     host.innerHTML = `
-        <div class="skill-guide-head">🎯 ${escapeHtml(actor.name || '파티원')} 턴 · 스킬</div>
-        <div class="skill-guide-name">${escapeHtml(skill.name)}${skill.bType ? ' <span class="skill-guide-btype">B</span>' : ''}</div>
-        <div class="skill-guide-row"><span>소모 MP</span><b>${skill.mpCost}</b></div>
-        <div class="skill-guide-row"><span>대상</span><b>${targetLabel}</b></div>
-        ${skill.cooldownTurns ? `<div class="skill-guide-row"><span>쿨타임</span><b>${skill.cooldownTurns}턴</b></div>` : ''}
-        <div class="skill-guide-desc">${escapeHtml(skill.description || '')}</div>
-        <div class="skill-guide-status">${statusHtml} · 현재 ${mp} MP</div>`;
+        <div class="skill-guide-head">🎯 ${escapeHtml(actor.name || '파티원')} 턴 · 스킬 <span class="skill-guide-mp">현재 ${mp} MP</span></div>
+        ${skillCards}`;
 }
 window.renderSkillGuidePanel = renderSkillGuidePanel;
 

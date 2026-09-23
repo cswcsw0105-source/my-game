@@ -694,7 +694,7 @@ function normalizeRarityKey(value) {
 }
 // [경제 개편 v2] 등급(tier) 기준 표준 가격 베이스 + 오차 범위. 개별 하드코딩 가격을 대체한다.
 const ECONOMY_TIER_PRICE_RANGE = Object.freeze({
-    common: [80, 110],
+    common: [50, 80], // [초반 쇼핑 몰입감] 1티어 기초 장비 50~80G
     rare: [200, 260],
     epic: [450, 550],
     legendary: [950, 1200],
@@ -709,7 +709,8 @@ function isStaleEconomyTierPrice(price, tier) {
     const range = ECONOMY_TIER_PRICE_RANGE[tier] || ECONOMY_TIER_PRICE_RANGE.common;
     const n = Number(price);
     if (!Number.isFinite(n) || n <= 0) return true;
-    return n < range[0] * 0.85 || n > range[1] * 1.35;
+    // 현재 등급 범위를 벗어나면 모두 구형 가격으로 보고 재매핑한다(등급 가격표 개정 시 즉시 반영).
+    return n < range[0] || n > range[1];
 }
 function computeEquipmentGoldPrice(item, floorRef) {
     const tier = normalizeRarityKey(item && item.rarity);

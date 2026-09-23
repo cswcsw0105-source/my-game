@@ -10954,7 +10954,7 @@ function normalizeRarityKey(value) {
 }
 // [경제 개편 v2] 등급(tier) 기준 표준 가격 베이스 + 오차 범위. 개별 하드코딩 가격을 대체한다.
 const ECONOMY_TIER_PRICE_RANGE = Object.freeze({
-    common: [80, 110],
+    common: [50, 80], // [초반 쇼핑 몰입감] 1티어 기초 장비 50~80G
     rare: [200, 260],
     epic: [450, 550],
     legendary: [950, 1200],
@@ -10969,7 +10969,8 @@ function isStaleEconomyTierPrice(price, tier) {
     const range = ECONOMY_TIER_PRICE_RANGE[tier] || ECONOMY_TIER_PRICE_RANGE.common;
     const n = Number(price);
     if (!Number.isFinite(n) || n <= 0) return true;
-    return n < range[0] * 0.85 || n > range[1] * 1.35;
+    // 현재 등급 범위를 벗어나면 모두 구형 가격으로 보고 재매핑한다(등급 가격표 개정 시 즉시 반영).
+    return n < range[0] || n > range[1];
 }
 function computeEquipmentGoldPrice(item, floorRef) {
     const tier = normalizeRarityKey(item && item.rarity);
@@ -12643,12 +12644,44 @@ function getPlayerDamageReduction() {
 function getPlayerPotionHealMultiplier() { return player ? 1 + safeNum(player.potionHealBonus, 0) : 1; }
 function applyRebirthPctBonusToPlayer() { return player; }
 function applyOwnedEquipmentItemBonuses() { return player; }
+// ===== [장비 귀속 대상 해석] 상점 구매·인벤 표시·능력치 재계산이 모두 이 함수 하나로 소유자를 결정한다. =====
+// 우선순위: _assignedMemberId(신규, 파티원 id — 동일 직업 2명도 정확히 구분) → _assignedRole(구버전 저장)
+//          → 아이템 타입 휴리스틱 → (해당 직업이 파티에 없으면) 첫 파티원.
+// 구버전은 휴리스틱 직업이 파티에 없으면 아이템이 아무에게도 장착되지 않고 능력치가 사라졌다.
+function resolveItemOwnerMember(item, members) {
+    const list = Array.isArray(members) ? members.filter(Boolean) : [];
+    if (!item || !list.length) return null;
+    if (item._assignedMemberId) {
+        const byId = list.find((member) => member.id === item._assignedMemberId);
+        if (byId) return byId;
+    }
+    // 구버전 호환: 같은 직업이 여럿이면 기존 Object.fromEntries(byRole)와 동일하게 마지막 파티원을 쓴다.
+    const lastOfRole = (roleKey) => list.filter((member) => member.roleKey === roleKey).pop() || null;
+    if (item._assignedRole) {
+        const byRole = lastOfRole(item._assignedRole);
+        if (byRole) return byRole;
+    }
+    const itemText = `${item.name || ''} ${(item.tags || []).join(' ')}`;
+    const heuristicRole = item.type === 'hp' || safeNum(item.def, 0) > 0 || safeNum(item.damageReduction, 0) > 0
+        ? 'tank'
+        : /지팡이|마법|마력|마도|보주|주문|arcane/i.test(itemText)
+          ? 'mage'
+          : 'knight';
+    return lastOfRole(heuristicRole) || list[0];
+}
+
+// 파티원 한 명이 소유한 장비 전부(요구 레벨 미달로 가방에 보관 중인 것 포함).
+function getMemberOwnedItems(member) {
+    if (!member || !player || !Array.isArray(player.items)) return [];
+    const members = getPartyMembers(player);
+    return player.items.filter((item) => item && resolveItemOwnerMember(item, members) === member);
+}
+
 function fullResyncPlayerCombatStatsFromMetaAndInventory() {
     if (!player) return null;
     ensureHumanRuntimeShape(player);
     if (Array.isArray(player.party)) {
         const members = getPartyMembers(player);
-        const byRole = Object.fromEntries(members.map((member) => [member.roleKey, member]));
         members.forEach((member) => {
             const previousHp = member.curHp;
             member.items = [];
@@ -12667,14 +12700,8 @@ function fullResyncPlayerCombatStatsFromMetaAndInventory() {
             if (!item) continue;
             const reqLevel = typeof getItemReqLevel === 'function' ? getItemReqLevel(item) : 1;
             item.reqLevel = reqLevel;
-            const itemText = `${item.name || ''} ${(item.tags || []).join(' ')}`;
-            // [구매 지급 대상 지정] 유저가 명시적으로 귀속시킨 캐릭터가 있으면 자동 분배 휴리스틱보다 우선한다.
-            const assignedTarget = item._assignedRole && byRole[item._assignedRole] ? byRole[item._assignedRole] : null;
-            const target = assignedTarget || (item.type === 'hp' || safeNum(item.def, 0) > 0 || safeNum(item.damageReduction, 0) > 0
-                ? byRole.tank
-                : /지팡이|마법|마력|마도|보주|주문|arcane/i.test(itemText)
-                  ? byRole.mage
-                  : byRole.knight);
+            // [구매 지급 대상 지정] 구매 시 선택한 파티원(_assignedMemberId)이 최우선 — resolveItemOwnerMember 참고.
+            const target = resolveItemOwnerMember(item, members);
             if (!target) continue;
             // [장비 착용 레벨 제한] 실제 캐릭터(장착 대상 파티원) level >= item.reqLevel 이어야 장착된다.
             // 레벨 미달이면 스탯 미반영, 아이템은 player.items(가방)에 그대로 남는다. 인벤 슬롯 제한 없음.
@@ -12777,6 +12804,8 @@ function getPlayerFleeBonus() { return 0; }
 
 Object.assign(window, {
     safeNum,
+    resolveItemOwnerMember,
+    getMemberOwnedItems,
     getCharacterLevel,
     grantPartyMemberExp,
     getEnemyMemberExpValue,
@@ -13289,17 +13318,20 @@ function getPartyRoleTabs() {
     ];
 }
 
+// [인벤토리 탭 = 파티원 단위] 탭 키는 파티원 id (구버전 roleKey 도 허용). 동일 직업 2명도 각자 탭을 가진다.
 function getActiveInventoryPartyMember() {
     const members = getPartyMembers(player);
     if (!members.length) return null;
-    const roleKeys = getPartyRoleTabs().map((role) => role.key);
-    if (!roleKeys.includes(activeInventoryPartyRole)) activeInventoryPartyRole = 'tank';
-    return members.find((member) => member.roleKey === activeInventoryPartyRole) || members[0];
+    return members.find((member) => member.id === activeInventoryPartyRole)
+        || members.find((member) => member.roleKey === activeInventoryPartyRole)
+        || members[0];
 }
 
-window.setInventoryPartyTab = function setInventoryPartyTab(roleKey) {
-    if (!getPartyRoleTabs().some((role) => role.key === roleKey)) return;
-    activeInventoryPartyRole = roleKey;
+window.setInventoryPartyTab = function setInventoryPartyTab(memberKey) {
+    const members = getPartyMembers(player);
+    const member = members.find((m) => m.id === memberKey) || members.find((m) => m.roleKey === memberKey);
+    if (!member) return;
+    activeInventoryPartyRole = member.id;
     renderInventoryPanel();
 };
 
@@ -13308,10 +13340,12 @@ const getCombatTargetActorKey = (actor) => {
     return String(actor.id || actor.roleKey || actor.name || '');
 };
 
-const setCombatTargetSelection = (actionType, actor) => {
+const setCombatTargetSelection = (actionType, actor, skillKey) => {
     combatTargetSelectionState = {
         actionType,
         actorKey: getCombatTargetActorKey(actor),
+        // [스킬 확장] 어떤 스킬의 대상 선택인지 기억 → 적 카드 직접 클릭 시에도 같은 스킬로 시전된다.
+        skillKey: skillKey || null,
     };
 };
 
@@ -13539,7 +13573,10 @@ function buildEnemyInsightIntelHtml(unit) {
     if (!unit || safeNum(unit.curHp, 0) <= 0) return '';
     const target = typeof getEnemyPlannedTarget === 'function' ? getEnemyPlannedTarget(unit) : null;
     const taunted = !!(target && typeof getActiveTauntTank === 'function' && getActiveTauntTank() === target);
-    const targetText = target ? `🎯 다음 공격: ${escapeHtml(target.name || '아군')}${taunted ? ' (도발 고정)' : ''}` : '🎯 다음 공격: -';
+    const stunned = typeof hasUnitStatus === 'function' && hasUnitStatus(unit, 'stun');
+    const targetText = stunned
+        ? '💫 기절 — 다음 턴 행동 불가'
+        : target ? `🎯 다음 공격: ${escapeHtml(target.name || '아군')}${taunted ? ' (도발 고정)' : ''}` : '🎯 다음 공격: -';
     const weak = typeof getEnemyWeaknessInfo === 'function' ? getEnemyWeaknessInfo(unit) : null;
     if (!weak) return `<div class="enemy-insight-intel">${targetText}</div>`;
     const ratio = safeNum(weak.magicVsPhysical, 1);
@@ -13767,6 +13804,7 @@ function getV35ActionOptionsFromButtonElement(element) {
     const options = {};
     if (element.dataset.v35TargetId) options.targetId = element.dataset.v35TargetId;
     if (element.dataset.v35TargetSide) options.targetSide = element.dataset.v35TargetSide;
+    if (element.dataset.v35SkillKey) options.skillKey = element.dataset.v35SkillKey;
     return Object.keys(options).length ? options : null;
 }
 
@@ -13776,7 +13814,7 @@ function getV35ActionFromButtonElement(element) {
     if (element.id === 'attack-btn' || element.id === 'btn-attack') return '공격';
     if (element.id === 'defense-btn' || element.id === 'btn-party-defend') return '방패방어';
     if (element.id === 'heal-btn' || element.id === 'btn-heal') return '힐';
-    if (element.id === 'skill-btn') return '스킬';
+    if (element.id === 'skill-btn' || /^skill-btn-\d+$/.test(element.id)) return '스킬';
     return null;
 }
 
@@ -13823,7 +13861,8 @@ function installEnemyRowClickTargetingDelegation() {
         if (!isAlive) return;
         event.preventDefault();
         event.stopPropagation();
-        if (typeof window.useAction === 'function') window.useAction(selection.actionType, { targetId });
+        const rowOptions = selection.skillKey ? { targetId, skillKey: selection.skillKey } : { targetId };
+        if (typeof window.useAction === 'function') window.useAction(selection.actionType, rowOptions);
     }, true);
 }
 
@@ -13838,6 +13877,7 @@ function rebindV35PrimaryActionButtons() {
         'heal-btn',
         'btn-heal',
         'skill-btn',
+        'skill-btn-2',
     ].forEach((id) => {
         const button = document.getElementById(id);
         const actionType = getV35ActionFromButtonElement(button);
@@ -13845,7 +13885,7 @@ function rebindV35PrimaryActionButtons() {
     });
 }
 
-function renderCombatTargetSelectionPanel(host, actionType, actor) {
+function renderCombatTargetSelectionPanel(host, actionType, actor, skillKey) {
     if (!host || !actor) return;
     // [액티브 스킬] 공격형 스킬(연속 베기/파이어 볼)도 적 대상 선택 패널을 공유한다.
     const isAttack = actionType === '공격' || actionType === '스킬';
@@ -13854,13 +13894,15 @@ function renderCombatTargetSelectionPanel(host, actionType, actor) {
         : (typeof getLivingPartyMembers === 'function' ? getLivingPartyMembers(player) : []);
     if (!candidates.length) return;
     // [클릭 타겟팅] 대상 선택 상태를 기록해, 적 체력바/카드 직접 클릭으로도 타겟 지정이 가능하게 한다.
-    setCombatTargetSelection(actionType, actor);
+    setCombatTargetSelection(actionType, actor, skillKey);
     const panel = document.createElement('div');
     panel.dataset.v35TargetPanel = '1';
     panel.style.cssText = 'width:100%;margin-top:8px;padding:9px;background:#10141d;border:1px solid #293142;border-radius:8px;display:flex;flex-direction:column;gap:7px;text-align:left;';
     const title = document.createElement('div');
     title.style.cssText = 'color:#d8dee9;font-size:0.76em;font-weight:900;line-height:1.35;';
-    const skillDef = actionType === '스킬' && typeof getPartyActiveSkillFor === 'function' ? getPartyActiveSkillFor(actor) : null;
+    const skillDef = actionType === '스킬'
+        ? (typeof getPartySkillByKey === 'function' ? getPartySkillByKey(actor, skillKey) : (typeof getPartyActiveSkillFor === 'function' ? getPartyActiveSkillFor(actor) : null))
+        : null;
     title.textContent = actionType === '스킬'
         ? `${actor.name || '파티원'}의 ${skillDef ? skillDef.name : '스킬'} 대상 선택 — 적 카드를 직접 클릭해도 됩니다`
         : isAttack
@@ -13878,6 +13920,7 @@ function renderCombatTargetSelectionPanel(host, actionType, actor) {
         targetButton.dataset.v35Action = actionType;
         targetButton.dataset.v35TargetId = String(target.id || target.roleKey || target.name || '');
         targetButton.dataset.v35TargetSide = isAttack ? 'enemy' : 'player';
+        if (skillKey) targetButton.dataset.v35SkillKey = skillKey;
         targetButton.innerText = `${target.name || '대상'} 선택 (${cur}/${max})`;
         targetButton.title = isAttack ? `${target.name || '대상'}만 공격` : `${target.name || '대상'}만 회복`;
         targetButton.style.cssText = `flex:1 1 118px;min-width:0;padding:7px 8px;border-radius:7px;border:1px solid ${isAttack ? '#ff6b81' : '#2ed573'};background:${isAttack ? '#2b1218' : '#102419'};color:${isAttack ? '#ffb3bf' : '#b8f7cc'};font-size:0.72em;font-weight:900;cursor:pointer;white-space:normal;line-height:1.25;`;
@@ -14016,29 +14059,38 @@ function renderActions() {
         (actor.roleKey === 'mage' || actor.archetype === 'mage' || (Array.isArray(actor.magic) && actor.magic.includes('heal')))
     );
     if (isHealerRoleActor) {
+        // [힐 자원화] MP 부족/쿨타임이면 자물쇠 잠금 (턴 소모 없이 다른 행동·포션을 고르게 한다)
+        const healBlock = typeof getHealActionBlockReason === 'function' ? getHealActionBlockReason(actor) : null;
+        const healMpCost = safeNum(window.HEAL_ACTION_MP_COST, 15);
+        const healCdTurns = safeNum(window.HEAL_ACTION_COOLDOWN_TURNS, 2);
         makeBtn(
             'heal-btn',
-            '✨ 힐',
+            `✨ 힐 (MP ${healMpCost})`,
             '힐',
-            '#4b6b50',
-            !canHeal,
-            canHeal ? `${actorName}의 지혜 기반 단일 대상 치유 (파티원/자신 선택 가능)` : '마법사의 턴에 회복할 아군이 있을 때만 사용할 수 있습니다.'
+            healBlock ? '#333' : '#4b6b50',
+            !canHeal || !!healBlock,
+            healBlock
+                ? healBlock.message
+                : canHeal
+                  ? `${actorName}의 지혜 기반 단일 대상 치유 (MP ${healMpCost} · 쿨타임 ${healCdTurns}턴)`
+                  : '마법사의 턴에 회복할 아군이 있을 때만 사용할 수 있습니다.',
+            healBlock ? { label: healBlock.label, suffix: healBlock.suffix } : null
         );
     }
-    // [직업별 특수 스킬] 마나 부족 / 스킬 쿨타임 시 자물쇠 잠금
-    const activeSkill = typeof getPartyActiveSkillFor === 'function' ? getPartyActiveSkillFor(actor) : null;
-    if (activeSkill) {
+    // [직업별 특수 스킬] 스킬마다 버튼 1개 (1호기 탱커·마법사는 2개). 마나 부족 / 스킬별 쿨타임 시 자물쇠 잠금
+    const activeSkills = typeof getPartyActiveSkillsFor === 'function'
+        ? getPartyActiveSkillsFor(actor)
+        : (typeof getPartyActiveSkillFor === 'function' && getPartyActiveSkillFor(actor) ? [getPartyActiveSkillFor(actor)] : []);
+    activeSkills.forEach((activeSkill, skillIndex) => {
         const actorMp = typeof getActorMp === 'function' ? getActorMp(actor) : Math.max(0, safeNum(actor.mp, 0));
-        const skillCd = typeof getActorSkillCooldown === 'function'
-            ? getActorSkillCooldown(actor)
-            : Math.max(0, Math.floor(safeNum(actor._skillCooldownTurns, 0)));
+        const skillCd = typeof getActorSkillCooldown === 'function' ? getActorSkillCooldown(actor, activeSkill.key) : 0;
         const hasEnoughMp = actorMp >= activeSkill.mpCost;
         const skillLocked = skillCd > 0 || !hasEnoughMp;
         const lockInfo = skillCd > 0
             ? { label: activeSkill.name, suffix: `(${skillCd}턴)` }
             : (!hasEnoughMp ? { label: activeSkill.name, suffix: '(MP 부족)' } : null);
-        makeBtn(
-            'skill-btn',
+        const btn = makeBtn(
+            skillIndex === 0 ? 'skill-btn' : `skill-btn-${skillIndex + 1}`,
             `${activeSkill.name} (MP ${activeSkill.mpCost})`,
             '스킬',
             skillLocked ? '#333' : '#5f27cd',
@@ -14050,7 +14102,9 @@ function renderActions() {
                     : `마나가 부족합니다. (현재 ${actorMp} / 필요 ${activeSkill.mpCost} MP)`),
             lockInfo
         );
-    }
+        // 어떤 스킬 버튼인지 useAction 에 전달 (getV35ActionOptionsFromButtonElement → options.skillKey)
+        btn.dataset.v35SkillKey = activeSkill.key;
+    });
     // [포션 사용] 잔여 개수를 실시간 표기하고, 0개이거나 액션 락 중에는 비활성화되는 긴급 회복 커맨드
     const potionCount = Math.max(0, safeNum(player.potions, 0));
     const potionBtn = document.createElement('button');
@@ -17340,13 +17394,32 @@ function getEquipSlotLabel(kind) {
     if (kind === 'rune') return '룬';
     return '장비';
 }
+// [캐릭터별 장착 칸] 3인 파티는 캐릭터마다 독립된 장착 칸을 가진다. (인벤토리 패널 표기와 동일한 단일 출처)
+const MEMBER_EQUIP_SLOT_LIMITS = Object.freeze({ weapon: 1, rune: 1, armor: 2, ring: 3 });
+
+function getMemberEquipSlotLimit(kind) {
+    return MEMBER_EQUIP_SLOT_LIMITS[kind] || Infinity;
+}
+
+function getMemberEquippedCountByKind(member, kind) {
+    if (!member || typeof getMemberOwnedItems !== 'function') return 0;
+    return getMemberOwnedItems(member).filter((x) => getEquipSlotKind(x) === kind).length;
+}
+
+function canMemberEquipMoreOfItem(member, it) {
+    const k = getEquipSlotKind(it);
+    if (!k) return true;
+    return getMemberEquippedCountByKind(member, k) < getMemberEquipSlotLimit(k);
+}
+
 function getEquipSlotLineHtml(it) {
     const k = getEquipSlotKind(it);
     if (!k) return '';
-    const lim = getEquipSlotLimit(k);
+    const partyMode = !!(player && Array.isArray(player.party));
+    const lim = partyMode ? getMemberEquipSlotLimit(k) : getEquipSlotLimit(k);
     const label = getEquipSlotLabel(k);
     const icon = k === 'weapon' ? '⚔️' : k === 'armor' ? '🛡️' : k === 'rune' ? '🔮' : '💍';
-    return `<div style="color:#9fb0ff;font-size:0.76em;margin-top:4px;line-height:1.35;">${icon} <b>장착 칸</b>: ${label} (동시 최대 ${lim}개)</div>`;
+    return `<div style="color:#9fb0ff;font-size:0.76em;margin-top:4px;line-height:1.35;">${icon} <b>장착 칸</b>: ${label} (${partyMode ? '캐릭터당' : '동시'} 최대 ${lim}개)</div>`;
 }
 /** 상점 카드 — 장비만 HP/공격/방어/치명·배율 등 수치 블록(명중·체감 표시 없음) */
 function buildShopItemCombatStatsHtml(it) {
@@ -17363,15 +17436,22 @@ function buildSynergyStatusHtml() {
 function getEquippedCountByKind(kind) {
     return (player.items || []).filter((x) => getEquipSlotKind(x) === kind).length;
 }
+// 파티 모드: 한 명이라도 해당 칸에 여유가 있으면 구매 가능(누구에게 줄지는 구매 시 선택).
 function canEquipMoreOfItem(it) {
     const k = getEquipSlotKind(it);
     if (!k) return true;
+    if (player && Array.isArray(player.party)) {
+        return getPartyMembers(player).some((member) => canMemberEquipMoreOfItem(member, it));
+    }
     return getEquippedCountByKind(k) < getEquipSlotLimit(k);
 }
 window.getEquipSlotKind = getEquipSlotKind;
 window.getEquipSlotLimit = getEquipSlotLimit;
 window.getEquippedCountByKind = getEquippedCountByKind;
 window.canEquipMoreOfItem = canEquipMoreOfItem;
+window.getMemberEquipSlotLimit = getMemberEquipSlotLimit;
+window.getMemberEquippedCountByKind = getMemberEquippedCountByKind;
+window.canMemberEquipMoreOfItem = canMemberEquipMoreOfItem;
 
 function getItemSynergyHints(it) {
     return [];
@@ -17560,8 +17640,25 @@ function buildStatGuideHtml() {
         })
         .join('')}</div>`;
 }
+// [전투 팁] 포션의 가치(마법사 힐이 막히는 상황) · 힐 자원 · 탱커→마법사 연계를 스탯 안내서 하단에 명시한다.
+function buildCombatTipsHtml() {
+    const healMp = safeNum(window.HEAL_ACTION_MP_COST, 15);
+    const healCd = safeNum(window.HEAL_ACTION_COOLDOWN_TURNS, 2);
+    const tips = [
+        ['🧪 포션', `HP 비율이 가장 낮은 아군의 최대 HP 40%를 즉시 회복합니다. MP·쿨타임과 무관해서, 마법사의 힐이 막힌 순간 — MP 부족, 힐 쿨타임, 마법사 전투 불능 — 에 파티를 살리는 유일한 즉시 회복 수단입니다. MP는 마을로 돌아가야만 회복되니 포션을 넉넉히 챙기세요.`],
+        ['✨ 마법사 힐', `기본 힐은 MP ${healMp}를 소모하고 ${healCd}턴 쿨타임이 있습니다. 힐은 항상 100% 적중하며 회복량은 지혜에 비례합니다.`],
+        ['🛡️→🔮 연계', '탱커의 [방패 밀치기]로 적을 기절시키고 마법 저항을 낮춘 뒤, 마법사의 [응축된 마탄]을 맞히면 ×1.5 연계 폭발이 터집니다.'],
+    ];
+    return `<div class="combat-tips-title">⚔️ 전투 팁</div><div class="stat-guide-grid">${tips
+        .map(([name, desc]) => `<div class="stat-guide-card combat-tip-card">
+            <div class="stat-guide-name">${escapeHtml(name)}</div>
+            <div class="stat-guide-desc">${escapeHtml(desc)}</div>
+        </div>`)
+        .join('')}</div>`;
+}
+
 function buildGuideHtml() {
-    return buildStatGuideHtml();
+    return buildStatGuideHtml() + buildCombatTipsHtml();
 }
 
 // ===== [ESC 설정 모달] 전역 ESC 키로 #settings-modal 을 열고 닫는다. =====
@@ -17615,7 +17712,7 @@ function renderSettingsModal() {
         btn.classList.toggle('is-active', on);
         btn.setAttribute('aria-selected', on ? 'true' : 'false');
     });
-    body.innerHTML = tab === 'stats' ? buildStatGuideHtml() : buildSettingsGameTabHtml();
+    body.innerHTML = tab === 'stats' ? buildStatGuideHtml() + buildCombatTipsHtml() : buildSettingsGameTabHtml();
 }
 
 window.setSettingsTab = function setSettingsTab(tab) {
@@ -17915,12 +18012,17 @@ function renderInventoryPanel() {
     let html = '';
     const partyMode = Array.isArray(player.party);
     const activeMember = partyMode ? getActiveInventoryPartyMember() : null;
-    const sourceItems = activeMember ? (activeMember.items || []) : (player.items || []);
+    // [장비 귀속] 선택한 파티원이 소유한 장비 전부 — 요구 레벨 미달로 미장착(🔒)인 것도 이 캐릭터 칸에 보인다.
+    const sourceItems = activeMember
+        ? (typeof getMemberOwnedItems === 'function' ? getMemberOwnedItems(activeMember) : (activeMember.items || []))
+        : (player.items || []);
     if (partyMode) {
-        const tabs = getPartyRoleTabs()
-            .map((role) => {
-                const selected = activeMember && activeMember.roleKey === role.key;
-                return `<button type="button" onclick="setInventoryPartyTab('${role.key}')" style="flex:1;min-width:0;padding:7px 6px;border-radius:8px;border:1px solid ${selected ? role.color : '#333'};background:${selected ? 'rgba(241,196,15,0.12)' : '#111'};color:${selected ? role.color : '#888'};font-size:0.78em;font-weight:900;cursor:pointer;">${role.label}</button>`;
+        const roleColors = Object.fromEntries(getPartyRoleTabs().map((role) => [role.key, role.color]));
+        const tabs = getPartyMembers(player)
+            .map((member) => {
+                const selected = activeMember && activeMember.id === member.id;
+                const color = roleColors[member.roleKey] || '#f1c40f';
+                return `<button type="button" onclick="setInventoryPartyTab('${escapeJsSingleQuoteString(member.id)}')" style="flex:1;min-width:0;padding:7px 6px;border-radius:8px;border:1px solid ${selected ? color : '#333'};background:${selected ? 'rgba(241,196,15,0.12)' : '#111'};color:${selected ? color : '#888'};font-size:0.78em;font-weight:900;cursor:pointer;">${escapeHtml(member.name)}</button>`;
             })
             .join('');
         const st = activeMember && activeMember.stats ? activeMember.stats : {};
@@ -17966,10 +18068,10 @@ function renderInventoryPanel() {
     const ro = { legendary: 0, epic: 1, rare: 2, common: 3 };
     const slotDefs = partyMode
         ? [
-            { kind: 'weapon', icon: '⚔️', label: '무기 슬롯', color: '#ffb347', hint: '캐릭터별 최대 1개', limit: 1 },
-            { kind: 'rune', icon: '🔮', label: '각인 룬 슬롯', color: '#00cec9', hint: '캐릭터별 최대 1개', limit: 1 },
-            { kind: 'armor', icon: '🛡️', label: '갑옷 슬롯', color: '#74b9ff', hint: '캐릭터별 최대 2개', limit: 2 },
-            { kind: 'ring', icon: '💍', label: '반지 슬롯', color: '#9b59b6', hint: '캐릭터별 최대 3개', limit: 3 },
+            { kind: 'weapon', icon: '⚔️', label: '무기 슬롯', color: '#ffb347', hint: `캐릭터별 최대 ${MEMBER_EQUIP_SLOT_LIMITS.weapon}개`, limit: MEMBER_EQUIP_SLOT_LIMITS.weapon },
+            { kind: 'rune', icon: '🔮', label: '각인 룬 슬롯', color: '#00cec9', hint: `캐릭터별 최대 ${MEMBER_EQUIP_SLOT_LIMITS.rune}개`, limit: MEMBER_EQUIP_SLOT_LIMITS.rune },
+            { kind: 'armor', icon: '🛡️', label: '갑옷 슬롯', color: '#74b9ff', hint: `캐릭터별 최대 ${MEMBER_EQUIP_SLOT_LIMITS.armor}개`, limit: MEMBER_EQUIP_SLOT_LIMITS.armor },
+            { kind: 'ring', icon: '💍', label: '반지 슬롯', color: '#9b59b6', hint: `캐릭터별 최대 ${MEMBER_EQUIP_SLOT_LIMITS.ring}개`, limit: MEMBER_EQUIP_SLOT_LIMITS.ring },
         ]
         : [
             { kind: 'rune', icon: '🔮', label: '각인 룬 슬롯', color: '#00cec9', hint: '최대 1개' },
@@ -17983,7 +18085,8 @@ function renderInventoryPanel() {
         const slotItems = sourceItems
             .filter((it) => getEquipSlotKind(it) === sdef.kind)
             .sort((a, b) => (ro[a.rarity] || 3) - (ro[b.rarity] || 3));
-        const cellCount = Math.max(limit, Math.min(slotItems.length, limit));
+        // 구버전 저장에서 한 캐릭터가 칸 제한보다 많이 가진 장비도 숨기지 않고 모두 보여 판매할 수 있게 한다.
+        const cellCount = Math.max(limit, slotItems.length);
         html += `<section class="inventory-slot-section" style="--slot-accent:${sdef.color};">
             <div class="inventory-slot-header">
                 <span class="inventory-slot-title">${sdef.icon} ${sdef.label}</span>
@@ -18052,32 +18155,38 @@ function renderSkillGuidePanel() {
         host.innerHTML = defaultText;
         return;
     }
-    const skill = typeof getPartyActiveSkillFor === 'function' ? getPartyActiveSkillFor(actor) : null;
-    if (!skill) {
+    const skills = typeof getPartyActiveSkillsFor === 'function'
+        ? getPartyActiveSkillsFor(actor)
+        : (typeof getPartyActiveSkillFor === 'function' && getPartyActiveSkillFor(actor) ? [getPartyActiveSkillFor(actor)] : []);
+    if (!skills.length) {
         host.innerHTML = `<div class="skill-guide-head">${escapeHtml(actor.name || '파티원')}</div><div class="skill-guide-empty">이 유닛은 전용 액티브 스킬이 없습니다.</div>`;
         return;
     }
     const mp = typeof getActorMp === 'function' ? getActorMp(actor) : Math.max(0, safeNum(actor.mp, 0));
-    const cd = typeof getActorSkillCooldown === 'function'
-        ? getActorSkillCooldown(actor)
-        : Math.max(0, Math.floor(safeNum(actor._skillCooldownTurns, 0)));
-    const targetLabel = skill.targeting === 'self' ? '자신'
-        : skill.targeting === 'ally' ? '아군 1명'
-        : skill.targeting === 'enemy' ? '적 1명' : '—';
-    const usable = typeof canActorUseActiveSkill === 'function' ? canActorUseActiveSkill(actor) : (mp >= skill.mpCost && cd <= 0);
-    const statusHtml = usable
-        ? '<span class="skill-guide-ok">✅ 사용 가능</span>'
-        : cd > 0
-            ? `<span class="skill-guide-no">🔒 쿨타임 ${cd}턴</span>`
-            : `<span class="skill-guide-no">🔒 MP 부족 (${mp}/${skill.mpCost})</span>`;
+    // [스킬 확장] 보유 스킬 전부를 카드로 나열 (스킬별 MP·쿨타임·사용 가능 여부)
+    const skillCards = skills.map((skill) => {
+        const cd = typeof getActorSkillCooldown === 'function' ? getActorSkillCooldown(actor, skill.key) : 0;
+        const targetLabel = skill.targeting === 'self' ? '자신'
+            : skill.targeting === 'ally' ? '아군 1명'
+            : skill.targeting === 'enemy' ? '적 1명' : '—';
+        const usable = typeof canActorUseActiveSkill === 'function' ? canActorUseActiveSkill(actor, skill.key) : (mp >= skill.mpCost && cd <= 0);
+        const statusHtml = usable
+            ? '<span class="skill-guide-ok">✅ 사용 가능</span>'
+            : cd > 0
+                ? `<span class="skill-guide-no">🔒 쿨타임 ${cd}턴</span>`
+                : `<span class="skill-guide-no">🔒 MP 부족 (${mp}/${skill.mpCost})</span>`;
+        return `<div class="skill-guide-card">
+            <div class="skill-guide-name">${escapeHtml(skill.name)}${skill.bType ? ' <span class="skill-guide-btype">B</span>' : ''}</div>
+            <div class="skill-guide-row"><span>소모 MP</span><b>${skill.mpCost}</b></div>
+            <div class="skill-guide-row"><span>대상</span><b>${targetLabel}</b></div>
+            ${skill.cooldownTurns ? `<div class="skill-guide-row"><span>쿨타임</span><b>${skill.cooldownTurns}턴</b></div>` : ''}
+            <div class="skill-guide-desc">${escapeHtml(skill.description || '')}</div>
+            <div class="skill-guide-status">${statusHtml}</div>
+        </div>`;
+    }).join('');
     host.innerHTML = `
-        <div class="skill-guide-head">🎯 ${escapeHtml(actor.name || '파티원')} 턴 · 스킬</div>
-        <div class="skill-guide-name">${escapeHtml(skill.name)}${skill.bType ? ' <span class="skill-guide-btype">B</span>' : ''}</div>
-        <div class="skill-guide-row"><span>소모 MP</span><b>${skill.mpCost}</b></div>
-        <div class="skill-guide-row"><span>대상</span><b>${targetLabel}</b></div>
-        ${skill.cooldownTurns ? `<div class="skill-guide-row"><span>쿨타임</span><b>${skill.cooldownTurns}턴</b></div>` : ''}
-        <div class="skill-guide-desc">${escapeHtml(skill.description || '')}</div>
-        <div class="skill-guide-status">${statusHtml} · 현재 ${mp} MP</div>`;
+        <div class="skill-guide-head">🎯 ${escapeHtml(actor.name || '파티원')} 턴 · 스킬 <span class="skill-guide-mp">현재 ${mp} MP</span></div>
+        ${skillCards}`;
 }
 window.renderSkillGuidePanel = renderSkillGuidePanel;
 
@@ -18590,10 +18699,114 @@ window.sellItemByUid = function sellItemByUid(uid) {
     if (sh && sh.style.display === 'block') renderShopItems(true);
 };
 
+// ===== [구매 지급 대상 선택] 장비 구매 시 "누구에게 지급할지" 파티원 선택 모달을 띄운다. =====
+// (구버전: 현재 인벤토리 탭 = 대개 1번 캐릭터에게 자동 귀속되던 버그를 폐지)
+let _shopAssignIdx = null;
+
+function needsShopAssignTarget(it) {
+    return !!(it && player && Array.isArray(player.party)
+        && it.type !== 'relic' && it.type !== 'potion' && it.type !== 'merc'
+        && it.type !== 'merc_shop_direct' && it.type !== 'merc_shop_fund');
+}
+
+function getShopPayPrice(it) {
+    return player && player.freeShopCoupon ? 0 : safeNum(it && it.price, 0);
+}
+
+function renderShopAssignModal(notice) {
+    const it = currentShopItems[_shopAssignIdx];
+    if (!it || !player || !Array.isArray(player.party)) {
+        window.closeShopAssignModal();
+        return;
+    }
+    let overlay = document.getElementById('shop-assign-modal');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'shop-assign-modal';
+        overlay.className = 'modal-overlay shop-assign-modal';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) window.closeShopAssignModal(); });
+        document.body.appendChild(overlay);
+    }
+    const kind = getEquipSlotKind(it);
+    const slotLabel = kind ? getEquipSlotLabel(kind) : '장비';
+    const limit = kind && typeof getMemberEquipSlotLimit === 'function' ? getMemberEquipSlotLimit(kind) : Infinity;
+    const reqLevel = typeof getItemReqLevel === 'function' ? getItemReqLevel(it) : 1;
+    const members = getPartyMembers(player);
+    const rows = members.map((member) => {
+        const used = kind && typeof getMemberEquippedCountByKind === 'function' ? getMemberEquippedCountByKind(member, kind) : 0;
+        const full = !!kind && used >= limit;
+        const level = Math.max(1, Math.floor(safeNum(member.level, 1)));
+        const note = full
+            ? '<span class="shop-assign-flag shop-assign-flag--full">가득 참</span>'
+            : level < reqLevel
+              ? `<span class="shop-assign-flag">요구 Lv.${reqLevel} — 레벨업 전까지 가방 보관</span>`
+              : '';
+        return `<button type="button" class="shop-assign-member${full ? ' is-full' : ''}" onclick="confirmShopPurchase('${escapeJsSingleQuoteString(member.id)}')">
+            <span class="shop-assign-name">${escapeHtml(member.name)} <small>Lv.${level}</small></span>
+            <span class="shop-assign-slot">${escapeHtml(slotLabel)} ${used}/${Number.isFinite(limit) ? limit : '∞'}</span>
+            ${note}
+        </button>`;
+    }).join('');
+    const allFull = !!kind && members.every((member) => getMemberEquippedCountByKind(member, kind) >= limit);
+    const bannerText = notice || (allFull ? `구매 불가 — 모든 파티원의 ${slotLabel} 칸이 가득 찼습니다. 인벤토리에서 장비를 판매해 칸을 비우세요.` : '');
+    overlay.innerHTML = `<div class="modal-content shop-assign-content">
+        <button class="close-btn" type="button" onclick="closeShopAssignModal()" aria-label="닫기">✖</button>
+        <h2>🎁 누구에게 지급할까요?</h2>
+        <div class="shop-assign-item"><b>${escapeHtml(formatShopItemName(it.name))}</b> · 💰 ${getShopPayPrice(it)}G${kind ? ` · ${escapeHtml(slotLabel)} 칸 (캐릭터당 최대 ${limit}개)` : ''}</div>
+        ${bannerText ? `<div class="shop-assign-notice" role="alert">${escapeHtml(bannerText)}</div>` : ''}
+        <div class="shop-assign-list">${rows}</div>
+    </div>`;
+    overlay.style.display = 'flex';
+}
+
+function openShopAssignModal(idx) {
+    if (!currentShopItems[idx]) return;
+    _shopAssignIdx = idx;
+    renderShopAssignModal();
+}
+
+window.closeShopAssignModal = function closeShopAssignModal() {
+    const overlay = document.getElementById('shop-assign-modal');
+    if (overlay) overlay.style.display = 'none';
+    _shopAssignIdx = null;
+};
+
+window.confirmShopPurchase = function confirmShopPurchase(memberId) {
+    const idx = _shopAssignIdx;
+    const it = currentShopItems[idx];
+    const member = player && Array.isArray(player.party) ? getPartyMembers(player).find((m) => m.id === memberId) : null;
+    if (!it || !member) return window.closeShopAssignModal();
+    const kind = getEquipSlotKind(it);
+    if (kind && !canMemberEquipMoreOfItem(member, it)) {
+        // [인벤토리 가득 참] 구매 불가 안내 — 골드는 차감하지 않는다.
+        const used = getMemberEquippedCountByKind(member, kind);
+        return renderShopAssignModal(`구매 불가 — ${member.name}의 ${getEquipSlotLabel(kind)} 칸이 가득 찼습니다 (${used}/${getMemberEquipSlotLimit(kind)}). 다른 파티원을 고르거나 인벤토리에서 판매해 칸을 비우세요.`);
+    }
+    const payPrice = getShopPayPrice(it);
+    if (gold < payPrice) return renderShopAssignModal(`골드가 부족합니다. (보유 ${Math.floor(safeNum(gold, 0))}G / 필요 ${payPrice}G)`);
+    window.closeShopAssignModal();
+    performShopPurchase(idx, member);
+};
+
 window.buyItem = (event, idx) => {
+    const it = currentShopItems[idx];
+    if (!it) return;
+    if (needsShopAssignTarget(it)) return openShopAssignModal(idx);
+    performShopPurchase(idx, null);
+};
+
+// assignMember: 파티원 선택 모달에서 고른 지급 대상 (장비가 아니거나 솔로 모드면 null)
+function performShopPurchase(idx, assignMember) {
     const it=currentShopItems[idx];
     const couponActive = !!(player && player.freeShopCoupon);
     const payPrice = couponActive ? 0 : safeNum(it.price, 0);
+    // [인벤토리 가득 참] 골드 차감 전에 지급 대상 캐릭터의 칸을 먼저 검사한다.
+    if (assignMember && getEquipSlotKind(it) && !canMemberEquipMoreOfItem(assignMember, it)) {
+        alert(`[구매 불가] ${assignMember.name}의 ${getEquipSlotLabel(getEquipSlotKind(it))} 칸이 가득 찼습니다.`);
+        return;
+    }
     if(gold<payPrice) return writeLog("골드 부족!");
     gold-=payPrice;
     if (couponActive) {
@@ -18636,7 +18849,8 @@ window.buyItem = (event, idx) => {
         player.potions++; shopNotify(`[상점] 포션 구매 완료.`, 'shop');
     } else {
         const slotKind = getEquipSlotKind(it);
-        if (slotKind) {
+        // 파티 모드는 위에서 캐릭터별 칸을 이미 검사했다. (솔로 모드만 기존 파티 합산 칸 검사)
+        if (slotKind && !assignMember) {
             const lim = getEquipSlotLimit(slotKind);
             const cur = getEquippedCountByKind(slotKind);
             if (cur >= lim) {
@@ -18648,9 +18862,9 @@ window.buyItem = (event, idx) => {
         if(!player.items.some(i=>i.name===it.name)){
             ensureOwnedItemUid(it);
             it._buyPrice = safeNum(it.price, 0);
-            // [구매 지급 대상 지정] 현재 활성화된 인벤토리 탭의 캐릭터에게 장비를 귀속시킨다.
-            const assignMember = typeof getActiveInventoryPartyMember === 'function' ? getActiveInventoryPartyMember() : null;
-            if (assignMember && assignMember.roleKey) {
+            // [구매 지급 대상 지정] 모달에서 고른 파티원 id 로 귀속 (roleKey 는 구버전 호환용으로 함께 기록).
+            if (assignMember) {
+                it._assignedMemberId = assignMember.id;
                 it._assignedRole = assignMember.roleKey;
                 shopNotify(`[지급] <b>${it.name}</b> → ${assignMember.name}에게 귀속`, 'equip');
             }
@@ -18659,7 +18873,10 @@ window.buyItem = (event, idx) => {
             if (typeof getItemReqLevel === 'function') {
                 const reqLevel = getItemReqLevel(it);
                 it.reqLevel = reqLevel;
-                const charLevel = typeof getCharacterLevel === 'function' ? getCharacterLevel() : 1;
+                // 지급 대상이 정해졌으면 그 캐릭터의 레벨로 판정한다(파티 최고 레벨 X).
+                const charLevel = assignMember
+                    ? Math.max(1, Math.floor(safeNum(assignMember.level, 1)))
+                    : (typeof getCharacterLevel === 'function' ? getCharacterLevel() : 1);
                 if (charLevel < reqLevel) {
                     const msg = `장착 레벨이 부족합니다! (요구 레벨: ${reqLevel})`;
                     if (typeof alert === 'function') alert(msg);
@@ -18897,10 +19114,10 @@ const PARTY_ACTIVE_SKILLS_B = Object.freeze({
     mage: Object.freeze({
         key: 'skillHeal',
         name: '✨ 치유',
-        mpCost: 25,
+        mpCost: 30,
         targeting: 'ally',
         cooldownTurns: 2,
-        description: '아군 1명 회복 (쿨타임 2턴)',
+        description: '아군 1명 회복 (MP 30 · 쿨타임 2턴)',
         bType: true,
     }),
 });
@@ -18924,6 +19141,40 @@ function getPartyActiveSkillFor(actor) {
     return PARTY_ACTIVE_SKILLS[actor.roleKey] || null;
 }
 
+// [스킬 확장] 1호기(A-Type) 전용 두 번째 액티브 스킬. 단순 도발/파이어볼 한 가지뿐이던 탱커·마법사에 전술 선택지를 더한다.
+const PARTY_EXTRA_SKILLS = Object.freeze({
+    tank: Object.freeze({
+        key: 'shieldPush',
+        name: '🛡️ 방패 밀치기',
+        mpCost: 20,
+        targeting: 'enemy',
+        cooldownTurns: 3,
+        description: '적 1명에게 피해 + 명중 시 1턴 기절 + 2턴간 마법 저항 -20% (받는 마법 피해 +20%)',
+    }),
+    mage: Object.freeze({
+        key: 'condensedBolt',
+        name: '🔮 응축된 마탄',
+        mpCost: 45,
+        targeting: 'enemy',
+        cooldownTurns: 2,
+        description: 'MP를 대량 소모해 지혜 4.0배 폭딜. 기절·마법 저항 약화 상태의 적에게는 ×1.5 연계 폭발',
+    }),
+});
+
+// actor 가 가진 모든 액티브 스킬(주 스킬 + A-Type 확장 스킬). B-Type 은 주 스킬 하나만 가진다.
+function getPartyActiveSkillsFor(actor) {
+    const primary = getPartyActiveSkillFor(actor);
+    if (!primary) return [];
+    const extra = !primary.bType ? PARTY_EXTRA_SKILLS[actor.roleKey] : null;
+    return extra ? [primary, extra] : [primary];
+}
+
+// skillKey 로 actor 의 스킬을 찾는다. 키가 없거나 보유하지 않은 키면 주 스킬로 폴백.
+function getPartySkillByKey(actor, skillKey) {
+    const skills = getPartyActiveSkillsFor(actor);
+    return (skillKey && skills.find((skill) => skill.key === skillKey)) || skills[0] || null;
+}
+
 function getActorMaxMp(actor) {
     return Math.max(0, safeNum(actor && actor.maxMp, 0));
 }
@@ -18944,15 +19195,52 @@ function spendActorMp(actor, cost) {
     return true;
 }
 
-function getActorSkillCooldown(actor) {
-    return Math.max(0, Math.floor(safeNum(actor && actor._skillCooldownTurns, 0)));
+// ===== [스킬별 쿨타임] actor._skillCooldowns = { [skillKey]: 남은 턴 } =====
+// 구버전 단일 필드(_skillCooldownTurns)는 최초 접근 시 주 스킬의 쿨타임으로 이관한다.
+function getActorCooldownMap(actor) {
+    if (!actor) return {};
+    if (!actor._skillCooldowns || typeof actor._skillCooldowns !== 'object') actor._skillCooldowns = {};
+    const legacy = Math.floor(safeNum(actor._skillCooldownTurns, 0));
+    if (legacy > 0) {
+        const primary = getPartyActiveSkillFor(actor);
+        if (primary) actor._skillCooldowns[primary.key] = Math.max(safeNum(actor._skillCooldowns[primary.key], 0), legacy);
+    }
+    actor._skillCooldownTurns = 0;
+    return actor._skillCooldowns;
 }
 
-function canActorUseActiveSkill(actor) {
-    const skill = getPartyActiveSkillFor(actor);
+// skillKey 지정 시 해당 스킬의 남은 쿨타임, 미지정 시 가장 긴 쿨타임(하위 호환).
+function getActorSkillCooldown(actor, skillKey) {
+    const map = getActorCooldownMap(actor);
+    if (skillKey) return Math.max(0, Math.floor(safeNum(map[skillKey], 0)));
+    return Object.values(map).reduce((best, turns) => Math.max(best, Math.floor(safeNum(turns, 0))), 0);
+}
+
+function setActorSkillCooldown(actor, skillKey, turns) {
+    if (!actor || !skillKey) return;
+    getActorCooldownMap(actor)[skillKey] = Math.max(0, Math.floor(safeNum(turns, 0)));
+}
+
+function canActorUseActiveSkill(actor, skillKey) {
+    const skill = getPartySkillByKey(actor, skillKey);
     if (!skill) return false;
-    if (getActorSkillCooldown(actor) > 0) return false;
+    if (getActorSkillCooldown(actor, skill.key) > 0) return false;
     return getActorMp(actor) >= skill.mpCost;
+}
+
+// ===== [마법사 기본 힐 자원화] 무료·무제한이던 기본 [힐]에 MP 소모와 2턴 쿨타임을 부여한다. =====
+// (회복량 공식과 100% 적중 보장은 resolveHealAction 그대로 유지)
+const HEAL_ACTION_KEY = 'heal';
+const HEAL_ACTION_MP_COST = 15;
+const HEAL_ACTION_COOLDOWN_TURNS = 2;
+
+function getHealActionBlockReason(actor) {
+    const cooldown = getActorSkillCooldown(actor, HEAL_ACTION_KEY);
+    if (cooldown > 0) return { label: '힐', suffix: `(${cooldown}턴)`, message: `힐은 ${cooldown}턴 후 다시 사용할 수 있습니다.` };
+    if (getActorMp(actor) < HEAL_ACTION_MP_COST) {
+        return { label: '힐', suffix: '(MP 부족)', message: `힐에는 MP ${HEAL_ACTION_MP_COST}가 필요합니다. (현재 ${getActorMp(actor)} MP) — 포션을 사용하세요.` };
+    }
+    return null;
 }
 
 // [마나 밸런스 정규화] 턴 종료 시 고정 +1 MP (구: +5~10 고정). 마나 난사 차단.
@@ -18978,9 +19266,12 @@ function tickCombatEffectsAtRoundStart() {
     });
     const allies = typeof getPartyMembers === 'function' ? getPartyMembers(player) : [];
     allies.forEach((member) => {
-        if (member && safeNum(member._skillCooldownTurns, 0) > 0) {
-            member._skillCooldownTurns = safeNum(member._skillCooldownTurns, 0) - 1;
-        }
+        if (!member) return;
+        const map = getActorCooldownMap(member);
+        Object.keys(map).forEach((key) => {
+            map[key] = Math.max(0, Math.floor(safeNum(map[key], 0)) - 1);
+            if (map[key] <= 0) delete map[key];
+        });
     });
 }
 
@@ -19006,7 +19297,29 @@ const COMBAT_STATUS_DEFS = Object.freeze({
     bleed: Object.freeze({ key: 'bleed', icon: '🩸', label: '출혈', dot: true, dotPct: 0.045, tone: 'bleed' }),
     silence: Object.freeze({ key: 'silence', icon: '🔒', label: '침묵', dot: false }),
     ankleSprain: Object.freeze({ key: 'ankleSprain', icon: '🦶', label: '발목', dot: false }),
+    // [방패 밀치기] 기절 — 라운드 경과로 줄지 않고 '대상의 다음 턴'에 소모되며 그 턴 행동을 건너뛴다.
+    stun: Object.freeze({ key: 'stun', icon: '💫', label: '기절', dot: false, consumeOnTurn: true }),
+    // [방패 밀치기] 마법 저항 약화 — 받는 마법 피해 +20%.
+    arcaneBreak: Object.freeze({ key: 'arcaneBreak', icon: '🔮', label: '마저↓', dot: false, magicTakenMult: 1.2 }),
 });
+
+function hasUnitStatus(unit, key) {
+    return !!(unit && Array.isArray(unit.statuses) && unit.statuses.some((s) => s && s.key === key && safeNum(s.turns, 0) > 0));
+}
+
+// consumeOnTurn 계열 상태이상 1회분을 소모한다. 소모했으면 true.
+function consumeUnitStatus(unit, key) {
+    if (!hasUnitStatus(unit, key)) return false;
+    const status = unit.statuses.find((s) => s && s.key === key);
+    status.turns = safeNum(status.turns, 0) - 1;
+    if (status.turns <= 0) unit.statuses = unit.statuses.filter((s) => s !== status);
+    return true;
+}
+
+// [마법 저항 약화] 대상이 받는 마법 피해 배율 (마저↓ 상태면 ×1.2).
+function getMagicTakenMultiplier(defender) {
+    return hasUnitStatus(defender, 'arcaneBreak') ? COMBAT_STATUS_DEFS.arcaneBreak.magicTakenMult : 1;
+}
 
 function getCombatStatusDef(key) {
     return COMBAT_STATUS_DEFS[key] || null;
@@ -19035,6 +19348,11 @@ function tickUnitStatuses(unit, dotEvents) {
         if (!status || !status.key) return;
         const def = COMBAT_STATUS_DEFS[status.key];
         if (!def) return;
+        // 기절처럼 '대상의 턴'에 소모되는 상태는 라운드 경과로 줄이지 않는다.
+        if (def.consumeOnTurn) {
+            if (safeNum(status.turns, 0) > 0) kept.push(status);
+            return;
+        }
         if (def.dot && getCurrentHp(unit) > 0) {
             const maxHp = Math.max(1, actorMaxHp(unit));
             const dmg = Math.max(1, Math.round(maxHp * safeNum(def.dotPct, 0.05)));
@@ -19264,7 +19582,7 @@ function getTurnOrderPreviewText() {
 }
 
 function setCombatActionButtonsDisabled(disabled) {
-    ['attack-btn', 'btn-attack', 'defense-btn', 'btn-party-defend', 'heal-btn', 'btn-heal', 'skill-btn', 'potion-btn'].forEach((id) => {
+    ['attack-btn', 'btn-attack', 'defense-btn', 'btn-party-defend', 'heal-btn', 'btn-heal', 'skill-btn', 'skill-btn-2', 'potion-btn'].forEach((id) => {
         const button = document.getElementById(id);
         if (!button) return;
         if (disabled && button.dataset && button.dataset.v35Disabled === '1') {
@@ -19302,6 +19620,7 @@ function rebindCombatActionButtonsForActiveTurn() {
         ['heal-btn', '힐'],
         ['btn-heal', '힐'],
         ['skill-btn', '스킬'],
+        ['skill-btn-2', '스킬'],
     ];
     bindings.forEach(([id, actionType]) => {
         const button = document.getElementById(id);
@@ -19596,7 +19915,7 @@ function calculateMagicDamage(attacker, defender) {
     if (defender && safeNum(defender._defDebuffTurns, 0) > 0) {
         magicDef *= (1 - Math.min(0.9, Math.max(0, safeNum(defender._defDebuffPct, 0))));
     }
-    const reduced = Math.floor(rawPower * (100 / (100 + magicDef * 0.7)) * getEarlyFloorDamageMultiplier());
+    const reduced = Math.floor(rawPower * (100 / (100 + magicDef * 0.7)) * getEarlyFloorDamageMultiplier() * getMagicTakenMultiplier(defender));
     return Math.max(getMinimumDamageFor(attacker, defender), reduced);
 }
 
@@ -19741,7 +20060,7 @@ function getEnemyWeaknessInfo(unit) {
     const mitigation = Math.min(0.6, Math.max(0, safeNum(armor && armor.mitigation, 0) + safeNum(unit.damageReduction, 0)));
     const physFactor = (100 / (100 + physDef)) * (1 - mitigation);
     // calculateMagicDamage 와 동일: 스탯 def × (1 - 파쇄) × 0.7
-    const magicFactor = 100 / (100 + Math.max(0, stats.def) * (1 - defDebuff) * 0.7);
+    const magicFactor = (100 / (100 + Math.max(0, stats.def) * (1 - defDebuff) * 0.7)) * getMagicTakenMultiplier(unit);
     const guard = getEnemyGuardStateFor(unit);
     return {
         element: String(unit.element || 'neutral'),
@@ -19838,11 +20157,40 @@ function resolveFireballSkillAction(attacker, defender, guardState) {
     }
     const mastery = safeNum(attacker && attacker.mastery && attacker.mastery.magic, 0);
     const rawPower = stats.wis * FIREBALL_WIS_COEF + mastery * 0.25;
-    let damage = Math.floor(rawPower * (100 / (100 + Math.max(0, defendStats.def * 0.7))) * getEarlyFloorDamageMultiplier());
+    let damage = Math.floor(rawPower * (100 / (100 + Math.max(0, defendStats.def * 0.7))) * getEarlyFloorDamageMultiplier() * getMagicTakenMultiplier(defender));
     if (guardState && guardState.mode === 'shield') damage = Math.floor(damage * 0.7);
     damage = Math.max(getMinimumDamageFor(attacker, defender), damage);
     setCurrentHp(defender, getCurrentHp(defender) - damage);
     return { type: 'attack', attackKind: 'magic', success: true, damage, hit: cast, skillKey: 'fireball' };
+}
+
+// [응축된 마탄] MP를 대량 소모하는 지혜 4.0배 폭딜. 탱커 [방패 밀치기]의 기절/마법 저항 약화가 걸린
+// 적에게는 ×1.5 연계 폭발 — 마저↓(×1.2)와 곱연산되어 최대 지혜 7.2배.
+const CONDENSED_BOLT_WIS_COEF = 4.0;
+const CONDENSED_BOLT_COMBO_MULT = 1.5;
+function resolveCondensedBoltAction(attacker, defender, guardState) {
+    const stats = getActorStats(attacker);
+    // 응축 집중으로 파이어 볼(0.55)보다 시전 안정성이 높다.
+    const cast = probabilityRoll(0.7 + stats.wis * 0.004, attacker);
+    if (!cast.success) return { type: 'attack', attackKind: 'magic', success: false, reason: 'miss', hit: cast, skillKey: 'condensedBolt' };
+    const defendStats = getActorStats(defender);
+    if (guardState && guardState.mode === 'dodge') {
+        const dodge = probabilityRoll(0.1 + defendStats.agi * 0.003, defender);
+        if (dodge.success) return { type: 'attack', attackKind: 'magic', success: false, reason: 'dodged', hit: cast, dodge, skillKey: 'condensedBolt' };
+    }
+    const comboBurst = hasUnitStatus(defender, 'stun') || hasUnitStatus(defender, 'arcaneBreak');
+    const mastery = safeNum(attacker && attacker.mastery && attacker.mastery.magic, 0);
+    const rawPower = stats.wis * CONDENSED_BOLT_WIS_COEF + mastery * 0.25;
+    let damage = Math.floor(
+        rawPower * (100 / (100 + Math.max(0, defendStats.def * 0.7)))
+        * getEarlyFloorDamageMultiplier()
+        * getMagicTakenMultiplier(defender)
+        * (comboBurst ? CONDENSED_BOLT_COMBO_MULT : 1)
+    );
+    if (guardState && guardState.mode === 'shield') damage = Math.floor(damage * 0.7);
+    damage = Math.max(getMinimumDamageFor(attacker, defender), damage);
+    setCurrentHp(defender, getCurrentHp(defender) - damage);
+    return { type: 'attack', attackKind: 'magic', success: true, damage, hit: cast, skillKey: 'condensedBolt', comboBurst };
 }
 
 // [아군 대상 100% 보장] 치유·가드·버프 등 아군 대상 행동은 회피/명중/시전실패(MISS) 판정을
@@ -20277,6 +20625,17 @@ async function executeActiveTurn() {
     state.isResolvingTurn = true;
     state.awaitingPlayerInput = false;
     setCombatProcessing(true);
+    // [기절] 방패 밀치기에 맞은 적은 이번 턴 행동을 건너뛴다. (공격 예약은 유지 → 다음 턴에 그대로 사용)
+    if (consumeUnitStatus(activeEntry.actor, 'stun')) {
+        writeLog(`[기절] 💫 ${activeEntry.actor.name}은(는) 기절해 이번 턴 행동할 수 없습니다.`);
+        updateUi();
+        renderActions();
+        setCombatActionButtonsDisabled(true);
+        await waitMs(450);
+        state.isResolvingTurn = false;
+        await lockedAdvanceToNextTurn();
+        return;
+    }
     // [다음 공격 대상 예약] 지능 티어 4에서 미리 표기한 대상 = 실제 공격 대상이 되도록 예약값을 사용한다.
     const target = getEnemyPlannedTarget(activeEntry.actor);
     window._enemyThinkingHint = target ? `🎯 타겟: ${target.name}` : '';
@@ -20340,6 +20699,8 @@ window.useAction = async function useAction(type, options) {
     const livingEnemies = enemy ? getPlayerAttackTargetCandidates() : [];
     const normalizedType = type === '힐' ? '힐' : type === '공격' ? '공격' : type === '스킬' ? '스킬' : '방패방어';
     const requestedTargetId = options && options.targetId ? String(options.targetId) : null;
+    // [스킬 확장] 여러 스킬을 가진 캐릭터는 버튼/대상 패널이 넘겨준 skillKey 로 시전 스킬을 고른다.
+    const requestedSkillKey = options && options.skillKey ? String(options.skillKey) : null;
     const matchesTargetId = (candidate) =>
         !!candidate && String(candidate.id || candidate.roleKey || candidate.name || '') === requestedTargetId;
 
@@ -20367,9 +20728,20 @@ window.useAction = async function useAction(type, options) {
         renderActions();
         return;
     }
+    // [힐 자원화] MP 부족/쿨타임이면 턴을 소모하지 않고 다시 고르게 한다.
+    if (normalizedType === '힐') {
+        const healBlock = getHealActionBlockReason(actor);
+        if (healBlock) {
+            writeLog(`[힐 불가] ${actor.name} — ${healBlock.message}`);
+            if (window.combatState) window.combatState.awaitingPlayerInput = true;
+            updateUi();
+            renderActions();
+            return;
+        }
+    }
     // [액티브 스킬] 스킬 미보유/마나 부족은 턴을 소모하지 않고 행동을 다시 고르게 한다.
     if (normalizedType === '스킬') {
-        const requestedSkill = getPartyActiveSkillFor(actor);
+        const requestedSkill = getPartySkillByKey(actor, requestedSkillKey);
         if (!requestedSkill) {
             writeLog(`[스킬 불가] ${actor.name}가 사용할 수 있는 특수 스킬이 없습니다. 다른 행동을 선택하세요.`);
             if (window.combatState) window.combatState.awaitingPlayerInput = true;
@@ -20377,8 +20749,8 @@ window.useAction = async function useAction(type, options) {
             renderActions();
             return;
         }
-        if (getActorSkillCooldown(actor) > 0) {
-            writeLog(`[스킬 쿨타임] ${requestedSkill.name}은 ${getActorSkillCooldown(actor)}턴 후 사용할 수 있습니다.`);
+        if (getActorSkillCooldown(actor, requestedSkill.key) > 0) {
+            writeLog(`[스킬 쿨타임] ${requestedSkill.name}은 ${getActorSkillCooldown(actor, requestedSkill.key)}턴 후 사용할 수 있습니다.`);
             if (window.combatState) window.combatState.awaitingPlayerInput = true;
             updateUi();
             renderActions();
@@ -20397,7 +20769,7 @@ window.useAction = async function useAction(type, options) {
     // 2명 이상일 때 대상 선택 패널을 먼저 보여준다. 대상이 하나면 자동 지정.
     if (!requestedTargetId && typeof renderCombatTargetSelectionPanel === 'function') {
         const woundedAllies = normalizedType === '힐' ? getWoundedPlayerHealTargets() : [];
-        const offensiveSkill = normalizedType === '스킬' ? getPartyActiveSkillFor(actor) : null;
+        const offensiveSkill = normalizedType === '스킬' ? getPartySkillByKey(actor, requestedSkillKey) : null;
         const needsTargetPanel = normalizedType === '공격'
             ? livingEnemies.length > 1
             : normalizedType === '스킬'
@@ -20408,7 +20780,7 @@ window.useAction = async function useAction(type, options) {
             const panelHost = document.getElementById('action-btns');
             if (panelHost) {
                 panelHost.querySelectorAll('[data-v35-target-panel]').forEach((el) => el.remove());
-                renderCombatTargetSelectionPanel(panelHost, normalizedType, actor);
+                renderCombatTargetSelectionPanel(panelHost, normalizedType, actor, offensiveSkill ? offensiveSkill.key : null);
                 if (window.combatState) window.combatState.awaitingPlayerInput = true;
                 return;
             }
@@ -20470,8 +20842,12 @@ window.useAction = async function useAction(type, options) {
                 || livingPlayers[0];
             recordPlayerBehavior('heal');
             writeLog(`[타겟] ${actor.name} → ${target.name || '아군'} ${requestedTargetId ? '힐 지정' : '자동 힐 지정'}`);
+            // [힐 자원화] 시전 확정 시점에 MP 소모 + 2턴 쿨타임 부여 (회복량·100% 적중은 기존 그대로).
+            spendActorMp(actor, HEAL_ACTION_MP_COST);
+            setActorSkillCooldown(actor, HEAL_ACTION_KEY, HEAL_ACTION_COOLDOWN_TURNS);
             const result = resolveHealAction(actor, target);
             describeCombatResult(actor, target, result);
+            writeLog(`[힐] ${actor.name} MP -${HEAL_ACTION_MP_COST} · 쿨타임 ${HEAL_ACTION_COOLDOWN_TURNS}턴`);
             if (result && result.success) {
                 if (typeof playHealAuraVfx === 'function') await playHealAuraVfx('player', result.healed);
                 if (typeof showUnitHealFloat === 'function') showUnitHealFloat(target, result.healed);
@@ -20481,8 +20857,10 @@ window.useAction = async function useAction(type, options) {
             }
             syncPartyAggregateState(player);
         } else if (normalizedType === '스킬') {
-            const skill = getPartyActiveSkillFor(actor);
+            const skill = getPartySkillByKey(actor, requestedSkillKey);
             spendActorMp(actor, skill.mpCost);
+            // [스킬별 쿨타임] cooldownTurns 가 정의된 스킬은 시전 즉시 해당 스킬 키에만 쿨타임을 건다.
+            if (safeNum(skill.cooldownTurns, 0) > 0) setActorSkillCooldown(actor, skill.key, skill.cooldownTurns);
             if (skill.key === 'ironTaunt') {
                 // [탱커 - 철벽 도발] 남은 현재 라운드 + 다음 1라운드 동안 어그로 강제 고정
                 recordPlayerBehavior('defend');
@@ -20571,6 +20949,45 @@ window.useAction = async function useAction(type, options) {
                 gainActorWeaponMastery(actor, 1);
                 enemyGuardState = null;
                 if (enemy && Array.isArray(enemy.party)) syncEnemyPartyAggregateState(enemy);
+            } else if (skill.key === 'shieldPush') {
+                // [탱커 1호기 - 방패 밀치기] 피해(물리 0.8배) + 명중 시 1턴 기절 + 2턴 마법 저항 약화
+                recordPlayerBehavior('physical_attack');
+                const target = (requestedTargetId && livingEnemies.find(matchesTargetId)) || livingEnemies[0];
+                writeLog(`[스킬] ${withIGa(actor.name)} ${withEulReul(target.name || '적')} 방패로 밀쳐냅니다! (MP -${skill.mpCost})`);
+                if (typeof playSkillCastBadge === 'function') playSkillCastBadge(actor, '🛡️ 방패 밀치기');
+                actor._attackMultiplier = 0.8;
+                if (typeof playV35AttackVfx === 'function') await playV35AttackVfx('player', actor, 'physical_attack', target);
+                const result = resolveAttackAction(actor, target, getEnemyGuardStateFor(target));
+                actor._attackMultiplier = 1;
+                describeCombatResult(actor, target, result);
+                await emitCombatResultVfx(target, result);
+                if (result && result.success && getCurrentHp(target) > 0) {
+                    addUnitStatus(target, 'stun', 1);
+                    addUnitStatus(target, 'arcaneBreak', 2);
+                    writeLog(`[방패 밀치기] 💫 ${withIGa(target.name || '적')} 기절했습니다! 2턴간 마법 저항 -20% (받는 마법 피해 +20%)`);
+                }
+                gainActorWeaponMastery(actor, 1);
+                enemyGuardState = null;
+                if (enemy && Array.isArray(enemy.party)) syncEnemyPartyAggregateState(enemy);
+            } else if (skill.key === 'condensedBolt') {
+                // [마법사 1호기 - 응축된 마탄] 지혜 4.0배 폭딜, 기절/마저↓ 대상 ×1.5 연계 폭발
+                recordPlayerBehavior('magic_attack');
+                const target = (requestedTargetId && livingEnemies.find(matchesTargetId)) || livingEnemies[0];
+                writeLog(`[스킬] ${withIGa(actor.name)} ${withEulReul(target.name || '적')} 향해 응축된 마탄을 쏘아 보냅니다! (MP -${skill.mpCost})`);
+                if (typeof playSkillCastBadge === 'function') playSkillCastBadge(actor, '🔮 응축된 마탄');
+                // _attackMultiplier 는 VFX 스킬 판정 힌트 전용 — 대미지는 resolveCondensedBoltAction 자체 수식.
+                actor._attackMultiplier = CONDENSED_BOLT_WIS_COEF;
+                if (typeof playV35AttackVfx === 'function') await playV35AttackVfx('player', actor, 'magic_attack', target);
+                actor._attackMultiplier = 1;
+                const result = resolveCondensedBoltAction(actor, target, getEnemyGuardStateFor(target));
+                describeCombatResult(actor, target, result);
+                if (result && result.success && result.comboBurst) {
+                    writeLog(`[연계 폭발] 💥 탱커의 방패 밀치기에 흔들린 ${target.name || '적'}에게 마탄이 폭발합니다! (×${CONDENSED_BOLT_COMBO_MULT})`);
+                }
+                await emitCombatResultVfx(target, result);
+                gainActorMagicMastery(actor, 2);
+                enemyGuardState = null;
+                if (enemy && Array.isArray(enemy.party)) syncEnemyPartyAggregateState(enemy);
             } else if (skill.key === 'skillHeal') {
                 // [마법사 2호기 B-Type - 치유] 아군 1인 회복 · 쿨타임 2턴
                 recordPlayerBehavior('heal');
@@ -20589,7 +21006,6 @@ window.useAction = async function useAction(type, options) {
                     if (typeof showUnitHealFloat === 'function') showUnitHealFloat(healTarget, result.healed);
                     await waitMs(150);
                 }
-                actor._skillCooldownTurns = Math.max(1, Math.floor(safeNum(skill.cooldownTurns, 2)));
                 gainActorMagicMastery(actor, 1);
                 syncPartyAggregateState(player);
             }
@@ -20771,6 +21187,10 @@ function enterNextDungeonStage() {
     }
 }
 
+// [초반 쇼핑 부스트] 1-1F ~ 1-2F 전투 승리 골드 배율.
+const EARLY_STAGE_GOLD_BOOST_MULT = 2.5;
+const EARLY_STAGE_GOLD_BOOST_MAX_STAGE = 2;
+
 function onCombatVictory() {
     if (!player || combatVictorySettlementLocked) return null;
     // [무전투 보상 차단] 스폰 시점에 살아있는 적이 한 명도 없던 인카운터(적 배열 길이 0)는
@@ -20786,6 +21206,9 @@ function onCombatVictory() {
     const isBossFight = dungeonStage === STAGES_PER_FLOOR;
     let baseReward = 30 + currentFloor * 3 + Math.floor(Math.random() * 8);
     if (isBossFight) baseReward = Math.round(baseReward * 2.5);
+    // [초반 쇼핑 부스트] 1-1F·1-2F 전투 승리 골드 ×2.5 (약 82~100G) → 첫 상점에서 50~80G 장비를 바로 살 수 있게 한다.
+    const isEarlyBoostStage = currentFloor === 1 && safeNum(dungeonStage, 1) <= EARLY_STAGE_GOLD_BOOST_MAX_STAGE;
+    if (isEarlyBoostStage) baseReward = Math.round(baseReward * EARLY_STAGE_GOLD_BOOST_MULT);
     // [망령 처치 현상금(잭팟)] 적 파티가 망령이면 기본 보상에 +80~110G 추가.
     const isGhostKill = !!(enemy && (enemy.isGhost || enemy.isPlayerGhost));
     const ghostBounty = isGhostKill ? 80 + Math.floor(Math.random() * 31) : 0;
@@ -20798,7 +21221,7 @@ function onCombatVictory() {
     // [로그 라우팅] 전투 종료 사실은 전투 로그, 골드 획득은 알림 로그로 분리한다.
     writeLog(`[전투] ${formatDungeonPosition({ floor, stage: dungeonStage })} 전투 종료`);
     if (typeof pushNotificationLog === 'function') {
-        pushNotificationLog(`[골드] ${formatDungeonPosition({ floor, stage: dungeonStage })} 전투 승리 · +${reward}G`, 'gold');
+        pushNotificationLog(`[골드] ${formatDungeonPosition({ floor, stage: dungeonStage })} 전투 승리 · +${reward}G${isEarlyBoostStage ? ` (초반 보너스 ×${EARLY_STAGE_GOLD_BOOST_MULT})` : ''}`, 'gold');
         if (ghostBounty > 0) {
             pushNotificationLog(`[💰 전리품] 쓰러진 선대 원정대의 유품에서 ${ghostBounty}G를 추가로 회수했습니다!`, 'gold');
         }
@@ -21197,6 +21620,15 @@ Object.assign(window, {
     getEnemyPlannedTarget,
     clearEnemyPlannedTarget,
     getEnemyWeaknessInfo,
+    PARTY_EXTRA_SKILLS,
+    getPartyActiveSkillsFor,
+    getPartySkillByKey,
+    setActorSkillCooldown,
+    HEAL_ACTION_MP_COST,
+    HEAL_ACTION_COOLDOWN_TURNS,
+    getHealActionBlockReason,
+    hasUnitStatus,
+    getMagicTakenMultiplier,
     calculateUnitCP,
     calculateTeamCP,
     getAllyTeamCP,

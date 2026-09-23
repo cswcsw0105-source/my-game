@@ -263,12 +263,44 @@ function getPlayerDamageReduction() {
 function getPlayerPotionHealMultiplier() { return player ? 1 + safeNum(player.potionHealBonus, 0) : 1; }
 function applyRebirthPctBonusToPlayer() { return player; }
 function applyOwnedEquipmentItemBonuses() { return player; }
+// ===== [장비 귀속 대상 해석] 상점 구매·인벤 표시·능력치 재계산이 모두 이 함수 하나로 소유자를 결정한다. =====
+// 우선순위: _assignedMemberId(신규, 파티원 id — 동일 직업 2명도 정확히 구분) → _assignedRole(구버전 저장)
+//          → 아이템 타입 휴리스틱 → (해당 직업이 파티에 없으면) 첫 파티원.
+// 구버전은 휴리스틱 직업이 파티에 없으면 아이템이 아무에게도 장착되지 않고 능력치가 사라졌다.
+function resolveItemOwnerMember(item, members) {
+    const list = Array.isArray(members) ? members.filter(Boolean) : [];
+    if (!item || !list.length) return null;
+    if (item._assignedMemberId) {
+        const byId = list.find((member) => member.id === item._assignedMemberId);
+        if (byId) return byId;
+    }
+    // 구버전 호환: 같은 직업이 여럿이면 기존 Object.fromEntries(byRole)와 동일하게 마지막 파티원을 쓴다.
+    const lastOfRole = (roleKey) => list.filter((member) => member.roleKey === roleKey).pop() || null;
+    if (item._assignedRole) {
+        const byRole = lastOfRole(item._assignedRole);
+        if (byRole) return byRole;
+    }
+    const itemText = `${item.name || ''} ${(item.tags || []).join(' ')}`;
+    const heuristicRole = item.type === 'hp' || safeNum(item.def, 0) > 0 || safeNum(item.damageReduction, 0) > 0
+        ? 'tank'
+        : /지팡이|마법|마력|마도|보주|주문|arcane/i.test(itemText)
+          ? 'mage'
+          : 'knight';
+    return lastOfRole(heuristicRole) || list[0];
+}
+
+// 파티원 한 명이 소유한 장비 전부(요구 레벨 미달로 가방에 보관 중인 것 포함).
+function getMemberOwnedItems(member) {
+    if (!member || !player || !Array.isArray(player.items)) return [];
+    const members = getPartyMembers(player);
+    return player.items.filter((item) => item && resolveItemOwnerMember(item, members) === member);
+}
+
 function fullResyncPlayerCombatStatsFromMetaAndInventory() {
     if (!player) return null;
     ensureHumanRuntimeShape(player);
     if (Array.isArray(player.party)) {
         const members = getPartyMembers(player);
-        const byRole = Object.fromEntries(members.map((member) => [member.roleKey, member]));
         members.forEach((member) => {
             const previousHp = member.curHp;
             member.items = [];
@@ -287,14 +319,8 @@ function fullResyncPlayerCombatStatsFromMetaAndInventory() {
             if (!item) continue;
             const reqLevel = typeof getItemReqLevel === 'function' ? getItemReqLevel(item) : 1;
             item.reqLevel = reqLevel;
-            const itemText = `${item.name || ''} ${(item.tags || []).join(' ')}`;
-            // [구매 지급 대상 지정] 유저가 명시적으로 귀속시킨 캐릭터가 있으면 자동 분배 휴리스틱보다 우선한다.
-            const assignedTarget = item._assignedRole && byRole[item._assignedRole] ? byRole[item._assignedRole] : null;
-            const target = assignedTarget || (item.type === 'hp' || safeNum(item.def, 0) > 0 || safeNum(item.damageReduction, 0) > 0
-                ? byRole.tank
-                : /지팡이|마법|마력|마도|보주|주문|arcane/i.test(itemText)
-                  ? byRole.mage
-                  : byRole.knight);
+            // [구매 지급 대상 지정] 구매 시 선택한 파티원(_assignedMemberId)이 최우선 — resolveItemOwnerMember 참고.
+            const target = resolveItemOwnerMember(item, members);
             if (!target) continue;
             // [장비 착용 레벨 제한] 실제 캐릭터(장착 대상 파티원) level >= item.reqLevel 이어야 장착된다.
             // 레벨 미달이면 스탯 미반영, 아이템은 player.items(가방)에 그대로 남는다. 인벤 슬롯 제한 없음.
@@ -397,6 +423,8 @@ function getPlayerFleeBonus() { return 0; }
 
 Object.assign(window, {
     safeNum,
+    resolveItemOwnerMember,
+    getMemberOwnedItems,
     getCharacterLevel,
     grantPartyMemberExp,
     getEnemyMemberExpValue,

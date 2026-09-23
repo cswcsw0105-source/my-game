@@ -444,10 +444,114 @@ window.sellItemByUid = function sellItemByUid(uid) {
     if (sh && sh.style.display === 'block') renderShopItems(true);
 };
 
+// ===== [구매 지급 대상 선택] 장비 구매 시 "누구에게 지급할지" 파티원 선택 모달을 띄운다. =====
+// (구버전: 현재 인벤토리 탭 = 대개 1번 캐릭터에게 자동 귀속되던 버그를 폐지)
+let _shopAssignIdx = null;
+
+function needsShopAssignTarget(it) {
+    return !!(it && player && Array.isArray(player.party)
+        && it.type !== 'relic' && it.type !== 'potion' && it.type !== 'merc'
+        && it.type !== 'merc_shop_direct' && it.type !== 'merc_shop_fund');
+}
+
+function getShopPayPrice(it) {
+    return player && player.freeShopCoupon ? 0 : safeNum(it && it.price, 0);
+}
+
+function renderShopAssignModal(notice) {
+    const it = currentShopItems[_shopAssignIdx];
+    if (!it || !player || !Array.isArray(player.party)) {
+        window.closeShopAssignModal();
+        return;
+    }
+    let overlay = document.getElementById('shop-assign-modal');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'shop-assign-modal';
+        overlay.className = 'modal-overlay shop-assign-modal';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) window.closeShopAssignModal(); });
+        document.body.appendChild(overlay);
+    }
+    const kind = getEquipSlotKind(it);
+    const slotLabel = kind ? getEquipSlotLabel(kind) : '장비';
+    const limit = kind && typeof getMemberEquipSlotLimit === 'function' ? getMemberEquipSlotLimit(kind) : Infinity;
+    const reqLevel = typeof getItemReqLevel === 'function' ? getItemReqLevel(it) : 1;
+    const members = getPartyMembers(player);
+    const rows = members.map((member) => {
+        const used = kind && typeof getMemberEquippedCountByKind === 'function' ? getMemberEquippedCountByKind(member, kind) : 0;
+        const full = !!kind && used >= limit;
+        const level = Math.max(1, Math.floor(safeNum(member.level, 1)));
+        const note = full
+            ? '<span class="shop-assign-flag shop-assign-flag--full">가득 참</span>'
+            : level < reqLevel
+              ? `<span class="shop-assign-flag">요구 Lv.${reqLevel} — 레벨업 전까지 가방 보관</span>`
+              : '';
+        return `<button type="button" class="shop-assign-member${full ? ' is-full' : ''}" onclick="confirmShopPurchase('${escapeJsSingleQuoteString(member.id)}')">
+            <span class="shop-assign-name">${escapeHtml(member.name)} <small>Lv.${level}</small></span>
+            <span class="shop-assign-slot">${escapeHtml(slotLabel)} ${used}/${Number.isFinite(limit) ? limit : '∞'}</span>
+            ${note}
+        </button>`;
+    }).join('');
+    const allFull = !!kind && members.every((member) => getMemberEquippedCountByKind(member, kind) >= limit);
+    const bannerText = notice || (allFull ? `구매 불가 — 모든 파티원의 ${slotLabel} 칸이 가득 찼습니다. 인벤토리에서 장비를 판매해 칸을 비우세요.` : '');
+    overlay.innerHTML = `<div class="modal-content shop-assign-content">
+        <button class="close-btn" type="button" onclick="closeShopAssignModal()" aria-label="닫기">✖</button>
+        <h2>🎁 누구에게 지급할까요?</h2>
+        <div class="shop-assign-item"><b>${escapeHtml(formatShopItemName(it.name))}</b> · 💰 ${getShopPayPrice(it)}G${kind ? ` · ${escapeHtml(slotLabel)} 칸 (캐릭터당 최대 ${limit}개)` : ''}</div>
+        ${bannerText ? `<div class="shop-assign-notice" role="alert">${escapeHtml(bannerText)}</div>` : ''}
+        <div class="shop-assign-list">${rows}</div>
+    </div>`;
+    overlay.style.display = 'flex';
+}
+
+function openShopAssignModal(idx) {
+    if (!currentShopItems[idx]) return;
+    _shopAssignIdx = idx;
+    renderShopAssignModal();
+}
+
+window.closeShopAssignModal = function closeShopAssignModal() {
+    const overlay = document.getElementById('shop-assign-modal');
+    if (overlay) overlay.style.display = 'none';
+    _shopAssignIdx = null;
+};
+
+window.confirmShopPurchase = function confirmShopPurchase(memberId) {
+    const idx = _shopAssignIdx;
+    const it = currentShopItems[idx];
+    const member = player && Array.isArray(player.party) ? getPartyMembers(player).find((m) => m.id === memberId) : null;
+    if (!it || !member) return window.closeShopAssignModal();
+    const kind = getEquipSlotKind(it);
+    if (kind && !canMemberEquipMoreOfItem(member, it)) {
+        // [인벤토리 가득 참] 구매 불가 안내 — 골드는 차감하지 않는다.
+        const used = getMemberEquippedCountByKind(member, kind);
+        return renderShopAssignModal(`구매 불가 — ${member.name}의 ${getEquipSlotLabel(kind)} 칸이 가득 찼습니다 (${used}/${getMemberEquipSlotLimit(kind)}). 다른 파티원을 고르거나 인벤토리에서 판매해 칸을 비우세요.`);
+    }
+    const payPrice = getShopPayPrice(it);
+    if (gold < payPrice) return renderShopAssignModal(`골드가 부족합니다. (보유 ${Math.floor(safeNum(gold, 0))}G / 필요 ${payPrice}G)`);
+    window.closeShopAssignModal();
+    performShopPurchase(idx, member);
+};
+
 window.buyItem = (event, idx) => {
+    const it = currentShopItems[idx];
+    if (!it) return;
+    if (needsShopAssignTarget(it)) return openShopAssignModal(idx);
+    performShopPurchase(idx, null);
+};
+
+// assignMember: 파티원 선택 모달에서 고른 지급 대상 (장비가 아니거나 솔로 모드면 null)
+function performShopPurchase(idx, assignMember) {
     const it=currentShopItems[idx];
     const couponActive = !!(player && player.freeShopCoupon);
     const payPrice = couponActive ? 0 : safeNum(it.price, 0);
+    // [인벤토리 가득 참] 골드 차감 전에 지급 대상 캐릭터의 칸을 먼저 검사한다.
+    if (assignMember && getEquipSlotKind(it) && !canMemberEquipMoreOfItem(assignMember, it)) {
+        alert(`[구매 불가] ${assignMember.name}의 ${getEquipSlotLabel(getEquipSlotKind(it))} 칸이 가득 찼습니다.`);
+        return;
+    }
     if(gold<payPrice) return writeLog("골드 부족!");
     gold-=payPrice;
     if (couponActive) {
@@ -490,7 +594,8 @@ window.buyItem = (event, idx) => {
         player.potions++; shopNotify(`[상점] 포션 구매 완료.`, 'shop');
     } else {
         const slotKind = getEquipSlotKind(it);
-        if (slotKind) {
+        // 파티 모드는 위에서 캐릭터별 칸을 이미 검사했다. (솔로 모드만 기존 파티 합산 칸 검사)
+        if (slotKind && !assignMember) {
             const lim = getEquipSlotLimit(slotKind);
             const cur = getEquippedCountByKind(slotKind);
             if (cur >= lim) {
@@ -502,9 +607,9 @@ window.buyItem = (event, idx) => {
         if(!player.items.some(i=>i.name===it.name)){
             ensureOwnedItemUid(it);
             it._buyPrice = safeNum(it.price, 0);
-            // [구매 지급 대상 지정] 현재 활성화된 인벤토리 탭의 캐릭터에게 장비를 귀속시킨다.
-            const assignMember = typeof getActiveInventoryPartyMember === 'function' ? getActiveInventoryPartyMember() : null;
-            if (assignMember && assignMember.roleKey) {
+            // [구매 지급 대상 지정] 모달에서 고른 파티원 id 로 귀속 (roleKey 는 구버전 호환용으로 함께 기록).
+            if (assignMember) {
+                it._assignedMemberId = assignMember.id;
                 it._assignedRole = assignMember.roleKey;
                 shopNotify(`[지급] <b>${it.name}</b> → ${assignMember.name}에게 귀속`, 'equip');
             }
@@ -513,7 +618,10 @@ window.buyItem = (event, idx) => {
             if (typeof getItemReqLevel === 'function') {
                 const reqLevel = getItemReqLevel(it);
                 it.reqLevel = reqLevel;
-                const charLevel = typeof getCharacterLevel === 'function' ? getCharacterLevel() : 1;
+                // 지급 대상이 정해졌으면 그 캐릭터의 레벨로 판정한다(파티 최고 레벨 X).
+                const charLevel = assignMember
+                    ? Math.max(1, Math.floor(safeNum(assignMember.level, 1)))
+                    : (typeof getCharacterLevel === 'function' ? getCharacterLevel() : 1);
                 if (charLevel < reqLevel) {
                     const msg = `장착 레벨이 부족합니다! (요구 레벨: ${reqLevel})`;
                     if (typeof alert === 'function') alert(msg);

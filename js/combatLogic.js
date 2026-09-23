@@ -178,10 +178,10 @@ const PARTY_ACTIVE_SKILLS_B = Object.freeze({
     mage: Object.freeze({
         key: 'skillHeal',
         name: '✨ 치유',
-        mpCost: 25,
+        mpCost: 30,
         targeting: 'ally',
         cooldownTurns: 2,
-        description: '아군 1명 회복 (쿨타임 2턴)',
+        description: '아군 1명 회복 (MP 30 · 쿨타임 2턴)',
         bType: true,
     }),
 });
@@ -205,6 +205,40 @@ function getPartyActiveSkillFor(actor) {
     return PARTY_ACTIVE_SKILLS[actor.roleKey] || null;
 }
 
+// [스킬 확장] 1호기(A-Type) 전용 두 번째 액티브 스킬. 단순 도발/파이어볼 한 가지뿐이던 탱커·마법사에 전술 선택지를 더한다.
+const PARTY_EXTRA_SKILLS = Object.freeze({
+    tank: Object.freeze({
+        key: 'shieldPush',
+        name: '🛡️ 방패 밀치기',
+        mpCost: 20,
+        targeting: 'enemy',
+        cooldownTurns: 3,
+        description: '적 1명에게 피해 + 명중 시 1턴 기절 + 2턴간 마법 저항 -20% (받는 마법 피해 +20%)',
+    }),
+    mage: Object.freeze({
+        key: 'condensedBolt',
+        name: '🔮 응축된 마탄',
+        mpCost: 45,
+        targeting: 'enemy',
+        cooldownTurns: 2,
+        description: 'MP를 대량 소모해 지혜 4.0배 폭딜. 기절·마법 저항 약화 상태의 적에게는 ×1.5 연계 폭발',
+    }),
+});
+
+// actor 가 가진 모든 액티브 스킬(주 스킬 + A-Type 확장 스킬). B-Type 은 주 스킬 하나만 가진다.
+function getPartyActiveSkillsFor(actor) {
+    const primary = getPartyActiveSkillFor(actor);
+    if (!primary) return [];
+    const extra = !primary.bType ? PARTY_EXTRA_SKILLS[actor.roleKey] : null;
+    return extra ? [primary, extra] : [primary];
+}
+
+// skillKey 로 actor 의 스킬을 찾는다. 키가 없거나 보유하지 않은 키면 주 스킬로 폴백.
+function getPartySkillByKey(actor, skillKey) {
+    const skills = getPartyActiveSkillsFor(actor);
+    return (skillKey && skills.find((skill) => skill.key === skillKey)) || skills[0] || null;
+}
+
 function getActorMaxMp(actor) {
     return Math.max(0, safeNum(actor && actor.maxMp, 0));
 }
@@ -225,15 +259,52 @@ function spendActorMp(actor, cost) {
     return true;
 }
 
-function getActorSkillCooldown(actor) {
-    return Math.max(0, Math.floor(safeNum(actor && actor._skillCooldownTurns, 0)));
+// ===== [스킬별 쿨타임] actor._skillCooldowns = { [skillKey]: 남은 턴 } =====
+// 구버전 단일 필드(_skillCooldownTurns)는 최초 접근 시 주 스킬의 쿨타임으로 이관한다.
+function getActorCooldownMap(actor) {
+    if (!actor) return {};
+    if (!actor._skillCooldowns || typeof actor._skillCooldowns !== 'object') actor._skillCooldowns = {};
+    const legacy = Math.floor(safeNum(actor._skillCooldownTurns, 0));
+    if (legacy > 0) {
+        const primary = getPartyActiveSkillFor(actor);
+        if (primary) actor._skillCooldowns[primary.key] = Math.max(safeNum(actor._skillCooldowns[primary.key], 0), legacy);
+    }
+    actor._skillCooldownTurns = 0;
+    return actor._skillCooldowns;
 }
 
-function canActorUseActiveSkill(actor) {
-    const skill = getPartyActiveSkillFor(actor);
+// skillKey 지정 시 해당 스킬의 남은 쿨타임, 미지정 시 가장 긴 쿨타임(하위 호환).
+function getActorSkillCooldown(actor, skillKey) {
+    const map = getActorCooldownMap(actor);
+    if (skillKey) return Math.max(0, Math.floor(safeNum(map[skillKey], 0)));
+    return Object.values(map).reduce((best, turns) => Math.max(best, Math.floor(safeNum(turns, 0))), 0);
+}
+
+function setActorSkillCooldown(actor, skillKey, turns) {
+    if (!actor || !skillKey) return;
+    getActorCooldownMap(actor)[skillKey] = Math.max(0, Math.floor(safeNum(turns, 0)));
+}
+
+function canActorUseActiveSkill(actor, skillKey) {
+    const skill = getPartySkillByKey(actor, skillKey);
     if (!skill) return false;
-    if (getActorSkillCooldown(actor) > 0) return false;
+    if (getActorSkillCooldown(actor, skill.key) > 0) return false;
     return getActorMp(actor) >= skill.mpCost;
+}
+
+// ===== [마법사 기본 힐 자원화] 무료·무제한이던 기본 [힐]에 MP 소모와 2턴 쿨타임을 부여한다. =====
+// (회복량 공식과 100% 적중 보장은 resolveHealAction 그대로 유지)
+const HEAL_ACTION_KEY = 'heal';
+const HEAL_ACTION_MP_COST = 15;
+const HEAL_ACTION_COOLDOWN_TURNS = 2;
+
+function getHealActionBlockReason(actor) {
+    const cooldown = getActorSkillCooldown(actor, HEAL_ACTION_KEY);
+    if (cooldown > 0) return { label: '힐', suffix: `(${cooldown}턴)`, message: `힐은 ${cooldown}턴 후 다시 사용할 수 있습니다.` };
+    if (getActorMp(actor) < HEAL_ACTION_MP_COST) {
+        return { label: '힐', suffix: '(MP 부족)', message: `힐에는 MP ${HEAL_ACTION_MP_COST}가 필요합니다. (현재 ${getActorMp(actor)} MP) — 포션을 사용하세요.` };
+    }
+    return null;
 }
 
 // [마나 밸런스 정규화] 턴 종료 시 고정 +1 MP (구: +5~10 고정). 마나 난사 차단.
@@ -259,9 +330,12 @@ function tickCombatEffectsAtRoundStart() {
     });
     const allies = typeof getPartyMembers === 'function' ? getPartyMembers(player) : [];
     allies.forEach((member) => {
-        if (member && safeNum(member._skillCooldownTurns, 0) > 0) {
-            member._skillCooldownTurns = safeNum(member._skillCooldownTurns, 0) - 1;
-        }
+        if (!member) return;
+        const map = getActorCooldownMap(member);
+        Object.keys(map).forEach((key) => {
+            map[key] = Math.max(0, Math.floor(safeNum(map[key], 0)) - 1);
+            if (map[key] <= 0) delete map[key];
+        });
     });
 }
 
@@ -287,7 +361,29 @@ const COMBAT_STATUS_DEFS = Object.freeze({
     bleed: Object.freeze({ key: 'bleed', icon: '🩸', label: '출혈', dot: true, dotPct: 0.045, tone: 'bleed' }),
     silence: Object.freeze({ key: 'silence', icon: '🔒', label: '침묵', dot: false }),
     ankleSprain: Object.freeze({ key: 'ankleSprain', icon: '🦶', label: '발목', dot: false }),
+    // [방패 밀치기] 기절 — 라운드 경과로 줄지 않고 '대상의 다음 턴'에 소모되며 그 턴 행동을 건너뛴다.
+    stun: Object.freeze({ key: 'stun', icon: '💫', label: '기절', dot: false, consumeOnTurn: true }),
+    // [방패 밀치기] 마법 저항 약화 — 받는 마법 피해 +20%.
+    arcaneBreak: Object.freeze({ key: 'arcaneBreak', icon: '🔮', label: '마저↓', dot: false, magicTakenMult: 1.2 }),
 });
+
+function hasUnitStatus(unit, key) {
+    return !!(unit && Array.isArray(unit.statuses) && unit.statuses.some((s) => s && s.key === key && safeNum(s.turns, 0) > 0));
+}
+
+// consumeOnTurn 계열 상태이상 1회분을 소모한다. 소모했으면 true.
+function consumeUnitStatus(unit, key) {
+    if (!hasUnitStatus(unit, key)) return false;
+    const status = unit.statuses.find((s) => s && s.key === key);
+    status.turns = safeNum(status.turns, 0) - 1;
+    if (status.turns <= 0) unit.statuses = unit.statuses.filter((s) => s !== status);
+    return true;
+}
+
+// [마법 저항 약화] 대상이 받는 마법 피해 배율 (마저↓ 상태면 ×1.2).
+function getMagicTakenMultiplier(defender) {
+    return hasUnitStatus(defender, 'arcaneBreak') ? COMBAT_STATUS_DEFS.arcaneBreak.magicTakenMult : 1;
+}
 
 function getCombatStatusDef(key) {
     return COMBAT_STATUS_DEFS[key] || null;
@@ -316,6 +412,11 @@ function tickUnitStatuses(unit, dotEvents) {
         if (!status || !status.key) return;
         const def = COMBAT_STATUS_DEFS[status.key];
         if (!def) return;
+        // 기절처럼 '대상의 턴'에 소모되는 상태는 라운드 경과로 줄이지 않는다.
+        if (def.consumeOnTurn) {
+            if (safeNum(status.turns, 0) > 0) kept.push(status);
+            return;
+        }
         if (def.dot && getCurrentHp(unit) > 0) {
             const maxHp = Math.max(1, actorMaxHp(unit));
             const dmg = Math.max(1, Math.round(maxHp * safeNum(def.dotPct, 0.05)));
@@ -545,7 +646,7 @@ function getTurnOrderPreviewText() {
 }
 
 function setCombatActionButtonsDisabled(disabled) {
-    ['attack-btn', 'btn-attack', 'defense-btn', 'btn-party-defend', 'heal-btn', 'btn-heal', 'skill-btn', 'potion-btn'].forEach((id) => {
+    ['attack-btn', 'btn-attack', 'defense-btn', 'btn-party-defend', 'heal-btn', 'btn-heal', 'skill-btn', 'skill-btn-2', 'potion-btn'].forEach((id) => {
         const button = document.getElementById(id);
         if (!button) return;
         if (disabled && button.dataset && button.dataset.v35Disabled === '1') {
@@ -583,6 +684,7 @@ function rebindCombatActionButtonsForActiveTurn() {
         ['heal-btn', '힐'],
         ['btn-heal', '힐'],
         ['skill-btn', '스킬'],
+        ['skill-btn-2', '스킬'],
     ];
     bindings.forEach(([id, actionType]) => {
         const button = document.getElementById(id);
@@ -877,7 +979,7 @@ function calculateMagicDamage(attacker, defender) {
     if (defender && safeNum(defender._defDebuffTurns, 0) > 0) {
         magicDef *= (1 - Math.min(0.9, Math.max(0, safeNum(defender._defDebuffPct, 0))));
     }
-    const reduced = Math.floor(rawPower * (100 / (100 + magicDef * 0.7)) * getEarlyFloorDamageMultiplier());
+    const reduced = Math.floor(rawPower * (100 / (100 + magicDef * 0.7)) * getEarlyFloorDamageMultiplier() * getMagicTakenMultiplier(defender));
     return Math.max(getMinimumDamageFor(attacker, defender), reduced);
 }
 
@@ -1022,7 +1124,7 @@ function getEnemyWeaknessInfo(unit) {
     const mitigation = Math.min(0.6, Math.max(0, safeNum(armor && armor.mitigation, 0) + safeNum(unit.damageReduction, 0)));
     const physFactor = (100 / (100 + physDef)) * (1 - mitigation);
     // calculateMagicDamage 와 동일: 스탯 def × (1 - 파쇄) × 0.7
-    const magicFactor = 100 / (100 + Math.max(0, stats.def) * (1 - defDebuff) * 0.7);
+    const magicFactor = (100 / (100 + Math.max(0, stats.def) * (1 - defDebuff) * 0.7)) * getMagicTakenMultiplier(unit);
     const guard = getEnemyGuardStateFor(unit);
     return {
         element: String(unit.element || 'neutral'),
@@ -1119,11 +1221,40 @@ function resolveFireballSkillAction(attacker, defender, guardState) {
     }
     const mastery = safeNum(attacker && attacker.mastery && attacker.mastery.magic, 0);
     const rawPower = stats.wis * FIREBALL_WIS_COEF + mastery * 0.25;
-    let damage = Math.floor(rawPower * (100 / (100 + Math.max(0, defendStats.def * 0.7))) * getEarlyFloorDamageMultiplier());
+    let damage = Math.floor(rawPower * (100 / (100 + Math.max(0, defendStats.def * 0.7))) * getEarlyFloorDamageMultiplier() * getMagicTakenMultiplier(defender));
     if (guardState && guardState.mode === 'shield') damage = Math.floor(damage * 0.7);
     damage = Math.max(getMinimumDamageFor(attacker, defender), damage);
     setCurrentHp(defender, getCurrentHp(defender) - damage);
     return { type: 'attack', attackKind: 'magic', success: true, damage, hit: cast, skillKey: 'fireball' };
+}
+
+// [응축된 마탄] MP를 대량 소모하는 지혜 4.0배 폭딜. 탱커 [방패 밀치기]의 기절/마법 저항 약화가 걸린
+// 적에게는 ×1.5 연계 폭발 — 마저↓(×1.2)와 곱연산되어 최대 지혜 7.2배.
+const CONDENSED_BOLT_WIS_COEF = 4.0;
+const CONDENSED_BOLT_COMBO_MULT = 1.5;
+function resolveCondensedBoltAction(attacker, defender, guardState) {
+    const stats = getActorStats(attacker);
+    // 응축 집중으로 파이어 볼(0.55)보다 시전 안정성이 높다.
+    const cast = probabilityRoll(0.7 + stats.wis * 0.004, attacker);
+    if (!cast.success) return { type: 'attack', attackKind: 'magic', success: false, reason: 'miss', hit: cast, skillKey: 'condensedBolt' };
+    const defendStats = getActorStats(defender);
+    if (guardState && guardState.mode === 'dodge') {
+        const dodge = probabilityRoll(0.1 + defendStats.agi * 0.003, defender);
+        if (dodge.success) return { type: 'attack', attackKind: 'magic', success: false, reason: 'dodged', hit: cast, dodge, skillKey: 'condensedBolt' };
+    }
+    const comboBurst = hasUnitStatus(defender, 'stun') || hasUnitStatus(defender, 'arcaneBreak');
+    const mastery = safeNum(attacker && attacker.mastery && attacker.mastery.magic, 0);
+    const rawPower = stats.wis * CONDENSED_BOLT_WIS_COEF + mastery * 0.25;
+    let damage = Math.floor(
+        rawPower * (100 / (100 + Math.max(0, defendStats.def * 0.7)))
+        * getEarlyFloorDamageMultiplier()
+        * getMagicTakenMultiplier(defender)
+        * (comboBurst ? CONDENSED_BOLT_COMBO_MULT : 1)
+    );
+    if (guardState && guardState.mode === 'shield') damage = Math.floor(damage * 0.7);
+    damage = Math.max(getMinimumDamageFor(attacker, defender), damage);
+    setCurrentHp(defender, getCurrentHp(defender) - damage);
+    return { type: 'attack', attackKind: 'magic', success: true, damage, hit: cast, skillKey: 'condensedBolt', comboBurst };
 }
 
 // [아군 대상 100% 보장] 치유·가드·버프 등 아군 대상 행동은 회피/명중/시전실패(MISS) 판정을
@@ -1558,6 +1689,17 @@ async function executeActiveTurn() {
     state.isResolvingTurn = true;
     state.awaitingPlayerInput = false;
     setCombatProcessing(true);
+    // [기절] 방패 밀치기에 맞은 적은 이번 턴 행동을 건너뛴다. (공격 예약은 유지 → 다음 턴에 그대로 사용)
+    if (consumeUnitStatus(activeEntry.actor, 'stun')) {
+        writeLog(`[기절] 💫 ${activeEntry.actor.name}은(는) 기절해 이번 턴 행동할 수 없습니다.`);
+        updateUi();
+        renderActions();
+        setCombatActionButtonsDisabled(true);
+        await waitMs(450);
+        state.isResolvingTurn = false;
+        await lockedAdvanceToNextTurn();
+        return;
+    }
     // [다음 공격 대상 예약] 지능 티어 4에서 미리 표기한 대상 = 실제 공격 대상이 되도록 예약값을 사용한다.
     const target = getEnemyPlannedTarget(activeEntry.actor);
     window._enemyThinkingHint = target ? `🎯 타겟: ${target.name}` : '';
@@ -1621,6 +1763,8 @@ window.useAction = async function useAction(type, options) {
     const livingEnemies = enemy ? getPlayerAttackTargetCandidates() : [];
     const normalizedType = type === '힐' ? '힐' : type === '공격' ? '공격' : type === '스킬' ? '스킬' : '방패방어';
     const requestedTargetId = options && options.targetId ? String(options.targetId) : null;
+    // [스킬 확장] 여러 스킬을 가진 캐릭터는 버튼/대상 패널이 넘겨준 skillKey 로 시전 스킬을 고른다.
+    const requestedSkillKey = options && options.skillKey ? String(options.skillKey) : null;
     const matchesTargetId = (candidate) =>
         !!candidate && String(candidate.id || candidate.roleKey || candidate.name || '') === requestedTargetId;
 
@@ -1648,9 +1792,20 @@ window.useAction = async function useAction(type, options) {
         renderActions();
         return;
     }
+    // [힐 자원화] MP 부족/쿨타임이면 턴을 소모하지 않고 다시 고르게 한다.
+    if (normalizedType === '힐') {
+        const healBlock = getHealActionBlockReason(actor);
+        if (healBlock) {
+            writeLog(`[힐 불가] ${actor.name} — ${healBlock.message}`);
+            if (window.combatState) window.combatState.awaitingPlayerInput = true;
+            updateUi();
+            renderActions();
+            return;
+        }
+    }
     // [액티브 스킬] 스킬 미보유/마나 부족은 턴을 소모하지 않고 행동을 다시 고르게 한다.
     if (normalizedType === '스킬') {
-        const requestedSkill = getPartyActiveSkillFor(actor);
+        const requestedSkill = getPartySkillByKey(actor, requestedSkillKey);
         if (!requestedSkill) {
             writeLog(`[스킬 불가] ${actor.name}가 사용할 수 있는 특수 스킬이 없습니다. 다른 행동을 선택하세요.`);
             if (window.combatState) window.combatState.awaitingPlayerInput = true;
@@ -1658,8 +1813,8 @@ window.useAction = async function useAction(type, options) {
             renderActions();
             return;
         }
-        if (getActorSkillCooldown(actor) > 0) {
-            writeLog(`[스킬 쿨타임] ${requestedSkill.name}은 ${getActorSkillCooldown(actor)}턴 후 사용할 수 있습니다.`);
+        if (getActorSkillCooldown(actor, requestedSkill.key) > 0) {
+            writeLog(`[스킬 쿨타임] ${requestedSkill.name}은 ${getActorSkillCooldown(actor, requestedSkill.key)}턴 후 사용할 수 있습니다.`);
             if (window.combatState) window.combatState.awaitingPlayerInput = true;
             updateUi();
             renderActions();
@@ -1678,7 +1833,7 @@ window.useAction = async function useAction(type, options) {
     // 2명 이상일 때 대상 선택 패널을 먼저 보여준다. 대상이 하나면 자동 지정.
     if (!requestedTargetId && typeof renderCombatTargetSelectionPanel === 'function') {
         const woundedAllies = normalizedType === '힐' ? getWoundedPlayerHealTargets() : [];
-        const offensiveSkill = normalizedType === '스킬' ? getPartyActiveSkillFor(actor) : null;
+        const offensiveSkill = normalizedType === '스킬' ? getPartySkillByKey(actor, requestedSkillKey) : null;
         const needsTargetPanel = normalizedType === '공격'
             ? livingEnemies.length > 1
             : normalizedType === '스킬'
@@ -1689,7 +1844,7 @@ window.useAction = async function useAction(type, options) {
             const panelHost = document.getElementById('action-btns');
             if (panelHost) {
                 panelHost.querySelectorAll('[data-v35-target-panel]').forEach((el) => el.remove());
-                renderCombatTargetSelectionPanel(panelHost, normalizedType, actor);
+                renderCombatTargetSelectionPanel(panelHost, normalizedType, actor, offensiveSkill ? offensiveSkill.key : null);
                 if (window.combatState) window.combatState.awaitingPlayerInput = true;
                 return;
             }
@@ -1751,8 +1906,12 @@ window.useAction = async function useAction(type, options) {
                 || livingPlayers[0];
             recordPlayerBehavior('heal');
             writeLog(`[타겟] ${actor.name} → ${target.name || '아군'} ${requestedTargetId ? '힐 지정' : '자동 힐 지정'}`);
+            // [힐 자원화] 시전 확정 시점에 MP 소모 + 2턴 쿨타임 부여 (회복량·100% 적중은 기존 그대로).
+            spendActorMp(actor, HEAL_ACTION_MP_COST);
+            setActorSkillCooldown(actor, HEAL_ACTION_KEY, HEAL_ACTION_COOLDOWN_TURNS);
             const result = resolveHealAction(actor, target);
             describeCombatResult(actor, target, result);
+            writeLog(`[힐] ${actor.name} MP -${HEAL_ACTION_MP_COST} · 쿨타임 ${HEAL_ACTION_COOLDOWN_TURNS}턴`);
             if (result && result.success) {
                 if (typeof playHealAuraVfx === 'function') await playHealAuraVfx('player', result.healed);
                 if (typeof showUnitHealFloat === 'function') showUnitHealFloat(target, result.healed);
@@ -1762,8 +1921,10 @@ window.useAction = async function useAction(type, options) {
             }
             syncPartyAggregateState(player);
         } else if (normalizedType === '스킬') {
-            const skill = getPartyActiveSkillFor(actor);
+            const skill = getPartySkillByKey(actor, requestedSkillKey);
             spendActorMp(actor, skill.mpCost);
+            // [스킬별 쿨타임] cooldownTurns 가 정의된 스킬은 시전 즉시 해당 스킬 키에만 쿨타임을 건다.
+            if (safeNum(skill.cooldownTurns, 0) > 0) setActorSkillCooldown(actor, skill.key, skill.cooldownTurns);
             if (skill.key === 'ironTaunt') {
                 // [탱커 - 철벽 도발] 남은 현재 라운드 + 다음 1라운드 동안 어그로 강제 고정
                 recordPlayerBehavior('defend');
@@ -1852,6 +2013,45 @@ window.useAction = async function useAction(type, options) {
                 gainActorWeaponMastery(actor, 1);
                 enemyGuardState = null;
                 if (enemy && Array.isArray(enemy.party)) syncEnemyPartyAggregateState(enemy);
+            } else if (skill.key === 'shieldPush') {
+                // [탱커 1호기 - 방패 밀치기] 피해(물리 0.8배) + 명중 시 1턴 기절 + 2턴 마법 저항 약화
+                recordPlayerBehavior('physical_attack');
+                const target = (requestedTargetId && livingEnemies.find(matchesTargetId)) || livingEnemies[0];
+                writeLog(`[스킬] ${withIGa(actor.name)} ${withEulReul(target.name || '적')} 방패로 밀쳐냅니다! (MP -${skill.mpCost})`);
+                if (typeof playSkillCastBadge === 'function') playSkillCastBadge(actor, '🛡️ 방패 밀치기');
+                actor._attackMultiplier = 0.8;
+                if (typeof playV35AttackVfx === 'function') await playV35AttackVfx('player', actor, 'physical_attack', target);
+                const result = resolveAttackAction(actor, target, getEnemyGuardStateFor(target));
+                actor._attackMultiplier = 1;
+                describeCombatResult(actor, target, result);
+                await emitCombatResultVfx(target, result);
+                if (result && result.success && getCurrentHp(target) > 0) {
+                    addUnitStatus(target, 'stun', 1);
+                    addUnitStatus(target, 'arcaneBreak', 2);
+                    writeLog(`[방패 밀치기] 💫 ${withIGa(target.name || '적')} 기절했습니다! 2턴간 마법 저항 -20% (받는 마법 피해 +20%)`);
+                }
+                gainActorWeaponMastery(actor, 1);
+                enemyGuardState = null;
+                if (enemy && Array.isArray(enemy.party)) syncEnemyPartyAggregateState(enemy);
+            } else if (skill.key === 'condensedBolt') {
+                // [마법사 1호기 - 응축된 마탄] 지혜 4.0배 폭딜, 기절/마저↓ 대상 ×1.5 연계 폭발
+                recordPlayerBehavior('magic_attack');
+                const target = (requestedTargetId && livingEnemies.find(matchesTargetId)) || livingEnemies[0];
+                writeLog(`[스킬] ${withIGa(actor.name)} ${withEulReul(target.name || '적')} 향해 응축된 마탄을 쏘아 보냅니다! (MP -${skill.mpCost})`);
+                if (typeof playSkillCastBadge === 'function') playSkillCastBadge(actor, '🔮 응축된 마탄');
+                // _attackMultiplier 는 VFX 스킬 판정 힌트 전용 — 대미지는 resolveCondensedBoltAction 자체 수식.
+                actor._attackMultiplier = CONDENSED_BOLT_WIS_COEF;
+                if (typeof playV35AttackVfx === 'function') await playV35AttackVfx('player', actor, 'magic_attack', target);
+                actor._attackMultiplier = 1;
+                const result = resolveCondensedBoltAction(actor, target, getEnemyGuardStateFor(target));
+                describeCombatResult(actor, target, result);
+                if (result && result.success && result.comboBurst) {
+                    writeLog(`[연계 폭발] 💥 탱커의 방패 밀치기에 흔들린 ${target.name || '적'}에게 마탄이 폭발합니다! (×${CONDENSED_BOLT_COMBO_MULT})`);
+                }
+                await emitCombatResultVfx(target, result);
+                gainActorMagicMastery(actor, 2);
+                enemyGuardState = null;
+                if (enemy && Array.isArray(enemy.party)) syncEnemyPartyAggregateState(enemy);
             } else if (skill.key === 'skillHeal') {
                 // [마법사 2호기 B-Type - 치유] 아군 1인 회복 · 쿨타임 2턴
                 recordPlayerBehavior('heal');
@@ -1870,7 +2070,6 @@ window.useAction = async function useAction(type, options) {
                     if (typeof showUnitHealFloat === 'function') showUnitHealFloat(healTarget, result.healed);
                     await waitMs(150);
                 }
-                actor._skillCooldownTurns = Math.max(1, Math.floor(safeNum(skill.cooldownTurns, 2)));
                 gainActorMagicMastery(actor, 1);
                 syncPartyAggregateState(player);
             }
@@ -2052,6 +2251,10 @@ function enterNextDungeonStage() {
     }
 }
 
+// [초반 쇼핑 부스트] 1-1F ~ 1-2F 전투 승리 골드 배율.
+const EARLY_STAGE_GOLD_BOOST_MULT = 2.5;
+const EARLY_STAGE_GOLD_BOOST_MAX_STAGE = 2;
+
 function onCombatVictory() {
     if (!player || combatVictorySettlementLocked) return null;
     // [무전투 보상 차단] 스폰 시점에 살아있는 적이 한 명도 없던 인카운터(적 배열 길이 0)는
@@ -2067,6 +2270,9 @@ function onCombatVictory() {
     const isBossFight = dungeonStage === STAGES_PER_FLOOR;
     let baseReward = 30 + currentFloor * 3 + Math.floor(Math.random() * 8);
     if (isBossFight) baseReward = Math.round(baseReward * 2.5);
+    // [초반 쇼핑 부스트] 1-1F·1-2F 전투 승리 골드 ×2.5 (약 82~100G) → 첫 상점에서 50~80G 장비를 바로 살 수 있게 한다.
+    const isEarlyBoostStage = currentFloor === 1 && safeNum(dungeonStage, 1) <= EARLY_STAGE_GOLD_BOOST_MAX_STAGE;
+    if (isEarlyBoostStage) baseReward = Math.round(baseReward * EARLY_STAGE_GOLD_BOOST_MULT);
     // [망령 처치 현상금(잭팟)] 적 파티가 망령이면 기본 보상에 +80~110G 추가.
     const isGhostKill = !!(enemy && (enemy.isGhost || enemy.isPlayerGhost));
     const ghostBounty = isGhostKill ? 80 + Math.floor(Math.random() * 31) : 0;
@@ -2079,7 +2285,7 @@ function onCombatVictory() {
     // [로그 라우팅] 전투 종료 사실은 전투 로그, 골드 획득은 알림 로그로 분리한다.
     writeLog(`[전투] ${formatDungeonPosition({ floor, stage: dungeonStage })} 전투 종료`);
     if (typeof pushNotificationLog === 'function') {
-        pushNotificationLog(`[골드] ${formatDungeonPosition({ floor, stage: dungeonStage })} 전투 승리 · +${reward}G`, 'gold');
+        pushNotificationLog(`[골드] ${formatDungeonPosition({ floor, stage: dungeonStage })} 전투 승리 · +${reward}G${isEarlyBoostStage ? ` (초반 보너스 ×${EARLY_STAGE_GOLD_BOOST_MULT})` : ''}`, 'gold');
         if (ghostBounty > 0) {
             pushNotificationLog(`[💰 전리품] 쓰러진 선대 원정대의 유품에서 ${ghostBounty}G를 추가로 회수했습니다!`, 'gold');
         }
@@ -2478,6 +2684,15 @@ Object.assign(window, {
     getEnemyPlannedTarget,
     clearEnemyPlannedTarget,
     getEnemyWeaknessInfo,
+    PARTY_EXTRA_SKILLS,
+    getPartyActiveSkillsFor,
+    getPartySkillByKey,
+    setActorSkillCooldown,
+    HEAL_ACTION_MP_COST,
+    HEAL_ACTION_COOLDOWN_TURNS,
+    getHealActionBlockReason,
+    hasUnitStatus,
+    getMagicTakenMultiplier,
     calculateUnitCP,
     calculateTeamCP,
     getAllyTeamCP,
